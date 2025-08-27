@@ -1,0 +1,6 @@
+[submodule "3rdParty/Sources/SDL"]
+	path = 3rdParty/Sources/SDL
+	url = https://github.com/almostcomin/SDL.git
+[submodule "3rdParty/Sources/NVRHI"]
+	path = 3rdParty/Sources/NVRHI
+	url = https://github.com/almostcomin/NVRHI.git
