@@ -39,3 +39,8 @@
 
 # debug information files
 *.dwo
+
+3rdParty/*
+!3rdParty/Build/
+
+build/*

@@ -4,3 +4,9 @@
 [submodule "3rdParty/Sources/NVRHI"]
 	path = 3rdParty/Sources/NVRHI
 	url = https://github.com/almostcomin/NVRHI.git
+[submodule "3rdParty/Sources/imgui"]
+	path = 3rdParty/Sources/imgui
+	url = https://github.com/almostcomin/imgui.git
+[submodule "3rdParty/Sources/glm"]
+	path = 3rdParty/Sources/glm
+	url = https://github.com/almostcomin/glm.git

@@ -1,9 +1,9 @@
 import subprocess
 import os
 
-source_dir = "../Sources/SDL"
-build_base = "../Sources/SDL/build"
-install_base = "../SDL"
+source_dir = "../Sources/imgui"
+build_base = "../Sources/imgui/build"
+install_base = "../imgui"
 
 configs = ["Debug", "Release", "RelWithDebInfo"]
 
@@ -16,8 +16,6 @@ for config in configs:
     # Project
     subprocess.run([
         "cmake", "-S", source_dir, "-B", build_dir,
-        f"-DSDL_STATIC=OM",
-        f"-DSDL_SHARED=OFF",
         f"-DCMAKE_INSTALL_PREFIX={install_dir}"
     ], check=True)
 

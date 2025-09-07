@@ -18,6 +18,7 @@ for config in configs:
         "cmake", "-S", source_dir, "-B", build_dir,
         "-DNVRHI_WITH_VULKAN=OFF",
         "-DNVRHI_WITH_DX12=ON",
+        "-DDXHEADERS_INSTALL=ON",
         f"-DCMAKE_INSTALL_PREFIX={install_dir}"
     ], check=True)
 
