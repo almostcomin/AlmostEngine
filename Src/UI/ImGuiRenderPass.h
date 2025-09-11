@@ -16,6 +16,20 @@ namespace st::gfx
 namespace st::ui
 {
 
+enum class MouseButton
+{
+	LEFT,
+	RIGHT,
+	MIDDLE
+};
+
+enum class KeyAction
+{
+	PRESS,
+	RELEASE,
+	REPEAT
+};
+
 class ImGuiRenderPass : public st::gfx::RenderPass
 {
 public:
@@ -25,6 +39,9 @@ public:
 	bool Render(nvrhi::IFramebuffer* frameBuffer) override;
 
 	void OnBackbufferResize(const glm::ivec2& size) override;
+
+	bool OnMouseMove(float posX, float posY);
+	bool OnMouseButtonUpdate(MouseButton button, KeyAction action);
 
 protected:
 
@@ -39,6 +56,8 @@ private:
 	nvrhi::GraphicsPipelineHandle GetPSO(nvrhi::IFramebuffer* frameBuffer);
 	nvrhi::IBindingSet* GetBindingSet(nvrhi::ITexture* texture);
 
+	void ReconcileInputState();
+
 protected:
 
 	void BeginFullScreenWindow();
@@ -46,6 +65,8 @@ protected:
 	void DrawCenteredText(const char* text);
 
 private:
+
+	std::array<KeyAction, 5> m_CachedMouseButtons;
 
 	nvrhi::ShaderHandle m_VS;
 	nvrhi::ShaderHandle m_PS;

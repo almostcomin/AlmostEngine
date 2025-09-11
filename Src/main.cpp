@@ -57,9 +57,32 @@ int SDL_main(int argc, char* argv[])
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) 
 		{
-			if (event.type == SDL_EVENT_QUIT)
+			switch (event.type)
 			{
+			case SDL_EVENT_MOUSE_MOTION:
+				uiRenderPass->OnMouseMove(event.motion.x, event.motion.y);
+				break;
+			case SDL_EVENT_MOUSE_BUTTON_DOWN:
+			case SDL_EVENT_MOUSE_BUTTON_UP:
+			{
+				bool validButton = true;
+				st::ui::MouseButton button;
+				switch (event.button.button)
+				{
+				case SDL_BUTTON_LEFT: button = st::ui::MouseButton::LEFT; break;
+				case SDL_BUTTON_MIDDLE: button = st::ui::MouseButton::MIDDLE; break;
+				case SDL_BUTTON_RIGHT: button = st::ui::MouseButton::RIGHT; break;
+				default: validButton = false;
+				}
+				if (validButton)
+				{
+					uiRenderPass->OnMouseButtonUpdate(button, event.button.down ? st::ui::KeyAction::PRESS : st::ui::KeyAction::RELEASE);
+				}				
+				break;
+			}
+			case SDL_EVENT_QUIT:
 				running = false;
+				break;
 			}
 		}
 

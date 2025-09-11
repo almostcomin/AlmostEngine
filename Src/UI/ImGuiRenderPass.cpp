@@ -84,6 +84,20 @@ bool st::ui::ImGuiRenderPass::Init(SDL_Window* window, st::gfx::DeviceManager* d
 	return true;
 }
 
+void st::ui::ImGuiRenderPass::ReconcileInputState()
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Reconcile mouse
+    for (size_t i = 0; i < m_CachedMouseButtons.size(); i++)
+    {
+        if (io.MouseDown[i] == true && m_CachedMouseButtons[i] == KeyAction::RELEASE)
+        {
+            io.MouseDown[i] = false;
+        }
+    }
+}
+
 void st::ui::ImGuiRenderPass::BeginFullScreenWindow()
 {
     ImGuiIO const& io = ImGui::GetIO();
@@ -125,6 +139,8 @@ bool st::ui::ImGuiRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
     ImGui::NewFrame();
     BuildUI();
     ImGui::Render();
+
+    ReconcileInputState();
 
     ImDrawData* drawData = ImGui::GetDrawData();
     if (drawData->TotalIdxCount == 0)
@@ -213,9 +229,51 @@ bool st::ui::ImGuiRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 
 void st::ui::ImGuiRenderPass::OnBackbufferResize(const glm::ivec2& size)
 {
-    //auto& io = ImGui::GetIO();
-    //glm::ivec2 dim = m_DeviceManager->GetWindowDimensions();
-    //io.DisplaySize = ImVec2(dim.x, dim.y);
+    // no-op
+}
+
+bool st::ui::ImGuiRenderPass::OnMouseMove(float posX, float posY)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    io.MousePos.x = float(posX);
+    io.MousePos.y = float(posY);
+
+    return io.WantCaptureMouse;
+}
+
+bool st::ui::ImGuiRenderPass::OnMouseButtonUpdate(MouseButton button, KeyAction action)
+{
+    auto& io = ImGui::GetIO();
+
+    int buttonIndex = 0;
+    switch (button)
+    {
+    case MouseButton::LEFT:
+        buttonIndex = 0;
+        break;
+    case MouseButton::RIGHT:
+        buttonIndex = 1;
+        break;
+    case MouseButton::MIDDLE:
+        buttonIndex = 2;
+        break;
+    }
+   
+    // Update internal state
+    assert(buttonIndex < m_CachedMouseButtons.max_size());
+    m_CachedMouseButtons[buttonIndex] = action;
+
+    if (action == KeyAction::PRESS)
+    {
+        io.MouseDown[buttonIndex] = true;
+    }
+    else
+    {
+        // for mouse up events, ImGui state is only updated after the next frame
+        // this ensures that short clicks are not missed
+    }
+
+    return io.WantCaptureMouse;
 }
 
 bool st::ui::ImGuiRenderPass::UpdateFontTexture()
@@ -295,7 +353,7 @@ bool st::ui::ImGuiRenderPass::UpdateGeometry()
     }
 
     m_CommandList->writeBuffer(m_VertexBuffer, m_VertexData.data(), m_VertexData.size() * sizeof(ImDrawVert));
-    m_CommandList->writeBuffer(m_IndexBuffer, m_IndexData.data(), m_IndexData.size() * sizeof(ImDrawVert));
+    m_CommandList->writeBuffer(m_IndexBuffer, m_IndexData.data(), m_IndexData.size() * sizeof(ImDrawIdx));
 
     return true;
 }
