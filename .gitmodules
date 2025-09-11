@@ -10,3 +10,6 @@
 [submodule "3rdParty/Sources/glm"]
 	path = 3rdParty/Sources/glm
 	url = https://github.com/almostcomin/glm.git
+[submodule "3rdParty/Sources/cgltf"]
+	path = 3rdParty/Sources/cgltf
+	url = https://github.com/jkuhlmann/cgltf.git
