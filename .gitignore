@@ -44,3 +44,5 @@
 !3rdParty/Build/
 
 build/*
+
+Data/*

@@ -11,23 +11,34 @@ class DeviceManager : public st::gfx::DeviceManager
 {
 public:
 
-	bool Init(const InitParams& params) override;
+	bool Init(const DeviceParams& params) override;
 	void Shutdown() override;
 
+	bool ResizeSwapChain() override;
+
+	// Can be called before Init to get a list of available adapters.
 	bool EnumerateAdapters(std::vector<AdapterInfo>& outAdapters) override;
-	bool CreateDevice() override;
-	bool CreateSwapChain() override;
+
+	bool BeginFrame() override;
+	bool Present() override;
+
+	glm::ivec2 GetWindowDimensions() const override;
+
+	uint32_t GetCurrentBackBufferIndex() const override;
+	nvrhi::ITexture* GetCurrentBackBuffer();
+	nvrhi::ITexture* GetBackBuffer(uint32_t index);
 
 	void ReportLiveObjects() override;
 
 private:
 
+	bool CreateDevice();
+	bool CreateSwapChain();
+
 	bool CreateRenderTargets();
 	void ReleaseRenderTargets();
 
 private:
-
-	InitParams								m_InitParams;
 
 	nvrhi::RefCountPtr<IDXGIFactory2>		m_DxgiFactory2;
 	nvrhi::RefCountPtr<IDXGIAdapter1>		m_DxgiAdapter1;
@@ -41,8 +52,8 @@ private:
 	DXGI_SWAP_CHAIN_DESC1					m_SwapChainDesc;
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC			m_FullScreenDesc;
 	bool									m_TearingSupported;
-	std::vector<nvrhi::RefCountPtr<ID3D12Resource>> m_SwapChainBuffers;
-	std::vector<nvrhi::TextureHandle>               m_RhiSwapChainBuffers;
+	std::vector<nvrhi::RefCountPtr<ID3D12Resource>> m_SwapChainNativeBuffers;
+	std::vector<nvrhi::TextureHandle>		m_SwapChainBuffers;
 
 	nvrhi::RefCountPtr<ID3D12Fence>			m_FrameFence;
 	std::vector<HANDLE>						m_FrameFenceEvents;

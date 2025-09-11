@@ -1,6 +1,5 @@
 #include "Graphics/ShaderFactory.h"
 #include "Core/Log.h"
-#include <span>
 #include <fstream>
 
 st::gfx::ShaderFactory::ShaderFactory(nvrhi::DeviceHandle device) : m_Device(device)

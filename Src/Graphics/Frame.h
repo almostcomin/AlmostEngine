@@ -1,6 +1,11 @@
 #pragma once
 #include "Core/Core.h"
 
+namespace nvrhi
+{
+	class IFramebuffer;
+};
+
 namespace st::gfx
 {
 	class DeviceManager;
@@ -15,6 +20,10 @@ class Frame
 public:
 
 	void Init(DeviceManager* deviceManager, std::vector<RenderPass*>&& renderPasses);
+
+	void Render(nvrhi::IFramebuffer* frameBuffer);
+
+	void OnBackbufferResize(const glm::ivec2& size);
 
 private:
 

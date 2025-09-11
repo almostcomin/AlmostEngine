@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Core.h"
+#include "glm/vec2.hpp"
 #include <nvrhi/nvrhi.h>
 
 struct SDL_Window;
@@ -37,9 +38,9 @@ class DeviceManager
 {
 public:
 
-    struct InitParams
+    struct DeviceParams
     {
-        SDL_Window* m_WindowHandle = nullptr;
+        SDL_Window* WindowHandle = nullptr;
 
         bool StartMaximized = false;        // ignores backbuffer width/height to be monitor size
         bool StartFullscreen = false;
@@ -49,6 +50,8 @@ public:
         bool GPUValidation = false;
         bool NvrhiValidationLayer = false;
         bool WarningsAsErrors = false;
+
+        bool VSyncEnabled = false;
 
         bool EnableComputeQueue = true;
         bool EnableCopyQueue = true;
@@ -65,18 +68,44 @@ public:
 
     static DeviceManager* Create(st::gfx::GraphicsAPI api);
 
-    virtual bool Init(const InitParams& params) = 0;
-    virtual void Shutdown() = 0;
+    virtual bool Init(const DeviceParams& params) = 0;
+    virtual void Shutdown();
+
+    virtual bool ResizeSwapChain() = 0;
 
     virtual bool EnumerateAdapters(std::vector<AdapterInfo>& outAdapters) = 0;
-    virtual bool CreateDevice() = 0;
-    virtual bool CreateSwapChain() = 0;
+
+    virtual bool BeginFrame() = 0;
+    virtual bool Present() = 0;
 
     virtual void ReportLiveObjects() = 0;
+
+    virtual glm::ivec2 GetWindowDimensions() const = 0;
+    
+    nvrhi::IFramebuffer* GetCurrentFrameBuffer();
+
+    virtual uint32_t GetCurrentBackBufferIndex() const = 0;
+    virtual nvrhi::ITexture* GetCurrentBackBuffer() = 0;
+    virtual nvrhi::ITexture* GetBackBuffer(uint32_t index) = 0;
+    
+    bool IsWindowVisible() const { return m_WindowVisible; }
+
+    // Returns true if window size has changed, else returns false
+    // New window size can be obtained calling GetWindowDimensions
+    bool UpdateWindowSize();
 
     nvrhi::DeviceHandle GetDevice() { return m_nvrhiDevice; }
 
 protected:
+
+    DeviceParams m_DeviceParams;
+
+    uint32_t m_FrameCount = 0;
+    std::vector<nvrhi::FramebufferHandle> m_SwapChainFramebuffers;
+
+    uint32_t m_BackBufferWidth = 0;
+    uint32_t m_BackBufferHeight = 0;
+    bool m_WindowVisible = true;
 
     nvrhi::DeviceHandle m_nvrhiDevice;
 };
