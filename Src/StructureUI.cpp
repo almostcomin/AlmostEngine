@@ -62,7 +62,11 @@ void StructureUI::BuildMenuFile()
     if (ImGui::MenuItem("New")) {}
     if (ImGui::MenuItem("Open", "Ctrl+O")) 
     {
-        std::string filename = OpenFileNativeDialog({}, {});
+        std::string filename = OpenFileNativeDialog({}, { { "GlTF", "*.gltf" } });
+        if (!filename.empty() && m_RequestLoadFile)
+        {
+            m_RequestLoadFile(filename.c_str());
+        }
     }
     if (ImGui::BeginMenu("Open Recent"))
     {
@@ -149,16 +153,24 @@ std::string StructureUI::OpenFileNativeDialog(const std::string& filename, const
         ofn.lpstrDefExt = filters[0].second.c_str();
 
     std::vector<char> fil;
-    for (const auto p : filters)
+    if (!filters.empty())
     {
-        fil.insert(fil.end(), p.first.begin(), p.first.end());
-        fil.push_back('\0');
-        fil.insert(fil.end(), p.second.begin(), p.second.end());
+        for (const auto p : filters)
+        {
+            fil.insert(fil.end(), p.first.begin(), p.first.end());
+            fil.push_back('\0');
+            fil.insert(fil.end(), p.second.begin(), p.second.end());
+            fil.push_back('\0');
+        }
+        const char* szAll = "All";
+        fil.insert(fil.end(), szAll, szAll + strlen(szAll) + 1);
+        const char* szAllFilter = "*.*";
+        fil.insert(fil.end(), szAllFilter, szAllFilter + strlen(szAllFilter) + 1);
         fil.push_back('\0');
     }
     ofn.lpstrFilter = fil.data();
 
-    ofn.nFilterIndex = 1;
+    ofn.nFilterIndex = 0;
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
     ofn.lpstrInitialDir = NULL;

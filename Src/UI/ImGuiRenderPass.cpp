@@ -222,7 +222,7 @@ bool st::ui::ImGuiRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 
     m_CommandList->endMarker();
     m_CommandList->close();
-    m_DeviceManager->GetDevice()->executeCommandList(m_CommandList);
+    m_DeviceManager->GetDevice()->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
 
     return true;
 }

@@ -5,6 +5,9 @@
 #include "Graphics/DeviceManager.h"
 #include "Graphics/ShaderFactory.h"
 #include "Graphics/Frame.h"
+#include "Graphics/GltfImporter.h"
+#include "Graphics/DataUploader.h"
+#include "Graphics/SceneGraph.h"
 #include "StructureUI.h"
 #include <thread>
 
@@ -37,12 +40,23 @@ int SDL_main(int argc, char* argv[])
 	};
 	deviceManager->Init(initParams);
 
+	// Create Data uploader
+	std::unique_ptr<st::gfx::DataUploader> dataUploader{ new st::gfx::DataUploader{deviceManager->GetDevice()} };
+	dataUploader->Init();
+
 	// Create shader factory
 	std::unique_ptr<st::gfx::ShaderFactory> shaderFactory{ new st::gfx::ShaderFactory(deviceManager->GetDevice()) };
 
 	// Create UI render pass
 	std::unique_ptr<StructureUI> uiRenderPass{ new StructureUI };
 	uiRenderPass->Init(window, deviceManager.get(), shaderFactory.get());
+	uiRenderPass->m_RequestLoadFile = [&dataUploader, &deviceManager](const char* filename) {
+		auto importResult = st::gfx::ImportGlTF(filename, dataUploader.get(), deviceManager->GetDevice().Get());
+		if (!importResult)
+		{
+			st::log::Error("Error importing file '{}': {}", filename, importResult.error());
+		}
+	};
 
 	// Create frame
 	std::unique_ptr<st::gfx::Frame> frame{ new st::gfx::Frame };

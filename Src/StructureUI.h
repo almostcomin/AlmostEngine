@@ -1,6 +1,7 @@
 #pragma once
 
 #include "UI/ImGuiRenderPass.h"
+#include <functional>
 
 class StructureUI : public st::ui::ImGuiRenderPass
 {
@@ -20,6 +21,8 @@ public:
 public:
 
 	Data m_Data;
+
+	std::function<void(const char*)>  m_RequestLoadFile;
 
 private:
 

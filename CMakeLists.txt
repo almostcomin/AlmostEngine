@@ -20,12 +20,18 @@ add_executable(Structure WIN32 ${SRC_FILES})
 set_target_properties(Structure PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Data"
 )
-
 source_group(TREE "${CMAKE_SOURCE_DIR}" FILES ${SRC_FILES})
+
+target_compile_features(Structure PUBLIC cxx_std_23)
+set_target_properties(Structure PROPERTIES
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+)
 
 target_include_directories(Structure PRIVATE
     "${CMAKE_SOURCE_DIR}/Src"
     "${CMAKE_SOURCE_DIR}/3rdParty/Sources/glm"
+    "${CMAKE_SOURCE_DIR}/3rdParty/Sources/cgltf"
 )
 
 # GLM
@@ -35,6 +41,13 @@ file(GLOB_RECURSE GLM_HEADERS
 )
 source_group("Src/Core/glm" FILES ${GLM_HEADERS})
 target_sources(Structure PRIVATE ${GLM_HEADERS})
+
+# CGLTF
+set(CGLTF_HEADERS 
+    "${CMAKE_SOURCE_DIR}/3rdParty/Sources/cgltf/cgltf.h"
+)
+source_group("Src/Graphics/cgltf" FILES ${CGLTF_HEADERS})
+target_sources(Structure PRIVATE ${CGLTF_HEADERS})
 
 # SDL3
 target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/SDL/$<CONFIG>/include")
