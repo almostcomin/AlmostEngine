@@ -10,6 +10,7 @@
 #include "Graphics/DataUploader.h"
 #include "Graphics/SceneGraph.h"
 #include "Graphics/SceneGraphNode.h"
+#include "Graphics/MeshInstance.h"
 
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
@@ -360,43 +361,11 @@ CreateVertexBuffer(std::vector<uint8_t>&& vertexData, const char* debugName, st:
     }
 }
 
-} // anonymous namespace
-
-// ---------------------------------------------------------------------------------------------------------------------------------------
-
-namespace st::gfx
+std::expected<std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>>, std::string>
+LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>>& matMap, 
+    const char* filename, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device, std::vector<nvrhi::EventQueryHandle>& out_handlesToWait)
 {
-
-std::expected<std::unique_ptr<st::gfx::SceneGraph>, std::string> 
-ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
-{
-    FleContext fileContext;
-
-    cgltf_options options{};
-    options.file.read = &ReadFileCB;
-    options.file.release = &ReleaseFileCB;
-    options.file.user_data = &fileContext;
-
-    cgltf_data* objects = nullptr;
-    cgltf_result res = cgltf_parse_file(&options, path, &objects);
-    if (res != cgltf_result_success)
-    {
-        st::log::Error("Couldn't load glTF file '{}': {}", path, ErrorToString(res));
-        return std::unexpected(ErrorToString(res));
-    }
-
-    res = cgltf_load_buffers(&options, objects, path);
-    if (res != cgltf_result_success)
-    {
-        st::log::Error("Failed to load buffers for glTF file '%s': ", path, ErrorToString(res));
-        return std::unexpected(ErrorToString(res));
-    }
-
-    std::vector<nvrhi::EventQueryHandle> handlesToWait;
-    std::vector<std::shared_ptr<st::gfx::Mesh>> meshes;
-
-    // Materials
-    auto matMap = GetMaterialsMap(objects, path);
+    std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>> meshMap;
 
     for (size_t mesh_idx = 0; mesh_idx < objects->meshes_count; mesh_idx++)
     {
@@ -504,7 +473,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
             std::vector<glm::vec3> vertexPosData;
             st::math::aabox3f bounds;
             CollectPrimitivePositions(*positions, vertexPosData, bounds);
-            
+
             // TODO: radius
 
             std::vector<uint32_t> vertexNormalData;
@@ -532,7 +501,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
             // TODO: joint_weights
 
             // Create mesh
-            auto mesh = std::make_shared<st::gfx::Mesh>(srcMesh.name, path);
+            auto mesh = std::make_shared<st::gfx::Mesh>(srcMesh.name, filename);
 
             // Assign material
             if (prim.material)
@@ -549,7 +518,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
             if (indexBufferResult)
             {
                 mesh->SetIndexBuffer(indexBufferResult->first);
-                handlesToWait.push_back(indexBufferResult->second);
+                out_handlesToWait.push_back(indexBufferResult->second);
             }
 
             // Vertex buffer
@@ -561,15 +530,15 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
             if (!vertexNormalData.empty())
                 vertexStride += normalElemSize;
             constexpr int tangentElemSize = sizeof(decltype(vertexTangentData)::value_type);
-            if(!vertexTangentData.empty())
+            if (!vertexTangentData.empty())
                 vertexStride += tangentElemSize;
             constexpr int texCoordElemSize = sizeof(decltype(vertexTexCoordData)::value_type);
             if (!vertexTexCoordData.empty())
                 vertexStride += texCoordElemSize;
-            
+
             std::vector<uint8_t> vertexData;
-            vertexData.resize(vertexStride* vertexPosData.size());
-            
+            vertexData.resize(vertexStride * vertexPosData.size());
+
             // Interleave
             int vertexOffset = 0;
             // Positions
@@ -622,12 +591,55 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
             if (vertexBufferResult)
             {
                 mesh->SetVertexBuffer(vertexBufferResult->first);
-                handlesToWait.push_back(vertexBufferResult->second);
+                out_handlesToWait.push_back(vertexBufferResult->second);
             }
 
-            meshes.push_back(mesh);
+            meshMap[&srcMesh] = mesh;
         }
     }
+
+    return meshMap;
+}
+
+} // anonymous namespace
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+namespace st::gfx
+{
+
+std::expected<std::unique_ptr<st::gfx::SceneGraph>, std::string> 
+ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
+{
+    FleContext fileContext;
+
+    cgltf_options options{};
+    options.file.read = &ReadFileCB;
+    options.file.release = &ReleaseFileCB;
+    options.file.user_data = &fileContext;
+
+    cgltf_data* objects = nullptr;
+    cgltf_result res = cgltf_parse_file(&options, path, &objects);
+    if (res != cgltf_result_success)
+    {
+        st::log::Error("Couldn't load glTF file '{}': {}", path, ErrorToString(res));
+        return std::unexpected(ErrorToString(res));
+    }
+
+    res = cgltf_load_buffers(&options, objects, path);
+    if (res != cgltf_result_success)
+    {
+        st::log::Error("Failed to load buffers for glTF file '%s': ", path, ErrorToString(res));
+        return std::unexpected(ErrorToString(res));
+    }
+
+    // Materials
+    auto matMap = GetMaterialsMap(objects, path);
+
+    // Meshes
+    std::vector<nvrhi::EventQueryHandle> handlesToWait;
+    auto loadMeshesResult = LoadMeshes(objects, matMap, path, dataUploader, device, handlesToWait);
+    auto meshMap = *loadMeshesResult;
 
     // Wait uploads
     for (const auto& ev : handlesToWait)
@@ -664,6 +676,23 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
 
         if (srcNode->name)
             dstNode->SetName(srcNode->name);
+
+        if (srcNode->mesh)
+        {
+            auto found = meshMap.find(srcNode->mesh);
+            if (found != meshMap.end())
+            {
+                auto leaf = std::make_shared<st::gfx::MeshInstance>(found->second);
+                dstNode->SetLeaf(leaf);
+            }
+            else
+            {
+                st::log::Error("Could not find mesh for node '{}', from mesh '{}', from file '{}'",
+                    srcNode->name ? srcNode->name : "<noname>",
+                    srcNode->mesh->name ? srcNode->mesh->name : "<noname>",
+                    path);
+            }
+        }
 
         // Do we have parent? Then bind.
         if (!stack.empty())

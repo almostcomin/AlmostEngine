@@ -19,4 +19,4 @@ private:
 	std::shared_ptr<SceneGraphNode> m_Root; // shared ownership
 };
 
-}
+} // namespace st::gfx

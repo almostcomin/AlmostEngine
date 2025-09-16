@@ -17,6 +17,14 @@ struct aabox
 	vec_t min;
 	vec_t max;
 
+    enum InitMode { InitEmpty };
+
+    aabox() = default;
+    aabox(InitMode)
+    {
+        *this = Reset();
+    }
+
     aabox& Reset() // Set default/invalid aabox
     {
         min = vec_t{ std::numeric_limits<T>::max() };
@@ -30,8 +38,14 @@ struct aabox
         max = glm::max(max, vec);
         return *this;
     }
+
+    static const aabox<T, n>& Empty()
+    {
+        static aabox emptyBBox{ InitEmpty };
+        return emptyBBox;
+    }
 };
 
 using aabox3f = aabox<float, 3>;
 
-}
+} // namespace st::math
