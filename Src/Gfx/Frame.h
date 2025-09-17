@@ -1,5 +1,7 @@
 #pragma once
-#include "Core/Core.h"
+
+#include <vector>
+#include <glm/vec2.hpp>
 
 namespace nvrhi
 {

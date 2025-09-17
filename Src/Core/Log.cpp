@@ -1,5 +1,6 @@
 #include "Core/Log.h"
 #include <mutex>
+
 #if _WIN32
 #include <Windows.h>
 #endif

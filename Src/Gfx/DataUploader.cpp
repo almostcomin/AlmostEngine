@@ -1,6 +1,5 @@
 #include "Gfx/DataUploader.h"
-#include <format>
-#include <future>
+#include "Core/Log.h"
 
 st::gfx::DataUploader::DataUploader(nvrhi::DeviceHandle device) : m_Device(device)
 {

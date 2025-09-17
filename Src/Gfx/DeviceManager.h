@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Core.h"
-#include "glm/vec2.hpp"
 #include <nvrhi/nvrhi.h>
+#include <optional>
+#include <glm/vec2.hpp>
 
 struct SDL_Window;
 

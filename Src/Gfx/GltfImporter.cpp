@@ -1,16 +1,15 @@
 #include "Gfx/GltfImporter.h"
-#include <fstream>
 #include "Core/Log.h"
 #include "Gfx/Material.h"
 #include "Gfx/Mesh.h"
-#include <glm/ext/vector_float3.hpp>
 #include "Gfx/Math/aabox.h"
 #include "Gfx/Math/Util.h"
-#include <nvrhi/nvrhi.h>
 #include "Gfx/DataUploader.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/MeshInstance.h"
+#include <nvrhi/nvrhi.h>
+#include <fstream>
 
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>

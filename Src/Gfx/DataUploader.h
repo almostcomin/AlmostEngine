@@ -1,9 +1,8 @@
 #pragma once
 
-#include <nvrhi/nvrhi.h>
-#include <functional>
-#include <mutex>
 #include <expected>
+#include <mutex>
+#include <nvrhi/nvrhi.h>
 
 namespace st::gfx
 {

@@ -17,6 +17,7 @@ file(GLOB_RECURSE SRC_FILES
 )
 
 add_executable(Structure WIN32 ${SRC_FILES})
+
 set_target_properties(Structure PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Data"
 )
