@@ -1,5 +1,5 @@
-#include "Graphics/Frame.h"
-#include "Graphics/RenderPass.h"
+#include "Gfx/Frame.h"
+#include "Gfx/RenderPass.h"
 
 void st::gfx::Frame::Init(DeviceManager* deviceManager, std::vector<RenderPass*>&& renderPasses)
 {

@@ -1,5 +1,5 @@
 #pragma once
-#include "Graphics/DeviceManager.h"
+#include "Gfx/DeviceManager.h"
 #include <nvrhi/nvrhi.h>
 #include <dxgi1_5.h>
 #include <directx/d3d12.h>

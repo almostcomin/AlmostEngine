@@ -1,5 +1,5 @@
-#include "Graphics/DeviceManager.h"
-#include "Graphics/Backend/dx12/DeviceManager.h"
+#include "Gfx/DeviceManager.h"
+#include "Gfx/Backend/dx12/DeviceManager.h"
 #include "Core/Log.h"
 #include <SDL3/SDL_video.h>
 

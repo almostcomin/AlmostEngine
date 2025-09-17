@@ -2,7 +2,7 @@
 
 #include <memory>
 #include "Core/Util.h"
-#include "Graphics/Math/aabox.h"
+#include "Gfx/Math/aabox.h"
 
 namespace st::gfx
 {

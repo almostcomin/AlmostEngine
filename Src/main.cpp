@@ -2,12 +2,12 @@
 #include <SDL3/SDL_init.h>
 #include "Core/Core.h"
 #include "Core/Log.h"
-#include "Graphics/DeviceManager.h"
-#include "Graphics/ShaderFactory.h"
-#include "Graphics/Frame.h"
-#include "Graphics/GltfImporter.h"
-#include "Graphics/DataUploader.h"
-#include "Graphics/SceneGraph.h"
+#include "Gfx/DeviceManager.h"
+#include "Gfx/ShaderFactory.h"
+#include "Gfx/Frame.h"
+#include "Gfx/GltfImporter.h"
+#include "Gfx/DataUploader.h"
+#include "Gfx/SceneGraph.h"
 #include "StructureUI.h"
 #include <thread>
 

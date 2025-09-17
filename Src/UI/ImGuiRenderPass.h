@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Graphics/RenderPass.h"
+#include "Gfx/RenderPass.h"
 #include <nvrhi/nvrhi.h>
 #include <imgui/imgui.h>
 #include <unordered_map>

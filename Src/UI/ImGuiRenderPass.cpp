@@ -1,7 +1,7 @@
 #include "UI/ImGuiRenderPass.h"
 #include "Core/Log.h"
-#include "Graphics/DeviceManager.h"
-#include "Graphics/ShaderFactory.h"
+#include "Gfx/DeviceManager.h"
+#include "Gfx/ShaderFactory.h"
 #include <imgui/imgui.h>
 //#include <imgui/imgui_impl_sdl3.h>
 

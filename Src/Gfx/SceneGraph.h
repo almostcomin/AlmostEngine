@@ -1,6 +1,6 @@
 #pragma once
 #include <memory>
-#include "Graphics/SceneGraphNode.h"
+#include "Gfx/SceneGraphNode.h"
 
 namespace st::gfx
 {

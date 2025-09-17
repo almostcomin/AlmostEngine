@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Graphics/SceneGraphLeaf.h"
-#include "Graphics/SceneContentFlags.h"
+#include "Gfx/SceneGraphLeaf.h"
+#include "Gfx/SceneContentFlags.h"
 
 namespace st::gfx
 {

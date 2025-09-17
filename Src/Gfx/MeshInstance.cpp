@@ -1,5 +1,5 @@
-#include "Graphics/MeshInstance.h"
-#include "Graphics/Mesh.h"
+#include "Gfx/MeshInstance.h"
+#include "Gfx/Mesh.h"
 
 st::gfx::MeshInstance::MeshInstance(std::shared_ptr<st::gfx::Mesh> mesh) : m_Mesh{ mesh }
 {

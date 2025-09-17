@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 #include <nvrhi/nvrhi.h>
-#include "Graphics/Math/aabox.h"
+#include "Gfx/Math/aabox.h"
 
 namespace st::gfx
 {
