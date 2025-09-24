@@ -2,12 +2,12 @@
 
 #include <memory>
 #include "Core/Util.h"
-#include "Gfx/Math/aabox.h"
+#include "Core/Math/aabox.h"
+#include "Gfx/SceneContentFlags.h"
 
 namespace st::gfx
 {
 	class SceneGraphNode;
-	enum class SceneContentFlags : uint32_t;
 }
 
 namespace st::gfx
@@ -15,12 +15,15 @@ namespace st::gfx
 
 class SceneGraphLeaf : private st::noncopyable_nonmovable
 {
+	friend class SceneGraphNode;
+
 public:
 
+	SceneGraphLeaf() = default;
 	virtual ~SceneGraphLeaf() {}
 
-	virtual const st::math::aabox3f& GetLocalBBox() const = 0;
-	virtual SceneContentFlags GetContentFlags() const = 0;
+	virtual const st::math::aabox3f& GetLocalBBox() const { return st::math::aabox3f::Empty(); }
+	virtual SceneContentFlags GetContentFlags() const { return st::gfx::SceneContentFlags::None; }
 
 private:
 

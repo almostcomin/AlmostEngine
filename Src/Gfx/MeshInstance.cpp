@@ -1,7 +1,8 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 
-st::gfx::MeshInstance::MeshInstance(std::shared_ptr<st::gfx::Mesh> mesh) : m_Mesh{ mesh }
+st::gfx::MeshInstance::MeshInstance(std::weak_ptr<st::gfx::SceneGraphNode> node, std::shared_ptr<st::gfx::Mesh> mesh) :
+	m_Mesh{ mesh }
 {
 }
 

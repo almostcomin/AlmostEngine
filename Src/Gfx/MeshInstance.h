@@ -5,6 +5,7 @@
 
 namespace st::gfx
 {
+	class SceneGraphNode;
 	class Mesh;
 }
 
@@ -16,7 +17,7 @@ class MeshInstance : public SceneGraphLeaf
 {
 public:
 
-	MeshInstance(std::shared_ptr<st::gfx::Mesh> mesh);
+	MeshInstance(std::weak_ptr<SceneGraphNode> node, std::shared_ptr<Mesh> mesh);
 	virtual ~MeshInstance();
 
 	const st::math::aabox3f& GetLocalBBox() const override;

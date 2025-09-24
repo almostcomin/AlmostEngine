@@ -4,10 +4,11 @@
 #include "Core/Log.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
-#include "Gfx/Frame.h"
+#include "Gfx/RenderView.h"
 #include "Gfx/GltfImporter.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/SceneGraph.h"
+#include "Gfx/Camera.h"
 #include "StructureUI.h"
 #include <thread>
 
@@ -58,9 +59,13 @@ int SDL_main(int argc, char* argv[])
 		}
 	};
 
-	// Create frame
-	std::unique_ptr<st::gfx::Frame> frame{ new st::gfx::Frame };
-	frame->Init(deviceManager.get(), { uiRenderPass.get() });
+	// Create camera
+	auto camera = std::make_shared<st::gfx::Camera>();
+
+	// Create RenderView
+	auto renderView = std::make_unique<st::gfx::RenderView>(deviceManager.get());
+	renderView->SetRenderPasses({ uiRenderPass.get() });
+	renderView->SetCamera(camera);
 
 	// Main loop
 	bool running = true;
@@ -112,13 +117,13 @@ int SDL_main(int argc, char* argv[])
 
 		if (deviceManager->UpdateWindowSize())
 		{
-			frame->OnBackbufferResize(deviceManager->GetWindowDimensions());
+			//renderPassManager->OnBackbufferResize(deviceManager->GetWindowDimensions());
 		}
 
 		if (deviceManager->IsWindowVisible())
 		{
 			deviceManager->BeginFrame();
-			frame->Render(deviceManager->GetCurrentFrameBuffer());
+			renderView->Render();
 			bool presentOk = deviceManager->Present();
 			assert(presentOk);
 		}

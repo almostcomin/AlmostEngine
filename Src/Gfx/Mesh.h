@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 #include <nvrhi/nvrhi.h>
-#include "Gfx/Math/aabox.h"
+#include "Core/Math/aabox.h"
 
 namespace st::gfx
 {
@@ -28,8 +28,6 @@ public:
 	void SetVertexBuffer(nvrhi::BufferHandle vertexBuffer) { m_VertexBuffer = vertexBuffer; }
 
 	void SetMaterial(std::shared_ptr<Material> mat);
-
-
 
 private:
 

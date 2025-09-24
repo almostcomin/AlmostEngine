@@ -2,12 +2,13 @@
 #include "Core/Log.h"
 #include "Gfx/Material.h"
 #include "Gfx/Mesh.h"
-#include "Gfx/Math/aabox.h"
+#include "Core/Math/aabox.h"
 #include "Gfx/Math/Util.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/SceneCamera.h"
 #include <nvrhi/nvrhi.h>
 #include <fstream>
 
@@ -640,17 +641,43 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
     auto loadMeshesResult = LoadMeshes(objects, matMap, path, dataUploader, device, handlesToWait);
     auto meshMap = *loadMeshesResult;
 
-    // Wait uploads
-    for (const auto& ev : handlesToWait)
+    // Cameras
+    std::unordered_map<const cgltf_camera*, std::shared_ptr<SceneCamera>> cameraMap;
+    for (size_t camera_idx = 0; camera_idx < objects->cameras_count; camera_idx++)
     {
-        device->waitEventQuery(ev);
+        const cgltf_camera* src = &objects->cameras[camera_idx];
+        std::shared_ptr<SceneCamera> camera;
+
+        if (src->type == cgltf_camera_type_perspective)
+        {
+            std::shared_ptr<PerspectiveCamera> perspectiveCamera = std::make_shared<PerspectiveCamera>();
+            perspectiveCamera->SetNear(src->data.perspective.znear);
+            perspectiveCamera->SetVerticalFOV(src->data.perspective.yfov);
+            if (src->data.perspective.has_zfar)
+                perspectiveCamera->SetFar(src->data.perspective.zfar);
+            if (src->data.perspective.has_aspect_ratio)
+                perspectiveCamera->SetAspect(src->data.perspective.aspect_ratio);
+            
+            camera = perspectiveCamera;
+        }
+        else
+        {
+            std::shared_ptr<OrthographicCamera> orthoCamera = std::make_shared<OrthographicCamera>();
+            orthoCamera->SetNear(src->data.orthographic.znear)
+                .SetFar(src->data.orthographic.zfar)
+                .SetXMag(src->data.orthographic.xmag)
+                .SetYMag(src->data.orthographic.ymag);
+
+            camera = orthoCamera;
+        }
+        cameraMap[src] = camera;
     }
     
     // Build scene
     assert(objects->scenes_count == 1); // only 1 scene allowed
 
+    auto sceneGraph = std::make_unique<st::gfx::SceneGraph>();
     std::vector<std::pair<const cgltf_node*, std::shared_ptr<st::gfx::SceneGraphNode>>> stack;
-    std::shared_ptr<st::gfx::SceneGraphNode> root;
 
     const cgltf_node* srcNode = *objects->scene->nodes;
     while (srcNode)
@@ -681,7 +708,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
             auto found = meshMap.find(srcNode->mesh);
             if (found != meshMap.end())
             {
-                auto leaf = std::make_shared<st::gfx::MeshInstance>(found->second);
+                auto leaf = std::make_shared<st::gfx::MeshInstance>(dstNode, found->second);
                 dstNode->SetLeaf(leaf);
             }
             else
@@ -693,24 +720,30 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
             }
         }
 
-        // Do we have parent? Then bind.
+        if (srcNode->camera)
+        {
+            auto found = cameraMap.find(srcNode->camera);
+            if (found != cameraMap.end())
+            {
+                auto camera = found->second;
+            }
+        }
+
+        // Do we have parent? Then attach to parent.
         if (!stack.empty())
         {
-            stack.back().second->AddChild(dstNode);
-            dstNode->SetParent(stack.back().second);
+            sceneGraph->Attach(stack.back().second, dstNode);
         }
         // Else, we are the root
         else
         {
-            assert(!root);
-            root = dstNode;
+            sceneGraph->SetRoot(dstNode);
         }
 
         // Do we have children? Then push ourshelve to the stack
         // and the first child is the next node to process
         if (srcNode->children_count)
         {
-            dstNode->ReserveChildCount(srcNode->children_count);
             stack.emplace_back(srcNode, dstNode);
             srcNode = srcNode->children[0];
         }
@@ -742,8 +775,13 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
         }        
     }
 
-    auto* graph = new st::gfx::SceneGraph(root);
-    return std::unique_ptr<st::gfx::SceneGraph>{graph};
+    // Wait uploads
+    for (const auto& ev : handlesToWait)
+    {
+        device->waitEventQuery(ev);
+    }
+
+    return sceneGraph;
 }
 
 } // namespace st::gfx
