@@ -17,7 +17,7 @@ nvrhi::ShaderHandle st::gfx::ShaderFactory::CreateShader(const char* filename, n
 		std::ifstream file(filename, std::ios::binary);
 		if (!file.is_open())
 		{
-			st::log::Warning("ShaderManager::CreateShader: file {} not found.", filename);
+			LOG_ERROR("ShaderManager::CreateShader: file {} not found.", filename);
 			return nullptr;
 		}
 		file.seekg(0, std::ios::end);

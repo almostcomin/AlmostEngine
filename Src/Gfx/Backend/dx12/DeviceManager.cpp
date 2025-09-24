@@ -7,7 +7,7 @@
 #include <SDL3/SDL_video.h>
 #include "Core/Log.h"
 
-#define HR_RETURN(hr) if(FAILED(hr)) { st::log::Error("HRESULT error code = 0x%08x", hr); return false; }
+#define HR_RETURN(hr) if(FAILED(hr)) { LOG_ERROR("HRESULT error code = 0x%08x", hr); return false; }
 
 namespace
 {
@@ -32,16 +32,16 @@ struct GfxMessageCallback : public nvrhi::IMessageCallback
         switch (severity)
         {
         case nvrhi::MessageSeverity::Info:
-            st::log::Info(messageText);
+            LOG_INFO(messageText);
             break;
         case nvrhi::MessageSeverity::Warning:
-            st::log::Info(messageText);
+            LOG_WARNING(messageText);
             break;
         case nvrhi::MessageSeverity::Error:
-            st::log::Error(messageText);
+            LOG_ERROR(messageText);
             break;
         case nvrhi::MessageSeverity::Fatal:
-            st::log::Fatal(messageText);
+            LOG_FATAL(messageText);
             break;
         }
     }
@@ -55,7 +55,7 @@ bool st::gfx::dx12::DeviceManager::Init(const DeviceParams& params)
     HRESULT hres = CreateDXGIFactory2(m_DeviceParams.DebugRuntime ? DXGI_CREATE_FACTORY_DEBUG : 0, IID_PPV_ARGS(&m_DxgiFactory2));
     if (hres != S_OK)
     {
-        st::log::Error("ERROR in CreateDXGIFactory2.\n"
+        LOG_ERROR("ERROR in CreateDXGIFactory2.\n"
                     "For more info, get log from debug D3D runtime: (1) Install DX SDK, and enable Debug D3D from DX Control Panel Utility. (2) Install and start DbgView. (3) Try running the program again.\n");
         return false;
     }
@@ -117,14 +117,14 @@ bool st::gfx::dx12::DeviceManager::ResizeSwapChain()
 
     if (FAILED(hr))
     {
-        st::log::Fatal("ResizeBuffers failed");
+        LOG_FATAL("ResizeBuffers failed");
         return false;
     }
 
     bool ret = CreateRenderTargets();
     if (!ret)
     {
-        st::log::Fatal("CreateRenderTarget failed");
+        LOG_FATAL("CreateRenderTarget failed");
         return false;
     }
     
@@ -207,7 +207,7 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
         if (SUCCEEDED(hr))
             pDebug->EnableDebugLayer();
         else
-            st::log::Warning("Cannot enable DX12 debug runtime, ID3D12Debug is not available.");
+            LOG_WARNING("Cannot enable DX12 debug runtime, ID3D12Debug is not available.");
     }
 
     if (m_DeviceParams.GPUValidation)
@@ -218,7 +218,7 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
         if (SUCCEEDED(hr))
             debugController3->SetEnableGPUBasedValidation(true);
         else
-            st::log::Warning("Cannot enable GPU-based validation, ID3D12Debug3 is not available.");
+            LOG_WARNING("Cannot enable GPU-based validation, ID3D12Debug3 is not available.");
     }
 
     int adapterIndex = m_DeviceParams.AdapterIndex;
@@ -227,10 +227,10 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
     if (FAILED(m_DxgiFactory2->EnumAdapters1(adapterIndex, &m_DxgiAdapter1)))
     {
         if (adapterIndex == 0)
-            st::log::Error("Cannot find any DXGI adapters in the system.");
+            LOG_ERROR("Cannot find any DXGI adapters in the system.");
         else
         {
-            st::log::Error("The specified DXGI adapter {} does not exist.", adapterIndex);
+            LOG_ERROR("The specified DXGI adapter {} does not exist.", adapterIndex);
         }
 
         return false;
@@ -250,7 +250,7 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
 
     if (FAILED(hr))
     {
-        st::log::Error("D3D12CreateDevice failed, error code = 0x%08x", hr);
+        LOG_ERROR("D3D12CreateDevice failed, error code = 0x%08x", hr);
         return false;
     }
 
@@ -332,7 +332,7 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
 {
     if (SDL_GetWindowSize(m_DeviceParams.WindowHandle, (int*)&m_BackBufferWidth, (int*)&m_BackBufferHeight) == false)
     {
-        st::log::Error("SDL_GetWindowSize failed");
+        LOG_ERROR("SDL_GetWindowSize failed");
         return false;
     }
 
@@ -417,7 +417,7 @@ void st::gfx::dx12::DeviceManager::ReportLiveObjects()
         HRESULT hr = pDebug->ReportLiveObjects(DXGI_DEBUG_ALL, flags);
         if (FAILED(hr))
         {
-            st::log::Error("ReportLiveObjects failed, HRESULT = 0x%08x", hr);
+            LOG_ERROR("ReportLiveObjects failed, HRESULT = 0x%08x", hr);
         }
     }
 }

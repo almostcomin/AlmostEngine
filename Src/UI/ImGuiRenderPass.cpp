@@ -15,7 +15,7 @@ bool st::ui::ImGuiRenderPass::Init(SDL_Window* window, st::gfx::DeviceManager* d
 	m_PS = shaderFactory->CreateShader("./Shaders/imgui_ps.pso", nvrhi::ShaderType::Pixel);
 	if (!m_VS || !m_PS)
 	{
-		st::log::Error("Failed to create ImGui shaders");
+		LOG_ERROR("Failed to create ImGui shaders");
 		return false;
 	}
 

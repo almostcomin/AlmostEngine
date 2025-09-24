@@ -32,7 +32,7 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 	int width, height;
 	if (SDL_GetWindowSize(m_DeviceParams.WindowHandle, (int*)&width, (int*)&height) == false)
 	{
-		st::log::Error("SDL_GetWindowSize failed");
+		LOG_ERROR("SDL_GetWindowSize failed");
 		return false;
 	}
 

@@ -6,7 +6,7 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 	auto scene = m_SceneGraph.lock();
 	if (!scene)
 	{
-		st::log::Error("No scene graph set. Nothing to render");
+		LOG_ERROR("No scene graph set. Nothing to render");
 		return false;
 	}
 

@@ -20,7 +20,7 @@ int SDL_main(int argc, char* argv[])
 	// Initialize SDL
 	if (!SDL_Init(SDL_INIT_VIDEO)) 
 	{
-		st::log::Fatal("Error initializing SDL.");
+		LOG_FATAL("Error initializing SDL.");
 		return -1; // Initialization failed
 	}
 
@@ -66,7 +66,7 @@ int SDL_main(int argc, char* argv[])
 		}
 		else
 		{
-			st::log::Error("Error importing file '{}': {}", filename, importResult.error());
+			LOG_ERROR("Error importing file '{}': {}", filename, importResult.error());
 		}
 	};
 

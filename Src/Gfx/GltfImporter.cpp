@@ -40,14 +40,14 @@ cgltf_result ReadFileCB(const struct cgltf_memory_options* memory_options,
     FleContext* context = (FleContext*)file_options->user_data;
     if (!context)
     {
-        st::log::Warning("cgltf read: no context for file {} provided.", path);
+        LOG_WARNING("cgltf read: no context for file {} provided.", path);
         return cgltf_result_invalid_options;
     }
 
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open())
     {
-        st::log::Warning("cgltf read: file {} not found.", path);
+        LOG_WARNING("cgltf read: file {} not found.", path);
         return cgltf_result_file_not_found;
     }
     file.seekg(0, std::ios::end);
@@ -622,14 +622,14 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
     cgltf_result res = cgltf_parse_file(&options, path, &objects);
     if (res != cgltf_result_success)
     {
-        st::log::Error("Couldn't load glTF file '{}': {}", path, ErrorToString(res));
+        LOG_ERROR("Couldn't load glTF file '{}': {}", path, ErrorToString(res));
         return std::unexpected(ErrorToString(res));
     }
 
     res = cgltf_load_buffers(&options, objects, path);
     if (res != cgltf_result_success)
     {
-        st::log::Error("Failed to load buffers for glTF file '%s': ", path, ErrorToString(res));
+        LOG_ERROR("Failed to load buffers for glTF file '%s': ", path, ErrorToString(res));
         return std::unexpected(ErrorToString(res));
     }
 
@@ -713,7 +713,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
             }
             else
             {
-                st::log::Error("Could not find mesh for node '{}', from mesh '{}', from file '{}'",
+                LOG_ERROR("Could not find mesh for node '{}', from mesh '{}', from file '{}'",
                     srcNode->name ? srcNode->name : "<noname>",
                     srcNode->mesh->name ? srcNode->mesh->name : "<noname>",
                     path);

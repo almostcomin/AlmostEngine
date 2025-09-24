@@ -46,6 +46,6 @@ void st::gfx::RenderView::Render()
 	}
 	else
 	{
-		st::log::Error("No frame buffer specified. Nothing to render");
+		LOG_ERROR("No frame buffer specified. Nothing to render");
 	}
 }

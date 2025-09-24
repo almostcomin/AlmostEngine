@@ -1,5 +1,6 @@
 #include "Core/Log.h"
 #include <mutex>
+#include <unordered_set>
 
 #if _WIN32
 #include <Windows.h>
@@ -8,20 +9,19 @@
 namespace st::log
 {
 
-void DefaultCallback(Severity severity, std::string_view msg); // forward decl
+void DefaultCallback(Severity severity, std::string_view msg, std::string_view file, int line); // forward decl
 
 Callback g_Callback = DefaultCallback;
 bool g_OutputToDebug = true;
 bool g_OutputToMessageBox = true;
 bool g_OutputToConsole = false;
-
-std::string g_ErrorMessageCaption = "Error";
+std::unordered_set<std::string> g_IgnoredMessages;
 
 constexpr size_t g_MessageBufferSize = 4096;
 std::mutex g_LogMutex;
 
 
-void DefaultCallback(Severity severity, std::string_view msg)
+void DefaultCallback(Severity severity, std::string_view msg, std::string_view file, int line)
 {
     std::string_view severityText;
     switch (severity)
@@ -35,7 +35,7 @@ void DefaultCallback(Severity severity, std::string_view msg)
         break;
     }
 
-    std::string actualMsg = std::format("{}: {}", severityText, msg);
+    std::string actualMsg = std::format("{}({}): {}: {}", file, line, severityText, msg);
 
     {
         std::lock_guard<std::mutex> lockGuard(g_LogMutex);
@@ -51,7 +51,22 @@ void DefaultCallback(Severity severity, std::string_view msg)
         {
             if (severity == Severity::Error || severity == Severity::Fatal)
             {
-                MessageBoxA(0, actualMsg.c_str(), g_ErrorMessageCaption.c_str(), MB_ICONERROR);
+                std::string id = std::format("{}({})", file, line);
+                if (g_IgnoredMessages.find(id) == g_IgnoredMessages.end())
+                {
+                    int ret = MessageBoxA(0, actualMsg.c_str(), severityText.data(), MB_ABORTRETRYIGNORE | MB_ICONERROR);
+                    switch (ret)
+                    {
+                    case IDABORT:
+                        __debugbreak();
+                        break;
+                    case IDRETRY:
+                        break;
+                    case IDIGNORE:
+                        g_IgnoredMessages.insert(id);
+                        break;
+                    }
+                }
             }
         }
 
@@ -79,9 +94,9 @@ void ResetCallback()
     g_Callback = DefaultCallback;
 }
 
-void Message(Severity severity, std::string_view msg)
+void Message(Severity severity, std::string_view msg, std::string_view file, int line)
 {
-    g_Callback(severity, msg);
+    g_Callback(severity, msg, file, line);
 }
 
 } // namespace st::log
