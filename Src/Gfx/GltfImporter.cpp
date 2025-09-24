@@ -677,12 +677,12 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
     assert(objects->scenes_count == 1); // only 1 scene allowed
 
     auto sceneGraph = st::make_unique_with_weak<st::gfx::SceneGraph>();
-    std::vector<std::pair<const cgltf_node*, std::shared_ptr<st::gfx::SceneGraphNode>>> stack;
+    std::vector<std::pair<const cgltf_node*, st::weak_handle<st::gfx::SceneGraphNode>>> stack;
 
     const cgltf_node* srcNode = *objects->scene->nodes;
     while (srcNode)
     {
-        auto dstNode = std::make_shared<SceneGraphNode>();
+        auto dstNode = st::make_unique_with_weak<SceneGraphNode>();
 
         if (srcNode->has_matrix)
         {
@@ -708,8 +708,8 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
             auto found = meshMap.find(srcNode->mesh);
             if (found != meshMap.end())
             {
-                auto leaf = std::make_shared<st::gfx::MeshInstance>(dstNode, found->second);
-                dstNode->SetLeaf(leaf);
+                auto leaf = st::make_unique_with_weak<st::gfx::MeshInstance>(found->second);
+                dstNode->SetLeaf(std::move(leaf));
             }
             else
             {
@@ -732,19 +732,19 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
         // Do we have parent? Then attach to parent.
         if (!stack.empty())
         {
-            sceneGraph->Attach(stack.back().second, dstNode);
+            sceneGraph->Attach(stack.back().second.get(), std::move(dstNode));
         }
         // Else, we are the root
         else
         {
-            sceneGraph->SetRoot(dstNode);
+            sceneGraph->SetRoot(std::move(dstNode));
         }
 
         // Do we have children? Then push ourshelve to the stack
         // and the first child is the next node to process
         if (srcNode->children_count)
         {
-            stack.emplace_back(srcNode, dstNode);
+            stack.emplace_back(srcNode, dstNode.weak());
             srcNode = srcNode->children[0];
         }
         else

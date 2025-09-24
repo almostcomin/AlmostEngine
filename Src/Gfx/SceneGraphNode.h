@@ -1,9 +1,9 @@
 #pragma once
 #include <vector>
-#include <memory>
 #include <string>
 #include "Gfx/Transform.h"
 #include "Core/Util.h"
+#include "Core/Memory.h"
 
 namespace st::gfx
 {
@@ -14,7 +14,7 @@ namespace st::gfx
 namespace st::gfx
 {
 
-class SceneGraphNode : public std::enable_shared_from_this<SceneGraphNode>, private st::noncopyable_nonmovable
+class SceneGraphNode : public st::enable_weak_from_this<SceneGraphNode>, private st::noncopyable_nonmovable
 {
 	friend class SceneGraph;
 
@@ -30,16 +30,17 @@ public:
 
 public:
 
-	SceneGraphNode() = default;
+	SceneGraphNode();
+	~SceneGraphNode();
 
 	void SetTransform(const Transform& t) { m_LocalTransform = t; }
 	void SetName(const char* name) { m_Name = name; }
 
 	size_t GetChildrenCount() const { return m_Children.size(); }
-	st::gfx::SceneGraphNode* GetChild(size_t idx) const;
-	st::gfx::SceneGraphNode* GetParent() const;
+	st::weak_handle<st::gfx::SceneGraphNode> GetChild(size_t idx) const;
+	st::weak_handle<st::gfx::SceneGraphNode> GetParent() const;
 
-	void SetLeaf(std::shared_ptr<SceneGraphLeaf> leaf);
+	void SetLeaf(st::unique_with_weak_ptr<SceneGraphLeaf>&& leaf);
 
 private:
 
@@ -47,10 +48,10 @@ private:
 
 private:
 
-	std::weak_ptr<SceneGraph> m_Graph;
-	std::weak_ptr<SceneGraphNode> m_Parent;
-	std::vector<std::shared_ptr<SceneGraphNode>> m_Children;
-	std::shared_ptr<SceneGraphLeaf> m_Leaf;
+	st::weak_handle<SceneGraph> m_Graph;
+	st::weak_handle<SceneGraphNode> m_Parent;
+	std::vector<st::unique_with_weak_ptr<SceneGraphNode>> m_Children;
+	st::unique_with_weak_ptr<SceneGraphLeaf> m_Leaf;
 
 	Transform m_LocalTransform;
 	glm::mat4x4 m_WorldMatrix;

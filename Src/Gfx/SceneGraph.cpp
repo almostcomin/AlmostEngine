@@ -1,10 +1,10 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphNode.h"
 
-st::gfx::SceneGraphNode* st::gfx::SceneGraph::Walker::Next()
+st::weak_handle<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Walker::Next()
 {
     if (!m_Current) 
-        return 0;
+        return {};
 
     if (m_Current->GetChildrenCount() > 0)
     {
@@ -13,12 +13,12 @@ st::gfx::SceneGraphNode* st::gfx::SceneGraph::Walker::Next()
         return m_Current;
     }
 
-    while (m_Current != nullptr)
+    while (m_Current)
     {
         if (m_Current == m_Scope)
         {
-            m_Current = nullptr;
-            return nullptr;
+            m_Current.reset();
+            return {};
         }
 
         if (!m_ChildIndices.empty())
@@ -26,7 +26,7 @@ st::gfx::SceneGraphNode* st::gfx::SceneGraph::Walker::Next()
             size_t& siblingIdx = m_ChildIndices.top();
             ++siblingIdx;
 
-            auto* parent = m_Current->GetParent();
+            auto parent = m_Current->GetParent();
             if (siblingIdx < parent->GetChildrenCount())
             {
                 m_Current = parent->GetChild(siblingIdx);
@@ -38,18 +38,18 @@ st::gfx::SceneGraphNode* st::gfx::SceneGraph::Walker::Next()
         m_Current = m_Current->GetParent();
     }
 
-    return nullptr;
+    return {};
 }
 
-st::gfx::SceneGraphNode* st::gfx::SceneGraph::Walker::Up()
+st::weak_handle<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Walker::Up()
 {
     if (!m_Current)
-        return 0;
+        return {};
 
     if (m_Current == m_Scope)
     {
-        m_Current = nullptr;
-        return nullptr;
+        m_Current.reset();
+        return {};
     }
 
     if (!m_ChildIndices.empty())
@@ -59,34 +59,35 @@ st::gfx::SceneGraphNode* st::gfx::SceneGraph::Walker::Up()
     return m_Current;
 }
 
-std::shared_ptr<st::gfx::SceneGraphNode> st::gfx::SceneGraph::SetRoot(std::shared_ptr<st::gfx::SceneGraphNode> rootNode)
+st::unique_with_weak_ptr<st::gfx::SceneGraphNode> st::gfx::SceneGraph::SetRoot(st::unique_with_weak_ptr<st::gfx::SceneGraphNode>&& rootNode)
 {
-    auto oldRoot = m_Root;
+    st::unique_with_weak_ptr<st::gfx::SceneGraphNode> oldRoot;
     if (m_Root)
-        Detach(m_Root);
+    {
+        oldRoot = Detach(m_Root.get());
+    }
 
-    Attach(nullptr, rootNode);
+    Attach(nullptr, std::move(rootNode));
 
     return oldRoot;
 }
 
-std::shared_ptr<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(
-    std::shared_ptr<st::gfx::SceneGraphNode> parent, std::shared_ptr<st::gfx::SceneGraphNode> child)
+st::weak_handle<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(SceneGraphNode* parent, st::unique_with_weak_ptr<SceneGraphNode>&& child)
 {
-    auto parentGraph = parent ? parent->m_Graph.lock() : shared_from_this();
-    auto childGraph = child->m_Graph.lock();
+    auto parentGraph = parent ? parent->m_Graph : weak_from_this();
+    auto childGraph = child.weak();
 
     if (!parentGraph && !childGraph)
     {
         // operating on an orphaned subgraph - do not copy or register anything
         assert(parent);
-        parent->m_Children.push_back(child);
-        child->m_Parent = parent;
-        return child;
+        parent->m_Children.push_back(std::move(child));
+        child->m_Parent = parent->weak_from_this();
+        return child.weak();
     }
 
     assert(parentGraph.get() == this);
-    std::shared_ptr<SceneGraphNode> attachedChild;
+    st::weak_handle<SceneGraphNode> attachedChild;
 
     if (childGraph)
     {
@@ -97,42 +98,41 @@ std::shared_ptr<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(
     {
         // attaching a subgraph that has been detached from another graph (or never attached)
 
-        for (auto walker = Walker{ child.get() }; walker; walker.Next())
+        for (auto walker = Walker{ child.weak() }; walker; walker.Next())
         {
             walker->m_Graph = weak_from_this();
         }
-        child->m_Parent = parent;
+        child->m_Parent = parent->weak_from_this();
 
         if (parent)
         {
-            parent->m_Children.push_back(child);
+            parent->m_Children.push_back(std::move(child));
         }
         else
         {
-            m_Root = child;
+            m_Root = std::move(child);
         }
 
-        attachedChild = child;
+        attachedChild = child.weak();
     }
 
     attachedChild->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::SubgraphStructure);
-
     return attachedChild;
 }
 
-std::shared_ptr<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Detach(
-    const std::shared_ptr<SceneGraphNode>& node)
+st::unique_with_weak_ptr<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Detach(
+    const SceneGraphNode* node)
 {
     // TODO
     return {};
 }
 
-void st::gfx::SceneGraph::RegisterLeaf(std::shared_ptr<SceneGraphLeaf> leaf)
+void st::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
 {
     // TODO
 }
 
-void st::gfx::SceneGraph::UnregisterLeaf(std::shared_ptr<SceneGraphLeaf> leaf)
+void st::gfx::SceneGraph::UnregisterLeaf(SceneGraphLeaf* leaf)
 {
     // TODO
 }

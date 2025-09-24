@@ -1,14 +1,14 @@
 #pragma once
-#include <memory>
 #include <stack>
 #include "Gfx/SceneGraphNode.h"
+#include "Core/Memory.h"
 
 namespace st::gfx
 {
 
 class SceneGraphNode;
 
-class SceneGraph : public std::enable_shared_from_this<SceneGraph>, private st::noncopyable_nonmovable
+class SceneGraph : public st::enable_weak_from_this<SceneGraph>, private st::noncopyable_nonmovable
 {
     friend class SceneGraphNode;
 
@@ -22,11 +22,16 @@ public:
     public:
 
         explicit Walker(SceneGraphNode* scope)
+            : m_Current(scope->weak_from_this())
+            , m_Scope(scope->weak_from_this())
+        {}
+
+        explicit Walker(st::weak_handle<SceneGraphNode> scope)
             : m_Current(scope)
             , m_Scope(scope)
         {}
 
-        Walker(SceneGraphNode* current, SceneGraphNode* scope)
+        Walker(st::weak_handle<SceneGraphNode> current, st::weak_handle<SceneGraphNode> scope)
             : m_Current(current)
             , m_Scope(scope)
         {}
@@ -35,20 +40,20 @@ public:
         // Otherwise, moves the pointer to the next sibling of the current node, if it exists.
         // Otherwise, goes up and tries to find the next sibiling up the hierarchy.
         // Returns the depth of the new node relative to the current node.
-        SceneGraphNode* Next();
+        st::weak_handle<SceneGraphNode> Next();
 
         // Moves the pointer to the parent of the current node, up to the scope.
         // Note that using Up and Next together may result in an infinite loop.
         // Returns the depth of the new node relative to the current node.
-        SceneGraphNode* Up();
+        st::weak_handle<SceneGraphNode> Up();
 
-        [[nodiscard]] operator bool() const { return m_Current != nullptr; }
-        SceneGraphNode* Get() const { return m_Current; }
-        SceneGraphNode* operator->() { return m_Current; }
+        [[nodiscard]] operator bool() const { return !m_Current.expired(); }
+        st::weak_handle<SceneGraphNode> Get() const { return m_Current; }
+        SceneGraphNode* operator->() { return m_Current.get(); }
 
     private:
-        SceneGraphNode* m_Current;
-        SceneGraphNode* m_Scope;
+        st::weak_handle<SceneGraphNode> m_Current;
+        st::weak_handle<SceneGraphNode> m_Scope;
         std::stack<size_t> m_ChildIndices;
     };
 
@@ -57,23 +62,23 @@ public:
 	SceneGraph() = default;
 
 	// Replaces the current root node of the graph with the new one. Returns the old root.
-	std::shared_ptr<st::gfx::SceneGraphNode> SetRoot(std::shared_ptr<SceneGraphNode> rootNode);
+	st::unique_with_weak_ptr<st::gfx::SceneGraphNode> SetRoot(st::unique_with_weak_ptr<SceneGraphNode>&& rootNode);
 
 	// Attaches a node and its subgraph to the parent.
 	// If the node is already attached to this or other graph, a deep copy of the subgraph is made first.
-	std::shared_ptr<SceneGraphNode> Attach(std::shared_ptr<SceneGraphNode> parent, std::shared_ptr<SceneGraphNode> child);
+	st::weak_handle<SceneGraphNode> Attach(SceneGraphNode* parent, st::unique_with_weak_ptr<SceneGraphNode>&& child);
 
     // Removes the node and its subgraph from the graph.
-    std::shared_ptr<SceneGraphNode> Detach(const std::shared_ptr<SceneGraphNode>& node);
+    st::unique_with_weak_ptr<SceneGraphNode> Detach(const SceneGraphNode* node);
 
 private:
 
-    void RegisterLeaf(std::shared_ptr<SceneGraphLeaf> leaf);
-    void UnregisterLeaf(std::shared_ptr<SceneGraphLeaf> leaf);
+    void RegisterLeaf(SceneGraphLeaf* leaf);
+    void UnregisterLeaf(SceneGraphLeaf* leaf);
 
 private:
 
-	std::shared_ptr<SceneGraphNode> m_Root; // shared ownership
+	st::unique_with_weak_ptr<SceneGraphNode> m_Root;
 };
 
 } // namespace st::gfx

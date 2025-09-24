@@ -1,7 +1,7 @@
 #pragma once
 
-#include <memory>
 #include "Core/Util.h"
+#include "Core/Memory.h"
 #include "Core/Math/aabox.h"
 #include "Gfx/SceneContentFlags.h"
 
@@ -27,7 +27,7 @@ public:
 
 private:
 
-	std::weak_ptr<SceneGraphNode> m_Node;
+	st::weak_handle<SceneGraphNode> m_Node;
 };
 
 };

@@ -15,8 +15,12 @@ class weak_handle
 public:
     weak_handle() : ptr(nullptr) {};
     bool expired() const { return flag.expired(); }
-    T* lock() const { return expired() ? nullptr : ptr; }
+    T* get() const { return expired() ? nullptr : ptr; }
     void reset() { ptr = nullptr; flag.reset(); }
+
+    T& operator*() const { return *ptr; }
+    T* operator->() const { return ptr; }
+    operator bool() const { return !expired(); }
 
 private:
     weak_handle(T* p, const std::weak_ptr<void>& f) : ptr(p), flag(f) {}
@@ -41,7 +45,12 @@ private:
 template<class T>
 class unique_with_weak_ptr
 {
+    template <typename U>
+    friend class unique_with_weak_ptr;
+
 public:
+    unique_with_weak_ptr() = default;
+
     template<typename... Args>
     explicit unique_with_weak_ptr(Args... args) :
         obj(std::make_unique<T>(std::forward<Args>(args)...)),
@@ -57,6 +66,12 @@ public:
     unique_with_weak_ptr(unique_with_weak_ptr&& other) noexcept :
         obj(std::move(other.obj)),
         flag(std::move(other.flag))
+    {}
+
+    template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+    unique_with_weak_ptr(unique_with_weak_ptr<U>&& other) noexcept :
+        obj(std::move(other.obj)),
+        flag(std::move(other.flag))
     {
     }
 
@@ -70,9 +85,21 @@ public:
         return *this;
     }
 
+    template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+    unique_with_weak_ptr& operator=(unique_with_weak_ptr<U>&& other) noexcept
+    {
+        if (this != &other)
+        {
+            obj = std::move(other.obj);
+            flag = std::move(other.flag);
+        }
+        return *this;
+    }
+
     T* get() const { return obj.get(); }
     T& operator*() const { return *obj; }
     T* operator->() const { return obj.get(); }
+    operator bool() const { return obj ? true : false; }
 
     weak_handle<T> weak() const { return weak_handle<T>(obj.get(), flag); }
 

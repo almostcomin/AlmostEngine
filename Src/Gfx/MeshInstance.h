@@ -17,7 +17,7 @@ class MeshInstance : public SceneGraphLeaf
 {
 public:
 
-	MeshInstance(std::weak_ptr<SceneGraphNode> node, std::shared_ptr<Mesh> mesh);
+	MeshInstance(std::shared_ptr<Mesh> mesh);
 	virtual ~MeshInstance();
 
 	const st::math::aabox3f& GetLocalBBox() const override;
