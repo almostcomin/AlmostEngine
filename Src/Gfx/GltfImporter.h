@@ -1,8 +1,8 @@
 #pragma once
 
 #include <expected>
-#include <memory>
 #include <string>
+#include "Core/Memory.h"
 
 namespace st::gfx
 {
@@ -18,7 +18,7 @@ namespace nvrhi
 namespace st::gfx
 {
 
-std::expected<std::unique_ptr<SceneGraph>, std::string> 
+std::expected<st::unique_with_weak_ptr<SceneGraph>, std::string>
 ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device);
 
 }

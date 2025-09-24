@@ -9,6 +9,7 @@
 #include "Gfx/DataUploader.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/Camera.h"
+#include "Gfx/ForwardRenderPass.h"
 #include "StructureUI.h"
 #include <thread>
 
@@ -48,12 +49,22 @@ int SDL_main(int argc, char* argv[])
 	// Create shader factory
 	std::unique_ptr<st::gfx::ShaderFactory> shaderFactory{ new st::gfx::ShaderFactory(deviceManager->GetDevice()) };
 
+	// Create forward render pass
+	std::shared_ptr<st::gfx::ForwardRenderPass> fwdRenderPass{ new st::gfx::ForwardRenderPass };
+
+	st::unique_with_weak_ptr<st::gfx::SceneGraph> sceneGraph;
+
 	// Create UI render pass
-	std::unique_ptr<StructureUI> uiRenderPass{ new StructureUI };
+	std::shared_ptr<StructureUI> uiRenderPass{ new StructureUI };
 	uiRenderPass->Init(window, deviceManager.get(), shaderFactory.get());
-	uiRenderPass->m_RequestLoadFile = [&dataUploader, &deviceManager](const char* filename) {
+	uiRenderPass->m_RequestLoadFile = [&dataUploader, &deviceManager, &sceneGraph, &fwdRenderPass](const char* filename) {
 		auto importResult = st::gfx::ImportGlTF(filename, dataUploader.get(), deviceManager->GetDevice().Get());
-		if (!importResult)
+		if (importResult)
+		{
+			sceneGraph = std::move(*importResult);
+			fwdRenderPass->SetSceneGraph(sceneGraph.weak());
+		}
+		else
 		{
 			st::log::Error("Error importing file '{}': {}", filename, importResult.error());
 		}
@@ -63,8 +74,8 @@ int SDL_main(int argc, char* argv[])
 	auto camera = std::make_shared<st::gfx::Camera>();
 
 	// Create RenderView
-	auto renderView = std::make_unique<st::gfx::RenderView>(deviceManager.get());
-	renderView->SetRenderPasses({ uiRenderPass.get() });
+	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get());
+	renderView->SetRenderPasses({ fwdRenderPass, uiRenderPass });
 	renderView->SetCamera(camera);
 
 	// Main loop

@@ -608,7 +608,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
 namespace st::gfx
 {
 
-std::expected<std::unique_ptr<st::gfx::SceneGraph>, std::string> 
+std::expected<st::unique_with_weak_ptr<st::gfx::SceneGraph>, std::string>
 ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
 {
     FleContext fileContext;
@@ -676,7 +676,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
     // Build scene
     assert(objects->scenes_count == 1); // only 1 scene allowed
 
-    auto sceneGraph = std::make_unique<st::gfx::SceneGraph>();
+    auto sceneGraph = st::make_unique_with_weak<st::gfx::SceneGraph>();
     std::vector<std::pair<const cgltf_node*, std::shared_ptr<st::gfx::SceneGraphNode>>> stack;
 
     const cgltf_node* srcNode = *objects->scene->nodes;

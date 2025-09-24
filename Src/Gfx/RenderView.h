@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 #include <nvrhi/nvrhi.h>
+#include "Core/Util.h"
+#include "Core/Memory.h"
 
 namespace st::gfx
 {
@@ -12,7 +14,7 @@ namespace st::gfx
 namespace st::gfx
 {
 
-class RenderView
+class RenderView : public st::enable_weak_from_this<RenderView>, private st::noncopyable_nonmovable
 {
 public:
 
@@ -24,7 +26,7 @@ public:
 	// main onscreen framebuffer aka main framebuffer
 	void SetOffscreenFrameBuffer(nvrhi::FramebufferHandle frameBuffer);
 
-	void SetRenderPasses(std::vector<RenderPass*>&& renderPasses);
+	void SetRenderPasses(std::vector<std::shared_ptr<RenderPass>>&& renderPasses);
 
 	void Render();
 
@@ -33,7 +35,7 @@ private:
 	std::shared_ptr<Camera> m_Camera;
 	nvrhi::FramebufferHandle m_OffscreenFramebuffer;	
 
-	std::vector<RenderPass*> m_RenderPasses;
+	std::vector<std::shared_ptr<RenderPass>> m_RenderPasses;
 
 	DeviceManager* m_DeviceManager;
 };

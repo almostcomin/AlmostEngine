@@ -63,6 +63,9 @@ public:
 	// If the node is already attached to this or other graph, a deep copy of the subgraph is made first.
 	std::shared_ptr<SceneGraphNode> Attach(std::shared_ptr<SceneGraphNode> parent, std::shared_ptr<SceneGraphNode> child);
 
+    // Removes the node and its subgraph from the graph.
+    std::shared_ptr<SceneGraphNode> Detach(const std::shared_ptr<SceneGraphNode>& node);
+
 private:
 
     void RegisterLeaf(std::shared_ptr<SceneGraphLeaf> leaf);

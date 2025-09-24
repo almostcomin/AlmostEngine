@@ -62,8 +62,8 @@ st::gfx::SceneGraphNode* st::gfx::SceneGraph::Walker::Up()
 std::shared_ptr<st::gfx::SceneGraphNode> st::gfx::SceneGraph::SetRoot(std::shared_ptr<st::gfx::SceneGraphNode> rootNode)
 {
     auto oldRoot = m_Root;
-//    if (m_Root)
-//        Detach(m_Root);
+    if (m_Root)
+        Detach(m_Root);
 
     Attach(nullptr, rootNode);
 
@@ -118,6 +118,13 @@ std::shared_ptr<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(
     attachedChild->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::SubgraphStructure);
 
     return attachedChild;
+}
+
+std::shared_ptr<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Detach(
+    const std::shared_ptr<SceneGraphNode>& node)
+{
+    // TODO
+    return {};
 }
 
 void st::gfx::SceneGraph::RegisterLeaf(std::shared_ptr<SceneGraphLeaf> leaf)

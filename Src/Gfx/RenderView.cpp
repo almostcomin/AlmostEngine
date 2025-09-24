@@ -17,9 +17,19 @@ void st::gfx::RenderView::SetOffscreenFrameBuffer(nvrhi::FramebufferHandle frame
 	m_OffscreenFramebuffer = frameBuffer;
 }
 
-void st::gfx::RenderView::SetRenderPasses(std::vector<RenderPass*>&& renderPasses)
+void st::gfx::RenderView::SetRenderPasses(std::vector<std::shared_ptr<RenderPass>>&& renderPasses)
 {
+	for (auto rp : m_RenderPasses)
+	{
+		rp->Detach();
+	}
+
 	m_RenderPasses = std::move(renderPasses);
+
+	for (auto rp : m_RenderPasses)
+	{
+		rp->Attach(this);
+	}
 }
 
 void st::gfx::RenderView::Render()

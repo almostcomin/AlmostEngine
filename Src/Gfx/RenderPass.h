@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/vec2.hpp>
+#include "Core/Memory.h"
 
 namespace nvrhi
 {
@@ -11,10 +12,19 @@ namespace st::gfx
 {
 class RenderPass
 {
+	friend class RenderView;
 public:
 
 	virtual bool Render(nvrhi::IFramebuffer* frameBuffer) = 0;
-
 	virtual void OnBackbufferResize(const glm::ivec2& size) = 0;
+
+protected:
+
+	st::weak_handle<RenderView> m_RenderView;
+
+private:
+
+	void Attach(RenderView* renderView);
+	void Detach();
 };
 }
