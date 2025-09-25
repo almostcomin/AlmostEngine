@@ -51,8 +51,16 @@ class unique
 public:
     unique() = default;
 
+    explicit unique(T* ptr) :
+        obj(ptr),
+        flag(std::make_shared<int>(0))
+    {
+        if constexpr (std::is_base_of_v<enable_weak_from_this<T>, T>)
+            obj->control = flag;
+    }
+
     template<typename... Args>
-    explicit unique(Args... args) :
+    explicit unique(Args&&... args) :
         obj(std::make_unique<T>(std::forward<Args>(args)...)),
         flag(std::make_shared<int>(0))
     {
@@ -63,19 +71,18 @@ public:
     unique(const unique&) = delete;
     unique& operator=(const unique&) = delete;
 
-    unique(unique&& other) noexcept :
+    unique(unique&& other) :
         obj(std::move(other.obj)),
         flag(std::move(other.flag))
     {}
 
     template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
-    unique(unique<U>&& other) noexcept :
+    unique(unique<U>&& other) :
         obj(std::move(other.obj)),
         flag(std::move(other.flag))
-    {
-    }
+    {}
 
-    unique& operator=(unique&& other) noexcept
+    unique& operator=(unique&& other)
     {
         if (this != &other)
         {
@@ -86,7 +93,7 @@ public:
     }
 
     template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
-    unique& operator=(unique<U>&& other) noexcept
+    unique& operator=(unique<U>&& other)
     {
         if (this != &other)
         {
@@ -111,7 +118,8 @@ private:
 template<class T, typename... Args>
 unique<T> make_unique_with_weak(Args&&... args)
 {
-    return unique<T>(std::forward<Args>(args)...);
+    T* p = new T(std::forward<Args>(args)...);
+    return unique<T>(p);
 }
 
 } // namespace st

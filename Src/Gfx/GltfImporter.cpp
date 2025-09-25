@@ -677,6 +677,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
     assert(objects->scenes_count == 1); // only 1 scene allowed
 
     auto sceneGraph = st::make_unique_with_weak<st::gfx::SceneGraph>();
+    auto rootNode = st::unique<st::gfx::SceneGraphNode>{};
     std::vector<std::pair<const cgltf_node*, st::weak<st::gfx::SceneGraphNode>>> stack;
 
     const cgltf_node* srcNode = *objects->scene->nodes;
@@ -730,6 +731,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
         }
 
         // Do we have parent? Then attach to parent.
+        auto attachedNode = dstNode.get_weak();
         if (!stack.empty())
         {
             sceneGraph->Attach(stack.back().second.get(), std::move(dstNode));
@@ -737,14 +739,14 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
         // Else, we are the root
         else
         {
-            sceneGraph->SetRoot(std::move(dstNode));
+            rootNode = std::move(dstNode);
         }
 
         // Do we have children? Then push ourshelve to the stack
         // and the first child is the next node to process
         if (srcNode->children_count)
         {
-            stack.emplace_back(srcNode, dstNode.get_weak());
+            stack.emplace_back(srcNode, attachedNode);
             srcNode = srcNode->children[0];
         }
         else
@@ -781,6 +783,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
         device->waitEventQuery(ev);
     }
 
+    sceneGraph->SetRoot(std::move(rootNode));
     return sceneGraph;
 }
 

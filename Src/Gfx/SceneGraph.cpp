@@ -59,6 +59,11 @@ st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Walker::Up()
     return m_Current;
 }
 
+st::gfx::SceneGraph::SceneGraph(st::unique<st::gfx::SceneGraphNode>&& rootNode)
+{
+    SetRoot(std::move(rootNode));
+}
+
 st::unique<st::gfx::SceneGraphNode> st::gfx::SceneGraph::SetRoot(st::unique<st::gfx::SceneGraphNode>&& rootNode)
 {
     st::unique<st::gfx::SceneGraphNode> oldRoot;
@@ -75,19 +80,19 @@ st::unique<st::gfx::SceneGraphNode> st::gfx::SceneGraph::SetRoot(st::unique<st::
 st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(SceneGraphNode* parent, st::unique<SceneGraphNode>&& child)
 {
     auto parentGraph = parent ? parent->m_Graph : weak_from_this();
-    auto childGraph = child.get_weak();
+    auto childGraph = child->m_Graph;
+    st::weak<SceneGraphNode> attachedChild = child.get_weak();
 
     if (!parentGraph && !childGraph)
     {
         // operating on an orphaned subgraph - do not copy or register anything
         assert(parent);
         parent->m_Children.push_back(std::move(child));
-        child->m_Parent = parent->weak_from_this();
-        return child.get_weak();
+        attachedChild->m_Parent = parent->weak_from_this();
+        return attachedChild;
     }
 
     assert(parentGraph.get() == this);
-    st::weak<SceneGraphNode> attachedChild;
 
     if (childGraph)
     {
@@ -102,18 +107,16 @@ st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(SceneGraphNode* pa
         {
             walker->m_Graph = weak_from_this();
         }
-        child->m_Parent = parent->weak_from_this();
 
         if (parent)
         {
+            child->m_Parent = parent->weak_from_this();
             parent->m_Children.push_back(std::move(child));
         }
         else
         {
             m_Root = std::move(child);
         }
-
-        attachedChild = child.get_weak();
     }
 
     attachedChild->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::SubgraphStructure);

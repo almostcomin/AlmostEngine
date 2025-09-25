@@ -60,6 +60,7 @@ public:
 public:
 
 	SceneGraph() = default;
+    SceneGraph(st::unique<SceneGraphNode>&& rootNode);
 
 	// Replaces the current root node of the graph with the new one. Returns the old root.
 	st::unique<st::gfx::SceneGraphNode> SetRoot(st::unique<SceneGraphNode>&& rootNode);
