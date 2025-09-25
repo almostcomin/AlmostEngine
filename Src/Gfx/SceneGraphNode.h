@@ -37,10 +37,10 @@ public:
 	void SetName(const char* name) { m_Name = name; }
 
 	size_t GetChildrenCount() const { return m_Children.size(); }
-	st::weak_handle<st::gfx::SceneGraphNode> GetChild(size_t idx) const;
-	st::weak_handle<st::gfx::SceneGraphNode> GetParent() const;
+	st::weak<st::gfx::SceneGraphNode> GetChild(size_t idx) const;
+	st::weak<st::gfx::SceneGraphNode> GetParent() const;
 
-	void SetLeaf(st::unique_with_weak_ptr<SceneGraphLeaf>&& leaf);
+	void SetLeaf(st::unique<SceneGraphLeaf>&& leaf);
 
 private:
 
@@ -48,10 +48,10 @@ private:
 
 private:
 
-	st::weak_handle<SceneGraph> m_Graph;
-	st::weak_handle<SceneGraphNode> m_Parent;
-	std::vector<st::unique_with_weak_ptr<SceneGraphNode>> m_Children;
-	st::unique_with_weak_ptr<SceneGraphLeaf> m_Leaf;
+	st::weak<SceneGraph> m_Graph;
+	st::weak<SceneGraphNode> m_Parent;
+	std::vector<st::unique<SceneGraphNode>> m_Children;
+	st::unique<SceneGraphLeaf> m_Leaf;
 
 	Transform m_LocalTransform;
 	glm::mat4x4 m_WorldMatrix;

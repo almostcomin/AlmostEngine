@@ -18,7 +18,7 @@ namespace nvrhi
 namespace st::gfx
 {
 
-std::expected<st::unique_with_weak_ptr<SceneGraph>, std::string>
+std::expected<st::unique<SceneGraph>, std::string>
 ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device);
 
 }

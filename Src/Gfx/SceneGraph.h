@@ -26,12 +26,12 @@ public:
             , m_Scope(scope->weak_from_this())
         {}
 
-        explicit Walker(st::weak_handle<SceneGraphNode> scope)
+        explicit Walker(st::weak<SceneGraphNode> scope)
             : m_Current(scope)
             , m_Scope(scope)
         {}
 
-        Walker(st::weak_handle<SceneGraphNode> current, st::weak_handle<SceneGraphNode> scope)
+        Walker(st::weak<SceneGraphNode> current, st::weak<SceneGraphNode> scope)
             : m_Current(current)
             , m_Scope(scope)
         {}
@@ -40,20 +40,20 @@ public:
         // Otherwise, moves the pointer to the next sibling of the current node, if it exists.
         // Otherwise, goes up and tries to find the next sibiling up the hierarchy.
         // Returns the depth of the new node relative to the current node.
-        st::weak_handle<SceneGraphNode> Next();
+        st::weak<SceneGraphNode> Next();
 
         // Moves the pointer to the parent of the current node, up to the scope.
         // Note that using Up and Next together may result in an infinite loop.
         // Returns the depth of the new node relative to the current node.
-        st::weak_handle<SceneGraphNode> Up();
+        st::weak<SceneGraphNode> Up();
 
         [[nodiscard]] operator bool() const { return !m_Current.expired(); }
-        st::weak_handle<SceneGraphNode> Get() const { return m_Current; }
+        st::weak<SceneGraphNode> Get() const { return m_Current; }
         SceneGraphNode* operator->() { return m_Current.get(); }
 
     private:
-        st::weak_handle<SceneGraphNode> m_Current;
-        st::weak_handle<SceneGraphNode> m_Scope;
+        st::weak<SceneGraphNode> m_Current;
+        st::weak<SceneGraphNode> m_Scope;
         std::stack<size_t> m_ChildIndices;
     };
 
@@ -62,14 +62,14 @@ public:
 	SceneGraph() = default;
 
 	// Replaces the current root node of the graph with the new one. Returns the old root.
-	st::unique_with_weak_ptr<st::gfx::SceneGraphNode> SetRoot(st::unique_with_weak_ptr<SceneGraphNode>&& rootNode);
+	st::unique<st::gfx::SceneGraphNode> SetRoot(st::unique<SceneGraphNode>&& rootNode);
 
 	// Attaches a node and its subgraph to the parent.
 	// If the node is already attached to this or other graph, a deep copy of the subgraph is made first.
-	st::weak_handle<SceneGraphNode> Attach(SceneGraphNode* parent, st::unique_with_weak_ptr<SceneGraphNode>&& child);
+	st::weak<SceneGraphNode> Attach(SceneGraphNode* parent, st::unique<SceneGraphNode>&& child);
 
     // Removes the node and its subgraph from the graph.
-    st::unique_with_weak_ptr<SceneGraphNode> Detach(const SceneGraphNode* node);
+    st::unique<SceneGraphNode> Detach(const SceneGraphNode* node);
 
 private:
 
@@ -78,7 +78,7 @@ private:
 
 private:
 
-	st::unique_with_weak_ptr<SceneGraphNode> m_Root;
+	st::unique<SceneGraphNode> m_Root;
 };
 
 } // namespace st::gfx

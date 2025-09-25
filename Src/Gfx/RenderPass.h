@@ -20,7 +20,7 @@ public:
 
 protected:
 
-	st::weak_handle<RenderView> m_RenderView;
+	st::weak<RenderView> m_RenderView;
 
 private:
 

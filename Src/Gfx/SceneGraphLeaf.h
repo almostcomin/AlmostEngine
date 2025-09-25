@@ -27,7 +27,7 @@ public:
 
 private:
 
-	st::weak_handle<SceneGraphNode> m_Node;
+	st::weak<SceneGraphNode> m_Node;
 };
 
 };

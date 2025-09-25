@@ -10,7 +10,7 @@ st::gfx::SceneGraphNode::~SceneGraphNode()
 {
 }
 
-void st::gfx::SceneGraphNode::SetLeaf(st::unique_with_weak_ptr<SceneGraphLeaf>&& leaf)
+void st::gfx::SceneGraphNode::SetLeaf(st::unique<SceneGraphLeaf>&& leaf)
 { 
 	if (m_Leaf)
 	{
@@ -28,12 +28,12 @@ void st::gfx::SceneGraphNode::SetLeaf(st::unique_with_weak_ptr<SceneGraphLeaf>&&
 	PropagateDirtyFlags(DirtyFlags::SubgraphStructure);
 }
 
-st::weak_handle<st::gfx::SceneGraphNode> st::gfx::SceneGraphNode::GetChild(size_t idx) const
+st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraphNode::GetChild(size_t idx) const
 {
-	return idx < m_Children.size() ? m_Children[idx].weak() : st::weak_handle<st::gfx::SceneGraphNode>{};
+	return idx < m_Children.size() ? m_Children[idx].get_weak() : st::weak<st::gfx::SceneGraphNode>{};
 }
 
-st::weak_handle<st::gfx::SceneGraphNode> st::gfx::SceneGraphNode::GetParent() const
+st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraphNode::GetParent() const
 {
 	return m_Parent;
 }

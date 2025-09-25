@@ -608,7 +608,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
 namespace st::gfx
 {
 
-std::expected<st::unique_with_weak_ptr<st::gfx::SceneGraph>, std::string>
+std::expected<st::unique<st::gfx::SceneGraph>, std::string>
 ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
 {
     FleContext fileContext;
@@ -677,7 +677,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
     assert(objects->scenes_count == 1); // only 1 scene allowed
 
     auto sceneGraph = st::make_unique_with_weak<st::gfx::SceneGraph>();
-    std::vector<std::pair<const cgltf_node*, st::weak_handle<st::gfx::SceneGraphNode>>> stack;
+    std::vector<std::pair<const cgltf_node*, st::weak<st::gfx::SceneGraphNode>>> stack;
 
     const cgltf_node* srcNode = *objects->scene->nodes;
     while (srcNode)
@@ -744,7 +744,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
         // and the first child is the next node to process
         if (srcNode->children_count)
         {
-            stack.emplace_back(srcNode, dstNode.weak());
+            stack.emplace_back(srcNode, dstNode.get_weak());
             srcNode = srcNode->children[0];
         }
         else

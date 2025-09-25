@@ -52,7 +52,7 @@ int SDL_main(int argc, char* argv[])
 	// Create forward render pass
 	std::shared_ptr<st::gfx::ForwardRenderPass> fwdRenderPass{ new st::gfx::ForwardRenderPass };
 
-	st::unique_with_weak_ptr<st::gfx::SceneGraph> sceneGraph;
+	st::unique<st::gfx::SceneGraph> sceneGraph;
 
 	// Create UI render pass
 	std::shared_ptr<StructureUI> uiRenderPass{ new StructureUI };
@@ -62,7 +62,7 @@ int SDL_main(int argc, char* argv[])
 		if (importResult)
 		{
 			sceneGraph = std::move(*importResult);
-			fwdRenderPass->SetSceneGraph(sceneGraph.weak());
+			fwdRenderPass->SetSceneGraph(sceneGraph.get_weak());
 		}
 		else
 		{

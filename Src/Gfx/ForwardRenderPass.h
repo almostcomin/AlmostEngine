@@ -17,14 +17,14 @@ public:
 
 	ForwardRenderPass() = default;
 
-	void SetSceneGraph(st::weak_handle<SceneGraph> sceneGraph) { m_SceneGraph = sceneGraph; }
+	void SetSceneGraph(st::weak<SceneGraph> sceneGraph) { m_SceneGraph = sceneGraph; }
 
 	bool Render(nvrhi::IFramebuffer* frameBuffer) override;
 	void OnBackbufferResize(const glm::ivec2& size) override {};
 
 private:
 
-	st::weak_handle<SceneGraph> m_SceneGraph;
+	st::weak<SceneGraph> m_SceneGraph;
 };
 
 } // namespace st::gfx
