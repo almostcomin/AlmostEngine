@@ -2,7 +2,11 @@
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/SceneGraph.h"
 
-st::gfx::SceneGraphNode::SceneGraphNode()
+st::gfx::SceneGraphNode::SceneGraphNode() :
+	m_HasBounds{ false },
+	m_WorldBounds{ st::math::aabox3f::InitEmpty },
+	m_DirtyFlags{0},
+	m_Name{ "noname" }
 {
 }
 
@@ -24,8 +28,8 @@ void st::gfx::SceneGraphNode::SetLeaf(st::unique<SceneGraphLeaf>&& leaf)
 	if (m_Graph)
 		m_Graph->RegisterLeaf(m_Leaf.get());
 
-	m_Dirty |= DirtyFlags::Leaf;
-	PropagateDirtyFlags(DirtyFlags::SubgraphStructure);
+	m_DirtyFlags |= DirtyFlags::Leaf;
+	PropagateDirtyFlags(DirtyFlags::Subgraph);
 }
 
 st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraphNode::GetChild(size_t idx) const
@@ -38,10 +42,17 @@ st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraphNode::GetParent() const
 	return m_Parent;
 }
 
+void st::gfx::SceneGraphNode::SetLocalTransform(const Transform& t)
+{
+	m_LocalTransform = t;
+	m_DirtyFlags |= DirtyFlags::LocalTransform;
+	PropagateDirtyFlags(DirtyFlags::Subgraph);
+}
+
 void st::gfx::SceneGraphNode::PropagateDirtyFlags(DirtyFlags flags)
 {
     for (auto walker = SceneGraph::Walker(this); walker; walker.Up())
     {
-        walker->m_Dirty |= flags;
+        walker->m_DirtyFlags |= flags;
     }
 }

@@ -28,6 +28,8 @@ public:
 
 	void SetRenderPasses(std::vector<std::shared_ptr<RenderPass>>&& renderPasses);
 
+	std::shared_ptr<Camera> GetCamera() const { return m_Camera; }
+
 	void Render();
 
 private:

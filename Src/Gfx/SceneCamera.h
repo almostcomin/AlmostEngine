@@ -12,6 +12,7 @@ public:
 
 	SceneCamera() = default;
 
+	virtual bool HasBounds() const { return false; }
 	virtual SceneContentFlags GetContentFlags() const { return st::gfx::SceneContentFlags::Cameras; }
 
 private:

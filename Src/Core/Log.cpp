@@ -35,7 +35,8 @@ void DefaultCallback(Severity severity, std::string_view msg, std::string_view f
         break;
     }
 
-    std::string actualMsg = std::format("{}({}): {}: {}", file, line, severityText, msg);
+    std::string actualMsg = file.empty() ?
+        std::format("{}: {}", severityText, msg) : std::format("{}({}): {}: {}", file, line, severityText, msg);
 
     {
         std::lock_guard<std::mutex> lockGuard(g_LogMutex);

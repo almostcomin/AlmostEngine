@@ -20,7 +20,8 @@ public:
 	MeshInstance(std::shared_ptr<Mesh> mesh);
 	virtual ~MeshInstance();
 
-	const st::math::aabox3f& GetLocalBBox() const override;
+	bool HasBounds() const override;
+	const st::math::aabox3f& GetBounds() const override;
 	SceneContentFlags GetContentFlags() const override { return SceneContentFlags::OpaqueMeshes; }
 
 private:

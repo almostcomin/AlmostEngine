@@ -1,44 +1,55 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphNode.h"
+#include "Gfx/SceneGraphLeaf.h"
 
-st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Walker::Next()
+int st::gfx::SceneGraph::Walker::Next(IterationMode mode)
 {
     if (!m_Current) 
-        return {};
+        return 0;
 
     if (m_Current->GetChildrenCount() > 0)
     {
         m_ChildIndices.push(0);
         m_Current = m_Current->GetChild(0);
-        return m_Current;
+        return 1;
     }
 
+    return NextSibling(mode);
+}
+
+int st::gfx::SceneGraph::Walker::NextSibling(IterationMode mode)
+{
+    int depth = 0;
     while (m_Current)
     {
         if (m_Current == m_Scope)
         {
             m_Current.reset();
-            return {};
+            return depth;
         }
 
         if (!m_ChildIndices.empty())
         {
-            size_t& siblingIdx = m_ChildIndices.top();
-            ++siblingIdx;
+            size_t& siblingIndex = m_ChildIndices.top();
+            ++siblingIndex;
 
             auto parent = m_Current->GetParent();
-            if (siblingIdx < parent->GetChildrenCount())
+            if (siblingIndex < parent->GetChildrenCount())
             {
-                m_Current = parent->GetChild(siblingIdx);
-                return m_Current;
+                m_Current = parent->GetChild(siblingIndex);
+                return depth;
             }
 
             m_ChildIndices.pop();
         }
+
         m_Current = m_Current->GetParent();
+        --depth;
+        if (mode == IterationMode::SingleStep)
+            return depth;
     }
 
-    return {};
+    return depth;
 }
 
 st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Walker::Up()
@@ -119,7 +130,10 @@ st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(SceneGraphNode* pa
         }
     }
 
-    attachedChild->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::SubgraphStructure);
+    // Force update subgraph next
+    attachedChild->m_DirtyFlags |= (SceneGraphNode::DirtyFlags::LocalTransform | SceneGraphNode::DirtyFlags::Leaf);
+    attachedChild->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::Subgraph);
+
     return attachedChild;
 }
 
@@ -128,6 +142,92 @@ st::unique<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Detach(
 {
     // TODO
     return {};
+}
+
+void st::gfx::SceneGraph::Refresh()
+{
+    // Root dirty?
+    if (any(m_Root->m_DirtyFlags & SceneGraphNode::DirtyFlags::Subgraph))
+    {
+        Walker walker{ m_Root.get_weak() };
+        while (walker)
+        {
+            if (any(walker->m_DirtyFlags & (SceneGraphNode::DirtyFlags::LocalTransform | SceneGraphNode::DirtyFlags::Leaf)))
+            {
+                // --- Subgraph needs update
+
+                Walker subgraphWalker{ *walker };
+                while (subgraphWalker)
+                {
+                    auto node = *subgraphWalker;
+
+                    // Update world transform
+                    if (node->m_Parent)
+                    {
+                        node->m_WorldMatrix = node->m_LocalTransform.GetMatrix() * node->m_Parent->m_WorldMatrix;
+                    }
+                    else
+                    {
+                        node->m_WorldMatrix = node->m_LocalTransform.GetMatrix();
+                    }
+                    node->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::LocalTransform;
+
+                    // Reset world bounds using leaf data
+                    if (node->m_Leaf && node->m_Leaf->HasBounds())
+                    {
+                        node->m_WorldBounds = node->m_Leaf->GetBounds() * node->m_WorldMatrix;
+                        node->m_HasBounds = true;
+                    }
+                    else
+                    {
+                        node->m_HasBounds = false;
+                    }
+                    node->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::Leaf;
+
+                    int depth = subgraphWalker.Next();
+
+                    // Update parent bounds if next is sibling or parent
+                    if (node->m_HasBounds && depth <= 0) // Sibling or going up.
+                    {
+                        for (int i = depth; i <= 0; ++i)
+                        {
+                            if (!node->m_Parent)
+                                break;
+
+                            assert(node->m_Parent);
+                            // Update parent bounds
+                            node->m_Parent->m_WorldBounds.merge(node->m_WorldBounds);
+                            node->m_Parent->m_HasBounds = true;
+
+                            node = node->m_Parent;
+                        }
+                    }
+                } // Subgraph loop
+
+                // Since we have updated a sub-graph, we need to update parent bounds
+                if (walker->m_HasBounds)
+                {
+                    auto node = *walker;
+                    while (node->m_Parent)
+                    {
+                        node->m_Parent->m_WorldBounds.merge(node->m_WorldBounds);
+                        node->m_Parent->m_HasBounds = true;
+                        node = node->m_Parent;
+                    }
+                }
+
+                // Subgraph updated, need to go to the next sibling
+                walker->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::Subgraph;
+                walker.NextSibling();
+            }
+
+            else
+            {
+                // --- Subgraph does NOT need update
+                walker.NextSibling();
+            }
+        }
+    } // Root is dirty
 }
 
 void st::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)

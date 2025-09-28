@@ -8,10 +8,52 @@
 #include "Gfx/GltfImporter.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/SceneGraph.h"
+#include "Gfx/SceneGraphNode.h"
+#include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/Camera.h"
 #include "Gfx/ForwardRenderPass.h"
 #include "StructureUI.h"
 #include <thread>
+#include <sstream>
+
+namespace
+{
+void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
+{
+    st::gfx::SceneGraph::Walker walker(root);
+    int depth = 0;
+    while(walker)
+    {
+        std::stringstream ss;
+
+        for (int i = 0; i < depth; i++)
+            ss << "   ";
+
+        if (walker->GetName().empty())
+            ss << "<Unnamed>";
+        else
+            ss << walker->GetName();
+
+        if (walker->HasBounds())
+        {
+            const auto& bbox = walker->GetBounds();
+            ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
+                << bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
+        }
+
+        if (walker->GetLeaf())
+        {
+            ss << " : LEAF ";
+        }
+
+		if (!ss.str().empty())
+			st::log::Info("{}", ss.str());
+
+        depth += walker.Next();
+    }
+}
+
+} // anonymous namespace
 
 int SDL_main(int argc, char* argv[]) 
 {
@@ -63,6 +105,7 @@ int SDL_main(int argc, char* argv[])
 		{
 			sceneGraph = std::move(*importResult);
 			fwdRenderPass->SetSceneGraph(sceneGraph.get_weak());
+			PrintSceneGraph(sceneGraph->GetRoot());
 		}
 		else
 		{
@@ -84,6 +127,7 @@ int SDL_main(int argc, char* argv[])
 	auto lastTime = std::chrono::steady_clock::now();
 	while (running) 
 	{
+		// Input
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) 
 		{
@@ -116,21 +160,29 @@ int SDL_main(int argc, char* argv[])
 			}
 		}
 
-		nFrames++;
-		auto currentTime = std::chrono::steady_clock::now();
-		std::chrono::duration<float> elapsed = currentTime - lastTime;
-		if (elapsed.count() > 1.f)
+		// Scene graph update
+		if (sceneGraph)
+			sceneGraph->Refresh();
+
+		// Update FPS counter
 		{
-			uiRenderPass->m_Data.FPS = nFrames / elapsed.count();
-			nFrames = 0;
-			lastTime = currentTime;
+			auto currentTime = std::chrono::steady_clock::now();
+			std::chrono::duration<float> elapsed = currentTime - lastTime;
+			if (elapsed.count() > 1.f)
+			{
+				uiRenderPass->m_Data.FPS = nFrames / elapsed.count();
+				nFrames = 0;
+				lastTime = currentTime;
+			}
 		}
 
+		// Check window resize
 		if (deviceManager->UpdateWindowSize())
 		{
 			//renderPassManager->OnBackbufferResize(deviceManager->GetWindowDimensions());
 		}
 
+		// Render
 		if (deviceManager->IsWindowVisible())
 		{
 			deviceManager->BeginFrame();
@@ -141,6 +193,8 @@ int SDL_main(int argc, char* argv[])
 
 		std::this_thread::yield();
 		deviceManager->GetDevice()->runGarbageCollection();
+
+		nFrames++;
 	}
 
 	// Clean up

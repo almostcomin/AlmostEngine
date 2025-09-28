@@ -11,6 +11,7 @@
 #include "Gfx/SceneCamera.h"
 #include <nvrhi/nvrhi.h>
 #include <fstream>
+#include <filesystem>
 
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
@@ -232,7 +233,7 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
 
 void CollectPrimitivePositions(const cgltf_accessor& positions, std::vector<glm::vec3>& out_vertexPosData, st::math::aabox3f& out_bounds)
 {
-    out_bounds.Reset();
+    out_bounds.reset();
     out_vertexPosData.resize(positions.count);
 
     auto [posSrc, posStride] = BufferIterator(positions, sizeof(float) * 3);
@@ -241,7 +242,7 @@ void CollectPrimitivePositions(const cgltf_accessor& positions, std::vector<glm:
     for (size_t v_idx = 0; v_idx < positions.count; v_idx++)
     {
         *posDst = *(const glm::vec3*)posSrc;
-        out_bounds.Merge(*posDst);
+        out_bounds.merge(*posDst);
 
         posSrc += posStride;
         ++posDst;
@@ -502,6 +503,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
 
             // Create mesh
             auto mesh = std::make_shared<st::gfx::Mesh>(srcMesh.name, filename);
+            mesh->SetBounds(bounds);
 
             // Assign material
             if (prim.material)
@@ -601,6 +603,48 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
     return meshMap;
 }
 
+int ChildIndex(const cgltf_node* node, const cgltf_node* parent, const cgltf_scene* scene)
+{
+    cgltf_node** childp;
+    if (parent)
+    {
+        childp = std::find(parent->children, parent->children + parent->children_count, node);
+        assert(childp != parent->children + parent->children_count);
+        return childp - parent->children;
+    }
+    else
+    {
+        childp = std::find(scene->nodes, scene->nodes + scene->nodes_count, node);
+        assert(childp != scene->nodes + scene->nodes_count);
+        return childp - scene->nodes;
+    }
+};
+
+bool LastChild(const cgltf_node* node, const cgltf_node* parent, const cgltf_scene* scene)
+{
+    int i = ChildIndex(node, parent, scene);
+    return parent ? (i == parent->children_count - 1) : (i == scene->nodes_count - 1);
+};
+
+const cgltf_node* NextSibling(const cgltf_node* node, const cgltf_node* parent, const cgltf_scene* scene)
+{
+    cgltf_node** childp;
+    if (parent)
+    {
+        childp = std::find(parent->children, parent->children + parent->children_count, node);
+        assert(childp != parent->children + parent->children_count);
+        int idx = childp - parent->children;
+        return (idx < parent->children_count - 1) ? parent->children[idx + 1] : nullptr;
+    }
+    else
+    {
+        childp = std::find(scene->nodes, scene->nodes + scene->nodes_count, node);
+        assert(childp != scene->nodes + scene->nodes_count);
+        int idx = childp - scene->nodes;
+        return (idx < scene->nodes_count - 1) ? scene->nodes[idx + 1] : nullptr;
+    }
+}
+
 } // anonymous namespace
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
@@ -611,6 +655,8 @@ namespace st::gfx
 std::expected<st::unique<st::gfx::SceneGraph>, std::string>
 ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
 {
+    std::string filename = std::filesystem::path(path).filename().string();
+
     FleContext fileContext;
 
     cgltf_options options{};
@@ -677,8 +723,11 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
     assert(objects->scenes_count == 1); // only 1 scene allowed
 
     auto sceneGraph = st::make_unique_with_weak<st::gfx::SceneGraph>();
-    auto rootNode = st::unique<st::gfx::SceneGraphNode>{};
+    auto rootNode = st::make_unique_with_weak<SceneGraphNode>();
+    rootNode->SetName(filename.c_str());
+
     std::vector<std::pair<const cgltf_node*, st::weak<st::gfx::SceneGraphNode>>> stack;
+    stack.emplace_back(nullptr, rootNode.get_weak());
 
     const cgltf_node* srcNode = *objects->scene->nodes;
     while (srcNode)
@@ -752,28 +801,14 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
         else
         {
             const cgltf_node* parentNode = stack.empty() ? nullptr : stack.back().first;
-            if (parentNode && parentNode->children[parentNode->children_count - 1] != srcNode)
+            // If we are the last child, go up the stack finding any node still to process
+            while (parentNode && LastChild(srcNode, parentNode, objects->scene))
             {
-                srcNode++; // next sibling;
+                srcNode = parentNode;
+                stack.pop_back();
+                parentNode = stack.empty() ? nullptr : stack.back().first;
             }
-            else
-            {
-                // If we are the last child, go up the stack finding any node still to process
-                while (parentNode && parentNode->children[parentNode->children_count - 1] == srcNode)
-                {
-                    srcNode = parentNode;
-                    stack.pop_back();
-                    parentNode = stack.empty() ? nullptr : stack.back().first;
-                }
-                if (stack.empty())
-                {
-                    srcNode = nullptr; // finished
-                }
-                else
-                {
-                    srcNode++; // next sibling;
-                }
-            }
+            srcNode = NextSibling(srcNode, parentNode, objects->scene);
         }        
     }
 

@@ -42,6 +42,12 @@ namespace st::log
     }
 
     template<typename... Args>
+    void Info(std::string_view fmt, Args&&... args)
+    {
+        Message(Severity::Info, {}, -1, fmt, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
     void Warning(std::string_view file, int line, std::string_view fmt, Args&&... args)
     {
         Message(Severity::Warning, file, line, fmt, std::forward<Args>(args)...);

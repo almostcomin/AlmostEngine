@@ -13,7 +13,7 @@ enum class SceneContentFlags : uint32_t
     BlendedMeshes = 0x04,
     Lights = 0x08,
     Cameras = 0x10,
-    Animations = 0x20
+    Animations = 0x20,
 };
 
 } // namespace st::gfx

@@ -35,8 +35,7 @@ public:
 		m_Rotation{ GetRotation(m) },
 		m_Translation{ GetTranslation(m) },
 		m_Dirty{ true }
-	{		
-	}
+	{}
 
 	const glm::vec3 GetScale() const 
 	{

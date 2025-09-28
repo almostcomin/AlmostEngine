@@ -10,8 +10,13 @@ st::gfx::MeshInstance::~MeshInstance()
 {
 }
 
-const st::math::aabox3f& st::gfx::MeshInstance::GetLocalBBox() const
+bool st::gfx::MeshInstance::HasBounds() const
 {
-	return m_Mesh ? m_Mesh->GetAABBox() : st::math::aabox3f::Empty();
+	return m_Mesh ? true : false;
+}
+
+const st::math::aabox3f& st::gfx::MeshInstance::GetBounds() const
+{
+	return m_Mesh ? m_Mesh->GetBounds() : st::math::aabox3f::empty();
 }
 

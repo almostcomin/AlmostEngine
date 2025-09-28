@@ -22,7 +22,8 @@ public:
 	SceneGraphLeaf() = default;
 	virtual ~SceneGraphLeaf() {}
 
-	virtual const st::math::aabox3f& GetLocalBBox() const { return st::math::aabox3f::Empty(); }
+	virtual bool HasBounds() const = 0;
+	virtual const st::math::aabox3f& GetBounds() const { return st::math::aabox3f::empty(); }
 	virtual SceneContentFlags GetContentFlags() const { return st::gfx::SceneContentFlags::None; }
 
 private:

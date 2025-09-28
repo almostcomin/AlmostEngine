@@ -17,24 +17,23 @@ class Mesh
 {
 public:
 
-	Mesh(const char* name, const char* sourceFilename) :
-		m_Name{ name ? name : "<null>" },
-		m_SourceFilename{ sourceFilename ? sourceFilename : "<null>" }
-	{}
+	Mesh(const char* name, const char* sourceFilename);
 
-	const st::math::aabox3f& GetAABBox() const { return m_AABBox; }
+	const st::math::aabox3f& GetBounds() const { return m_Bounds; }
 
 	void SetIndexBuffer(nvrhi::BufferHandle indexBuffer) { m_IndexBuffer = indexBuffer; }
 	void SetVertexBuffer(nvrhi::BufferHandle vertexBuffer) { m_VertexBuffer = vertexBuffer; }
 
 	void SetMaterial(std::shared_ptr<Material> mat);
 
+	void SetBounds(const st::math::aabox3f& bounds) { m_Bounds = bounds; }
+
 private:
 
 	std::string m_Name;
 	std::string m_SourceFilename; // where this material originated from, e.g. GLTF file name
 
-	st::math::aabox3f m_AABBox;
+	st::math::aabox3f m_Bounds;
 
 	nvrhi::BufferHandle m_IndexBuffer;
 	nvrhi::BufferHandle m_VertexBuffer;

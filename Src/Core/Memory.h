@@ -22,6 +22,11 @@ public:
     T* operator->() const { return ptr; }
     operator bool() const { return !expired(); }
 
+    template<class U>
+    bool operator ==(const weak<U>& other) const { return ptr == other.ptr; }
+    template<class U>
+    bool operator !=(const weak<U>& other) const { return ptr != other.ptr; }
+
 private:
     weak(T* p, const std::weak_ptr<void>& f) : ptr(p), flag(f) {}
     T* ptr = nullptr;
@@ -106,7 +111,13 @@ public:
     T* get() const { return obj.get(); }
     T& operator*() const { return *obj; }
     T* operator->() const { return obj.get(); }
-    operator bool() const { return obj ? true : false; }
+    bool valid() const { return obj ? true : false; }
+    operator bool() const { return valid(); }
+
+    template<class U>
+    bool operator ==(const unique<U>& other) const { return obj.get() == other.obj.get(); }
+    template<class U>
+    bool operator !=(const unique<U>& other) const { return obj.get() != other.obj.get(); }
 
     weak<T> get_weak() const { return weak<T>{obj.get(), flag}; }
 

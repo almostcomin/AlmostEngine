@@ -4,6 +4,7 @@
 #include "Gfx/Transform.h"
 #include "Core/Util.h"
 #include "Core/Memory.h"
+#include "Core/Math/aabox.h"
 
 namespace st::gfx
 {
@@ -23,9 +24,11 @@ public:
 	enum struct DirtyFlags : uint32_t
 	{
 		None = 0,
-		WorldTransform = 0x01,
-		SubgraphStructure = 0x02,
-		Leaf = 0x04
+		LocalTransform = 0x01,	// Local transoform has changed
+		Leaf = 0x02,			// Leaf has changed
+		Subgraph = 0x04,		// Subgraph has changed (local transoform, leaf attached i.e.)
+
+		//All = (WorldTransform | SubgraphStructure);
 	};
 
 public:
@@ -36,11 +39,24 @@ public:
 	void SetTransform(const Transform& t) { m_LocalTransform = t; }
 	void SetName(const char* name) { m_Name = name; }
 
+	void SetLeaf(st::unique<SceneGraphLeaf>&& leaf);
+
+	void SetLocalTransform(const Transform& t);
+
 	size_t GetChildrenCount() const { return m_Children.size(); }
 	st::weak<st::gfx::SceneGraphNode> GetChild(size_t idx) const;
 	st::weak<st::gfx::SceneGraphNode> GetParent() const;
 
-	void SetLeaf(st::unique<SceneGraphLeaf>&& leaf);
+	bool HasLeaf() const { return m_Leaf; }
+	st::weak<SceneGraphLeaf> GetLeaf() const { return m_Leaf.get_weak(); }
+
+	const Transform& GetLocalTransform() const { return m_LocalTransform; }
+	const glm::mat4x4& GetWorldTransform() const { return m_WorldMatrix; }
+
+	bool HasBounds() const { return m_HasBounds; }
+	const st::math::aabox3f& GetBounds() { return m_WorldBounds; }
+
+	const std::string& GetName() const { return m_Name; }
 
 private:
 
@@ -56,8 +72,10 @@ private:
 	Transform m_LocalTransform;
 	glm::mat4x4 m_WorldMatrix;
 
-	DirtyFlags m_Dirty;
+	bool m_HasBounds;
+	st::math::aabox3f m_WorldBounds;
 
+	DirtyFlags m_DirtyFlags;
 	std::string m_Name;
 };
 
@@ -69,5 +87,6 @@ inline SceneGraphNode::DirtyFlags operator &= (SceneGraphNode::DirtyFlags& a, Sc
 inline bool operator !(SceneGraphNode::DirtyFlags a) { return uint32_t(a) == 0; }
 inline bool operator ==(SceneGraphNode::DirtyFlags a, uint32_t b) { return uint32_t(a) == b; }
 inline bool operator !=(SceneGraphNode::DirtyFlags a, uint32_t b) { return uint32_t(a) != b; }
+inline bool any(SceneGraphNode::DirtyFlags a) { return a != 0; }
 
 } // namespace st::gfx

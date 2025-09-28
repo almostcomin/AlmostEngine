@@ -11,7 +11,7 @@ class SceneGraphNode;
 class SceneGraph : public st::enable_weak_from_this<SceneGraph>, private st::noncopyable_nonmovable
 {
     friend class SceneGraphNode;
-
+    
 public:
 
     // Scene graph traversal helper. Similar to an iterator, but only goes forward.
@@ -20,6 +20,17 @@ public:
     class Walker final
     {
     public:
+
+        enum class IterationMode
+        {
+            MultiStep,
+            SingleStep
+        };
+
+        explicit Walker(const SceneGraph& graph)
+            : m_Current(graph.m_Root.get_weak())
+            , m_Scope(graph.m_Root.get_weak())
+        {}
 
         explicit Walker(SceneGraphNode* scope)
             : m_Current(scope->weak_from_this())
@@ -40,7 +51,9 @@ public:
         // Otherwise, moves the pointer to the next sibling of the current node, if it exists.
         // Otherwise, goes up and tries to find the next sibiling up the hierarchy.
         // Returns the depth of the new node relative to the current node.
-        st::weak<SceneGraphNode> Next();
+        int Next(IterationMode mode = IterationMode::MultiStep);
+
+        int NextSibling(IterationMode mode = IterationMode::MultiStep);
 
         // Moves the pointer to the parent of the current node, up to the scope.
         // Note that using Up and Next together may result in an infinite loop.
@@ -49,6 +62,7 @@ public:
 
         [[nodiscard]] operator bool() const { return !m_Current.expired(); }
         st::weak<SceneGraphNode> Get() const { return m_Current; }
+        st::weak<SceneGraphNode> operator*() { return m_Current; }
         SceneGraphNode* operator->() { return m_Current.get(); }
 
     private:
@@ -71,6 +85,11 @@ public:
 
     // Removes the node and its subgraph from the graph.
     st::unique<SceneGraphNode> Detach(const SceneGraphNode* node);
+
+    st::weak<SceneGraphNode> GetRoot() const { return m_Root.get_weak(); }
+
+    // 
+    void Refresh();
 
 private:
 
