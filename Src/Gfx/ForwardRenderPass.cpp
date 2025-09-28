@@ -4,6 +4,7 @@
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/RenderView.h"
+#include "Gfx/Camera.h"
 
 bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 {
@@ -19,17 +20,28 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 		LOG_ERROR("No camera set. Can't render without a camera.");
 	}
 
-	for (st::gfx::SceneGraph::Walker walker{ *m_SceneGraph }; walker; walker.Next())
-	{
-		auto leaf = walker->GetLeaf();
-		if (leaf && leaf->GetContentFlags() == SceneContentFlags::OpaqueMeshes)
-		{
-			st::math::aabox3f worldAABox = leaf->GetBounds() * walker->GetWorldTransform();
-			// todo: draw bbox?
+	const auto& frustum = camera->GetFrustum();
 
-			auto mesh = static_cast<st::gfx::MeshInstance*>(leaf.get());
-			
+	st::gfx::SceneGraph::Walker walker{ *m_SceneGraph };
+	while(walker)
+	{
+		if (walker->HasBounds() && frustum.check(walker->GetBounds()))
+		{
+			auto leaf = walker->GetLeaf();
+			if (leaf && leaf->GetContentFlags() == SceneContentFlags::OpaqueMeshes)
+			{
+				st::math::aabox3f worldAABox = leaf->GetBounds() * walker->GetWorldTransform();
+				// todo: draw bbox?
+
+				auto mesh = static_cast<st::gfx::MeshInstance*>(leaf.get());
+			}
+			walker.Next();
 		}
-	}
+		else
+		{
+			walker.NextSibling();
+		}
+	} // while(walker)
+
 	return true;
 }

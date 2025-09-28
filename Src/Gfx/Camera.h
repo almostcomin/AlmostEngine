@@ -35,7 +35,7 @@ public:
 	const glm::mat4& GeViewMatrix();
 	const glm::mat4& GetProjectionMatrix();
 	glm::mat4 GetViewProjectionMatrix();
-	const st::math::frustum& GetFrustum();
+	const st::math::frustum3f& GetFrustum();
 
 private:
 
@@ -62,7 +62,7 @@ private:
 	glm::mat4 m_ViewMatrix;
 	glm::mat4 m_ProjectionMatrix;
 
-	st::math::frustum m_Frustum;
+	st::math::frustum3f m_Frustum;
 
 	bool m_IsDirty;
 };

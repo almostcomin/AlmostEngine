@@ -1,8 +1,6 @@
 #pragma once
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/common.hpp>
+
+#include "Core/Math/glm_config.h"
 
 namespace st::math
 {

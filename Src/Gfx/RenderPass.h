@@ -1,6 +1,7 @@
 #pragma once
 
-#include <glm/vec2.hpp>
+//#include <glm/vec2.hpp>
+#include "Core/Math/glm_config.h"
 #include "Core/Memory.h"
 
 namespace nvrhi

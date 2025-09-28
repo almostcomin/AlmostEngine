@@ -1,5 +1,4 @@
 #include "Gfx/Camera.h"
-#include <glm/ext/matrix_transform.hpp>
 
 st::gfx::Camera::Camera() :
 	m_ProjectionModel{ ProjectionModel::Reverse },
@@ -86,7 +85,7 @@ glm::mat4 st::gfx::Camera::GetViewProjectionMatrix()
 	return m_ProjectionMatrix * m_ViewMatrix;
 }
 
-const st::math::frustum& st::gfx::Camera::GetFrustum()
+const st::math::frustum3f& st::gfx::Camera::GetFrustum()
 {
 	UpdateMatrices();
 	return m_Frustum;
@@ -144,5 +143,5 @@ void st::gfx::Camera::UpdateProjectionMatrixReverse()
 
 void st::gfx::Camera::UpdateFrustum()
 {
-	m_Frustum = st::math::frustum{ m_ProjectionMatrix * m_ViewMatrix };
+	m_Frustum = st::math::frustum3f{ m_ProjectionMatrix * m_ViewMatrix };
 }

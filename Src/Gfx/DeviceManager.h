@@ -2,7 +2,8 @@
 
 #include <nvrhi/nvrhi.h>
 #include <optional>
-#include <glm/vec2.hpp>
+//#include <glm/vec2.hpp>
+#include "Core/Math/glm_config.h"
 
 struct SDL_Window;
 

@@ -1,14 +1,13 @@
 #pragma once
 
 #include "Core/Math/plane.h"
-#include <glm/mat4x4.hpp>
-#include <glm/gtc/matrix_access.hpp>
+#include "Core/Math/aabox.h"
 
 namespace st::math
 {
 
 // six planes, normals pointing outside of the volume
-struct frustum
+struct frustum3f
 {
     enum plane
     {
@@ -18,28 +17,52 @@ struct frustum
         right,
         top,
         bottom,
-        _COUNT
+        PLANE_COUNT
     };
 
-    plane3f planes[(int)plane::_COUNT];
+    plane3f planes[PLANE_COUNT];
 
-    frustum() = default;
+    frustum3f() = default;
 
-    frustum(const glm::mat4& vp)
+    frustum3f(const glm::mat4& viewProjMat)
     {
-        // GLM es column-major: vp[col][row]
-        glm::vec4 row0 = glm::row(vp, 0);
-        glm::vec4 row1 = glm::row(vp, 1);
-        glm::vec4 row2 = glm::row(vp, 2);
-        glm::vec4 row3 = glm::row(vp, 3);
+        // GLM is column-major: viewProjMat[col][row]
+        glm::vec4 row0 = glm::row(viewProjMat, 0);
+        glm::vec4 row1 = glm::row(viewProjMat, 1);
+        glm::vec4 row2 = glm::row(viewProjMat, 2);
+        glm::vec4 row3 = glm::row(viewProjMat, 3);
 
-        planes[plane::near] = st::math::plane3f{ row3 + row2 };
-        planes[plane::far] = st::math::plane3f{ row3 - row2 };
-        planes[plane::left] = st::math::plane3f{ row3 + row0 };
-        planes[plane::right] = st::math::plane3f{ row3 - row0 };
-        planes[plane::top] = st::math::plane3f{ row3 - row1 };
-        planes[plane::bottom] = st::math::plane3f{ row3 + row1 };
+        planes[near] = st::math::plane3f{ row3 + row2 };
+        planes[far] = st::math::plane3f{ row3 - row2 };
+        planes[left] = st::math::plane3f{ row3 + row0 };
+        planes[right] = st::math::plane3f{ row3 - row0 };
+        planes[top] = st::math::plane3f{ row3 - row1 };
+        planes[bottom] = st::math::plane3f{ row3 + row1 };
+    }
 
+    bool check(const glm::vec3& p) const
+    {
+        for (int i = 0; i < PLANE_COUNT; ++i)
+        {
+            if (planes[i].distance(p) > 0.f)
+                return false;
+        }
+        return true;
+    }
+
+    bool check(const st::math::aabox3f& b) const
+    {
+        for (int i = 0; i < PLANE_COUNT; ++i)
+        {
+            glm::vec3 p{
+                planes[i].normal.x > 0.f ? b.min.x : b.max.x,
+                planes[i].normal.y > 0.f ? b.min.y : b.max.y,
+                planes[i].normal.z > 0.f ? b.min.z : b.max.z };
+            
+            if (planes[i].distance(p) > 0.f)
+                return false;
+        }
+        return true;
     }
 };
 

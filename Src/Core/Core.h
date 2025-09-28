@@ -14,4 +14,4 @@
 #include <mutex>
 #include <expected>
 //#include <fstream>
-#include <glm/vec2.hpp>
+#include "Core/Math/glm_config.h"
