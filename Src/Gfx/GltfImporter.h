@@ -7,18 +7,13 @@
 namespace st::gfx
 {
 	class SceneGraph;
-	class DataUploader;
+	class DeviceManager;
 };
-
-namespace nvrhi
-{
-	class IDevice;
-}
 
 namespace st::gfx
 {
 
 std::expected<st::unique<SceneGraph>, std::string>
-ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device);
+ImportGlTF(const char* path, st::gfx::DeviceManager* device);
 
 }

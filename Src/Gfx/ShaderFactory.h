@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Core/Core.h"
+#include <unordered_map>
+#include "Core/Blob.h"
 #include <nvrhi/nvrhi.h>
 
 namespace st::gfx
@@ -16,7 +17,7 @@ public:
 
 private:
 
-	std::unordered_map<std::string, std::vector<uint8_t>> m_BytecodeCache;
+	std::unordered_map<std::string, st::Blob> m_BytecodeCache;
 	nvrhi::DeviceHandle m_Device;
 };
 

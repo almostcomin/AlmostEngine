@@ -14,7 +14,7 @@ public:
 		float FPS = 0.f;
 	};
 
-	bool Init(SDL_Window* window, st::gfx::DeviceManager* deviceManager, st::gfx::ShaderFactory* shaderFactory);
+	StructureUI(SDL_Window* window);
 
 	void BuildUI() override;
 

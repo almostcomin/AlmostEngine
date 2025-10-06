@@ -3,11 +3,7 @@
 #include <Windows.h>
 #include <SDL3/SDL.h>
 
-bool StructureUI::Init(SDL_Window* window, st::gfx::DeviceManager* deviceManager, st::gfx::ShaderFactory* shaderFactory)
-{
-    m_Window = window;
-	return st::ui::ImGuiRenderPass::Init(window, deviceManager, shaderFactory);
-}
+StructureUI::StructureUI(SDL_Window* window) : m_Window(window) {}
 
 void StructureUI::BuildUI()
 {

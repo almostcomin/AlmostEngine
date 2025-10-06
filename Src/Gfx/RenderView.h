@@ -29,8 +29,10 @@ public:
 	void SetRenderPasses(std::vector<std::shared_ptr<RenderPass>>&& renderPasses);
 
 	std::shared_ptr<Camera> GetCamera() const { return m_Camera; }
+	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }
 
 	void Render();
+
 
 private:
 

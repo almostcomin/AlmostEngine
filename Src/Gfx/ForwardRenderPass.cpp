@@ -5,6 +5,17 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/Camera.h"
+#include "Gfx/Mesh.h"
+#include "Gfx/DeviceManager.h"
+
+bool st::gfx::ForwardRenderPass::Init(nvrhi::DeviceHandle device)
+{
+	m_Device = device;
+
+	m_CommandList = device->createCommandList();
+	
+	return true;
+}
 
 bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 {
@@ -20,8 +31,11 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 		LOG_ERROR("No camera set. Can't render without a camera.");
 	}
 
-	const auto& frustum = camera->GetFrustum();
+#if 0
+	m_CommandList->open();
+	m_CommandList->beginMarker("ForwardRenderPass");
 
+	const auto& frustum = camera->GetFrustum();
 	st::gfx::SceneGraph::Walker walker{ *m_SceneGraph };
 	while(walker)
 	{
@@ -30,10 +44,41 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 			auto leaf = walker->GetLeaf();
 			if (leaf && leaf->GetContentFlags() == SceneContentFlags::OpaqueMeshes)
 			{
-				st::math::aabox3f worldAABox = leaf->GetBounds() * walker->GetWorldTransform();
-				// todo: draw bbox?
+				const st::math::aabox3f worldBounds = leaf->GetBounds() * walker->GetWorldTransform();
+				if (frustum.check(worldBounds))
+				{
+					auto meshInstance = dynamic_cast<st::gfx::MeshInstance*>(leaf.get());
+					if (meshInstance)
+					{
+						nvrhi::BindingLayoutDesc layoutDesc;
+						layoutDesc.visibility = nvrhi::ShaderType::All;
+						layoutDesc.bindings = {
+							nvrhi::BindingLayoutItem::PushConstants(0, sizeof(float) * 2),
+							nvrhi::BindingLayoutItem::Texture_SRV(0),
+							nvrhi::BindingLayoutItem::Sampler(0)
+						};
+						auto bindingLayout = m_Device->createBindingLayout(layoutDesc);
 
-				auto mesh = static_cast<st::gfx::MeshInstance*>(leaf.get());
+						// Create PSO
+						nvrhi::GraphicsPipelineDesc psoDesc = {};
+						psoDesc.primType = nvrhi::PrimitiveType::TriangleList;
+						//psoDesc.inputLayout = shaderAttribLayout;
+						//psoDesc.VS = vertexShader;
+						//psoDesc.PS = pixelShader;
+						psoDesc.renderState = {}; // let's use default one
+						psoDesc.bindingLayouts 
+
+						// Set up graphics state
+						nvrhi::GraphicsState drawState;
+						drawState.framebuffer = frameBuffer;
+						drawState.pipeline = GetPSO(drawState.framebuffer);
+
+						// TODO
+
+
+					}
+
+				}
 			}
 			walker.Next();
 		}
@@ -43,5 +88,9 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 		}
 	} // while(walker)
 
+	m_CommandList->endMarker();
+	m_CommandList->close();
+	m_Device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
+#endif
 	return true;
 }

@@ -11,9 +11,6 @@ class DeviceManager : public st::gfx::DeviceManager
 {
 public:
 
-	bool Init(const DeviceParams& params) override;
-	void Shutdown() override;
-
 	bool ResizeSwapChain() override;
 
 	// Can be called before Init to get a list of available adapters.
@@ -31,6 +28,9 @@ public:
 	void ReportLiveObjects() override;
 
 private:
+
+	bool InternalInit(const DeviceParams& params) override;
+	void InternalShutdown() override;
 
 	bool CreateDevice();
 	bool CreateSwapChain();

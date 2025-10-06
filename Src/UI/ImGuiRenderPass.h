@@ -45,9 +45,9 @@ public:
 
 protected:
 
-	bool Init(SDL_Window* window, st::gfx::DeviceManager* deviceManager, st::gfx::ShaderFactory* shaderFactory);
-
 private:
+
+	bool Init();
 
 	bool UpdateFontTexture();
 	bool UpdateGeometry();
@@ -57,6 +57,9 @@ private:
 	nvrhi::IBindingSet* GetBindingSet(nvrhi::ITexture* texture);
 
 	void ReconcileInputState();
+
+	void OnAttached() override;
+	void OnDetached() override;
 
 protected:
 
@@ -87,8 +90,6 @@ private:
 	nvrhi::CommandListHandle m_CommandList;
 
 	std::unordered_map<nvrhi::ITexture*, nvrhi::BindingSetHandle> m_BindingsCache;
-
-	st::gfx::DeviceManager* m_DeviceManager;
 };
 
 }

@@ -1,9 +1,11 @@
 import subprocess
 import os
 
-source_dir = "../Sources/NVRHI"
-build_base = "../Sources/NVRHI/build"
-install_base = "../NVRHI"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+source_dir =  os.path.join(script_dir, "../Sources/NVRHI")
+build_base =  os.path.join(script_dir, "../Sources/NVRHI/build")
+install_base =  os.path.join(script_dir, "../NVRHI")
 
 configs = ["Debug", "Release", "RelWithDebInfo"]
 

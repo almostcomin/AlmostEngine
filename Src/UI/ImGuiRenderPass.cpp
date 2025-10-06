@@ -2,87 +2,8 @@
 #include "Core/Log.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
+#include "Gfx/RenderView.h"
 #include <imgui/imgui.h>
-//#include <imgui/imgui_impl_sdl3.h>
-
-bool st::ui::ImGuiRenderPass::Init(SDL_Window* window, st::gfx::DeviceManager* deviceManager, st::gfx::ShaderFactory* shaderFactory)
-{
-    m_DeviceManager = deviceManager;
-
-	m_CommandList = m_DeviceManager->GetDevice()->createCommandList();
-
-	m_VS = shaderFactory->CreateShader("./Shaders/imgui_vs.vso", nvrhi::ShaderType::Vertex);
-	m_PS = shaderFactory->CreateShader("./Shaders/imgui_ps.pso", nvrhi::ShaderType::Pixel);
-	if (!m_VS || !m_PS)
-	{
-		LOG_ERROR("Failed to create ImGui shaders");
-		return false;
-	}
-
-	// create attribute layout object
-	nvrhi::VertexAttributeDesc vertexAttribLayout[] = {
-		{ "POSITION", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,pos), sizeof(ImDrawVert), false },
-		{ "TEXCOORD", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,uv),  sizeof(ImDrawVert), false },
-		{ "COLOR",    nvrhi::Format::RGBA8_UNORM, 1, 0, offsetof(ImDrawVert,col), sizeof(ImDrawVert), false },
-	};
-	m_ShaderAttribLayout = m_DeviceManager->GetDevice()->createInputLayout(vertexAttribLayout, sizeof(vertexAttribLayout) / sizeof(vertexAttribLayout[0]), m_VS);
-
-    // Create PSO
-    {
-        nvrhi::BlendState blendState;
-        blendState.targets[0].setBlendEnable(true)
-            .setSrcBlend(nvrhi::BlendFactor::SrcAlpha)
-            .setDestBlend(nvrhi::BlendFactor::InvSrcAlpha)
-            .setSrcBlendAlpha(nvrhi::BlendFactor::InvSrcAlpha)
-            .setDestBlendAlpha(nvrhi::BlendFactor::Zero);
-
-        auto rasterState = nvrhi::RasterState()
-            .setFillSolid()
-            .setCullNone()
-            .setScissorEnable(true)
-            .setDepthClipEnable(true);
-
-        auto depthStencilState = nvrhi::DepthStencilState()
-            .disableDepthTest()
-            .enableDepthWrite()
-            .disableStencil()
-            .setDepthFunc(nvrhi::ComparisonFunc::Always);
-
-        nvrhi::RenderState renderState;
-        renderState.blendState = blendState;
-        renderState.depthStencilState = depthStencilState;
-        renderState.rasterState = rasterState;
-
-        nvrhi::BindingLayoutDesc layoutDesc;
-        layoutDesc.visibility = nvrhi::ShaderType::All;
-        layoutDesc.bindings = {
-            nvrhi::BindingLayoutItem::PushConstants(0, sizeof(float) * 2),
-            nvrhi::BindingLayoutItem::Texture_SRV(0),
-            nvrhi::BindingLayoutItem::Sampler(0)
-        };
-        m_BindingLayout = m_DeviceManager->GetDevice()->createBindingLayout(layoutDesc);
-
-        m_BasePSODesc.primType = nvrhi::PrimitiveType::TriangleList;
-        m_BasePSODesc.inputLayout = m_ShaderAttribLayout;
-        m_BasePSODesc.VS = m_VS;
-        m_BasePSODesc.PS = m_PS;
-        m_BasePSODesc.renderState = renderState;
-        m_BasePSODesc.bindingLayouts = { m_BindingLayout };
-    }
-
-    {
-        const auto desc = nvrhi::SamplerDesc()
-            .setAllAddressModes(nvrhi::SamplerAddressMode::Wrap)
-            .setAllFilters(true);
-        m_FontSampler = m_DeviceManager->GetDevice()->createSampler(desc);
-    }
-
-    ImGui::CreateContext();
-
-    UpdateFontTexture();
-
-	return true;
-}
 
 void st::ui::ImGuiRenderPass::ReconcileInputState()
 {
@@ -96,6 +17,17 @@ void st::ui::ImGuiRenderPass::ReconcileInputState()
             io.MouseDown[i] = false;
         }
     }
+}
+
+void st::ui::ImGuiRenderPass::OnAttached()
+{
+    Init();
+}
+
+void st::ui::ImGuiRenderPass::OnDetached()
+{
+    // TODO
+    assert(0);
 }
 
 void st::ui::ImGuiRenderPass::BeginFullScreenWindow()
@@ -131,9 +63,11 @@ void st::ui::ImGuiRenderPass::DrawCenteredText(const char* text)
 
 bool st::ui::ImGuiRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 {
+    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+    nvrhi::DeviceHandle device = deviceManager->GetDevice();
 	auto& io = ImGui::GetIO();
 
-    glm::ivec2 dim = m_DeviceManager->GetWindowDimensions();
+    glm::ivec2 dim = deviceManager->GetWindowDimensions();
     io.DisplaySize = ImVec2(dim.x, dim.y);
 
     ImGui::NewFrame();
@@ -154,7 +88,7 @@ bool st::ui::ImGuiRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
         return false;
     }
 
-    m_CommandList->clearTextureFloat(m_DeviceManager->GetCurrentBackBuffer(), nvrhi::AllSubresources, nvrhi::Color(0.f));
+    m_CommandList->clearTextureFloat(deviceManager->GetCurrentBackBuffer(), nvrhi::AllSubresources, nvrhi::Color(0.f));
 
     // Handle DPI scaling
     drawData->ScaleClipRects(io.DisplayFramebufferScale);
@@ -222,7 +156,7 @@ bool st::ui::ImGuiRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 
     m_CommandList->endMarker();
     m_CommandList->close();
-    m_DeviceManager->GetDevice()->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
+    device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
 
     return true;
 }
@@ -276,8 +210,90 @@ bool st::ui::ImGuiRenderPass::OnMouseButtonUpdate(MouseButton button, KeyAction 
     return io.WantCaptureMouse;
 }
 
+bool st::ui::ImGuiRenderPass::Init()
+{
+    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+    nvrhi::DeviceHandle device = deviceManager->GetDevice();
+    st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+
+    m_CommandList = device->createCommandList();
+
+    m_VS = shaderFactory->CreateShader("./Shaders/imgui_vs.vso", nvrhi::ShaderType::Vertex);
+    m_PS = shaderFactory->CreateShader("./Shaders/imgui_ps.pso", nvrhi::ShaderType::Pixel);
+    if (!m_VS || !m_PS)
+    {
+        LOG_ERROR("Failed to create ImGui shaders");
+        return false;
+    }
+
+    // create attribute layout object
+    nvrhi::VertexAttributeDesc vertexAttribLayout[] = {
+        { "POSITION", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,pos), sizeof(ImDrawVert), false },
+        { "TEXCOORD", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,uv),  sizeof(ImDrawVert), false },
+        { "COLOR",    nvrhi::Format::RGBA8_UNORM, 1, 0, offsetof(ImDrawVert,col), sizeof(ImDrawVert), false },
+    };
+    m_ShaderAttribLayout = device->createInputLayout(vertexAttribLayout, sizeof(vertexAttribLayout) / sizeof(vertexAttribLayout[0]), m_VS);
+
+    // Create PSO
+    {
+        nvrhi::BlendState blendState;
+        blendState.targets[0].setBlendEnable(true)
+            .setSrcBlend(nvrhi::BlendFactor::SrcAlpha)
+            .setDestBlend(nvrhi::BlendFactor::InvSrcAlpha)
+            .setSrcBlendAlpha(nvrhi::BlendFactor::InvSrcAlpha)
+            .setDestBlendAlpha(nvrhi::BlendFactor::Zero);
+
+        auto rasterState = nvrhi::RasterState()
+            .setFillSolid()
+            .setCullNone()
+            .setScissorEnable(true)
+            .setDepthClipEnable(true);
+
+        auto depthStencilState = nvrhi::DepthStencilState()
+            .disableDepthTest()
+            .enableDepthWrite()
+            .disableStencil()
+            .setDepthFunc(nvrhi::ComparisonFunc::Always);
+
+        nvrhi::RenderState renderState;
+        renderState.blendState = blendState;
+        renderState.depthStencilState = depthStencilState;
+        renderState.rasterState = rasterState;
+
+        nvrhi::BindingLayoutDesc layoutDesc;
+        layoutDesc.visibility = nvrhi::ShaderType::All;
+        layoutDesc.bindings = {
+            nvrhi::BindingLayoutItem::PushConstants(0, sizeof(float) * 2),
+            nvrhi::BindingLayoutItem::Texture_SRV(0),
+            nvrhi::BindingLayoutItem::Sampler(0)
+        };
+        m_BindingLayout = device->createBindingLayout(layoutDesc);
+
+        m_BasePSODesc.primType = nvrhi::PrimitiveType::TriangleList;
+        m_BasePSODesc.inputLayout = m_ShaderAttribLayout;
+        m_BasePSODesc.VS = m_VS;
+        m_BasePSODesc.PS = m_PS;
+        m_BasePSODesc.renderState = renderState;
+        m_BasePSODesc.bindingLayouts = { m_BindingLayout };
+    }
+
+    {
+        const auto desc = nvrhi::SamplerDesc()
+            .setAllAddressModes(nvrhi::SamplerAddressMode::Wrap)
+            .setAllFilters(true);
+        m_FontSampler = device->createSampler(desc);
+    }
+
+    ImGui::CreateContext();
+
+    UpdateFontTexture();
+
+    return true;
+}
+
 bool st::ui::ImGuiRenderPass::UpdateFontTexture()
 {
+    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
     ImGuiIO& io = ImGui::GetIO();
 
     // If the font texture exists and is bound to ImGui, we're done.
@@ -297,7 +313,7 @@ bool st::ui::ImGuiRenderPass::UpdateFontTexture()
     textureDesc.height = height;
     textureDesc.format = nvrhi::Format::RGBA8_UNORM;
     textureDesc.debugName = "ImGui font texture";
-    m_FontTexture = m_DeviceManager->GetDevice()->createTexture(textureDesc);
+    m_FontTexture = deviceManager->GetDevice()->createTexture(textureDesc);
     if (!m_FontTexture)
         return false;
 
@@ -308,7 +324,7 @@ bool st::ui::ImGuiRenderPass::UpdateFontTexture()
     m_CommandList->commitBarriers();
     m_CommandList->close();
 
-    m_DeviceManager->GetDevice()->executeCommandList(m_CommandList);
+    deviceManager->GetDevice()->executeCommandList(m_CommandList);
 
     io.Fonts->TexRef = m_FontTexture.Get();
 
@@ -360,6 +376,8 @@ bool st::ui::ImGuiRenderPass::UpdateGeometry()
 
 bool st::ui::ImGuiRenderPass::ReallocateBuffer(nvrhi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
 {
+    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+
     if (buffer == nullptr || size_t(buffer->getDesc().byteSize) < requiredSize)
     {
         nvrhi::BufferDesc desc;
@@ -374,7 +392,7 @@ bool st::ui::ImGuiRenderPass::ReallocateBuffer(nvrhi::BufferHandle& buffer, size
         desc.initialState = indexBuffer ? nvrhi::ResourceStates::IndexBuffer : nvrhi::ResourceStates::VertexBuffer;
         desc.keepInitialState = true;
 
-        buffer = m_DeviceManager->GetDevice()->createBuffer(desc);
+        buffer = deviceManager->GetDevice()->createBuffer(desc);
         if (!buffer)
             return false;
     }
@@ -383,9 +401,11 @@ bool st::ui::ImGuiRenderPass::ReallocateBuffer(nvrhi::BufferHandle& buffer, size
 
 nvrhi::GraphicsPipelineHandle st::ui::ImGuiRenderPass::GetPSO(nvrhi::IFramebuffer* frameBuffer)
 {
+    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+
     if (!m_PSO)
     {
-        m_PSO = m_DeviceManager->GetDevice()->createGraphicsPipeline(m_BasePSODesc, frameBuffer);
+        m_PSO = deviceManager->GetDevice()->createGraphicsPipeline(m_BasePSODesc, frameBuffer);
         assert(m_PSO);
     }
     return m_PSO;
@@ -393,6 +413,8 @@ nvrhi::GraphicsPipelineHandle st::ui::ImGuiRenderPass::GetPSO(nvrhi::IFramebuffe
 
 nvrhi::IBindingSet* st::ui::ImGuiRenderPass::GetBindingSet(nvrhi::ITexture* texture)
 {
+    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+
     auto iter = m_BindingsCache.find(texture);
     if (iter != m_BindingsCache.end())
     {
@@ -407,7 +429,7 @@ nvrhi::IBindingSet* st::ui::ImGuiRenderPass::GetBindingSet(nvrhi::ITexture* text
     };
 
     nvrhi::BindingSetHandle binding;
-    binding = m_DeviceManager->GetDevice()->createBindingSet(desc, m_BindingLayout);
+    binding = deviceManager->GetDevice()->createBindingSet(desc, m_BindingLayout);
     assert(binding);
 
     m_BindingsCache[texture] = binding;

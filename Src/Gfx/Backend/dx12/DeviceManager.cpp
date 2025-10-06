@@ -7,7 +7,7 @@
 #include <SDL3/SDL_video.h>
 #include "Core/Log.h"
 
-#define HR_RETURN(hr) if(FAILED(hr)) { LOG_ERROR("HRESULT error code = 0x%08x", hr); return false; }
+#define HR_RETURN(hr) if(FAILED(hr)) { LOG_ERROR("HRESULT error code = {:#x}", hr); return false; }
 
 namespace
 {
@@ -47,61 +47,6 @@ struct GfxMessageCallback : public nvrhi::IMessageCallback
     }
 };
 GfxMessageCallback g_GfxMessageCallback;
-
-bool st::gfx::dx12::DeviceManager::Init(const DeviceParams& params)
-{
-    m_DeviceParams = params;
-
-    HRESULT hres = CreateDXGIFactory2(m_DeviceParams.DebugRuntime ? DXGI_CREATE_FACTORY_DEBUG : 0, IID_PPV_ARGS(&m_DxgiFactory2));
-    if (hres != S_OK)
-    {
-        LOG_ERROR("ERROR in CreateDXGIFactory2.\n"
-                    "For more info, get log from debug D3D runtime: (1) Install DX SDK, and enable Debug D3D from DX Control Panel Utility. (2) Install and start DbgView. (3) Try running the program again.\n");
-        return false;
-    }
-
-    CreateDevice();
-    CreateSwapChain();
-
-    // reset the back buffer size state to enforce a resize event
-    m_BackBufferWidth = 0;
-    m_BackBufferHeight = 0;
-    UpdateWindowSize();
-
-	return true;
-};
-
-void st::gfx::dx12::DeviceManager::Shutdown()
-{
-    st::gfx::DeviceManager::Shutdown();
-
-    ReleaseRenderTargets();
-
-    m_nvrhiDevice = nullptr;
-
-    for (auto fenceEvent : m_FrameFenceEvents)
-    {
-        WaitForSingleObject(fenceEvent, INFINITE);
-        CloseHandle(fenceEvent);
-    }
-    m_FrameFenceEvents.clear();
-
-    m_FrameFence = nullptr;
-    m_SwapChain = nullptr;
-    m_GraphicsQueue = nullptr;
-    m_ComputeQueue = nullptr;
-    m_CopyQueue = nullptr;
-    m_Device12 = nullptr;
-    m_DxgiAdapter1 = nullptr;
-    m_DxgiFactory2 = nullptr;
-
-    m_RendererString.clear();
-
-    if (m_DeviceParams.DebugRuntime)
-    {
-        ReportLiveObjects();
-    }
-}
 
 bool st::gfx::dx12::DeviceManager::ResizeSwapChain()
 {
@@ -195,6 +140,61 @@ bool st::gfx::dx12::DeviceManager::Present()
     m_FrameCount++;
 
     return SUCCEEDED(result);
+}
+
+bool st::gfx::dx12::DeviceManager::InternalInit(const DeviceParams& params)
+{
+    m_DeviceParams = params;
+
+    HRESULT hres = CreateDXGIFactory2(m_DeviceParams.DebugRuntime ? DXGI_CREATE_FACTORY_DEBUG : 0, IID_PPV_ARGS(&m_DxgiFactory2));
+    if (hres != S_OK)
+    {
+        LOG_ERROR("ERROR in CreateDXGIFactory2.\n"
+            "For more info, get log from debug D3D runtime: (1) Install DX SDK, and enable Debug D3D from DX Control Panel Utility. (2) Install and start DbgView. (3) Try running the program again.\n");
+        return false;
+    }
+
+    CreateDevice();
+    CreateSwapChain();
+
+    // reset the back buffer size state to enforce a resize event
+    m_BackBufferWidth = 0;
+    m_BackBufferHeight = 0;
+    UpdateWindowSize();
+
+    return true;
+};
+
+void st::gfx::dx12::DeviceManager::InternalShutdown()
+{
+    st::gfx::DeviceManager::Shutdown();
+
+    ReleaseRenderTargets();
+
+    m_nvrhiDevice = nullptr;
+
+    for (auto fenceEvent : m_FrameFenceEvents)
+    {
+        WaitForSingleObject(fenceEvent, INFINITE);
+        CloseHandle(fenceEvent);
+    }
+    m_FrameFenceEvents.clear();
+
+    m_FrameFence = nullptr;
+    m_SwapChain = nullptr;
+    m_GraphicsQueue = nullptr;
+    m_ComputeQueue = nullptr;
+    m_CopyQueue = nullptr;
+    m_Device12 = nullptr;
+    m_DxgiAdapter1 = nullptr;
+    m_DxgiFactory2 = nullptr;
+
+    m_RendererString.clear();
+
+    if (m_DeviceParams.DebugRuntime)
+    {
+        ReportLiveObjects();
+    }
 }
 
 bool st::gfx::dx12::DeviceManager::CreateDevice()

@@ -2,10 +2,16 @@
 
 #include <nvrhi/nvrhi.h>
 #include <optional>
-//#include <glm/vec2.hpp>
+#include <memory>
 #include "Core/Math/glm_config.h"
 
 struct SDL_Window;
+
+namespace st::gfx
+{
+    class ShaderFactory;
+    class DataUploader;
+};
 
 namespace st::gfx
 {
@@ -69,8 +75,8 @@ public:
 
     static DeviceManager* Create(st::gfx::GraphicsAPI api);
 
-    virtual bool Init(const DeviceParams& params) = 0;
-    virtual void Shutdown();
+    bool Init(const DeviceParams& params);
+    void Shutdown();
 
     virtual bool ResizeSwapChain() = 0;
 
@@ -95,6 +101,9 @@ public:
     // New window size can be obtained calling GetWindowDimensions
     bool UpdateWindowSize();
 
+    st::gfx::ShaderFactory* GetShaderFactory() { return m_ShaderFactory.get(); }
+    st::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
+
     nvrhi::DeviceHandle GetDevice() { return m_nvrhiDevice; }
 
 protected:
@@ -109,6 +118,16 @@ protected:
     bool m_WindowVisible = true;
 
     nvrhi::DeviceHandle m_nvrhiDevice;
+
+private:
+
+    virtual bool InternalInit(const DeviceParams& params) = 0;
+    virtual void InternalShutdown() = 0;
+
+private:
+
+    std::unique_ptr<st::gfx::ShaderFactory> m_ShaderFactory;
+    std::unique_ptr<st::gfx::DataUploader> m_DataUploader;
 };
 
 } // namespace st::graphics

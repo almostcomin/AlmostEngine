@@ -28,6 +28,9 @@ public:
 
 	void SetBounds(const st::math::aabox3f& bounds) { m_Bounds = bounds; }
 
+	nvrhi::BufferHandle GetIndexBuffer() const { return m_IndexBuffer; }
+	nvrhi::BufferHandle GetVertexBuffer() const { return m_VertexBuffer; }
+
 private:
 
 	std::string m_Name;

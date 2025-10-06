@@ -1,6 +1,5 @@
 #pragma once
 
-//#include <glm/vec2.hpp>
 #include "Core/Math/glm_config.h"
 #include "Core/Memory.h"
 
@@ -14,6 +13,7 @@ namespace st::gfx
 class RenderPass
 {
 	friend class RenderView;
+
 public:
 
 	virtual bool Render(nvrhi::IFramebuffer* frameBuffer) = 0;
@@ -27,5 +27,8 @@ private:
 
 	void Attach(RenderView* renderView);
 	void Detach();
+
+	virtual void OnAttached() {};
+	virtual void OnDetached() {};
 };
 }

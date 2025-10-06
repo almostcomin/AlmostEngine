@@ -2,6 +2,8 @@
 #include "Gfx/Backend/dx12/DeviceManager.h"
 #include "Core/Log.h"
 #include <SDL3/SDL_video.h>
+#include "Gfx/DataUploader.h"
+#include "Gfx/ShaderFactory.h"
 
 st::gfx::DeviceManager* st::gfx::DeviceManager::Create(st::gfx::GraphicsAPI api)
 {
@@ -17,9 +19,24 @@ st::gfx::DeviceManager* st::gfx::DeviceManager::Create(st::gfx::GraphicsAPI api)
 	return nullptr;
 }
 
+bool st::gfx::DeviceManager::Init(const DeviceParams& params)
+{
+	bool ok = InternalInit(params);
+	if (ok)
+	{
+		m_ShaderFactory = std::make_unique<st::gfx::ShaderFactory>(m_nvrhiDevice);
+		m_DataUploader = std::make_unique<st::gfx::DataUploader>(m_nvrhiDevice);
+	}
+	return ok;
+}
+
 void st::gfx::DeviceManager::Shutdown()
 {
 	m_SwapChainFramebuffers.clear();
+	m_ShaderFactory.reset();
+	m_DataUploader.reset();
+
+	InternalShutdown();
 }
 
 nvrhi::IFramebuffer* st::gfx::DeviceManager::GetCurrentFrameBuffer()

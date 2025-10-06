@@ -84,23 +84,15 @@ int SDL_main(int argc, char* argv[])
 	};
 	deviceManager->Init(initParams);
 
-	// Create Data uploader
-	std::unique_ptr<st::gfx::DataUploader> dataUploader{ new st::gfx::DataUploader{deviceManager->GetDevice()} };
-	dataUploader->Init();
-
-	// Create shader factory
-	std::unique_ptr<st::gfx::ShaderFactory> shaderFactory{ new st::gfx::ShaderFactory(deviceManager->GetDevice()) };
-
 	// Create forward render pass
 	std::shared_ptr<st::gfx::ForwardRenderPass> fwdRenderPass{ new st::gfx::ForwardRenderPass };
 
 	st::unique<st::gfx::SceneGraph> sceneGraph;
 
 	// Create UI render pass
-	std::shared_ptr<StructureUI> uiRenderPass{ new StructureUI };
-	uiRenderPass->Init(window, deviceManager.get(), shaderFactory.get());
-	uiRenderPass->m_RequestLoadFile = [&dataUploader, &deviceManager, &sceneGraph, &fwdRenderPass](const char* filename) {
-		auto importResult = st::gfx::ImportGlTF(filename, dataUploader.get(), deviceManager->GetDevice().Get());
+	std::shared_ptr<StructureUI> uiRenderPass{ new StructureUI{window} };
+	uiRenderPass->m_RequestLoadFile = [&deviceManager, &sceneGraph, &fwdRenderPass](const char* filename) {
+		auto importResult = st::gfx::ImportGlTF(filename, deviceManager.get());
 		if (importResult)
 		{
 			sceneGraph = std::move(*importResult);

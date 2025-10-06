@@ -1,9 +1,11 @@
 import subprocess
 import os
 
-source_dir = "../Sources/SDL"
-build_base = "../Sources/SDL/build"
-install_base = "../SDL"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+source_dir =  os.path.join(script_dir, "../Sources/SDL")
+build_base =  os.path.join(script_dir, "../Sources/SDL/build")
+install_base =  os.path.join(script_dir, "../SDL")
 
 configs = ["Debug", "Release", "RelWithDebInfo"]
 

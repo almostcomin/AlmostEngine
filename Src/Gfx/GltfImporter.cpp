@@ -10,8 +10,9 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/SceneCamera.h"
 #include <nvrhi/nvrhi.h>
-#include <fstream>
 #include <filesystem>
+#include "Core/File.h"
+#include "Gfx/DeviceManager.h"
 
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
@@ -21,7 +22,7 @@ namespace
 
 struct FleContext
 {
-    std::vector<uint8_t> data;
+    st::Blob data;
 };
 
 struct IntermediateBuffers
@@ -45,21 +46,23 @@ cgltf_result ReadFileCB(const struct cgltf_memory_options* memory_options,
         return cgltf_result_invalid_options;
     }
 
-    std::ifstream file(path, std::ios::binary);
-    if (!file.is_open())
+    st::fs::File file(path);
+    if (!file.IsOpen())
     {
         LOG_WARNING("cgltf read: file {} not found.", path);
         return cgltf_result_file_not_found;
     }
-    file.seekg(0, std::ios::end);
-    uint64_t fsize = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    context->data.resize(fsize);
-    file.read((char*)context->data.data(), fsize);
-
-    if (size) *size = fsize;
-    if (data) *data = context->data.data();
+    auto readResult = file.Read();
+    if (readResult)
+    {
+        context->data = std::move(*readResult);
+        if (size) *size = context->data.size();
+        if (data) *data = context->data.data();
+    }
+    else
+    {
+        LOG_WARNING("cgltf read: file error: '{}'.", readResult.error());
+    }
 
     return cgltf_result_success;
 }
@@ -118,6 +121,7 @@ std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> Ge
             std::make_shared<st::gfx::Material>(srcMat.name, filename);
         // TODO
 
+
         matMap[&srcMat] = mat;
     }
 
@@ -171,14 +175,14 @@ void GetIndexVertexCount(const cgltf_data* objects, size_t& out_totalIndices, si
 }
 
 template<typename T>
-void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& positions, std::vector<uint8_t>& out_indexData)
+void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& positions, st::Blob& out_indexData)
 {
     static_assert(std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t>, "Only 16 or 32 bit indices are allowed");
 
     size_t indexCount = 0;
     if (prim.indices)
     {
-        out_indexData.resize(prim.indices->count * sizeof(T));
+        out_indexData = st::Blob{ (char*)malloc(prim.indices->count * sizeof(T)), prim.indices->count * sizeof(T) };
 
         // copy the indices
         auto [indexSrc, indexStride] = BufferIterator(*prim.indices, 0);
@@ -300,7 +304,7 @@ void CollectPrimitiveTexcoords(const cgltf_accessor& texcoords, std::vector<glm:
 }
 
 std::expected<std::pair<nvrhi::BufferHandle, nvrhi::EventQueryHandle>, std::string>
-CreateIndexBuffer(std::vector<uint8_t>&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
+CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
 {
     nvrhi::BufferDesc bufferDesc;
     bufferDesc.isIndexBuffer = true;
@@ -312,7 +316,7 @@ CreateIndexBuffer(std::vector<uint8_t>&& indexData, bool idx32bits, const char* 
     bufferDesc.isAccelStructBuildInput = false; // TODO
 
     nvrhi::BufferHandle indexBuffer = device->createBuffer(bufferDesc);
-    auto uploadResult = dataUploader->UploadData(
+    auto uploadResult = dataUploader->UploadBufferData(
         indexBuffer,
         nvrhi::ResourceStates::Common,
         nvrhi::ResourceStates::IndexBuffer | nvrhi::ResourceStates::ShaderResource,
@@ -332,7 +336,7 @@ CreateIndexBuffer(std::vector<uint8_t>&& indexData, bool idx32bits, const char* 
 }
 
 std::expected<std::pair<nvrhi::BufferHandle, nvrhi::EventQueryHandle>, std::string>
-CreateVertexBuffer(std::vector<uint8_t>&& vertexData, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
+CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
 {
     nvrhi::BufferDesc bufferDesc;
     bufferDesc.isVertexBuffer = true;
@@ -343,7 +347,7 @@ CreateVertexBuffer(std::vector<uint8_t>&& vertexData, const char* debugName, st:
     bufferDesc.isAccelStructBuildInput = false; // TODO
 
     auto vertexBuffer = device->createBuffer(bufferDesc);
-    auto uploadResult = dataUploader->UploadData(
+    auto uploadResult = dataUploader->UploadBufferData(
         vertexBuffer,
         nvrhi::ResourceStates::Common,
         nvrhi::ResourceStates::VertexBuffer | nvrhi::ResourceStates::ShaderResource,
@@ -460,7 +464,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             {
                 idx32bits = positions->count > std::numeric_limits<uint16_t>::max();
             }
-            std::vector<uint8_t> indexData;
+            st::Blob indexData;
             if (idx32bits)
             {
                 CollectPrimitiveIndices<uint32_t>(prim, *positions, indexData);
@@ -538,15 +542,14 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             if (!vertexTexCoordData.empty())
                 vertexStride += texCoordElemSize;
 
-            std::vector<uint8_t> vertexData;
-            vertexData.resize(vertexStride * vertexPosData.size());
+            st::Blob vertexData{ (char*)malloc(vertexStride * vertexPosData.size()), vertexStride * vertexPosData.size() };
 
             // Interleave
             int vertexOffset = 0;
             // Positions
             if (!vertexPosData.empty())
             {
-                uint8_t* dstData = vertexData.data() + vertexOffset;
+                char* dstData = vertexData.data() + vertexOffset;
                 for (size_t v_idx = 0; v_idx < vertexPosData.size(); v_idx++)
                 {
                     *(decltype(vertexPosData)::value_type*)dstData = vertexPosData[v_idx];
@@ -557,7 +560,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             // Normals
             if (!vertexNormalData.empty())
             {
-                uint8_t* dstData = vertexData.data() + vertexOffset;
+                char* dstData = vertexData.data() + vertexOffset;
                 for (size_t v_idx = 0; v_idx < vertexNormalData.size(); v_idx++)
                 {
                     *(decltype(vertexNormalData)::value_type*)dstData = vertexNormalData[v_idx];
@@ -568,7 +571,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             // Tangents
             if (!vertexTangentData.empty())
             {
-                uint8_t* dstData = vertexData.data() + vertexOffset;
+                char* dstData = vertexData.data() + vertexOffset;
                 for (size_t v_idx = 0; v_idx < vertexTangentData.size(); v_idx++)
                 {
                     *(decltype(vertexTangentData)::value_type*)dstData = vertexTangentData[v_idx];
@@ -579,7 +582,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             // TexCoords
             if (!vertexTexCoordData.empty())
             {
-                uint8_t* dstData = vertexData.data() + vertexOffset;
+                char* dstData = vertexData.data() + vertexOffset;
                 for (size_t v_idx = 0; v_idx < vertexTexCoordData.size(); v_idx++)
                 {
                     *(decltype(vertexTexCoordData)::value_type*)dstData = vertexTexCoordData[v_idx];
@@ -653,7 +656,7 @@ namespace st::gfx
 {
 
 std::expected<st::unique<st::gfx::SceneGraph>, std::string>
-ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
+ImportGlTF(const char* path, st::gfx::DeviceManager* device)
 {
     std::string filename = std::filesystem::path(path).filename().string();
 
@@ -680,11 +683,11 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
     }
 
     // Materials
-    auto matMap = GetMaterialsMap(objects, path);
+    auto matMap = GetMaterialsMap(objects, filename.c_str());
 
     // Meshes
     std::vector<nvrhi::EventQueryHandle> handlesToWait;
-    auto loadMeshesResult = LoadMeshes(objects, matMap, path, dataUploader, device, handlesToWait);
+    auto loadMeshesResult = LoadMeshes(objects, matMap, path, device->GetDataUploader(), device->GetDevice(), handlesToWait);
     auto meshMap = *loadMeshesResult;
 
     // Cameras
@@ -815,7 +818,7 @@ ImportGlTF(const char* path, st::gfx::DataUploader* dataUploader, nvrhi::IDevice
     // Wait uploads
     for (const auto& ev : handlesToWait)
     {
-        device->waitEventQuery(ev);
+        device->GetDevice()->waitEventQuery(ev);
     }
 
     sceneGraph->SetRoot(std::move(rootNode));

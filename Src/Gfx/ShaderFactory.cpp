@@ -1,38 +1,33 @@
 #include "Gfx/ShaderFactory.h"
 #include "Core/Log.h"
-#include <fstream>
+#include "Core/File.h"
 
 st::gfx::ShaderFactory::ShaderFactory(nvrhi::DeviceHandle device) : m_Device(device)
 {
 }
 
-
 nvrhi::ShaderHandle st::gfx::ShaderFactory::CreateShader(const char* filename, nvrhi::ShaderType shaderType)
 {
-	std::span<uint8_t> bytecode;
+	st::WeakBlob bytecode;
 
 	auto it = m_BytecodeCache.find(filename);
 	if (it == m_BytecodeCache.end())
 	{
-		std::ifstream file(filename, std::ios::binary);
-		if (!file.is_open())
+		st::fs::File file(filename);
+		if(!file.IsOpen())
 		{
 			LOG_ERROR("ShaderManager::CreateShader: file {} not found.", filename);
 			return nullptr;
 		}
-		file.seekg(0, std::ios::end);
-		uint64_t size = file.tellg();
-		file.seekg(0, std::ios::beg);
+		auto readResult = file.Read();
+		assert(readResult);		
 
-		std::vector<uint8_t> data(size);
-		file.read((char*)data.data(), size);
-		
-		auto result = m_BytecodeCache.insert({ filename, std::move(data) });
-		bytecode = result.first->second;
+		auto result = m_BytecodeCache.insert({ filename, std::move(*readResult) });
+		bytecode = st::WeakBlob{ result.first->second };
 	}
 	else
 	{
-		bytecode = it->second;
+		bytecode = st::WeakBlob{ it->second };
 	}
 
 	nvrhi::ShaderDesc shaderDesc{
