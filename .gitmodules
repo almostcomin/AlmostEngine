@@ -13,3 +13,6 @@
 [submodule "3rdParty/Sources/cgltf"]
 	path = 3rdParty/Sources/cgltf
 	url = https://github.com/jkuhlmann/cgltf.git
+[submodule "3rdParty/Sources/DirectXTex"]
+	path = 3rdParty/Sources/DirectXTex
+	url = https://github.com/microsoft/DirectXTex.git
