@@ -27,6 +27,9 @@ st::gfx::TextureCache::Load(const std::string& path)
     {
         LoadDDSTexture(path, m_Device);
     }
+    else if (ext == ".png" || ext == ".PNG")
+    {
+    }
 
 	return {};
 }

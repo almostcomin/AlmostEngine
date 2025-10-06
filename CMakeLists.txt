@@ -70,5 +70,8 @@ target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/Direc
 target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/DirectXTex/$<CONFIG>/lib")
 target_link_libraries(Structure PRIVATE DirectXTex)
 
+# stb
+target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/stb/include")
+
 target_link_libraries(Structure PRIVATE winmm imm32 version setupapi)
 target_link_libraries(Structure PRIVATE dxgi d3d12 dxguid)

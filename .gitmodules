@@ -16,3 +16,6 @@
 [submodule "3rdParty/Sources/DirectXTex"]
 	path = 3rdParty/Sources/DirectXTex
 	url = https://github.com/microsoft/DirectXTex.git
+[submodule "3rdParty/Sources/stb"]
+	path = 3rdParty/Sources/stb
+	url = https://github.com/nothings/stb.git
