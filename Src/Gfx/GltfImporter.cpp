@@ -317,10 +317,10 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
 
     nvrhi::BufferHandle indexBuffer = device->createBuffer(bufferDesc);
     auto uploadResult = dataUploader->UploadBufferData(
+        std::move(indexData),
         indexBuffer,
         nvrhi::ResourceStates::Common,
         nvrhi::ResourceStates::IndexBuffer | nvrhi::ResourceStates::ShaderResource,
-        std::move(indexData),
         0,
         indexData.size(),
         debugName);
@@ -348,10 +348,10 @@ CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUp
 
     auto vertexBuffer = device->createBuffer(bufferDesc);
     auto uploadResult = dataUploader->UploadBufferData(
+        std::move(vertexData),
         vertexBuffer,
         nvrhi::ResourceStates::Common,
         nvrhi::ResourceStates::VertexBuffer | nvrhi::ResourceStates::ShaderResource,
-        std::move(vertexData),
         0,
         vertexData.size(),
         debugName);

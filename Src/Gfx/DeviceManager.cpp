@@ -4,6 +4,11 @@
 #include <SDL3/SDL_video.h>
 #include "Gfx/DataUploader.h"
 #include "Gfx/ShaderFactory.h"
+#include "Gfx/TextureCache.h"
+
+st::gfx::DeviceManager::~DeviceManager()
+{
+}
 
 st::gfx::DeviceManager* st::gfx::DeviceManager::Create(st::gfx::GraphicsAPI api)
 {
@@ -26,17 +31,25 @@ bool st::gfx::DeviceManager::Init(const DeviceParams& params)
 	{
 		m_ShaderFactory = std::make_unique<st::gfx::ShaderFactory>(m_nvrhiDevice);
 		m_DataUploader = std::make_unique<st::gfx::DataUploader>(m_nvrhiDevice);
+		m_TextureCache = std::make_unique<st::gfx::TextureCache>(this);
 	}
 	return ok;
 }
 
 void st::gfx::DeviceManager::Shutdown()
 {
-	m_SwapChainFramebuffers.clear();
-	m_ShaderFactory.reset();
+	m_TextureCache.reset();
 	m_DataUploader.reset();
+	m_ShaderFactory.reset();
+
+	m_SwapChainFramebuffers.clear();
 
 	InternalShutdown();
+}
+
+void st::gfx::DeviceManager::Update()
+{
+	m_TextureCache->Update();
 }
 
 nvrhi::IFramebuffer* st::gfx::DeviceManager::GetCurrentFrameBuffer()

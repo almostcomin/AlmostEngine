@@ -4,6 +4,7 @@
 #include <optional>
 #include <memory>
 #include "Core/Math/glm_config.h"
+#include "Core/Util.h"
 
 struct SDL_Window;
 
@@ -11,6 +12,7 @@ namespace st::gfx
 {
     class ShaderFactory;
     class DataUploader;
+    class TextureCache;
 };
 
 namespace st::gfx
@@ -41,7 +43,7 @@ struct AdapterInfo
     //VkPhysicalDevice vkPhysicalDevice = nullptr;
 };
 
-class DeviceManager
+class DeviceManager : st::noncopyable_nonmovable
 {
 public:
 
@@ -75,8 +77,12 @@ public:
 
     static DeviceManager* Create(st::gfx::GraphicsAPI api);
 
+    virtual ~DeviceManager();
+
     bool Init(const DeviceParams& params);
     void Shutdown();
+
+    void Update();
 
     virtual bool ResizeSwapChain() = 0;
 
@@ -103,10 +109,13 @@ public:
 
     st::gfx::ShaderFactory* GetShaderFactory() { return m_ShaderFactory.get(); }
     st::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
+    st::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }
 
     nvrhi::DeviceHandle GetDevice() { return m_nvrhiDevice; }
 
 protected:
+
+    DeviceManager() = default;
 
     DeviceParams m_DeviceParams;
 
@@ -128,6 +137,7 @@ private:
 
     std::unique_ptr<st::gfx::ShaderFactory> m_ShaderFactory;
     std::unique_ptr<st::gfx::DataUploader> m_DataUploader;
+    std::unique_ptr<st::gfx::TextureCache> m_TextureCache;
 };
 
 } // namespace st::graphics
