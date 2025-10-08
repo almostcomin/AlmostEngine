@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <functional>
 
 namespace st
 {
@@ -24,13 +25,16 @@ class Blob : public IBlob
 public:
 
 	Blob() = default;
-	Blob(char* data, size_t size) : m_data(data), m_size(size) {}
+	Blob(char* data, size_t size, std::function<void(void*)> deleter = nullptr) : 
+		m_data{ data }, m_size{ size }, m_deleter{ std::move(deleter) } 
+	{}
 
 	// non-copiable
 	Blob(const Blob&) = delete;
 	Blob& operator=(const Blob&) = delete;
 
-	Blob(Blob&& other) : m_data(other.m_data), m_size(other.m_size)
+	Blob(Blob&& other) : 
+		m_data{ other.m_data }, m_size{ other.m_size }, m_deleter{ std::move(other.m_deleter) }
 	{
 		other.m_data = nullptr;
 		other.m_size = 0;
@@ -39,6 +43,7 @@ public:
 	{
 		m_data = other.m_data;
 		m_size = other.m_size;
+		m_deleter = std::move(other.m_deleter);
 		other.m_data = nullptr;
 		other.m_size = 0;
 		return *this;
@@ -56,15 +61,20 @@ public:
 	void reset()
 	{
 		if (m_data)
-			free(m_data);
+		{
+			if (m_deleter) m_deleter(m_data);
+			else free(m_data);
+		}
 		m_data = nullptr;
 		m_size = 0;
+		m_deleter = nullptr;
 	}
 
 private:
 
 	char* m_data = nullptr;
 	size_t m_size = 0;
+	std::function<void(void*)> m_deleter = nullptr;
 };
 
 // Specific blob implementation that does not owns the data

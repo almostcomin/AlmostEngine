@@ -49,6 +49,20 @@ struct TextureData : public LoadedTexture
     std::vector<std::vector<TextureSubresourceData>> dataLayout;
 };
 
-TextureSubresourceData GetTextureSubresourceInfo(
+struct TextureInfo
+{
+    nvrhi::Format format = nvrhi::Format::UNKNOWN;
+    uint32_t width = 1;
+    uint32_t height = 1;
+    uint32_t depth = 1;
+    uint32_t arraySize = 1;
+    uint32_t mipLevels = 1;
+    nvrhi::TextureDimension dimension = nvrhi::TextureDimension::Unknown;
+    bool isRenderTarget = false;
+    bool forceSRGB = false;
+
+    // ArraySlice -> MipLevel -> TextureSubresourceData
+    std::vector<std::vector<TextureSubresourceData>> dataLayout;
+};
 
 } // namespace st::gfx
