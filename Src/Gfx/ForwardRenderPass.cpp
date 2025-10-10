@@ -1,12 +1,12 @@
 #include "Gfx/ForwardRenderPass.h"
 #include "Core/Log.h"
-#include "Gfx/SceneGraph.h"
-#include "Gfx/SceneGraphLeaf.h"
-#include "Gfx/MeshInstance.h"
+//#include "Gfx/SceneGraph.h"
+//#include "Gfx/SceneGraphLeaf.h"
+//#include "Gfx/MeshInstance.h"
 #include "Gfx/RenderView.h"
-#include "Gfx/Camera.h"
-#include "Gfx/Mesh.h"
-#include "Gfx/DeviceManager.h"
+//#include "Gfx/Camera.h"
+//#include "Gfx/Mesh.h"
+//#include "Gfx/DeviceManager.h"
 
 bool st::gfx::ForwardRenderPass::Init(nvrhi::DeviceHandle device)
 {

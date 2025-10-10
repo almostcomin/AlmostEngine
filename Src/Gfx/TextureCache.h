@@ -44,6 +44,8 @@ public:
 
 private:
 
+	std::shared_ptr<Handle> CreateHandle();
+
 private:
 
 	std::unordered_map<std::string, std::weak_ptr<Handle>> m_Textures;

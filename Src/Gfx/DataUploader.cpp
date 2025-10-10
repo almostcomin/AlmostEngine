@@ -4,16 +4,10 @@
 
 st::gfx::DataUploader::DataUploader(nvrhi::DeviceHandle device) : m_Device(device)
 {
-}
-
-bool st::gfx::DataUploader::Init()
-{
 	nvrhi::CommandListParameters params;
 	params.queueType = nvrhi::CommandQueue::Graphics;
 
 	m_CommandList = m_Device->createCommandList(params);
-
-	return true;
 }
 
 std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::UploadBufferData(
@@ -38,6 +32,23 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
 	return UploadBufferDataInternal(srcData, dstBuffer, dstCurrentBufferState, dstBufferTargetState, dstStart, dstSize, opt_gpuMarker);
+}
+
+std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(
+	st::Blob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
+	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+{
+	auto result = UploadTextureDataInternal(srcData, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
+	if (result)
+	{
+		// Wait async to end to free srcData.
+		std::thread([this, event = *result, capturedData = std::move(srcData)]()
+			{
+				m_Device->waitEventQuery(event);
+			}).detach();
+	}
+
+	return result;
 }
 
 std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(

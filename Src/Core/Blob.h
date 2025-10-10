@@ -19,19 +19,20 @@ public:
 };
 
 // Specific blob implementation that owns the data and frees it when deleted.
-// It uses free, so original data must have been allocated using malloc.
+// Custom deleter can be specified, if not, free will be used
 class Blob : public IBlob
 {
 public:
 
-	Blob() = default;
-	Blob(char* data, size_t size, std::function<void(void*)> deleter = nullptr) : 
-		m_data{ data }, m_size{ size }, m_deleter{ std::move(deleter) } 
-	{}
-
 	// non-copiable
 	Blob(const Blob&) = delete;
 	Blob& operator=(const Blob&) = delete;
+
+	Blob() = default;
+
+	Blob(char* data, size_t size, std::function<void(void*)> deleter = nullptr) : 
+		m_data{ data }, m_size{ size }, m_deleter{ std::move(deleter) } 
+	{}
 
 	Blob(Blob&& other) : 
 		m_data{ other.m_data }, m_size{ other.m_size }, m_deleter{ std::move(other.m_deleter) }
@@ -39,6 +40,12 @@ public:
 		other.m_data = nullptr;
 		other.m_size = 0;
 	}
+
+	virtual ~Blob() override
+	{
+		reset();
+	}
+
 	Blob& operator=(Blob&& other)
 	{
 		m_data = other.m_data;
@@ -49,16 +56,11 @@ public:
 		return *this;
 	}
 
-	virtual ~Blob() override
-	{
-		reset();
-	}
-
 	[[nodiscard]] virtual char* data() const { return m_data; }
 	[[nodiscard]] virtual size_t size() const { return m_size; }
 	[[nodiscard]] virtual bool empty() const { return m_data == nullptr || m_size == 0; }
 
-	void reset()
+	virtual void reset()
 	{
 		if (m_data)
 		{
@@ -70,11 +72,59 @@ public:
 		m_deleter = nullptr;
 	}
 
-private:
+protected:
 
 	char* m_data = nullptr;
 	size_t m_size = 0;
 	std::function<void(void*)> m_deleter = nullptr;
+};
+
+class SubBlob : public Blob
+{
+public:
+
+	// non-copiable
+	SubBlob(const Blob&) = delete;
+	SubBlob& operator=(const Blob&) = delete;
+
+	SubBlob() = default;
+
+	SubBlob(char* actual_ptr, char* data, size_t size, std::function<void(void*)> deleter = nullptr) :
+		Blob{ data, size, deleter }, m_actual_ptr(actual_ptr)
+	{}
+
+	SubBlob(SubBlob&& other) :
+		Blob{ std::move(other) }, m_actual_ptr{ other.m_actual_ptr }
+	{
+		other.m_actual_ptr = nullptr;
+	}
+
+	~SubBlob() override = default;
+
+	SubBlob& operator=(SubBlob&& other)
+	{
+		Blob::operator=(std::move(other));
+		m_actual_ptr = other.m_actual_ptr;
+		other.m_actual_ptr = nullptr;
+		return *this;
+	}
+
+	void reset() override
+	{
+		if (m_actual_ptr)
+		{
+			if (m_deleter) m_deleter(m_actual_ptr);
+			else free(m_actual_ptr);
+		}
+		m_actual_ptr = nullptr;
+		m_data = nullptr;
+		m_size = 0;
+		m_deleter = nullptr;
+	}
+
+protected:
+
+	char* m_actual_ptr = nullptr;
 };
 
 // Specific blob implementation that does not owns the data
