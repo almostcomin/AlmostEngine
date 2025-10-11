@@ -32,8 +32,8 @@ namespace
     };
 }
 
-st::gfx::TextureCache::TextureCache(st::gfx::DeviceManager* deviceManager) : 
-    m_DeviceManager{ deviceManager }
+st::gfx::TextureCache::TextureCache(nvrhi::DeviceHandle device, st::gfx::DataUploader* dataUploader) :
+    m_Device{ device }, m_DataUploader{ dataUploader }
 {}
 
 std::expected<std::shared_ptr<st::gfx::TextureCache::Handle>, std::string>
@@ -64,14 +64,14 @@ st::gfx::TextureCache::Load(const std::string& path)
         st::gfx::TextureInfo& texInfo = ddsResult->first;
         texInfo.debugName = st::GetFilenameFromPath(path);
 
-        nvrhi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_DeviceManager->GetDevice());
+        nvrhi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_Device);
         if (!texture)
         {
             return std::unexpected(std::format("Failed creating texture {}.", path));
         }
 
         DirectX::ScratchImage* image = ddsResult->second.get();
-        auto uploadResult = m_DeviceManager->GetDataUploader()->UploadTextureData(
+        auto uploadResult = m_DataUploader->UploadTextureData(
             st::WeakBlob{ (char*)image->GetPixels(), image->GetPixelsSize() },
             texture, nvrhi::ResourceStates::Common, nvrhi::ResourceStates::ShaderResource, nvrhi::AllSubresources, texInfo.debugName.c_str());
         if (!uploadResult)
@@ -96,14 +96,14 @@ st::gfx::TextureCache::Load(const std::string& path)
         st::gfx::TextureInfo& texInfo = stbResult->first;
         texInfo.debugName = st::GetFilenameFromPath(path);
 
-        nvrhi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_DeviceManager->GetDevice());
+        nvrhi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_Device);
         if (!texture)
         {
             return std::unexpected(std::format("Failed creating texture {}.", path));
         }
 
         st::Blob& blob = stbResult->second;
-        auto uploadResult = m_DeviceManager->GetDataUploader()->UploadTextureData(
+        auto uploadResult = m_DataUploader->UploadTextureData(
             std::move(blob), texture, nvrhi::ResourceStates::Common, nvrhi::ResourceStates::ShaderResource, nvrhi::AllSubresources, texInfo.debugName.c_str());
         if (!uploadResult)
         {

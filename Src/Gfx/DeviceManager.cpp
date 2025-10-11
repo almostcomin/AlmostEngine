@@ -5,6 +5,7 @@
 #include "Gfx/DataUploader.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/TextureCache.h"
+#include "Gfx/CommonResources.h"
 
 st::gfx::DeviceManager::~DeviceManager()
 {
@@ -31,7 +32,8 @@ bool st::gfx::DeviceManager::Init(const DeviceParams& params)
 	{
 		m_ShaderFactory = std::make_unique<st::gfx::ShaderFactory>(m_nvrhiDevice);
 		m_DataUploader = std::make_unique<st::gfx::DataUploader>(m_nvrhiDevice);
-		m_TextureCache = std::make_unique<st::gfx::TextureCache>(this);
+		m_TextureCache = std::make_unique<st::gfx::TextureCache>(m_nvrhiDevice, m_DataUploader.get());
+		m_CommonResources = std::make_unique<st::gfx::CommonResources>(m_ShaderFactory.get());
 	}
 	return ok;
 }

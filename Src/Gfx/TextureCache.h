@@ -10,7 +10,7 @@
 
 namespace st::gfx
 {
-	class DeviceManager;
+	class DataUploader;
 }
 
 namespace st::gfx
@@ -36,7 +36,7 @@ public:
 
 public:
 
-	TextureCache(st::gfx::DeviceManager* deviceManager);
+	TextureCache(nvrhi::DeviceHandle device, st::gfx::DataUploader* dataUploader);
 
 	std::expected<std::shared_ptr<Handle>, std::string> Load(const std::string& path);
 
@@ -56,7 +56,8 @@ private:
 	std::mutex m_InFlightMapMutex;
 	std::mutex m_StaleMapMutex;
 
-	st::gfx::DeviceManager* m_DeviceManager;
+	nvrhi::DeviceHandle m_Device;
+	DataUploader* m_DataUploader;
 };
 
 } // namespace st::gfx

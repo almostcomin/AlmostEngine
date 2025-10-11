@@ -13,6 +13,7 @@ namespace st::gfx
     class ShaderFactory;
     class DataUploader;
     class TextureCache;
+    class CommonResources;
 };
 
 namespace st::gfx
@@ -138,6 +139,7 @@ private:
     std::unique_ptr<st::gfx::ShaderFactory> m_ShaderFactory;
     std::unique_ptr<st::gfx::DataUploader> m_DataUploader;
     std::unique_ptr<st::gfx::TextureCache> m_TextureCache;
+    std::unique_ptr<st::gfx::CommonResources> m_CommonResources;
 };
 
 } // namespace st::graphics
