@@ -25,12 +25,19 @@ public:
 	bool Render(nvrhi::IFramebuffer* frameBuffer) override;
 	void OnBackbufferResize(const glm::ivec2& size) override {};
 
+private:
+
+	void OnAttached() override;
+	void OnDetached() override;
 
 private:
 
 	st::weak<SceneGraph> m_SceneGraph;
 
 	nvrhi::CommandListHandle m_CommandList;
+
+	nvrhi::ShaderHandle m_Vs;
+	nvrhi::ShaderHandle m_Ps;
 
 	nvrhi::DeviceHandle m_Device;
 };

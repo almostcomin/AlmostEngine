@@ -1,12 +1,9 @@
 #include "Gfx/ForwardRenderPass.h"
 #include "Core/Log.h"
-//#include "Gfx/SceneGraph.h"
-//#include "Gfx/SceneGraphLeaf.h"
-//#include "Gfx/MeshInstance.h"
+#include "Gfx/SceneGraph.h"
 #include "Gfx/RenderView.h"
-//#include "Gfx/Camera.h"
-//#include "Gfx/Mesh.h"
-//#include "Gfx/DeviceManager.h"
+#include "Gfx/DeviceManager.h"
+#include "Gfx/ShaderFactory.h"
 
 bool st::gfx::ForwardRenderPass::Init(nvrhi::DeviceHandle device)
 {
@@ -93,4 +90,21 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 	m_Device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
 #endif
 	return true;
+}
+
+void st::gfx::ForwardRenderPass::OnAttached()
+{
+	nvrhi::DeviceHandle device = m_RenderView->GetDeviceManager()->GetDevice();
+	m_CommandList = device->createCommandList();
+	
+	st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();
+	m_Vs = shaderFactory->CreateShader("Shaders/forward_vs.vso", nvrhi::ShaderType::Vertex);
+	m_Ps = shaderFactory->CreateShader("Shaders/forward_ps.vso", nvrhi::ShaderType::Pixel);
+}
+
+void st::gfx::ForwardRenderPass::OnDetached()
+{
+	m_Vs.Reset();
+	m_Ps.Reset();
+	m_CommandList.Reset();
 }

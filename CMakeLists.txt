@@ -61,7 +61,7 @@ target_sources(Structure PRIVATE ${GLM_HEADERS})
 set(CGLTF_HEADERS 
     "${CMAKE_SOURCE_DIR}/3rdParty/Sources/cgltf/cgltf.h"
 )
-source_group("Src/Graphics/cgltf" FILES ${CGLTF_HEADERS})
+source_group("Src/Gfx/cgltf" FILES ${CGLTF_HEADERS})
 target_sources(Structure PRIVATE ${CGLTF_HEADERS})
 
 # SDL3
