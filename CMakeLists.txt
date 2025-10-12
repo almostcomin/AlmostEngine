@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(Structure)
 
 include(FetchContent)
-add_subdirectory(Shaders)
+include(CompileShaders.cmake)
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo" CACHE STRING "" FORCE)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -16,7 +16,21 @@ file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/Src/*.*"
 )
 
+file(GLOB_RECURSE HLSL_FILES
+    "${CMAKE_SOURCE_DIR}/Src/*.hlsl"
+    "${CMAKE_SOURCE_DIR}/Src/*.hlsli"
+)
+
 add_executable(Structure WIN32 ${SRC_FILES})
+
+if(MSVC)
+    foreach(hlsl_file ${HLSL_FILES})
+        set_source_files_properties(${hlsl_file} PROPERTIES
+            VS_TOOL_OVERRIDE "None"
+            HEADER_FILE_ONLY "TRUE"
+        )
+    endforeach()
+endif()
 
 set_target_properties(Structure PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Data"
@@ -75,3 +89,5 @@ target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/stb/i
 
 target_link_libraries(Structure PRIVATE winmm imm32 version setupapi)
 target_link_libraries(Structure PRIVATE dxgi d3d12 dxguid)
+
+GenShaders()
