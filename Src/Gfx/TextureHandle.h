@@ -20,7 +20,7 @@ public:
 	};
 
 	nvrhi::TextureHandle texture;
-	std::string path;
+	std::string id;
 	State state = State::Unloaded;
 
 private:

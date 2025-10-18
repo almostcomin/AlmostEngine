@@ -99,7 +99,7 @@ void st::gfx::ForwardRenderPass::OnAttached()
 	
 	st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();
 	m_Vs = shaderFactory->CreateShader("Shaders/forward_vs.vso", nvrhi::ShaderType::Vertex);
-	m_Ps = shaderFactory->CreateShader("Shaders/forward_ps.vso", nvrhi::ShaderType::Pixel);
+	m_Ps = shaderFactory->CreateShader("Shaders/forward_ps.pso", nvrhi::ShaderType::Pixel);
 }
 
 void st::gfx::ForwardRenderPass::OnDetached()

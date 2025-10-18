@@ -108,6 +108,8 @@ public:
     // New window size can be obtained calling GetWindowDimensions
     bool UpdateWindowSize();
 
+    void Render(std::function<void(void)> cb);
+
     st::gfx::ShaderFactory* GetShaderFactory() { return m_ShaderFactory.get(); }
     st::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
     st::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }

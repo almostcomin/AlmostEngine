@@ -2,7 +2,7 @@
 #include <chrono>
 #include <random>
 
-std::string_view st::GetFilenameFromPath(const std::string& path)
+std::string_view st::GetFilenameFromPath(const std::string_view& path)
 {
     size_t pos = path.find_last_of("/\\");
     if (pos == std::string::npos)
@@ -15,7 +15,7 @@ std::string_view st::GetFilenameFromPath(const std::string& path)
     }
 }
 
-std::string_view st::GetExtensionFromPath(const std::string& path)
+std::string_view st::GetExtensionFromPath(const std::string_view& path)
 {
     size_t pos = path.find_last_of('.');
     if (pos == std::string::npos)

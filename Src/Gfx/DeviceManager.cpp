@@ -98,3 +98,25 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 
 	return false;
 }
+
+void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
+{
+	m_DataUploader->ProcessRenderingThreadCommands();
+
+	// Check window resize
+	if (UpdateWindowSize())
+	{
+		//renderPassManager->OnBackbufferResize(deviceManager->GetWindowDimensions());
+	}
+
+	if (IsWindowVisible())
+	{
+		BeginFrame();
+		cb();
+		bool presentOk = Present();
+		assert(presentOk);
+	}
+
+	m_DataUploader->RunGarbageCollector();
+	GetDevice()->runGarbageCollection();
+}

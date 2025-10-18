@@ -1,13 +1,23 @@
 #include "Gfx/DataUploader.h"
 #include "Core/Log.h"
+#include "Gfx/Util.h"
 #include <nvrhi/d3d12.h>
 
-st::gfx::DataUploader::DataUploader(nvrhi::DeviceHandle device) : m_Device(device)
+st::gfx::DataUploader::ThreadLocalData::ThreadLocalData(nvrhi::DeviceHandle device)
 {
 	nvrhi::CommandListParameters params;
 	params.queueType = nvrhi::CommandQueue::Graphics;
+	CommandList = device->createCommandList(params);
 
-	m_CommandList = m_Device->createCommandList(params);
+	CommitIdx = 0;
+}
+
+// m_CommitCount starts with 1 since 0 is interpreted as not-initialized
+st::gfx::DataUploader::DataUploader(nvrhi::DeviceHandle device) : m_CommitCount{ 1 }, m_Device{ device }
+{
+	ID3D12Device* d3d12Device = m_Device->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
+	HRESULT hr = d3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_CommitFence));
+	assert(SUCCEEDED(hr));
 }
 
 std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::UploadBufferData(
@@ -59,30 +69,25 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	assert(dstStart < desc.byteSize);
 	assert(dstSize <= desc.byteSize - dstStart);
 
-	std::scoped_lock lock{ m_UploadMutex };
+	ThreadLocalData* threadLocal = GetThreadLocalData();
+	auto commandList = threadLocal->CommandList;
 
-	m_CommandList->open();
-	m_CommandList->beginTrackingBufferState(dstBuffer, dstCurrentBufferState);
+	//commandList->open();
+	commandList->beginTrackingBufferState(dstBuffer, dstCurrentBufferState);
 
 	if (opt_gpuMarker)
-	{
-		m_CommandList->beginMarker(std::format("UploadBufferData [{}]", opt_gpuMarker).c_str());
-	}
-	else
-	{
-		m_CommandList->beginMarker("UploadBufferData");
-	}
+		commandList->beginMarker(std::format("UploadBufferData [{}]", opt_gpuMarker).c_str());
 
-	m_CommandList->writeBuffer(dstBuffer, srcData.data(), dstSize, dstStart);
+	commandList->writeBuffer(dstBuffer, srcData.data(), dstSize, dstStart);
 
-	m_CommandList->setPermanentBufferState(dstBuffer, dstBufferTargetState);
+	commandList->setPermanentBufferState(dstBuffer, dstBufferTargetState);
 
-	m_CommandList->commitBarriers();
+	commandList->commitBarriers();
 
-	m_CommandList->endMarker();
+	if (opt_gpuMarker)
+		commandList->endMarker();
 
-	m_CommandList->close();
-	m_Device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
+	//m_Device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
 
 	nvrhi::EventQueryHandle event = m_Device->createEventQuery();
 	m_Device->setEventQuery(event, nvrhi::CommandQueue::Graphics);
@@ -128,10 +133,14 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
-	std::scoped_lock lock{ m_UploadMutex };
 
-	m_CommandList->open();
-	m_CommandList->beginTrackingTextureState(dstTexture, {}, currentTextureState);
+	ThreadLocalData* threadLocal = GetThreadLocalData();
+	auto commandList = threadLocal->CommandList;
+
+	commandList->beginTrackingTextureState(dstTexture, {}, currentTextureState);
+
+	if (opt_gpuMarker)
+		commandList->beginMarker(std::format("UploadTextureData [{}]", opt_gpuMarker).c_str());
 
 	nvrhi::TextureDesc desc = dstTexture->getDesc();
 
@@ -147,18 +156,117 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 		0, nullptr, nullptr, nullptr, &requiredSize);
 	assert(requiredSize == srcData.size());
 
-	/*
-		for (uint32_t arraySlice = 0; arraySlice < desc.arraySize; arraySlice++)
+	for (uint32_t arraySlice = 0; arraySlice < desc.arraySize; arraySlice++)
+	{
+		for (uint32_t mipLevel = 0; mipLevel < desc.mipLevels; mipLevel++)
 		{
-			for (uint32_t mipLevel = 0; mipLevel < desc.mipLevels; mipLevel++)
-			{
-				const TextureSubresourceData& layout = texture->dataLayout[arraySlice][mipLevel];
-
-				commandList->writeTexture(texture->texture, arraySlice, mipLevel, dataPointer + layout.dataOffset,
-					layout.rowPitch, layout.depthPitch);
-			}
+			const int rowPich = (desc.width >> mipLevel) * st::gfx::BitsPerPixel(desc.format) / 8;
+			commandList->writeTexture(dstTexture, arraySlice, mipLevel, srcData.data(), rowPich);
 		}
-	*/
+	}
 
-	return std::unexpected("TODO");
+	commandList->setPermanentTextureState(dstTexture, textureTargetState);
+	commandList->commitBarriers();
+
+	if (opt_gpuMarker)
+		commandList->endMarker();
+
+
+	nvrhi::EventQueryHandle event = m_Device->createEventQuery();
+
+
+	bool poll = m_Device->pollEventQuery(event);
+
+
+	m_Device->setEventQuery(event, nvrhi::CommandQueue::Graphics);
+
+	
+	bool poll2 = m_Device->pollEventQuery(event);
+
+	m_Device->waitEventQuery(event);
+
+
+	bool poll3 = m_Device->pollEventQuery(event);
+
+
+	m_Device->resetEventQuery(event);
+
+	bool poll4 = m_Device->pollEventQuery(event);
+
+
+	return event;
+
+}
+
+void st::gfx::DataUploader::ProcessRenderingThreadCommands()
+{
+	std::scoped_lock lock{ m_ThreadLocalMutex };
+
+	std::vector<nvrhi::ICommandList*> commandListsToExecute;
+	for (auto it = m_ThreadLocal.begin(); it != m_ThreadLocal.end(); ++it)
+	{
+		ThreadLocalData* threadLocal = it->second.get();
+
+		if (threadLocal->CommitIdx == m_CommitCount)
+		{
+			// Commit requested this frame.
+			threadLocal->CommandList->close();
+			commandListsToExecute.push_back(threadLocal->CommandList.Get());
+		}
+	}
+
+	if (!commandListsToExecute.empty())
+	{
+		m_Device->executeCommandLists(commandListsToExecute.data(), commandListsToExecute.size(), nvrhi::CommandQueue::Graphics);
+
+		ID3D12CommandQueue* queue = m_Device->getNativeQueue(nvrhi::ObjectTypes::D3D12_CommandQueue, nvrhi::CommandQueue::Graphics);
+		queue->Signal(m_CommitFence, m_CommitCount);
+		++m_CommitCount;
+	}	
+}
+
+void st::gfx::DataUploader::RunGarbageCollector()
+{
+	std::scoped_lock lock{ m_ThreadLocalMutex };
+
+	uint64_t completedIdx = m_CommitFence->GetCompletedValue();
+	std::vector<std::unordered_map<std::thread::id, std::unique_ptr<ThreadLocalData>>::iterator> toRemove;
+	for (auto it = m_ThreadLocal.begin(); it != m_ThreadLocal.end(); ++it)
+	{
+		if (it->second->CommitIdx <= completedIdx)
+			toRemove.push_back(it);
+	}
+
+	for (auto& it : toRemove)
+	{
+		m_ThreadLocal.erase(it);
+	}
+}
+
+st::gfx::DataUploader::ThreadLocalData* st::gfx::DataUploader::GetThreadLocalData()
+{
+	std::scoped_lock lock{ m_ThreadLocalMutex };
+
+	auto this_thread_id = std::this_thread::get_id();
+	ThreadLocalData* threadLocal = nullptr;
+
+	auto it = m_ThreadLocal.find(this_thread_id);
+	if (it == m_ThreadLocal.end())
+	{
+		threadLocal = new ThreadLocalData{ m_Device };
+		m_ThreadLocal.insert(std::pair<std::thread::id, std::unique_ptr<ThreadLocalData>>{ this_thread_id, threadLocal});
+	}
+	else
+	{
+		return threadLocal = it->second.get();
+	}
+
+	if (threadLocal->CommitIdx != m_CommitCount)
+	{
+		// Since this is the first time we request this command buffer this frame, open it and keep it open until the final submit.
+		threadLocal->CommandList->open();
+		threadLocal->CommitIdx = m_CommitCount;
+	}
+
+	return threadLocal;
 }

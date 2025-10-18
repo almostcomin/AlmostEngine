@@ -28,7 +28,7 @@ public:
 
 	std::shared_ptr<TextureHandle> Get(const std::string& id);
 
-	LoadResult Load(const std::string& path, bool forceSRGB);
+	LoadResult Load(const std::string& path, bool forceSRGB = false);
 	LoadResult Load(const st::WeakBlob& blob, const std::string& id = MakeUniqueStringId(), bool isDDS = false, bool forceSRGB = false);
 
 	void Update();
@@ -36,7 +36,7 @@ public:
 private:
 
 	std::expected<std::pair<std::shared_ptr<TextureHandle>, nvrhi::EventQueryHandle>, std::string>
-	LoadInternal(const st::WeakBlob& blob, const std::string& key_path, bool isDDS);
+	LoadInternal(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB);
 
 	std::shared_ptr<TextureHandle> CreateHandle();
 

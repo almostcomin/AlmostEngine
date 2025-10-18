@@ -72,7 +72,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string&
     st::Blob fileData = std::move(*readResult);
 
     std::string_view ext = GetExtensionFromPath(path);
-    auto loadResult = LoadInternal(st::WeakBlob{ fileData }, path, (ext == "dds" || ext == "DDS"));
+    auto loadResult = LoadInternal(st::WeakBlob{ fileData }, path, (ext == "dds" || ext == "DDS"), forceSRGB);
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
@@ -89,7 +89,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const st::WeakBlob
         return std::pair<std::shared_ptr<st::gfx::TextureHandle>, nvrhi::EventQueryHandle>(textureHandle, {});
     }
 
-    auto loadResult = LoadInternal(blob, id, isDDS);
+    auto loadResult = LoadInternal(blob, id, isDDS, forceSRGB);
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
@@ -135,7 +135,7 @@ void st::gfx::TextureCache::Update()
     }
 }
 
-st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::WeakBlob& blob, const std::string& key_path, bool isDDS)
+st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB)
 {
     std::expected<std::pair<st::gfx::TextureInfo, st::Blob>, std::string> loadResult;
     if (isDDS)
@@ -144,18 +144,19 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
     }
     else
     {
-        loadResult = LoadImageTexture(blob);
+        loadResult = LoadImageTexture(blob, forceSRGB);
     }
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
     }
 
-    const TextureInfo& texInfo = loadResult->first;
+    TextureInfo& texInfo = loadResult->first;
+    texInfo.debugName = id;
     nvrhi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_Device);
     if (!texture)
     {
-        return std::unexpected(std::format("Failed creating texture {}.", key_path));
+        return std::unexpected(std::format("Failed creating texture {}.", id));
     }
 
     auto uploadResult = m_DataUploader->UploadTextureData(
@@ -168,7 +169,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
     std::shared_ptr<TextureHandle> handle;
     handle = CreateHandle();
     handle->texture = texture;
-    handle->path = key_path;
+    handle->id = id;
     handle->state = TextureHandle::Loading;
 
     nvrhi::EventQueryHandle uploadEvent;
@@ -176,11 +177,11 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
 
     {
         std::scoped_lock loc{ m_MapMutex };
-        m_Textures.emplace(key_path, std::weak_ptr<TextureHandle>(handle));
+        m_Textures.emplace(id, std::weak_ptr<TextureHandle>(handle));
     }
     {
         std::scoped_lock loc{ m_InFlightMapMutex };
-        m_InFlightTextures.push_back(InFlightData{ key_path, handle, uploadEvent });
+        m_InFlightTextures.push_back(InFlightData{ id, handle, uploadEvent });
     }
 
     return std::pair<std::shared_ptr<st::gfx::TextureHandle>, nvrhi::EventQueryHandle>
@@ -191,6 +192,6 @@ std::shared_ptr<st::gfx::TextureHandle> st::gfx::TextureCache::CreateHandle()
 {
     return std::shared_ptr<TextureHandle>{ new TextureHandle, [this](TextureHandle* h) {
         std::scoped_lock lock{ m_StaleMapMutex };
-        m_StaleTextures.push_back(std::move(h->path));
+        m_StaleTextures.push_back(std::move(h->id));
     } };
 }

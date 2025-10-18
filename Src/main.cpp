@@ -168,24 +168,12 @@ int SDL_main(int argc, char* argv[])
 			}
 		}
 
-		// Check window resize
-		if (deviceManager->UpdateWindowSize())
+		deviceManager->Render([&renderView]()
 		{
-			//renderPassManager->OnBackbufferResize(deviceManager->GetWindowDimensions());
-		}
-
-		// Render
-		if (deviceManager->IsWindowVisible())
-		{
-			deviceManager->BeginFrame();
 			renderView->Render();
-			bool presentOk = deviceManager->Present();
-			assert(presentOk);
-		}
+		});
 
 		std::this_thread::yield();
-		deviceManager->GetDevice()->runGarbageCollection();
-
 		nFrames++;
 	}
 
