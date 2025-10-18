@@ -171,31 +171,11 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	if (opt_gpuMarker)
 		commandList->endMarker();
 
-
 	nvrhi::EventQueryHandle event = m_Device->createEventQuery();
-
-
-	bool poll = m_Device->pollEventQuery(event);
-
-
-	m_Device->setEventQuery(event, nvrhi::CommandQueue::Graphics);
-
-	
-	bool poll2 = m_Device->pollEventQuery(event);
-
-	m_Device->waitEventQuery(event);
-
-
-	bool poll3 = m_Device->pollEventQuery(event);
-
-
-	m_Device->resetEventQuery(event);
-
-	bool poll4 = m_Device->pollEventQuery(event);
-
+	m_Device->setEventQuery
+	event-> 
 
 	return event;
-
 }
 
 void st::gfx::DataUploader::ProcessRenderingThreadCommands()
