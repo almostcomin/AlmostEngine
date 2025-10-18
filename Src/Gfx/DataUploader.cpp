@@ -14,7 +14,7 @@ std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::Uplo
 	st::Blob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
-	auto result = UploadBufferDataInternal(srcData, dstBuffer, dstCurrentBufferState, dstBufferTargetState, dstStart, dstSize, opt_gpuMarker);
+	auto result = UploadBufferData(st::WeakBlob{ srcData }, dstBuffer, dstCurrentBufferState, dstBufferTargetState, dstStart, dstSize, opt_gpuMarker);
 	if (result)
 	{
 		// Wait async to end to free srcData.
@@ -27,39 +27,26 @@ std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::Uplo
 	return result;
 }
 
-std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadBufferData(
-	const st::WeakBlob& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
+std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::UploadBufferData(
+	st::SharedBlob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
-	return UploadBufferDataInternal(srcData, dstBuffer, dstCurrentBufferState, dstBufferTargetState, dstStart, dstSize, opt_gpuMarker);
-}
-
-std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(
-	st::Blob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
-	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
-{
-	auto result = UploadTextureDataInternal(srcData, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
+	auto result = UploadBufferData(st::WeakBlob{ srcData }, dstBuffer, dstCurrentBufferState, dstBufferTargetState, dstStart, dstSize, opt_gpuMarker);
 	if (result)
 	{
 		// Wait async to end to free srcData.
-		std::thread([this, event = *result, capturedData = std::move(srcData)]()
-			{
-				m_Device->waitEventQuery(event);
-			}).detach();
+		std::thread([this, event = *result, capturedData = std::move(srcData)]() 
+		{
+			m_Device->waitEventQuery(event);
+		}).detach();
 	}
 
 	return result;
 }
 
-std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(
-	const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
-	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
-{
-	return UploadTextureDataInternal(srcData, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
-}
 
-std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadBufferDataInternal(
-	const st::IBlob& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState, 
+std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadBufferData(
+	const st::WeakBlob& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
 	nvrhi::BufferDesc desc = dstBuffer->getDesc();
@@ -103,8 +90,42 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	return event;
 }
 
-std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureDataInternal(
-	const st::IBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
+std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(
+	st::Blob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
+	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+{
+	auto result = UploadTextureData(st::WeakBlob{ srcData }, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
+	if (result)
+	{
+		// Wait async to end to free srcData.
+		std::thread([this, event = *result, capturedData = std::move(srcData)]()
+			{
+				m_Device->waitEventQuery(event);
+			}).detach();
+	}
+
+	return result;
+}
+
+std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(
+	st::SharedBlob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
+	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+{
+	auto result = UploadTextureData(st::WeakBlob{ srcData }, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
+	if (result)
+	{
+		// Wait async to end to free srcData.
+		std::thread([this, event = *result, capturedData = std::move(srcData)]()
+			{
+				m_Device->waitEventQuery(event);
+			}).detach();
+	}
+
+	return result;
+}
+
+std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(
+	const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
 	std::scoped_lock lock{ m_UploadMutex };

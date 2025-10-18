@@ -6,11 +6,13 @@
 #include <expected>
 #include <mutex>
 #include <nvrhi/nvrhi.h>
-
+#include "Core/Blob.h"
+#include "Core/Util.h"
 
 namespace st::gfx
 {
 	class DataUploader;
+	class TextureHandle;
 }
 
 namespace st::gfx
@@ -20,36 +22,35 @@ class TextureCache
 {
 public:
 
-	struct Handle
-	{
-		enum State
-		{
-			Unloaded,
-			Loading,
-			Loaded
-		};
-
-		nvrhi::TextureHandle texture;
-		std::string path;
-		State state = State::Unloaded;
-	};
-
-public:
+	using LoadResult = std::expected<std::pair<std::shared_ptr<TextureHandle>, nvrhi::EventQueryHandle>, std::string>;
 
 	TextureCache(nvrhi::DeviceHandle device, st::gfx::DataUploader* dataUploader);
 
-	std::expected<std::shared_ptr<Handle>, std::string> Load(const std::string& path);
+	std::shared_ptr<TextureHandle> Get(const std::string& id);
+
+	LoadResult Load(const std::string& path, bool forceSRGB);
+	LoadResult Load(const st::WeakBlob& blob, const std::string& id = MakeUniqueStringId(), bool isDDS = false, bool forceSRGB = false);
 
 	void Update();
 
 private:
 
-	std::shared_ptr<Handle> CreateHandle();
+	std::expected<std::pair<std::shared_ptr<TextureHandle>, nvrhi::EventQueryHandle>, std::string>
+	LoadInternal(const st::WeakBlob& blob, const std::string& key_path, bool isDDS);
+
+	std::shared_ptr<TextureHandle> CreateHandle();
 
 private:
 
-	std::unordered_map<std::string, std::weak_ptr<Handle>> m_Textures;
-	std::unordered_map<std::string, std::pair<std::shared_ptr<Handle>, nvrhi::EventQueryHandle>> m_InFlightTextures;
+	struct InFlightData
+	{
+		std::string id;
+		std::shared_ptr<TextureHandle> texture;
+		nvrhi::EventQueryHandle event;
+	};
+
+	std::unordered_map<std::string, std::weak_ptr<TextureHandle>> m_Textures;
+	std::vector<InFlightData> m_InFlightTextures;
 	std::vector<std::string> m_StaleTextures;
 
 	std::mutex m_MapMutex;

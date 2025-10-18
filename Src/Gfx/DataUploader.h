@@ -30,6 +30,10 @@ public:
 		st::Blob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
+	std::expected<nvrhi::EventQueryHandle, std::string> UploadBufferData(
+		st::SharedBlob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
+		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
+
 	/// Uploads data to a buffer object.
 	/// 
 	/// @param srcData Pointer to the source data to copy from.
@@ -62,6 +66,10 @@ public:
 		st::Blob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
+	std::expected<nvrhi::EventQueryHandle, std::string> UploadTextureData(
+		st::SharedBlob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
+		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
+
 	/// Uploads data to a texture object.
 	/// 
 	/// @param dstTexture Destination texture where the data will be copied.
@@ -76,16 +84,6 @@ public:
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<nvrhi::EventQueryHandle, std::string> UploadTextureData(
 		const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
-		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
-
-private:
-
-	std::expected<nvrhi::EventQueryHandle, std::string> UploadBufferDataInternal(
-		const st::IBlob& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState, 
-		size_t dstStart, int dstSize, const char* opt_gpuMarker);
-
-	std::expected<nvrhi::EventQueryHandle, std::string> UploadTextureDataInternal(
-		const st::IBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
 private:

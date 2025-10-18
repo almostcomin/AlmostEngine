@@ -90,3 +90,8 @@ const std::string& st::fs::File::GetPath() const
 {
 	return m_Path;
 }
+
+bool st::fs::File::Exists(const std::filesystem::path& path)
+{
+	return std::filesystem::exists(path) && std::filesystem::is_regular_file(path);
+}

@@ -3,6 +3,7 @@
 #include <string>
 #include <fstream>
 #include <expected>
+#include <filesystem>
 #include "Core/Blob.h"
 
 namespace st::fs
@@ -26,6 +27,8 @@ public:
 	size_t Pos();
 
 	const std::string& GetPath() const;
+
+	static bool Exists(const std::filesystem::path& path);
 
 private:
 

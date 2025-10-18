@@ -227,67 +227,17 @@ namespace
 
         return dataOffset;
     }
-
-    std::expected<nvrhi::TextureHandle, std::string> CreateTextureFromDDSMetadata(
-        const DirectX::TexMetadata& metadata, const std::string& path, nvrhi::DeviceHandle device)
-    {
-        ID3D12Resource* d3d12Texture = nullptr;
-        HRESULT hr = DirectX::CreateTexture(device->getNativeObject(nvrhi::ObjectTypes::D3D12_Device), metadata, &d3d12Texture);
-        if (FAILED(hr))
-        {
-            return std::unexpected(std::format("Error creating DDS texture, file '{}', hr [{:#x}]", path, hr));
-        }
-
-        D3D12_RESOURCE_DESC d3d12Desc = d3d12Texture->GetDesc();
-
-        std::filesystem::path fullPath = path;
-        std::string debugName = fullPath.filename().string();
-
-        nvrhi::TextureDesc nvrhiDesc;
-        nvrhiDesc.width = d3d12Desc.Width;
-        nvrhiDesc.height = d3d12Desc.Height;
-        nvrhiDesc.depth = 1; // TODO
-        nvrhiDesc.arraySize = d3d12Desc.DepthOrArraySize;
-        nvrhiDesc.mipLevels = d3d12Desc.MipLevels;
-        nvrhiDesc.format = GetFormat(d3d12Desc.Format);
-        nvrhiDesc.dimension = nvrhi::TextureDimension::Texture2D; // TODO
-        nvrhiDesc.debugName = debugName.c_str();
-        nvrhiDesc.isShaderResource = true;
-        nvrhiDesc.isRenderTarget = false;
-        nvrhiDesc.isUAV = false;
-        nvrhiDesc.initialState = nvrhi::ResourceStates::ShaderResource;
-        nvrhiDesc.keepInitialState = false;
-
-        nvrhi::TextureHandle nvrhiTexture = device->createHandleForNativeTexture(nvrhi::ObjectTypes::D3D12_Resource, nvrhi::Object(d3d12Texture), nvrhiDesc);
-        return nvrhiTexture;
-    };
 } // anonymous namespace
 
-std::expected<std::pair<st::gfx::TextureInfo, std::unique_ptr<DirectX::ScratchImage>>, std::string> 
-st::gfx::LoadDDSTexture(const std::string& path)
+std::expected<std::pair<st::gfx::TextureInfo, st::Blob>, std::string>
+st::gfx::LoadDDSTexture(const st::WeakBlob& fileData)
 {
-	st::fs::File file(path);
-	if (!file.IsOpen())
-	{
-		return std::unexpected(std::format("File '{}' not found", path));
-	}
-	
-	st::Blob fileData;
-	if (auto readResult = file.Read(); readResult)
-	{
-		fileData = std::move(*readResult);
-	}
-	else
-	{
-		return std::unexpected(std::format("Error reading file '{}'", path));
-	}
-
 	DirectX::TexMetadata metadata;
     auto image = std::make_unique<DirectX::ScratchImage>();
 	HRESULT hr = DirectX::LoadFromDDSMemory((std::byte*)fileData.data(), fileData.size(), DirectX::DDS_FLAGS_NONE, &metadata, *image);
 	if (FAILED(hr))
 	{
-		return std::unexpected(std::format("Error loading DDS image, file '{}', hr [{:#x}]", path, hr));
+		return std::unexpected(std::format("Error loading DDS image, hr [{:#x}]", hr));
 	}
 
 	st::gfx::TextureInfo texInfo;
@@ -329,33 +279,21 @@ st::gfx::LoadDDSTexture(const std::string& path)
 
     FillTextureInfoOffsets(texInfo, image->GetPixelsSize(), 0);
 
-    return std::pair<st::gfx::TextureInfo, std::unique_ptr<DirectX::ScratchImage>> { texInfo, std::move(image) };
+    DirectX::ScratchImage* image_ptr = image.release();
+    st::Blob blob
+        { (char*)image_ptr->GetPixels(), image_ptr->GetPixelsSize(), (char*)image_ptr, [](void* ptr) { delete (DirectX::ScratchImage*)ptr; } };
+
+    return std::pair<st::gfx::TextureInfo, st::Blob> { texInfo, std::move(blob) };
 }
 
 std::expected<std::pair<st::gfx::TextureInfo, st::Blob>, std::string> 
-st::gfx::LoadImageTexture(const std::string& path)
+st::gfx::LoadImageTexture(const st::WeakBlob& fileData)
 {
-	st::fs::File file(path);
-	if (!file.IsOpen())
-	{
-		return std::unexpected(std::format("File '{}' not found", path));
-	}
-
-	st::Blob fileData;
-	if (auto readResult = file.Read(); readResult)
-	{
-		fileData = std::move(*readResult);
-	}
-	else
-	{
-		return std::unexpected(std::format("Error reading file '{}'", path));
-	}
-
 	int width = 0, height = 0, originalChannels = 0;
 	if (!stbi_info_from_memory((stbi_uc*)fileData.data(), fileData.size(), &width, &height, &originalChannels))
 	{
 
-		return std::unexpected(std::format("Couldn't process image header for texture '{}'", path));
+		return std::unexpected("Couldn't process image header for texture");
 	}
 
 	bool is_hdr = stbi_is_hdr_from_memory((stbi_uc*)fileData.data(), fileData.size());
@@ -376,7 +314,7 @@ st::gfx::LoadImageTexture(const std::string& path)
 	}
 	if (!bitmap)
 	{
-		return std::unexpected(std::format("Couldn't load generic texture '{}'", path));
+		return std::unexpected("Couldn't load generic texture");
 	}
 
 	st::gfx::TextureInfo texInfo;
@@ -393,7 +331,7 @@ st::gfx::LoadImageTexture(const std::string& path)
 	texInfo.dataLayout[0][0].dataSize = static_cast<size_t>(width * height * bytesPerPixel);
 
 	st::Blob blob{ 
-		(char*)bitmap, (size_t)(width * height * originalChannels), [](void* ptr) { stbi_image_free(ptr); } };
+		(char*)bitmap, (size_t)(width * height * originalChannels), (char*)bitmap, [](void* ptr) { stbi_image_free(ptr); } };
 
 	switch (channels)
 	{
@@ -407,7 +345,7 @@ st::gfx::LoadImageTexture(const std::string& path)
 		texInfo.format = is_hdr ? nvrhi::Format::RGBA32_FLOAT : nvrhi::Format::RGBA8_UNORM;
 		break;
 	default:
-		return std::unexpected(std::format("Unsupported number of components ({}) for texture '{}'", channels, path));
+		return std::unexpected(std::format("Unsupported number of components ({})", channels));
 	}
 
 	return std::pair<st::gfx::TextureInfo, st::Blob>{ texInfo, std::move(blob) };

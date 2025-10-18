@@ -2,6 +2,12 @@
 
 #include <string>
 #include <nvrhi/nvrhi.h>
+#include <memory>
+
+namespace st::gfx
+{
+	class TextureHandle;
+};
 
 namespace st::gfx
 {
@@ -10,18 +16,14 @@ class Material
 {
 public:
 
-	Material(const char* name = nullptr, const char* sourceFilename = nullptr) :
-		m_Name{ name ? name : "<null>" },
-		m_SourceFileName{ sourceFilename ? sourceFilename : "<null>" }
-	{}
+	Material(const std::string& name = {}, const std::string& filename = {});
+	~Material();
 
-	void SetVertexShader(nvrhi::ShaderHandle vertexShader);
-	void SetPixelShader(nvrhi::ShaderHandle pixelShader);
+	void SetDiffuseTexture(std::shared_ptr<TextureHandle> textureHandle);
 
 private:
 
-	nvrhi::ShaderHandle m_VertexShader;
-	nvrhi::ShaderHandle m_PixelShader;
+	std::shared_ptr<TextureHandle> m_DiffuseTexture;
 
 	std::string m_Name;
 	std::string m_SourceFileName; // where this material originated from, e.g. GLTF file name
