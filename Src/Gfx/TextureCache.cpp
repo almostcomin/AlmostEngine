@@ -57,7 +57,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string&
     auto textureHandle = Get(path);
     if (textureHandle)
     {
-        return std::pair<std::shared_ptr<st::gfx::TextureHandle>, nvrhi::EventQueryHandle>(textureHandle, {});
+        return std::pair<std::shared_ptr<st::gfx::TextureHandle>, std::future<void>>(textureHandle, {});
     }
 
     st::fs::File file{ path };
@@ -86,7 +86,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const st::WeakBlob
     auto textureHandle = Get(id);
     if (textureHandle)
     {
-        return std::pair<std::shared_ptr<st::gfx::TextureHandle>, nvrhi::EventQueryHandle>(textureHandle, {});
+        return std::pair<std::shared_ptr<st::gfx::TextureHandle>, std::future<void>>(textureHandle, {});
     }
 
     auto loadResult = LoadInternal(blob, id, isDDS, forceSRGB);
@@ -107,7 +107,7 @@ void st::gfx::TextureCache::Update()
 
         for (int i = 0; i < m_InFlightTextures.size();)
         {
-            if (m_Device->pollEventQuery(m_InFlightTextures[i].event))
+            if(!m_InFlightTextures[i].event.valid() || m_InFlightTextures[i].event.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {
                 m_Textures[m_InFlightTextures[i].id].lock()->state = TextureHandle::State::Ready;
                 m_InFlightTextures.erase(m_InFlightTextures.begin() + i);
@@ -172,8 +172,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
     handle->id = id;
     handle->state = TextureHandle::Loading;
 
-    nvrhi::EventQueryHandle uploadEvent;
-    uploadEvent = *uploadResult;
+    std::shared_future<void> uploadEvent = *uploadResult;
 
     {
         std::scoped_lock loc{ m_MapMutex };
@@ -184,7 +183,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
         m_InFlightTextures.push_back(InFlightData{ id, handle, uploadEvent });
     }
 
-    return std::pair<std::shared_ptr<st::gfx::TextureHandle>, nvrhi::EventQueryHandle>
+    return std::pair<std::shared_ptr<st::gfx::TextureHandle>, std::shared_future<void>>
         { std::move(handle), uploadEvent };
 }
 

@@ -749,7 +749,7 @@ void CollectPrimitiveTexcoords(const cgltf_accessor& texcoords, std::vector<glm:
     }
 }
 
-std::expected<std::pair<nvrhi::BufferHandle, nvrhi::EventQueryHandle>, std::string>
+std::expected<std::pair<nvrhi::BufferHandle, std::shared_future<void>>, std::string>
 CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
 {
     nvrhi::BufferDesc bufferDesc;
@@ -781,7 +781,7 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
     }
 }
 
-std::expected<std::pair<nvrhi::BufferHandle, nvrhi::EventQueryHandle>, std::string>
+std::expected<std::pair<nvrhi::BufferHandle, std::shared_future<void>>, std::string>
 CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
 {
     nvrhi::BufferDesc bufferDesc;
@@ -814,7 +814,7 @@ CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUp
 
 std::expected<std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>>, std::string>
 LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>>& matMap, 
-    const char* filename, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device, std::vector<nvrhi::EventQueryHandle>& out_handlesToWait)
+    const char* filename, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device, std::vector<std::shared_future<void>>& out_handlesToWait)
 {
     std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>> meshMap;
 
@@ -1136,7 +1136,7 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
     auto matMap = GetMaterialsMap(objects, loadTexCache, options);
 
     // Meshes
-    std::vector<nvrhi::EventQueryHandle> handlesToWait;
+    std::vector<std::shared_future<void>> handlesToWait;
     auto loadMeshesResult = LoadMeshes(objects, matMap, path, device->GetDataUploader(), device->GetDevice(), handlesToWait);
     auto meshMap = *loadMeshesResult;
 
@@ -1266,9 +1266,9 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
     }
 
     // Wait uploads
-    for (const auto& ev : handlesToWait)
+    for (const auto& fut : handlesToWait)
     {
-        device->GetDevice()->waitEventQuery(ev);
+        fut.wait();
     }
 
     sceneGraph->SetRoot(std::move(rootNode));

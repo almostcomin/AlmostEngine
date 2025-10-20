@@ -5,6 +5,7 @@
 #include <memory>
 #include <expected>
 #include <mutex>
+#include <future>
 #include <nvrhi/nvrhi.h>
 #include "Core/Blob.h"
 #include "Core/Util.h"
@@ -22,7 +23,7 @@ class TextureCache
 {
 public:
 
-	using LoadResult = std::expected<std::pair<std::shared_ptr<TextureHandle>, nvrhi::EventQueryHandle>, std::string>;
+	using LoadResult = std::expected<std::pair<std::shared_ptr<TextureHandle>, std::shared_future<void>>, std::string>;
 
 	TextureCache(nvrhi::DeviceHandle device, st::gfx::DataUploader* dataUploader);
 
@@ -35,8 +36,7 @@ public:
 
 private:
 
-	std::expected<std::pair<std::shared_ptr<TextureHandle>, nvrhi::EventQueryHandle>, std::string>
-	LoadInternal(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB);
+	LoadResult LoadInternal(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB);
 
 	std::shared_ptr<TextureHandle> CreateHandle();
 
@@ -46,7 +46,7 @@ private:
 	{
 		std::string id;
 		std::shared_ptr<TextureHandle> texture;
-		nvrhi::EventQueryHandle event;
+		std::shared_future<void> event;
 	};
 
 	std::unordered_map<std::string, std::weak_ptr<TextureHandle>> m_Textures;

@@ -13,14 +13,14 @@ st::gfx::DataUploader::ThreadLocalData::ThreadLocalData(nvrhi::DeviceHandle devi
 }
 
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
-st::gfx::DataUploader::DataUploader(nvrhi::DeviceHandle device) : m_CommitCount{ 1 }, m_Device{ device }
+st::gfx::DataUploader::DataUploader(nvrhi::DeviceHandle device) : m_CommitCount { 1 }, m_Device{ device }
 {
 	ID3D12Device* d3d12Device = m_Device->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
 	HRESULT hr = d3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_CommitFence));
 	assert(SUCCEEDED(hr));
 }
 
-std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::UploadBufferData(
+std::expected<std::shared_future<void>, std::string>  st::gfx::DataUploader::UploadBufferData(
 	st::Blob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
@@ -30,14 +30,14 @@ std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::Uplo
 		// Wait async to end to free srcData.
 		std::thread([this, event = *result, capturedData = std::move(srcData)]() 
 		{
-			m_Device->waitEventQuery(event);
+			event.wait();
 		}).detach();
 	}
 
 	return result;
 }
 
-std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::UploadBufferData(
+std::expected<std::shared_future<void>, std::string>  st::gfx::DataUploader::UploadBufferData(
 	st::SharedBlob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
@@ -47,7 +47,7 @@ std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::Uplo
 		// Wait async to end to free srcData.
 		std::thread([this, event = *result, capturedData = std::move(srcData)]() 
 		{
-			m_Device->waitEventQuery(event);
+			event.wait();
 		}).detach();
 	}
 
@@ -55,7 +55,7 @@ std::expected<nvrhi::EventQueryHandle, std::string>  st::gfx::DataUploader::Uplo
 }
 
 
-std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadBufferData(
+std::expected<std::shared_future<void>, std::string> st::gfx::DataUploader::UploadBufferData(
 	const st::WeakBlob& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
@@ -69,7 +69,7 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	assert(dstStart < desc.byteSize);
 	assert(dstSize <= desc.byteSize - dstStart);
 
-	ThreadLocalData* threadLocal = GetThreadLocalData();
+	auto [threadLocal, future] = GetThreadLocalData();
 	auto commandList = threadLocal->CommandList;
 
 	//commandList->open();
@@ -87,15 +87,13 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	if (opt_gpuMarker)
 		commandList->endMarker();
 
-	//m_Device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
-
 	nvrhi::EventQueryHandle event = m_Device->createEventQuery();
 	m_Device->setEventQuery(event, nvrhi::CommandQueue::Graphics);
 
-	return event;
+	return future;
 }
 
-std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(
+std::expected<std::shared_future<void>, std::string> st::gfx::DataUploader::UploadTextureData(
 	st::Blob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
@@ -104,15 +102,15 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	{
 		// Wait async to end to free srcData.
 		std::thread([this, event = *result, capturedData = std::move(srcData)]()
-			{
-				m_Device->waitEventQuery(event);
-			}).detach();
+		{
+			event.wait();
+		}).detach();
 	}
 
 	return result;
 }
 
-std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(
+std::expected<std::shared_future<void>, std::string> st::gfx::DataUploader::UploadTextureData(
 	st::SharedBlob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
@@ -121,20 +119,19 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	{
 		// Wait async to end to free srcData.
 		std::thread([this, event = *result, capturedData = std::move(srcData)]()
-			{
-				m_Device->waitEventQuery(event);
-			}).detach();
+		{
+			event.wait();
+		}).detach();
 	}
 
 	return result;
 }
 
-std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::UploadTextureData(
+std::expected<std::shared_future<void>, std::string> st::gfx::DataUploader::UploadTextureData(
 	const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
-
-	ThreadLocalData* threadLocal = GetThreadLocalData();
+	auto [threadLocal, future] = GetThreadLocalData();
 	auto commandList = threadLocal->CommandList;
 
 	commandList->beginTrackingTextureState(dstTexture, {}, currentTextureState);
@@ -171,11 +168,7 @@ std::expected<nvrhi::EventQueryHandle, std::string> st::gfx::DataUploader::Uploa
 	if (opt_gpuMarker)
 		commandList->endMarker();
 
-	nvrhi::EventQueryHandle event = m_Device->createEventQuery();
-	m_Device->setEventQuery
-	event-> 
-
-	return event;
+	return future;
 }
 
 void st::gfx::DataUploader::ProcessRenderingThreadCommands()
@@ -202,28 +195,43 @@ void st::gfx::DataUploader::ProcessRenderingThreadCommands()
 		ID3D12CommandQueue* queue = m_Device->getNativeQueue(nvrhi::ObjectTypes::D3D12_CommandQueue, nvrhi::CommandQueue::Graphics);
 		queue->Signal(m_CommitFence, m_CommitCount);
 		++m_CommitCount;
-	}	
+	}
 }
 
 void st::gfx::DataUploader::RunGarbageCollector()
 {
-	std::scoped_lock lock{ m_ThreadLocalMutex };
+	std::vector<std::promise<void>> toSignal;
 
-	uint64_t completedIdx = m_CommitFence->GetCompletedValue();
-	std::vector<std::unordered_map<std::thread::id, std::unique_ptr<ThreadLocalData>>::iterator> toRemove;
-	for (auto it = m_ThreadLocal.begin(); it != m_ThreadLocal.end(); ++it)
 	{
-		if (it->second->CommitIdx <= completedIdx)
-			toRemove.push_back(it);
+		std::scoped_lock lock{ m_ThreadLocalMutex };
+
+		uint64_t completedIdx = m_CommitFence->GetCompletedValue();
+		std::vector<std::unordered_map<std::thread::id, std::unique_ptr<ThreadLocalData>>::iterator> toRemove;
+		for (auto it = m_ThreadLocal.begin(); it != m_ThreadLocal.end(); ++it)
+		{
+			if (it->second->CommitIdx <= completedIdx)
+				toRemove.push_back(it);
+		}
+
+		for (auto& it : toRemove)
+		{
+			m_ThreadLocal.erase(it);
+		}
+
+		while (!m_InFlightData.Empty() && m_InFlightData.Front().first <= completedIdx)
+		{
+			toSignal.emplace_back(std::move(m_InFlightData.Front().second));
+			m_InFlightData.Pop();
+		}
 	}
 
-	for (auto& it : toRemove)
+	for (auto& promise : toSignal)
 	{
-		m_ThreadLocal.erase(it);
-	}
+		promise.set_value();
+	}	
 }
 
-st::gfx::DataUploader::ThreadLocalData* st::gfx::DataUploader::GetThreadLocalData()
+std::pair<st::gfx::DataUploader::ThreadLocalData*, std::shared_future<void>> st::gfx::DataUploader::GetThreadLocalData()
 {
 	std::scoped_lock lock{ m_ThreadLocalMutex };
 
@@ -238,7 +246,7 @@ st::gfx::DataUploader::ThreadLocalData* st::gfx::DataUploader::GetThreadLocalDat
 	}
 	else
 	{
-		return threadLocal = it->second.get();
+		threadLocal = it->second.get();
 	}
 
 	if (threadLocal->CommitIdx != m_CommitCount)
@@ -248,5 +256,12 @@ st::gfx::DataUploader::ThreadLocalData* st::gfx::DataUploader::GetThreadLocalDat
 		threadLocal->CommitIdx = m_CommitCount;
 	}
 
-	return threadLocal;
+	// Create the promise
+	if (m_InFlightData.Empty() || m_InFlightData.Back().first < m_CommitCount)
+	{
+		m_InFlightData.Push(std::make_pair(m_CommitCount, std::promise<void>{}));
+	}
+	assert(m_InFlightData.Back().first == m_CommitCount);
+
+	return { threadLocal, m_InFlightData.Back().second.get_future() };
 }
