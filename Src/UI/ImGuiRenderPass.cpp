@@ -216,7 +216,10 @@ bool st::ui::ImGuiRenderPass::Init()
     nvrhi::DeviceHandle device = deviceManager->GetDevice();
     st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 
-    m_CommandList = device->createCommandList();
+    nvrhi::CommandListParameters params{
+        .enableImmediateExecution = false
+    };
+    m_CommandList = device->createCommandList(params);
 
     m_VS = shaderFactory->CreateShader("./Shaders/imgui_vs.vso", nvrhi::ShaderType::Vertex);
     m_PS = shaderFactory->CreateShader("./Shaders/imgui_ps.pso", nvrhi::ShaderType::Pixel);

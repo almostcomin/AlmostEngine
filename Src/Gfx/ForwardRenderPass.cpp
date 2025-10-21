@@ -5,15 +5,6 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 
-bool st::gfx::ForwardRenderPass::Init(nvrhi::DeviceHandle device)
-{
-	m_Device = device;
-
-	m_CommandList = device->createCommandList();
-	
-	return true;
-}
-
 bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 {
 	if (!m_SceneGraph)
@@ -95,6 +86,10 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 void st::gfx::ForwardRenderPass::OnAttached()
 {
 	nvrhi::DeviceHandle device = m_RenderView->GetDeviceManager()->GetDevice();
+
+	nvrhi::CommandListParameters params{
+		.enableImmediateExecution = false
+	};
 	m_CommandList = device->createCommandList();
 	
 	st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();

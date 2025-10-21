@@ -5,10 +5,10 @@
 #include <memory>
 #include <expected>
 #include <mutex>
-#include <future>
 #include <nvrhi/nvrhi.h>
 #include "Core/Blob.h"
 #include "Core/Util.h"
+#include "Core/Signal.h"
 
 namespace st::gfx
 {
@@ -23,7 +23,7 @@ class TextureCache
 {
 public:
 
-	using LoadResult = std::expected<std::pair<std::shared_ptr<TextureHandle>, std::shared_future<void>>, std::string>;
+	using LoadResult = std::expected<std::pair<std::shared_ptr<TextureHandle>, st::SignalListener>, std::string>;
 
 	TextureCache(nvrhi::DeviceHandle device, st::gfx::DataUploader* dataUploader);
 
@@ -46,7 +46,7 @@ private:
 	{
 		std::string id;
 		std::shared_ptr<TextureHandle> texture;
-		std::shared_future<void> event;
+		st::SignalListener event;
 	};
 
 	std::unordered_map<std::string, std::weak_ptr<TextureHandle>> m_Textures;

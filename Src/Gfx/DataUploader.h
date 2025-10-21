@@ -2,10 +2,10 @@
 
 #include <expected>
 #include <mutex>
-#include <future>
 #include <nvrhi/nvrhi.h>
 #include "Core/Blob.h"
 #include "Core/RingBuffer.h"
+#include "Core/Signal.h"
 
 struct ID3D12Fence; // TODO
 
@@ -28,17 +28,17 @@ public:
 	/// @param dstSize Amount of data to copy. If negative, the entire buffer will be copied.
 	/// @param opt_gpuMarker Optional GPU marker.
 	/// 
-	/// @return On success, returns an `std::shared_future<void>` representing the GPU event query for the copy operation.
+	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
-	std::expected<std::shared_future<void>, std::string> UploadBufferData(
+	std::expected<SignalListener, std::string> UploadBufferData(
 		st::Blob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
-	std::expected<std::shared_future<void>, std::string> UploadBufferData(
+	std::expected<SignalListener, std::string> UploadBufferData(
 		st::SharedBlob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
-	std::expected<std::shared_future<void>, std::string> UploadBufferData(
+	std::expected<SignalListener, std::string> UploadBufferData(
 		const st::WeakBlob& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
@@ -51,17 +51,17 @@ public:
 	/// @param subresources Subresources to copy
 	/// @param opt_gpuMarker Optional GPU marker.
 	/// 
-	/// @return On success, returns an `std::shared_future<void>` representing the GPU event query for the copy operation.
+	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
-	std::expected<std::shared_future<void>, std::string> UploadTextureData(
+	std::expected<SignalListener, std::string> UploadTextureData(
 		st::Blob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
-	std::expected<std::shared_future<void>, std::string> UploadTextureData(
+	std::expected<SignalListener, std::string> UploadTextureData(
 		st::SharedBlob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
-	std::expected<std::shared_future<void>, std::string> UploadTextureData(
+	std::expected<SignalListener, std::string> UploadTextureData(
 		const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
 		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
@@ -80,11 +80,17 @@ private: /* types */
 
 private: /* methods */
 
-	std::pair<ThreadLocalData*, std::shared_future<void>> GetThreadLocalData();
+	std::pair<ThreadLocalData*, SignalListener> GetThreadLocalData();
 
 private: /* */
 	
-	st::RingBuffer<std::pair<uint64_t, std::promise<void>>, 16> m_InFlightData;
+	struct SignalDataType
+	{
+		uint64_t CommitIdx;
+		SignalEmitter Signal;
+	};
+
+	st::RingBuffer<SignalDataType, 16> m_Signals;
 
 	std::unordered_map<std::thread::id, std::unique_ptr<ThreadLocalData>> m_ThreadLocal;
 	std::mutex m_ThreadLocalMutex;

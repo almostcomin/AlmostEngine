@@ -118,5 +118,6 @@ void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 	}
 
 	m_DataUploader->RunGarbageCollector();
+	m_TextureCache->Update(); // Data uploader so it updates the state of the textures
 	GetDevice()->runGarbageCollection();
 }

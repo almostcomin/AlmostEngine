@@ -18,8 +18,6 @@ public:
 
 	ForwardRenderPass() = default;
 
-	bool Init(nvrhi::DeviceHandle device);
-
 	void SetSceneGraph(st::weak<SceneGraph> sceneGraph) { m_SceneGraph = sceneGraph; }
 
 	bool Render(nvrhi::IFramebuffer* frameBuffer) override;
@@ -38,8 +36,6 @@ private:
 
 	nvrhi::ShaderHandle m_Vs;
 	nvrhi::ShaderHandle m_Ps;
-
-	nvrhi::DeviceHandle m_Device;
 };
 
 } // namespace st::gfx

@@ -548,8 +548,10 @@ std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>>
 GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options)
 {
     std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> matMap;
-    auto loadTex = [objects, &loadCache, &options](cgltf_texture* texture, bool sRGB)
+    auto loadTex = [objects, &loadCache, &options](cgltf_texture* texture, bool sRGB) -> std::shared_ptr<st::gfx::TextureHandle>
     {
+        if (!texture)
+            return {};
         return LoadTexture(texture, objects, sRGB, loadCache, options);
     };
 
@@ -563,7 +565,7 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         {
             mat->SetDiffuseTexture(loadTex(srcMat.pbr_specular_glossiness.diffuse_texture.texture, true));
         }
-        else
+        else if(srcMat.has_pbr_metallic_roughness)
         {
             mat->SetDiffuseTexture(loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true));
         }
@@ -749,7 +751,7 @@ void CollectPrimitiveTexcoords(const cgltf_accessor& texcoords, std::vector<glm:
     }
 }
 
-std::expected<std::pair<nvrhi::BufferHandle, std::shared_future<void>>, std::string>
+std::expected<std::pair<nvrhi::BufferHandle, st::SignalListener>, std::string>
 CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
 {
     nvrhi::BufferDesc bufferDesc;
@@ -781,7 +783,7 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
     }
 }
 
-std::expected<std::pair<nvrhi::BufferHandle, std::shared_future<void>>, std::string>
+std::expected<std::pair<nvrhi::BufferHandle, st::SignalListener>, std::string>
 CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
 {
     nvrhi::BufferDesc bufferDesc;
@@ -814,7 +816,7 @@ CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUp
 
 std::expected<std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>>, std::string>
 LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>>& matMap, 
-    const char* filename, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device, std::vector<std::shared_future<void>>& out_handlesToWait)
+    const char* filename, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device, std::vector<st::SignalListener>& out_handlesToWait)
 {
     std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>> meshMap;
 
@@ -1136,7 +1138,7 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
     auto matMap = GetMaterialsMap(objects, loadTexCache, options);
 
     // Meshes
-    std::vector<std::shared_future<void>> handlesToWait;
+    std::vector<st::SignalListener> handlesToWait;
     auto loadMeshesResult = LoadMeshes(objects, matMap, path, device->GetDataUploader(), device->GetDevice(), handlesToWait);
     auto meshMap = *loadMeshesResult;
 
@@ -1266,9 +1268,9 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
     }
 
     // Wait uploads
-    for (const auto& fut : handlesToWait)
+    for (const auto& signal : handlesToWait)
     {
-        fut.wait();
+        //signal.Wait();
     }
 
     sceneGraph->SetRoot(std::move(rootNode));

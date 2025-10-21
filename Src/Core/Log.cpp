@@ -59,9 +59,9 @@ void DefaultCallback(Severity severity, std::string_view msg, std::string_view f
                     switch (ret)
                     {
                     case IDABORT:
-                        __debugbreak();
                         break;
                     case IDRETRY:
+                        __debugbreak();
                         break;
                     case IDIGNORE:
                         g_IgnoredMessages.insert(id);

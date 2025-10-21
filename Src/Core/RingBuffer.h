@@ -30,6 +30,15 @@ namespace st
 			return true;
 		}
 
+		bool Push()
+		{
+			if (Full()) return false;
+			std::construct_at(&m_Buffer[m_Tail]);
+			m_Tail = (m_Tail + 1) % N;
+			++m_Size;
+			return true;
+		}
+
 		bool Pop(T& obj)
 		{
 			if (Empty()) return false;
@@ -42,7 +51,7 @@ namespace st
 		bool Pop()
 		{
 			if (Empty()) return false;
-			m_Buffer[m_Head] = {};
+			std::destroy_at(&m_Buffer[m_Head]);
 			m_Head = (m_Head + 1) % N;
 			--m_Size;
 			return true;
