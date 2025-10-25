@@ -1,5 +1,6 @@
 #include "Gfx/Util.h"
 #include "Core/Log.h"
+#include "Core/Math.h"
 
 namespace
 {
@@ -102,4 +103,50 @@ uint32_t st::gfx::BitsPerPixel(nvrhi::Format format)
     assert(mapping.nvrhiFormat == format);
 
     return mapping.bitsPerPixel;
+}
+
+nvrhi::VertexAttributeDesc st::gfx::GetVertexAttributeDesc(VertexAttribute attribute, const char* name, uint32_t bufferIndex)
+{
+    nvrhi::VertexAttributeDesc result = {};
+    result.name = name;
+    result.bufferIndex = bufferIndex;
+    result.arraySize = 1;
+
+    switch (attribute)
+    {
+    case VertexAttribute::Position:
+    case VertexAttribute::PrevPosition:
+        result.format = nvrhi::Format::RGB32_FLOAT;
+        result.elementStride = sizeof(float3);
+        break;
+    case VertexAttribute::TexCoord1:
+    case VertexAttribute::TexCoord2:
+        result.format = nvrhi::Format::RG32_FLOAT;
+        result.elementStride = sizeof(float2);
+        break;
+    case VertexAttribute::Normal:
+    case VertexAttribute::Tangent:
+        result.format = nvrhi::Format::RGBA8_SNORM;
+        result.elementStride = sizeof(uint32_t);
+        break;
+    case VertexAttribute::Transform:
+        result.format = nvrhi::Format::RGBA32_FLOAT;
+        result.arraySize = 3;
+        result.offset = offsetof(InstanceData, transform);
+        result.elementStride = sizeof(InstanceData);
+        result.isInstanced = true;
+        break;
+    case VertexAttribute::PrevTransform:
+        result.format = nvrhi::Format::RGBA32_FLOAT;
+        result.arraySize = 3;
+        result.offset = offsetof(InstanceData, prevTransform);
+        result.elementStride = sizeof(InstanceData);
+        result.isInstanced = true;
+        break;
+
+    default:
+        assert(!"unknown attribute");
+    }
+
+    return result;
 }

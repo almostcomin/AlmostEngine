@@ -1,25 +1,30 @@
 #include "Gfx/ForwardRenderPass.h"
 #include "Core/Log.h"
 #include "Gfx/SceneGraph.h"
+#include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
+#include "Gfx/Camera.h"
+#include "Gfx/MeshInstance.h"
 
 bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 {
 	if (!m_SceneGraph)
 	{
-		LOG_ERROR("No scene graph set. Nothing to render");
+		LOG_WARNING("No scene graph set. Nothing to render");
 		return false;
 	}
 
 	auto camera = m_RenderView->GetCamera();
 	if (!camera)
 	{
-		LOG_ERROR("No camera set. Can't render without a camera.");
+		LOG_WARNING("No camera set. Can't render without a camera.");
+		return false;
 	}
 
-#if 0
+	nvrhi::DeviceHandle device = m_RenderView->GetDeviceManager()->GetDevice();
+
 	m_CommandList->open();
 	m_CommandList->beginMarker("ForwardRenderPass");
 
@@ -27,17 +32,19 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 	st::gfx::SceneGraph::Walker walker{ *m_SceneGraph };
 	while(walker)
 	{
-		if (walker->HasBounds() && frustum.check(walker->GetBounds()))
+		auto node = *walker;
+		if (node->HasBounds() && frustum.check(node->GetBounds()))
 		{
-			auto leaf = walker->GetLeaf();
+			auto leaf = node->GetLeaf();
 			if (leaf && leaf->GetContentFlags() == SceneContentFlags::OpaqueMeshes)
 			{
-				const st::math::aabox3f worldBounds = leaf->GetBounds() * walker->GetWorldTransform();
+				const st::math::aabox3f worldBounds = leaf->GetBounds() * node->GetWorldTransform();
 				if (frustum.check(worldBounds))
 				{
 					auto meshInstance = dynamic_cast<st::gfx::MeshInstance*>(leaf.get());
 					if (meshInstance)
 					{
+#if 0
 						nvrhi::BindingLayoutDesc layoutDesc;
 						layoutDesc.visibility = nvrhi::ShaderType::All;
 						layoutDesc.bindings = {
@@ -62,10 +69,8 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 						drawState.pipeline = GetPSO(drawState.framebuffer);
 
 						// TODO
-
-
+#endif
 					}
-
 				}
 			}
 			walker.Next();
@@ -78,8 +83,9 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 
 	m_CommandList->endMarker();
 	m_CommandList->close();
-	m_Device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
-#endif
+
+	device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
+
 	return true;
 }
 
@@ -95,6 +101,25 @@ void st::gfx::ForwardRenderPass::OnAttached()
 	st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();
 	m_Vs = shaderFactory->CreateShader("Shaders/forward_vs.vso", nvrhi::ShaderType::Vertex);
 	m_Ps = shaderFactory->CreateShader("Shaders/forward_ps.pso", nvrhi::ShaderType::Pixel);
+
+	// Create PSO
+#if 0
+	const nvrhi::VertexAttributeDesc inputDescs[] =
+	{
+		GetVertexAttributeDesc(VertexAttribute::Position, "POS", 0),
+		GetVertexAttributeDesc(VertexAttribute::PrevPosition, "PREV_POS", 1),
+		GetVertexAttributeDesc(VertexAttribute::TexCoord1, "TEXCOORD", 2),
+		GetVertexAttributeDesc(VertexAttribute::Normal, "NORMAL", 3),
+		GetVertexAttributeDesc(VertexAttribute::Tangent, "TANGENT", 4),
+		GetVertexAttributeDesc(VertexAttribute::Transform, "TRANSFORM", 5),
+	};
+
+	device->createInputLayout(
+
+	nvrhi::GraphicsPipelineDesc psoDesc = {};
+	psoDesc.primType = nvrhi::PrimitiveType::TriangleList;
+	psoDesc.inputLayout = shaderAttribLayout;
+#endif
 }
 
 void st::gfx::ForwardRenderPass::OnDetached()

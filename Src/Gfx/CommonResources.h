@@ -21,9 +21,6 @@ public:
 
 private:
 
-	nvrhi::ShaderHandle m_FullscreenVS;
-	nvrhi::ShaderHandle m_FullscreenAtOneVS;
-
 	ShaderFactory* m_ShaderFactory;
 };
 

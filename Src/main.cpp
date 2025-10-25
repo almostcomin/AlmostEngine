@@ -107,6 +107,7 @@ int SDL_main(int argc, char* argv[])
 
 	// Create camera
 	auto camera = std::make_shared<st::gfx::Camera>();
+	camera->SetPosition({ 0.f, 0.f, -100.f });
 
 	// Create RenderView
 	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get());

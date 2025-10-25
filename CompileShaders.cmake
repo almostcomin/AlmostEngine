@@ -38,7 +38,7 @@ function(CreateShadersTarget SHADER_SOURCE_FILES)
 
   foreach(SHADER_FILE IN LISTS SHADER_SOURCE_FILES)
     message("Processing file ${SHADER_FILE}")
-    get_shader_output(${SHADER_FILE} "6_0" OUTPUT_FILE TARGET_PROFILE)
+    get_shader_output(${SHADER_FILE} "6_6" OUTPUT_FILE TARGET_PROFILE)
     set(ENTRY_POINT "main")
 
     message("  Profile is ${TARGET_PROFILE}")
