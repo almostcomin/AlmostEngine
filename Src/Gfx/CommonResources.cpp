@@ -10,9 +10,9 @@
 
 namespace
 {
+#if 0
 	ID3D12RootSignature* CreateBindlessRootSignature()
 	{
-#if 0
         // --- Root constants: 64 x 32-bit constants en b0, visibles a todos los shaders
         CD3DX12_ROOT_PARAMETER1 rootParam{};
         rootParam.InitAsConstants(64, 0, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -107,9 +107,8 @@ namespace
         rootSignature->SetName(L"Bindless Root Signature");
 
         return rootSignature;
-#endif
-        return nullptr;
 	}
+#endif
 };
 
 st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory) :

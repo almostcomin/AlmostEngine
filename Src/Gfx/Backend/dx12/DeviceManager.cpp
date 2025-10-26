@@ -434,8 +434,6 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
         textureDesc.debugName = "SwapChainBuffer";
         textureDesc.isRenderTarget = true;
         textureDesc.isUAV = false;
-        textureDesc.initialState = rapi::ResourceStates::Present;
-        textureDesc.keepInitialState = true;
 
         m_SwapChainBuffers[n] = m_Device->CreateHandleForNativeTexture(
             m_SwapChainNativeBuffers[n].Get(), textureDesc);

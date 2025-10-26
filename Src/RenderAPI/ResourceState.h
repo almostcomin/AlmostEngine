@@ -34,6 +34,6 @@ enum class ResourceState
 	SWAPCHAIN = 1 << 18,				// resource state of swap chain's back buffer texture when it's not rendering
 };
 
-ENUM_CLASS_FLAG_OPERATORS(ResourceState)
+//ENUM_CLASS_FLAG_OPERATORS(ResourceState)
 
 } // namespace st::rapi

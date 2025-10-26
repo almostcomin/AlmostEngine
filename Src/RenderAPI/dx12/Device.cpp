@@ -4,6 +4,7 @@
 #include "RenderAPI/dx12/DescriptorHeap.h"
 #include "RenderAPI/dx12/Texture.h"
 #include "RenderAPI/dx12/Framebuffer.h"
+#include "RenderAPI/dx12/CommandList.h"
 #include "Core/Util.h"
 
 using namespace Microsoft::WRL;
@@ -53,11 +54,13 @@ namespace st::rapi::dx12
 		
 		FramebufferHandle CreateFramebuffer(const FramebufferDesc& desc) override;
 
+		CommandListHandle CreateCommandList(const CommandListParams& params) override;
+
 		void WaitForIdle() override;
 
 	private:
 
-		std::array<Queue, (int)CommandQueue::Count> m_Queues;
+		std::array<Queue, (int)QueueType::_Count> m_Queues;
 
 		DescriptorHeap m_DepthStencilViewHeap;
 		DescriptorHeap m_RenderTargetViewHeap;
@@ -102,18 +105,18 @@ st::rapi::dx12::GpuDevice::GpuDevice(const st::rapi::dx12::DeviceDesc& desc) :
 
 	if (desc.pGraphicsCommandQueue)
 	{
-		m_Queues[int(CommandQueue::Graphics)].queue = desc.pGraphicsCommandQueue;
-		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(CommandQueue::Graphics)].fence));
+		m_Queues[int(QueueType::Graphics)].queue = desc.pGraphicsCommandQueue;
+		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(QueueType::Graphics)].fence));
 	}
 	if (desc.pComputeCommandQueue)
 	{
-		m_Queues[int(CommandQueue::Compute)].queue = desc.pGraphicsCommandQueue;
-		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(CommandQueue::Compute)].fence));
+		m_Queues[int(QueueType::Compute)].queue = desc.pGraphicsCommandQueue;
+		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(QueueType::Compute)].fence));
 	}
 	if (desc.pCopyCommandQueue)
 	{
-		m_Queues[int(CommandQueue::Copy)].queue = desc.pGraphicsCommandQueue;
-		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(CommandQueue::Copy)].fence));
+		m_Queues[int(QueueType::Copy)].queue = desc.pGraphicsCommandQueue;
+		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(QueueType::Copy)].fence));
 	}
 
 	m_DepthStencilViewHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, desc.depthStencilViewHeapSize, false);
@@ -237,6 +240,41 @@ st::rapi::FramebufferHandle st::rapi::dx12::GpuDevice::CreateFramebuffer(const F
 	}
 
 	return FramebufferHandle{ fb };
+}
+
+st::rapi::CommandListHandle st::rapi::dx12::GpuDevice::CreateCommandList(const CommandListParams& params)
+{
+	if (!m_Queues[(int)params.queueType].queue)
+	{
+		return nullptr;
+	}
+
+	D3D12_COMMAND_LIST_TYPE d3dCommandListType;
+	switch (params.queueType)
+	{
+	case QueueType::Graphics:
+		d3dCommandListType = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		break;
+	case QueueType::Compute:
+		d3dCommandListType = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+		break;
+	case QueueType::Copy:
+		d3dCommandListType = D3D12_COMMAND_LIST_TYPE_COPY;
+		break;
+	case QueueType::_Count:
+	default:
+		assert(0);
+		return nullptr;
+	}
+
+	ComPtr<ID3D12CommandAllocator> d3d12CommandAllocator;
+	m_D3d12Device->CreateCommandAllocator(d3dCommandListType, IID_PPV_ARGS(&d3d12CommandAllocator));
+	ComPtr<ID3D12GraphicsCommandList> d3d12CommandList;
+	m_D3d12Device->CreateCommandList(0, d3dCommandListType, d3d12CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&d3d12CommandList));
+
+	auto* commandList = new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType };
+
+	return CommandListHandle{ commandList };
 }
 
 void st::rapi::dx12::GpuDevice::WaitForIdle()

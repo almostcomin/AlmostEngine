@@ -1,20 +1,20 @@
 #include "Gfx/DataUploader.h"
 #include "Core/Log.h"
 #include "Gfx/Util.h"
-#include <nvrhi/d3d12.h>
+#include "RenderAPI/Device.h"
 
-st::gfx::DataUploader::ThreadLocalData::ThreadLocalData(nvrhi::DeviceHandle device)
+st::gfx::DataUploader::ThreadLocalData::ThreadLocalData(rapi::Device* device)
 {
-	nvrhi::CommandListParameters params{
-		.enableImmediateExecution = false
+	rapi::CommandListParams params{
+		.queueType = rapi::QueueType::Graphics
 	};
-	CommandList = device->createCommandList(params);
+	CommandList = device->CreateCommandList(params);
 
 	CommitIdx = 0;
 }
 
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
-st::gfx::DataUploader::DataUploader(nvrhi::DeviceHandle device) : m_CommitCount { 1 }, m_Device{ device }
+st::gfx::DataUploader::DataUploader(rapi::Device* device) : m_CommitCount { 1 }, m_Device{ device }
 {
 	ID3D12Device* d3d12Device = m_Device->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
 	HRESULT hr = d3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_CommitFence));

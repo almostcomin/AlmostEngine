@@ -1,5 +1,6 @@
 #pragma once
 
+#include <wrl/client.h>
 #include <expected>
 #include <mutex>
 #include "Core/Blob.h"
