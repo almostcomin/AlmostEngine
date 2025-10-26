@@ -1,10 +1,11 @@
 #pragma once
 
-#include <nvrhi/nvrhi.h>
 #include <optional>
 #include <memory>
 #include "Core/Math/glm_config.h"
 #include "Core/Util.h"
+#include "RenderAPI/Format.h"
+#include "RenderAPI/FrameBuffer.h"
 
 struct SDL_Window;
 
@@ -14,7 +15,13 @@ namespace st::gfx
     class DataUploader;
     class TextureCache;
     class CommonResources;
-};
+}
+
+namespace st::rapi
+{
+    class Device;
+    class ITexture;
+}
 
 namespace st::gfx
 {
@@ -39,9 +46,6 @@ struct AdapterInfo
 
     std::optional<UUID> uuid;
     std::optional<LUID> luid;
-
-    //nvrhi::RefCountPtr<IDXGIAdapter> dxgiAdapter;
-    //VkPhysicalDevice vkPhysicalDevice = nullptr;
 };
 
 class DeviceManager : st::noncopyable_nonmovable
@@ -58,7 +62,6 @@ public:
 
         bool DebugRuntime = false;
         bool GPUValidation = false;
-        bool NvrhiValidationLayer = false;
         bool WarningsAsErrors = false;
 
         bool VSyncEnabled = false;
@@ -69,7 +72,7 @@ public:
         int SwapChainSampleCount = 1;
         int SwapChainSampleQuality = 0;
         int SwapChainBufferCount = 3;
-        nvrhi::Format SwapChainFormat = nvrhi::Format::SRGBA8_UNORM;
+        st::rapi::Format SwapChainFormat = st::rapi::Format::SRGBA8_UNORM;
 
         uint32_t RefreshRate = 0;           // 0 forces the native display's refresh rate
 
@@ -96,11 +99,11 @@ public:
 
     virtual glm::ivec2 GetWindowDimensions() const = 0;
     
-    nvrhi::IFramebuffer* GetCurrentFrameBuffer();
+    st::rapi::IFramebuffer* GetCurrentFramebuffer();
 
     virtual uint32_t GetCurrentBackBufferIndex() const = 0;
-    virtual nvrhi::ITexture* GetCurrentBackBuffer() = 0;
-    virtual nvrhi::ITexture* GetBackBuffer(uint32_t index) = 0;
+    virtual st::rapi::ITexture* GetCurrentBackBuffer() = 0;
+    virtual st::rapi::ITexture* GetBackBuffer(uint32_t index) = 0;
     
     bool IsWindowVisible() const { return m_WindowVisible; }
 
@@ -114,7 +117,7 @@ public:
     st::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
     st::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }
 
-    nvrhi::DeviceHandle GetDevice() { return m_nvrhiDevice; }
+    st::rapi::Device* GetDevice() { return m_Device.get(); }
 
 protected:
 
@@ -123,13 +126,13 @@ protected:
     DeviceParams m_DeviceParams;
 
     uint32_t m_FrameCount = 0;
-    std::vector<nvrhi::FramebufferHandle> m_SwapChainFramebuffers;
+    std::vector<st::rapi::FramebufferHandle> m_SwapChainFramebuffers;
 
     uint32_t m_BackBufferWidth = 0;
     uint32_t m_BackBufferHeight = 0;
     bool m_WindowVisible = true;
 
-    nvrhi::DeviceHandle m_nvrhiDevice;
+    std::unique_ptr<st::rapi::Device> m_Device;
 
 private:
 

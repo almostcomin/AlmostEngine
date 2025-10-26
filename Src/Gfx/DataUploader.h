@@ -2,12 +2,20 @@
 
 #include <expected>
 #include <mutex>
-#include <nvrhi/nvrhi.h>
 #include "Core/Blob.h"
 #include "Core/RingBuffer.h"
 #include "Core/Signal.h"
+#include "RenderAPI/Buffer.h"
+#include "RenderAPI/Texture.h"
+#include "RenderAPI/ResourceState.h"
+#include "RenderAPI/CommandList.h"
 
 struct ID3D12Fence; // TODO
+
+namespace st::rapi
+{
+	class Device;
+}
 
 namespace st::gfx
 {
@@ -16,7 +24,7 @@ class DataUploader
 {
 public:
 
-	DataUploader(nvrhi::DeviceHandle device);
+	DataUploader(rapi::Device* device);
 
 	/// Uploads data to a buffer object.
 	/// 
@@ -31,15 +39,15 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadBufferData(
-		st::Blob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
+		st::Blob&& srcData, st::rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
 	std::expected<SignalListener, std::string> UploadBufferData(
-		st::SharedBlob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
+		st::SharedBlob&& srcData, st::rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
 	std::expected<SignalListener, std::string> UploadBufferData(
-		const st::WeakBlob& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
+		const st::WeakBlob& srcData, st::rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a texture object.
@@ -54,16 +62,16 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadTextureData(
-		st::Blob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
-		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
+		st::Blob&& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentTextureState, rapi::ResourceState textureTargetState,
+		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
 	std::expected<SignalListener, std::string> UploadTextureData(
-		st::SharedBlob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
-		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
+		st::SharedBlob&& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentTextureState, rapi::ResourceState textureTargetState,
+		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
 	std::expected<SignalListener, std::string> UploadTextureData(
-		const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
-		const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
+		const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentTextureState, rapi::ResourceState textureTargetState,
+		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
 	void ProcessRenderingThreadCommands();
 	void RunGarbageCollector();
@@ -72,10 +80,10 @@ private: /* types */
 
 	struct ThreadLocalData
 	{
-		nvrhi::CommandListHandle CommandList;
+		rapi::CommandListHandle CommandList;
 		uint64_t CommitIdx;
 
-		ThreadLocalData(nvrhi::DeviceHandle device);
+		ThreadLocalData(rapi::Device* device);
 	};
 
 private: /* methods */
@@ -96,9 +104,9 @@ private: /* */
 	std::mutex m_ThreadLocalMutex;
 
 	uint64_t m_CommitCount;
-	nvrhi::RefCountPtr<ID3D12Fence>	m_CommitFence;
+	Microsoft::WRL::ComPtr<ID3D12Fence>	m_CommitFence;
 
-	nvrhi::DeviceHandle m_Device;
+	st::rapi::Device* m_Device;
 };
 
 }

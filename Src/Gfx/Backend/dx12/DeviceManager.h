@@ -1,8 +1,9 @@
 #pragma once
 #include "Gfx/DeviceManager.h"
-#include <nvrhi/nvrhi.h>
 #include <dxgi1_5.h>
 #include <directx/d3d12.h>
+#include <wrl/client.h>
+#include "RenderAPI/Texture.h"
 
 namespace st::gfx::dx12
 {
@@ -22,8 +23,8 @@ public:
 	glm::ivec2 GetWindowDimensions() const override;
 
 	uint32_t GetCurrentBackBufferIndex() const override;
-	nvrhi::ITexture* GetCurrentBackBuffer();
-	nvrhi::ITexture* GetBackBuffer(uint32_t index);
+	st::rapi::ITexture* GetCurrentBackBuffer() override;
+	st::rapi::ITexture* GetBackBuffer(uint32_t index) override;
 
 	void ReportLiveObjects() override;
 
@@ -40,25 +41,25 @@ private:
 
 private:
 
-	nvrhi::RefCountPtr<IDXGIFactory2>		m_DxgiFactory2;
-	nvrhi::RefCountPtr<IDXGIAdapter1>		m_DxgiAdapter1;
-	nvrhi::RefCountPtr<ID3D12Device>		m_Device12;
-	nvrhi::RefCountPtr<IDXGISwapChain3>		m_SwapChain;
+	Microsoft::WRL::ComPtr<IDXGIFactory2>		m_DxgiFactory2;
+	Microsoft::WRL::ComPtr<IDXGIAdapter1>		m_DxgiAdapter1;
+	Microsoft::WRL::ComPtr<ID3D12Device>		m_D3d12Device;
+	Microsoft::WRL::ComPtr<IDXGISwapChain3>		m_SwapChain;
 
-	nvrhi::RefCountPtr<ID3D12CommandQueue>	m_GraphicsQueue;
-	nvrhi::RefCountPtr<ID3D12CommandQueue>	m_ComputeQueue;
-	nvrhi::RefCountPtr<ID3D12CommandQueue>	m_CopyQueue;
+	Microsoft::WRL::ComPtr<ID3D12CommandQueue>	m_GraphicsQueue;
+	Microsoft::WRL::ComPtr<ID3D12CommandQueue>	m_ComputeQueue;
+	Microsoft::WRL::ComPtr<ID3D12CommandQueue>	m_CopyQueue;
 
-	DXGI_SWAP_CHAIN_DESC1					m_SwapChainDesc;
-	DXGI_SWAP_CHAIN_FULLSCREEN_DESC			m_FullScreenDesc;
-	bool									m_TearingSupported;
-	std::vector<nvrhi::RefCountPtr<ID3D12Resource>> m_SwapChainNativeBuffers;
-	std::vector<nvrhi::TextureHandle>		m_SwapChainBuffers;
+	DXGI_SWAP_CHAIN_DESC1						m_SwapChainDesc;
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC				m_FullScreenDesc;
+	bool										m_TearingSupported;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_SwapChainNativeBuffers;
+	std::vector<st::rapi::TextureHandle>		m_SwapChainBuffers;
 
-	nvrhi::RefCountPtr<ID3D12Fence>			m_FrameFence;
-	std::vector<HANDLE>						m_FrameFenceEvents;
+	Microsoft::WRL::ComPtr<ID3D12Fence>			m_FrameFence;
+	std::vector<HANDLE>							m_FrameFenceEvents;
 
-	std::string								m_RendererString;
+	std::string									m_RendererString;
 };
 
 }

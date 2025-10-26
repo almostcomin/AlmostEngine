@@ -2,10 +2,14 @@
 #include "Gfx/Backend/dx12/DeviceManager.h"
 
 #include <dxgidebug.h>
-#include <nvrhi/d3d12.h>
-#include <nvrhi/validation.h>
 #include <SDL3/SDL_video.h>
 #include "Core/Log.h"
+#include <wrl/client.h>
+#include "RenderAPI/dx12/Device.h"
+#include "RenderAPI/dx12/DxgiFormat.h"
+#include "RenderAPI/Format.h"
+
+using namespace Microsoft::WRL;
 
 #define HR_RETURN(hr) if(FAILED(hr)) { LOG_ERROR("HRESULT error code = {:#x}", hr); return false; }
 
@@ -24,29 +28,6 @@ std::string GetAdapterName(DXGI_ADAPTER_DESC1 const& aDesc)
 }
 
 } // anonymous namespace
-
-struct GfxMessageCallback : public nvrhi::IMessageCallback
-{
-    void message(nvrhi::MessageSeverity severity, const char* messageText) override
-    {
-        switch (severity)
-        {
-        case nvrhi::MessageSeverity::Info:
-            LOG_INFO(messageText);
-            break;
-        case nvrhi::MessageSeverity::Warning:
-            LOG_WARNING(messageText);
-            break;
-        case nvrhi::MessageSeverity::Error:
-            LOG_ERROR(messageText);
-            break;
-        case nvrhi::MessageSeverity::Fatal:
-            LOG_FATAL(messageText);
-            break;
-        }
-    }
-};
-GfxMessageCallback g_GfxMessageCallback;
 
 bool st::gfx::dx12::DeviceManager::ResizeSwapChain()
 {
@@ -84,7 +65,7 @@ bool st::gfx::dx12::DeviceManager::EnumerateAdapters(std::vector<AdapterInfo>& o
 
     while (true)
     {
-        nvrhi::RefCountPtr<IDXGIAdapter1> adapter;
+        ComPtr<IDXGIAdapter1> adapter;
         HRESULT hr = m_DxgiFactory2->EnumAdapters1(uint32_t(outAdapters.size()), &adapter);
         if (FAILED(hr))
             return true;
@@ -103,7 +84,7 @@ bool st::gfx::dx12::DeviceManager::EnumerateAdapters(std::vector<AdapterInfo>& o
         adapterInfo.dedicatedVideoMemory = desc.DedicatedVideoMemory;
         adapterInfo.softwareAdapter = desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE;
 
-        nvrhi::RefCountPtr<IDXGIOutput> output;
+        ComPtr<IDXGIOutput> output;
         adapter->EnumOutputs(0, &output);
         adapterInfo.headless = adapter->EnumOutputs(0, &output) == DXGI_ERROR_NOT_FOUND;
 
@@ -136,7 +117,7 @@ bool st::gfx::dx12::DeviceManager::Present()
     HRESULT result = m_SwapChain->Present(m_DeviceParams.VSyncEnabled ? 1 : 0, presentFlags);
 
     m_FrameFence->SetEventOnCompletion(m_FrameCount, m_FrameFenceEvents[bufferIndex]);
-    m_GraphicsQueue->Signal(m_FrameFence, m_FrameCount);
+    m_GraphicsQueue->Signal(m_FrameFence.Get(), m_FrameCount);
     m_FrameCount++;
 
     return SUCCEEDED(result);
@@ -171,8 +152,6 @@ void st::gfx::dx12::DeviceManager::InternalShutdown()
 
     ReleaseRenderTargets();
 
-    m_nvrhiDevice = nullptr;
-
     for (auto fenceEvent : m_FrameFenceEvents)
     {
         WaitForSingleObject(fenceEvent, INFINITE);
@@ -185,9 +164,9 @@ void st::gfx::dx12::DeviceManager::InternalShutdown()
     m_GraphicsQueue = nullptr;
     m_ComputeQueue = nullptr;
     m_CopyQueue = nullptr;
-    m_Device12 = nullptr;
     m_DxgiAdapter1 = nullptr;
     m_DxgiFactory2 = nullptr;
+    m_D3d12Device = nullptr;
 
     m_RendererString.clear();
 
@@ -201,7 +180,7 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
 {
     if (m_DeviceParams.DebugRuntime)
     {
-        nvrhi::RefCountPtr<ID3D12Debug> pDebug;
+        ComPtr<ID3D12Debug> pDebug;
         HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&pDebug));
 
         if (SUCCEEDED(hr))
@@ -212,7 +191,7 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
 
     if (m_DeviceParams.GPUValidation)
     {
-        nvrhi::RefCountPtr<ID3D12Debug3> debugController3;
+        ComPtr<ID3D12Debug3> debugController3;
         HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debugController3));
 
         if (SUCCEEDED(hr))
@@ -244,9 +223,9 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
 
     //--- Create device
     HRESULT hr = D3D12CreateDevice(
-        m_DxgiAdapter1,
+        m_DxgiAdapter1.Get(),
         D3D_FEATURE_LEVEL_12_0,
-        IID_PPV_ARGS(&m_Device12));
+        IID_PPV_ARGS(&m_D3d12Device));
 
     if (FAILED(hr))
     {
@@ -256,8 +235,8 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
 
     if (m_DeviceParams.DebugRuntime)
     {
-        nvrhi::RefCountPtr<ID3D12InfoQueue> pInfoQueue;
-        m_Device12->QueryInterface(&pInfoQueue);
+        ComPtr<ID3D12InfoQueue> pInfoQueue;
+        m_D3d12Device->QueryInterface(IID_PPV_ARGS(&pInfoQueue));
 
         if (pInfoQueue)
         {
@@ -289,13 +268,13 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
         queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
         queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
         queueDesc.NodeMask = 1;
-        hr = m_Device12->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_GraphicsQueue));
+        hr = m_D3d12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_GraphicsQueue));
         m_GraphicsQueue->SetName(L"Graphics Queue");
 
         if (m_DeviceParams.EnableComputeQueue)
         {
             queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-            hr = m_Device12->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_ComputeQueue));
+            hr = m_D3d12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_ComputeQueue));
             HR_RETURN(hr);
             m_ComputeQueue->SetName(L"Compute Queue");
         }
@@ -303,27 +282,21 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
         if (m_DeviceParams.EnableCopyQueue)
         {
             queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
-            hr = m_Device12->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_CopyQueue));
+            hr = m_D3d12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_CopyQueue));
             HR_RETURN(hr);
             m_CopyQueue->SetName(L"Copy Queue");
         }
     }
 
-    nvrhi::d3d12::DeviceDesc deviceDesc;
-    deviceDesc.errorCB = &g_GfxMessageCallback;
-    deviceDesc.pDevice = m_Device12;
-    deviceDesc.pGraphicsCommandQueue = m_GraphicsQueue;
-    deviceDesc.pComputeCommandQueue = m_ComputeQueue;
-    deviceDesc.pCopyCommandQueue = m_CopyQueue;
+    st::rapi::dx12::DeviceDesc deviceDesc;
+
+    deviceDesc.pDevice = m_D3d12Device.Get();
+    deviceDesc.pGraphicsCommandQueue = m_GraphicsQueue.Get();
+    deviceDesc.pComputeCommandQueue = m_ComputeQueue.Get();
+    deviceDesc.pCopyCommandQueue = m_CopyQueue.Get();
     deviceDesc.logBufferLifetime = false;// m_DeviceParams.logBufferLifetime;
-    deviceDesc.enableHeapDirectlyIndexed = true;// m_DeviceParams.enableHeapDirectlyIndexed;
 
-    m_nvrhiDevice = nvrhi::d3d12::createDevice(deviceDesc);
-
-    if (m_DeviceParams.NvrhiValidationLayer)
-    {
-        m_nvrhiDevice = nvrhi::validation::createValidationLayer(m_nvrhiDevice);
-    }
+    m_Device = st::rapi::dx12::CreateDevice(deviceDesc);
 
     return true;
 }
@@ -351,18 +324,18 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
     // So we need to use a non-sRGB format here, but store the true sRGB format for later framebuffer creation.
     switch (m_DeviceParams.SwapChainFormat)  // NOLINT(clang-diagnostic-switch-enum)
     {
-    case nvrhi::Format::SRGBA8_UNORM:
+    case st::rapi::Format::SRGBA8_UNORM:
         m_SwapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         break;
-    case nvrhi::Format::SBGRA8_UNORM:
+    case st::rapi::Format::SBGRA8_UNORM:
         m_SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         break;
-    default:
-        m_SwapChainDesc.Format = nvrhi::d3d12::convertFormat(m_DeviceParams.SwapChainFormat);
+    default:        
+        m_SwapChainDesc.Format = st::rapi::dx12::GetDxgiFormatMapping(m_DeviceParams.SwapChainFormat).srvFormat;
         break;
     }
 
-    nvrhi::RefCountPtr<IDXGIFactory5> pDxgiFactory5;
+    ComPtr<IDXGIFactory5> pDxgiFactory5;
     m_TearingSupported = false;
     if (SUCCEEDED(m_DxgiFactory2->QueryInterface(IID_PPV_ARGS(&pDxgiFactory5))))
     {
@@ -385,8 +358,8 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
     SDL_PropertiesID windowProps = SDL_GetWindowProperties(m_DeviceParams.WindowHandle);
     HWND hWnd = (HWND)SDL_GetPointerProperty(windowProps, SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
 
-    nvrhi::RefCountPtr<IDXGISwapChain1> pSwapChain1;
-    HRESULT hr = m_DxgiFactory2->CreateSwapChainForHwnd(m_GraphicsQueue, hWnd, &m_SwapChainDesc, &m_FullScreenDesc, nullptr, &pSwapChain1);
+    ComPtr<IDXGISwapChain1> pSwapChain1;
+    HRESULT hr = m_DxgiFactory2->CreateSwapChainForHwnd(m_GraphicsQueue.Get(), hWnd, &m_SwapChainDesc, &m_FullScreenDesc, nullptr, &pSwapChain1);
     HR_RETURN(hr);
 
     hr = pSwapChain1->QueryInterface(IID_PPV_ARGS(&m_SwapChain));
@@ -395,7 +368,7 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
     if (!CreateRenderTargets())
         return false;
 
-    hr = m_Device12->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_FrameFence));
+    hr = m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_FrameFence));
     HR_RETURN(hr);
 
     for (UINT bufferIndex = 0; bufferIndex < m_SwapChainDesc.BufferCount; bufferIndex++)
@@ -408,7 +381,7 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
 
 void st::gfx::dx12::DeviceManager::ReportLiveObjects()
 {
-    nvrhi::RefCountPtr<IDXGIDebug> pDebug;
+    ComPtr<IDXGIDebug> pDebug;
     DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pDebug));
 
     if (pDebug)
@@ -432,14 +405,14 @@ uint32_t st::gfx::dx12::DeviceManager::GetCurrentBackBufferIndex() const
     return m_SwapChain->GetCurrentBackBufferIndex();
 }
 
-nvrhi::ITexture* st::gfx::dx12::DeviceManager::GetCurrentBackBuffer()
+st::rapi::ITexture* st::gfx::dx12::DeviceManager::GetCurrentBackBuffer()
 {
-    return m_SwapChainBuffers[m_SwapChain->GetCurrentBackBufferIndex()].Get();
+    return m_SwapChainBuffers[m_SwapChain->GetCurrentBackBufferIndex()].get();
 }
 
-nvrhi::ITexture* st::gfx::dx12::DeviceManager::GetBackBuffer(uint32_t index)
+st::rapi::ITexture* st::gfx::dx12::DeviceManager::GetBackBuffer(uint32_t index)
 {
-    return m_SwapChainBuffers[index].Get();
+    return m_SwapChainBuffers[index].get();
 }
 
 bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
@@ -452,7 +425,7 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
         const HRESULT hr = m_SwapChain->GetBuffer(n, IID_PPV_ARGS(&m_SwapChainNativeBuffers[n]));
         HR_RETURN(hr)
 
-        nvrhi::TextureDesc textureDesc;
+        rapi::TextureDesc textureDesc;
         textureDesc.width = m_SwapChainDesc.Width;
         textureDesc.height = m_SwapChainDesc.Height;
         textureDesc.sampleCount = m_DeviceParams.SwapChainSampleCount;
@@ -461,11 +434,11 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
         textureDesc.debugName = "SwapChainBuffer";
         textureDesc.isRenderTarget = true;
         textureDesc.isUAV = false;
-        textureDesc.initialState = nvrhi::ResourceStates::Present;
+        textureDesc.initialState = rapi::ResourceStates::Present;
         textureDesc.keepInitialState = true;
 
-        m_SwapChainBuffers[n] = m_nvrhiDevice->createHandleForNativeTexture(
-            nvrhi::ObjectTypes::D3D12_Resource, nvrhi::Object(m_SwapChainNativeBuffers[n]), textureDesc);
+        m_SwapChainBuffers[n] = m_Device->CreateHandleForNativeTexture(
+            m_SwapChainNativeBuffers[n].Get(), textureDesc);
     }
 
     return true;
@@ -473,13 +446,10 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
 
 void st::gfx::dx12::DeviceManager::ReleaseRenderTargets()
 {
-    if (m_nvrhiDevice)
+    if (m_Device)
     {
         // Make sure that all frames have finished rendering
-        m_nvrhiDevice->waitForIdle();
-
-        // Release all in-flight references to the render targets
-        m_nvrhiDevice->runGarbageCollection();
+        m_Device->WaitForIdle();
     }
 
     // Set the events so that WaitForSingleObject in OneFrame will not hang later

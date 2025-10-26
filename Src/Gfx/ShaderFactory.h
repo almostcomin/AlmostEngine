@@ -2,7 +2,12 @@
 
 #include <unordered_map>
 #include "Core/Blob.h"
-#include <nvrhi/nvrhi.h>
+#include "RenderAPI/Shader.h"
+
+namespace st::rapi
+{
+	class Device;
+}
 
 namespace st::gfx
 {
@@ -11,14 +16,14 @@ class ShaderFactory
 {
 public:
 
-	ShaderFactory(nvrhi::DeviceHandle device);
+	ShaderFactory(st::rapi::Device* device);
 
-	nvrhi::ShaderHandle CreateShader(const char* filename, nvrhi::ShaderType shaderType);
+	st::rapi::ShaderHandle CreateShader(const char* filename, st::rapi::ShaderType shaderType);
 
 private:
 
 	std::unordered_map<std::string, st::Blob> m_BytecodeCache;
-	nvrhi::DeviceHandle m_Device;
+	st::rapi::Device* m_Device;
 };
 
 }

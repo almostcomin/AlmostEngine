@@ -5,7 +5,6 @@
 #include <memory>
 #include <expected>
 #include <mutex>
-#include <nvrhi/nvrhi.h>
 #include "Core/Blob.h"
 #include "Core/Util.h"
 #include "Core/Signal.h"
@@ -25,7 +24,7 @@ public:
 
 	using LoadResult = std::expected<std::pair<std::shared_ptr<TextureHandle>, st::SignalListener>, std::string>;
 
-	TextureCache(nvrhi::DeviceHandle device, st::gfx::DataUploader* dataUploader);
+	TextureCache(rapi::Device* device, st::gfx::DataUploader* dataUploader);
 
 	std::shared_ptr<TextureHandle> Get(const std::string& id);
 
@@ -57,7 +56,7 @@ private:
 	std::mutex m_InFlightMapMutex;
 	std::mutex m_StaleMapMutex;
 
-	nvrhi::DeviceHandle m_Device;
+	rapi::Device* m_Device;
 	DataUploader* m_DataUploader;
 };
 

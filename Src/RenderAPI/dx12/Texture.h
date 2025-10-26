@@ -1,0 +1,31 @@
+#pragma once
+
+#include "RenderAPI/Texture.h"
+#include <wrl/client.h>
+#include <d3d12.h>
+
+namespace st::rapi::dx12
+{
+	class Texture : public ITexture
+	{
+		friend class GpuDevice;
+
+	public:
+
+		Texture(const TextureDesc& desc, Microsoft::WRL::ComPtr<ID3D12Resource> resource, ID3D12Device* device);
+		virtual ~Texture() override = default;
+
+		const TextureDesc& GetDesc() const override;
+
+		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources) const;
+		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources) const;
+		void CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources) const;
+		void CreateDSV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly = false) const;
+
+	private:
+
+		TextureDesc m_Desc;
+		Microsoft::WRL::ComPtr<ID3D12Resource> m_D3d12Resource;
+		ID3D12Device* m_D3d12Device;
+	};
+} // namespace st::rapi::dx12

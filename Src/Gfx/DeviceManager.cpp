@@ -6,10 +6,10 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/TextureCache.h"
 #include "Gfx/CommonResources.h"
+#include "RenderApi/Device.h"
 
 st::gfx::DeviceManager::~DeviceManager()
-{
-}
+{}
 
 st::gfx::DeviceManager* st::gfx::DeviceManager::Create(st::gfx::GraphicsAPI api)
 {
@@ -30,9 +30,9 @@ bool st::gfx::DeviceManager::Init(const DeviceParams& params)
 	bool ok = InternalInit(params);
 	if (ok)
 	{
-		m_ShaderFactory = std::make_unique<st::gfx::ShaderFactory>(m_nvrhiDevice);
-		m_DataUploader = std::make_unique<st::gfx::DataUploader>(m_nvrhiDevice);
-		m_TextureCache = std::make_unique<st::gfx::TextureCache>(m_nvrhiDevice, m_DataUploader.get());
+		m_ShaderFactory = std::make_unique<st::gfx::ShaderFactory>(m_Device.get());
+		m_DataUploader = std::make_unique<st::gfx::DataUploader>(m_Device.get());
+		m_TextureCache = std::make_unique<st::gfx::TextureCache>(m_Device.get(), m_DataUploader.get());
 		m_CommonResources = std::make_unique<st::gfx::CommonResources>(m_ShaderFactory.get());
 	}
 	return ok;
@@ -54,9 +54,9 @@ void st::gfx::DeviceManager::Update()
 	m_TextureCache->Update();
 }
 
-nvrhi::IFramebuffer* st::gfx::DeviceManager::GetCurrentFrameBuffer()
+st::rapi::IFramebuffer* st::gfx::DeviceManager::GetCurrentFramebuffer()
 {
-	return m_SwapChainFramebuffers[GetCurrentBackBufferIndex()];
+	return m_SwapChainFramebuffers[GetCurrentBackBufferIndex()].get();
 }
 
 bool st::gfx::DeviceManager::UpdateWindowSize()
@@ -89,8 +89,8 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 		m_SwapChainFramebuffers.resize(backBufferCount);
 		for (uint32_t index = 0; index < backBufferCount; index++)
 		{
-			m_SwapChainFramebuffers[index] = m_nvrhiDevice->createFramebuffer(
-				nvrhi::FramebufferDesc().addColorAttachment(GetBackBuffer(index)));
+			m_SwapChainFramebuffers[index] = m_Device->CreateFramebuffer(
+				st::rapi::FramebufferDesc().AddColorAttachment(GetBackBuffer(index)));
 		}
 
 		return true;
@@ -119,5 +119,4 @@ void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 
 	m_DataUploader->RunGarbageCollector();
 	m_TextureCache->Update(); // Data uploader so it updates the state of the textures
-	GetDevice()->runGarbageCollection();
 }

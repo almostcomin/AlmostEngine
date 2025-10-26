@@ -2,7 +2,7 @@
 #include "Core/Log.h"
 #include "Core/File.h"
 
-st::gfx::ShaderFactory::ShaderFactory(nvrhi::DeviceHandle device) : m_Device(device)
+st::gfx::ShaderFactory::ShaderFactory(st::rapi::Device* device) : m_Device(device)
 {
 }
 

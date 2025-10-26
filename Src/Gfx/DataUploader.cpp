@@ -96,7 +96,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBuff
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
 	st::Blob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
-	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
 	auto result = UploadTextureData(st::WeakBlob{ srcData }, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
 	if (result)
@@ -113,7 +113,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
 	st::SharedBlob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
-	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
 	auto result = UploadTextureData(st::WeakBlob{ srcData }, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
 	if (result)
@@ -130,7 +130,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
 	const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
-	const nvrhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
 	auto [threadLocal, future] = GetThreadLocalData();
 	auto commandList = threadLocal->CommandList;
@@ -150,7 +150,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 	d3d12Device->GetCopyableFootprints(
 		&d3d12Desc,
 		subresources.baseArraySlice,
-		subresources.numArraySlices == nvrhi::TextureSubresourceSet::AllArraySlices ? d3d12Desc.DepthOrArraySize : subresources.numArraySlices,
+		subresources.numArraySlices == rapi::TextureSubresourceSet::AllArraySlices ? d3d12Desc.DepthOrArraySize : subresources.numArraySlices,
 		0, nullptr, nullptr, nullptr, &requiredSize);
 	assert(requiredSize == srcData.size());
 
