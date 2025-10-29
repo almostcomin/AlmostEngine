@@ -2,12 +2,17 @@
 #include <wrl/client.h>
 #include <array>
 #include "RenderAPI/dx12/DescriptorHeap.h"
+#include "RenderAPI/dx12/Buffer.h"
 #include "RenderAPI/dx12/Texture.h"
 #include "RenderAPI/dx12/Framebuffer.h"
 #include "RenderAPI/dx12/CommandList.h"
+#include "RenderAPI/dx12/Fence.h"
 #include "Core/Util.h"
+#include "Core/Log.h"
 
 using namespace Microsoft::WRL;
+
+#define HR_RETURN_NULL(hr) if(FAILED(hr)) { LOG_ERROR("HRESULT error code = {:#x}", hr); return nullptr; }
 
 namespace
 {
@@ -50,11 +55,15 @@ namespace st::rapi::dx12
 		GpuDevice(const DeviceDesc& desc);
 		~GpuDevice();
 
+		BufferHandle CreateBuffer(const BufferDesc& desc) override;
+
 		TextureHandle CreateHandleForNativeTexture(void* obj, const TextureDesc& desc) override;
 		
 		FramebufferHandle CreateFramebuffer(const FramebufferDesc& desc) override;
 
 		CommandListHandle CreateCommandList(const CommandListParams& params) override;
+
+		FenceHandle CreateFence() override;
 
 		void WaitForIdle() override;
 
@@ -173,6 +182,46 @@ st::rapi::dx12::GpuDevice::~GpuDevice()
 	}
 }
 
+st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const st::rapi::BufferDesc& desc)
+{
+	// Descripción del recurso
+	D3D12_RESOURCE_DESC d3d12Desc = {};
+	d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	d3d12Desc.Alignment = 0; // D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT
+	d3d12Desc.Width = desc.sizeBytes;
+	d3d12Desc.Height = 1;
+	d3d12Desc.DepthOrArraySize = 1;
+	d3d12Desc.MipLevels = 1;
+	d3d12Desc.Format = DXGI_FORMAT_UNKNOWN;
+	d3d12Desc.SampleDesc.Count = 1;
+	d3d12Desc.SampleDesc.Quality = 0;
+	d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	d3d12Desc.Flags = desc.allowUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+
+	// TODO: D3D12MA
+	D3D12_HEAP_PROPERTIES heapProps = {};
+	switch (desc.usage)
+	{
+	case st::rapi::BufferUsage::UploadBuffer:
+	case st::rapi::BufferUsage::ConstantBuffer:
+		heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+		break;
+	case st::rapi::BufferUsage::IndexBuffer:
+	case st::rapi::BufferUsage::StructuredBuffer:
+		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+		break;
+	}
+	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+	ComPtr<ID3D12Resource> d3d12Buffer;
+	HRESULT hr = m_D3d12Device->CreateCommittedResource(
+		&heapProps, D3D12_HEAP_FLAG_NONE, &d3d12Desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&d3d12Buffer));
+	HR_RETURN_NULL(hr);
+
+	return BufferHandle{ new Buffer{ desc, d3d12Buffer.Get() } };
+}
+
 st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateHandleForNativeTexture(void* obj, const TextureDesc& desc)
 {
 	if (obj == nullptr)
@@ -275,6 +324,15 @@ st::rapi::CommandListHandle st::rapi::dx12::GpuDevice::CreateCommandList(const C
 	auto* commandList = new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType };
 
 	return CommandListHandle{ commandList };
+}
+
+st::rapi::FenceHandle st::rapi::dx12::GpuDevice::CreateFence()
+{
+	ComPtr<ID3D12Fence> d3d12Fence;
+	HRESULT hr = m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3d12Fence));
+	HR_RETURN_NULL(hr);
+
+	return FenceHandle{ new Fence{ d3d12Fence.Get() }};
 }
 
 void st::rapi::dx12::GpuDevice::WaitForIdle()

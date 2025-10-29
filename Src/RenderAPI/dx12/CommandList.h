@@ -18,6 +18,11 @@ namespace st::rapi::dx12
 			m_Type{ type }
 		{}
 
+		void WriteBuffer(IBuffer* buffer, const void* data, size_t dataSize, uint64_t offset);
+
+		void BeginMarker(const char* str) override;
+		void EndMarker() override;
+
 		QueueType GetType() const override { return m_Type; }
 
 	private:

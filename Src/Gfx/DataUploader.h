@@ -10,8 +10,7 @@
 #include "RenderAPI/Texture.h"
 #include "RenderAPI/ResourceState.h"
 #include "RenderAPI/CommandList.h"
-
-struct ID3D12Fence; // TODO
+#include "RenderAPI/Fence.h"
 
 namespace st::rapi
 {
@@ -40,15 +39,15 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadBufferData(
-		st::Blob&& srcData, st::rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
+		st::Blob&& srcData, rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
 	std::expected<SignalListener, std::string> UploadBufferData(
-		st::SharedBlob&& srcData, st::rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
+		st::SharedBlob&& srcData, rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
 	std::expected<SignalListener, std::string> UploadBufferData(
-		const st::WeakBlob& srcData, st::rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
+		const st::WeakBlob& srcData, rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
 		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a texture object.
@@ -105,7 +104,7 @@ private: /* */
 	std::mutex m_ThreadLocalMutex;
 
 	uint64_t m_CommitCount;
-	Microsoft::WRL::ComPtr<ID3D12Fence>	m_CommitFence;
+	rapi::FenceHandle m_CommitFence;
 
 	st::rapi::Device* m_Device;
 };

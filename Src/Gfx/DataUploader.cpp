@@ -14,15 +14,12 @@ st::gfx::DataUploader::ThreadLocalData::ThreadLocalData(rapi::Device* device)
 }
 
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
-st::gfx::DataUploader::DataUploader(rapi::Device* device) : m_CommitCount { 1 }, m_Device{ device }
-{
-	ID3D12Device* d3d12Device = m_Device->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
-	HRESULT hr = d3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_CommitFence));
-	assert(SUCCEEDED(hr));
-}
+st::gfx::DataUploader::DataUploader(rapi::Device* device) : 
+	m_CommitCount{ 1 }, m_CommitFence{ device->CreateFence() }, m_Device { device }
+{}
 
 std::expected<st::SignalListener, std::string>  st::gfx::DataUploader::UploadBufferData(
-	st::Blob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
+	st::Blob&& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState dstCurrentBufferState, st::rapi::ResourceState dstBufferTargetState,
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
 	auto result = UploadBufferData(st::WeakBlob{ srcData }, dstBuffer, dstCurrentBufferState, dstBufferTargetState, dstStart, dstSize, opt_gpuMarker);
@@ -39,7 +36,7 @@ std::expected<st::SignalListener, std::string>  st::gfx::DataUploader::UploadBuf
 }
 
 std::expected<st::SignalListener, std::string>  st::gfx::DataUploader::UploadBufferData(
-	st::SharedBlob&& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
+	st::SharedBlob&& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState dstCurrentBufferState, st::rapi::ResourceState dstBufferTargetState,
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
 	auto result = UploadBufferData(st::WeakBlob{ srcData }, dstBuffer, dstCurrentBufferState, dstBufferTargetState, dstStart, dstSize, opt_gpuMarker);
@@ -57,24 +54,21 @@ std::expected<st::SignalListener, std::string>  st::gfx::DataUploader::UploadBuf
 
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBufferData(
-	const st::WeakBlob& srcData, nvrhi::BufferHandle dstBuffer, nvrhi::ResourceStates dstCurrentBufferState, nvrhi::ResourceStates dstBufferTargetState,
+	const st::WeakBlob& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState dstCurrentBufferState, st::rapi::ResourceState dstBufferTargetState,
 	size_t dstStart, int dstSize, const char* opt_gpuMarker)
 {
-	nvrhi::BufferDesc desc = dstBuffer->getDesc();
+	st::rapi::BufferDesc desc = dstBuffer->GetDesc();
 
 	if (dstSize < 0)
 	{
-		dstSize = desc.byteSize - dstStart;
+		dstSize = desc.sizeBytes - dstStart;
 	}
 
-	assert(dstStart < desc.byteSize);
-	assert(dstSize <= desc.byteSize - dstStart);
+	assert(dstStart < desc.sizeBytes);
+	assert(dstSize <= desc.sizeBytes - dstStart);
 
 	auto [threadLocal, future] = GetThreadLocalData();
 	auto commandList = threadLocal->CommandList;
-
-	//commandList->open();
-	commandList->beginTrackingBufferState(dstBuffer, dstCurrentBufferState);
 
 	if (opt_gpuMarker)
 		commandList->beginMarker(std::format("UploadBufferData [{}]", opt_gpuMarker).c_str());
@@ -95,7 +89,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBuff
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
-	st::Blob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
+	st::Blob&& srcData, nvrhi::TextureHandle dstTexture, st::rapi::ResourceState currentTextureState, st::rapi::ResourceState textureTargetState,
 	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
 	auto result = UploadTextureData(st::WeakBlob{ srcData }, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
@@ -112,7 +106,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
-	st::SharedBlob&& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
+	st::SharedBlob&& srcData, nvrhi::TextureHandle dstTexture, st::rapi::ResourceState currentTextureState, st::rapi::ResourceState textureTargetState,
 	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
 	auto result = UploadTextureData(st::WeakBlob{ srcData }, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
@@ -129,7 +123,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
-	const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, nvrhi::ResourceStates currentTextureState, nvrhi::ResourceStates textureTargetState,
+	const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, st::rapi::ResourceState currentTextureState, st::rapi::ResourceState textureTargetState,
 	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
 	auto [threadLocal, future] = GetThreadLocalData();
