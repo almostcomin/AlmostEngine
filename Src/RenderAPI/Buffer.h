@@ -30,6 +30,8 @@ namespace st::rapi
     public:
         [[nodiscard]] virtual const BufferDesc& GetDesc() const = 0;
         [[nodiscard]] virtual GpuVirtualAddress GetGpuVirtualAddress() const = 0;
+
+        [[nodiscard]] virtual void* Map(uint64_t bufferStart = 0, size_t size = 0) = 0;
 	};
 
 	using BufferHandle = std::shared_ptr<IBuffer>;

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "RenderAPI/Resource.h"
+#include "RenderAPI/Barriers.h"
+#include <span>
 
 namespace st::rapi
 {
@@ -24,7 +26,9 @@ namespace st::rapi
 	{
 	public:
 
-		virtual void WriteBuffer(IBuffer* buffer, const void* data, size_t dataSize, uint64_t offset);
+		virtual void WriteBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, size_t size) = 0;
+
+		virtual void PushBarriers(std::span<Barrier> barriers) = 0;
 
 		virtual void BeginMarker(const char* str) = 0;
 		virtual void EndMarker() = 0;

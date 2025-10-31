@@ -2,6 +2,7 @@
 
 #include <string>
 #include <string_view>
+#include <cassert>
 
 namespace st
 {
@@ -38,6 +39,18 @@ inline uint32_t NextPowerOf2(uint32_t v)
     return v;
 }
 
+template<typename T>
+constexpr T KiB(T val)
+{
+    return val * 1024;
+}
+
+template<typename T>
+constexpr T MiB(T val)
+{
+    return KiB(val) * 1024;
+}
+
 // A type cast that is safer than static_cast in debug builds, and is a simple static_cast in release builds.
 // Used for downcasting various ISomething* pointers to their implementation classes in the backends.
 template <typename T, typename U>
@@ -61,5 +74,11 @@ T checked_cast(U u)
     inline bool operator !(T a) { return uint32_t(a) == 0; } \
     inline bool operator ==(T a, uint32_t b) { return uint32_t(a) == b; } \
     inline bool operator !=(T a, uint32_t b) { return uint32_t(a) != b; }
+
+template<typename T>
+constexpr bool has_flag(T lhs, T rhs)
+{
+    return (lhs & rhs) == rhs;
+}
 
 } // namespace st

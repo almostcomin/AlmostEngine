@@ -2,6 +2,13 @@
 #include "Core/Log.h"
 #include "Gfx/Util.h"
 #include "RenderAPI/Device.h"
+#include "Core/Util.h"
+
+namespace
+{
+	static constexpr size_t c_UploadBufferSize = st::MiB(256);
+	static constexpr uint64_t c_FailedToReserveSpace = std::numeric_limits<uint64_t>::max();
+}
 
 st::gfx::DataUploader::ThreadLocalData::ThreadLocalData(rapi::Device* device)
 {
@@ -16,7 +23,15 @@ st::gfx::DataUploader::ThreadLocalData::ThreadLocalData(rapi::Device* device)
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
 st::gfx::DataUploader::DataUploader(rapi::Device* device) : 
 	m_CommitCount{ 1 }, m_CommitFence{ device->CreateFence() }, m_Device { device }
-{}
+{
+	m_UploadBuffer = m_Device->CreateBuffer(rapi::BufferDesc{
+		.usage = rapi::BufferUsage::UploadBuffer,
+		.sizeBytes = c_UploadBufferSize
+	});
+	m_UploadBufferHead = 0;
+	m_UploadBufferTail = 0;
+	m_UploadBufferUsed = 0;
+}
 
 std::expected<st::SignalListener, std::string>  st::gfx::DataUploader::UploadBufferData(
 	st::Blob&& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState dstCurrentBufferState, st::rapi::ResourceState dstBufferTargetState,
@@ -55,27 +70,32 @@ std::expected<st::SignalListener, std::string>  st::gfx::DataUploader::UploadBuf
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBufferData(
 	const st::WeakBlob& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState dstCurrentBufferState, st::rapi::ResourceState dstBufferTargetState,
-	size_t dstStart, int dstSize, const char* opt_gpuMarker)
+	size_t dstStart, const char* opt_gpuMarker)
 {
 	st::rapi::BufferDesc desc = dstBuffer->GetDesc();
+	assert(dstStart + srcData.size() <= desc.sizeBytes);
 
-	if (dstSize < 0)
+	uint64_t uploadBufferOffset = RequestUploadBufferSpace(srcData.size());
+	if (uploadBufferOffset == c_FailedToReserveSpace)
 	{
-		dstSize = desc.sizeBytes - dstStart;
+		return std::unexpected("Failed to reserve memory in upload buffer");
 	}
-
-	assert(dstStart < desc.sizeBytes);
-	assert(dstSize <= desc.sizeBytes - dstStart);
+	void* uploadBufferMem = m_UploadBuffer->Map(uploadBufferOffset, srcData.size());
+	if (!uploadBufferMem)
+	{
+		return std::unexpected("Failed to map upload buffer");
+	}	
+	std::memcpy(uploadBufferMem, srcData.data(), srcData.size());
 
 	auto [threadLocal, future] = GetThreadLocalData();
 	auto commandList = threadLocal->CommandList;
 
 	if (opt_gpuMarker)
-		commandList->beginMarker(std::format("UploadBufferData [{}]", opt_gpuMarker).c_str());
+		commandList->BeginMarker(std::format("UploadBufferData [{}]", opt_gpuMarker).c_str());
 
-	commandList->writeBuffer(dstBuffer, srcData.data(), dstSize, dstStart);
+	commandList->WriteBuffer(dstBuffer.get(), dstStart, m_UploadBuffer.get(), uploadBufferOffset, srcData.size());
 
-	commandList->setPermanentBufferState(dstBuffer, dstBufferTargetState);
+
 
 	commandList->commitBarriers();
 
@@ -260,4 +280,36 @@ std::pair<st::gfx::DataUploader::ThreadLocalData*, st::SignalListener> st::gfx::
 	assert(m_Signals.Back().CommitIdx == m_CommitCount);
 
 	return { threadLocal, m_Signals.Back().Signal.GetListener() };
+}
+
+uint64_t st::gfx::DataUploader::RequestUploadBufferSpace(size_t size)
+{
+	std::scoped_lock lock{ m_UploadBufferMutex };
+
+	auto head = m_UploadBufferHead;
+	auto tail = m_UploadBufferTail;
+	bool found = false;
+	if (tail >= head)
+	{
+		// Check if there is enough space from the tail to the end
+		if (c_UploadBufferSize - tail >= size)
+			found = true;
+		else
+			tail = 0; // Lets try with the tail at the begining
+	}
+	if (!found)
+	{
+		assert(head >= tail);
+		if (head - tail >= size)
+		{
+			found = true;
+		}
+	}
+
+	if (found)
+	{
+		m_UploadBufferTail = tail + size;
+		return m_UploadBufferTail;
+	}
+	return c_FailedToReserveSpace;
 }

@@ -48,7 +48,7 @@ public:
 
 	std::expected<SignalListener, std::string> UploadBufferData(
 		const st::WeakBlob& srcData, rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
-		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
+		size_t dstStart = 0, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a texture object.
 	/// 
@@ -89,6 +89,7 @@ private: /* types */
 private: /* methods */
 
 	std::pair<ThreadLocalData*, SignalListener> GetThreadLocalData();
+	uint64_t RequestUploadBufferSpace(size_t size);
 
 private: /* */
 	
@@ -98,10 +99,16 @@ private: /* */
 		SignalEmitter Signal;
 	};
 
-	st::RingBuffer<SignalDataType, 16> m_Signals;
+	RingBuffer<SignalDataType, 16> m_Signals;
 
 	std::unordered_map<std::thread::id, std::unique_ptr<ThreadLocalData>> m_ThreadLocal;
 	std::mutex m_ThreadLocalMutex;
+
+	rapi::BufferHandle m_UploadBuffer;
+	uint64_t m_UploadBufferHead;
+	uint64_t m_UploadBufferTail;
+	size_t m_UploadBufferUsed;
+	std::mutex m_UploadBufferMutex;
 
 	uint64_t m_CommitCount;
 	rapi::FenceHandle m_CommitFence;

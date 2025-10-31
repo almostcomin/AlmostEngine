@@ -18,7 +18,9 @@ namespace st::rapi::dx12
 			m_Type{ type }
 		{}
 
-		void WriteBuffer(IBuffer* buffer, const void* data, size_t dataSize, uint64_t offset);
+		void WriteBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, size_t size) override;
+
+		void PushBarriers(std::span<Barrier> barriers) override;
 
 		void BeginMarker(const char* str) override;
 		void EndMarker() override;

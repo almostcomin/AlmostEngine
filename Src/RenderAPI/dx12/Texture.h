@@ -22,6 +22,8 @@ namespace st::rapi::dx12
 		void CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources) const;
 		void CreateDSV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly = false) const;
 
+		NativeResource GetNativeResource() override { return m_D3d12Resource.Get(); }
+
 	private:
 
 		TextureDesc m_Desc;

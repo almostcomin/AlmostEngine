@@ -5,6 +5,7 @@
 #include "RenderAPI/Framebuffer.h"
 #include "RenderAPI/CommandList.h"
 #include "RenderAPI/Fence.h"
+#include "RenderAPI/Barriers.h"
 
 namespace st::rapi
 {
