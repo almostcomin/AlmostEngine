@@ -32,6 +32,7 @@ namespace st::rapi
         [[nodiscard]] virtual GpuVirtualAddress GetGpuVirtualAddress() const = 0;
 
         [[nodiscard]] virtual void* Map(uint64_t bufferStart = 0, size_t size = 0) = 0;
+        virtual void Unmap(uint64_t bufferStart = 0, size_t size = 0) = 0;
 	};
 
 	using BufferHandle = std::shared_ptr<IBuffer>;

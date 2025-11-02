@@ -83,15 +83,16 @@ namespace st::rapi
 
         TextureSubresourceSet() = default;
 
-        TextureSubresourceSet(MipLevel _baseMipLevel, MipLevel _numMipLevels, ArraySlice _baseArraySlice, ArraySlice _numArraySlices)
+        constexpr TextureSubresourceSet(MipLevel _baseMipLevel, MipLevel _numMipLevels, ArraySlice _baseArraySlice, ArraySlice _numArraySlices)
             : baseMipLevel(_baseMipLevel)
             , numMipLevels(_numMipLevels)
             , baseArraySlice(_baseArraySlice)
             , numArraySlices(_numArraySlices)
         {}
 
-        [[nodiscard]] TextureSubresourceSet resolve(const TextureDesc& desc, bool singleMipLevel) const;
-        [[nodiscard]] bool isEntireTexture(const TextureDesc& desc) const;
+        MipLevel ResolveLastMipLevel(const TextureDesc& desc) const;
+        ArraySlice ResolveLastArraySlice(const TextureDesc& desc) const;
+        bool IsEntireTexture(const TextureDesc& desc) const;
 
         bool operator ==(const TextureSubresourceSet& other) const
         {
@@ -108,9 +109,8 @@ namespace st::rapi
         constexpr TextureSubresourceSet& setBaseArraySlice(ArraySlice value) { baseArraySlice = value; return *this; }
         constexpr TextureSubresourceSet& setNumArraySlices(ArraySlice value) { numArraySlices = value; return *this; }
         constexpr TextureSubresourceSet& setArraySlices(ArraySlice base, ArraySlice num) { baseArraySlice = base; numArraySlices = num; return *this; }
-
-        // see the bottom of this file for a specialization of std::hash<TextureSubresourceSet>
     };
+    static constexpr TextureSubresourceSet AllSubresources = TextureSubresourceSet{ 0, TextureSubresourceSet::AllMipLevels, 0, TextureSubresourceSet::AllArraySlices };
 
 	class ITexture : public IResource
 	{

@@ -2,7 +2,7 @@
 
 #include "RenderAPI/Buffer.h"
 #include <wrl/client.h>
-#include <d3d12.h>
+#include <directx/d3d12.h>
 
 namespace st::rapi::dx12
 {
@@ -10,19 +10,19 @@ namespace st::rapi::dx12
 	{
 	public:
 
-		Buffer(const BufferDesc& desc, ID3D12Resource* buffer) : m_Desc{ desc }, m_Resource{ buffer }
-		{}
+		Buffer(const BufferDesc& desc, ID3D12Resource* buffer);
+		~Buffer() override;
 
 		const BufferDesc& GetDesc() const override { return m_Desc; }
 		GpuVirtualAddress GetGpuVirtualAddress() const override { return {}; }
 
 		void* Map(uint64_t bufferStart = 0, size_t size = 0) override;
-
-		NativeResource GetNativeResource() override { return m_Resource.Get(); }
+		void Unmap(uint64_t bufferStart = 0, size_t size = 0) override;
 
 	private:
 
 		BufferDesc m_Desc;
+		char* m_mapAddr;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
 	};
 

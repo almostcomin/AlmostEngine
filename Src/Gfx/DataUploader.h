@@ -3,14 +3,15 @@
 #include <wrl/client.h>
 #include <expected>
 #include <mutex>
+#include <queue>
 #include "Core/Blob.h"
 #include "Core/RingBuffer.h"
-#include "Core/Signal.h"
 #include "RenderAPI/Buffer.h"
 #include "RenderAPI/Texture.h"
 #include "RenderAPI/ResourceState.h"
 #include "RenderAPI/CommandList.h"
 #include "RenderAPI/Fence.h"
+#include "Core/Signal.h"
 
 namespace st::rapi
 {
@@ -39,15 +40,7 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadBufferData(
-		st::Blob&& srcData, rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
-		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
-
-	std::expected<SignalListener, std::string> UploadBufferData(
-		st::SharedBlob&& srcData, rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
-		size_t dstStart = 0, int dstSize = -1, const char* opt_gpuMarker = nullptr);
-
-	std::expected<SignalListener, std::string> UploadBufferData(
-		const st::WeakBlob& srcData, rapi::BufferHandle dstBuffer, rapi::ResourceState dstCurrentBufferState, rapi::ResourceState dstBufferTargetState,
+		const st::WeakBlob& srcData, rapi::BufferHandle dstBuffer, rapi::ResourceState currentBufferState, rapi::ResourceState targetBufferState,
 		size_t dstStart = 0, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a texture object.
@@ -62,56 +55,48 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadTextureData(
-		st::Blob&& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentTextureState, rapi::ResourceState textureTargetState,
+		const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentState, rapi::ResourceState targetState,
 		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
-	std::expected<SignalListener, std::string> UploadTextureData(
-		st::SharedBlob&& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentTextureState, rapi::ResourceState textureTargetState,
-		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
-
-	std::expected<SignalListener, std::string> UploadTextureData(
-		const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentTextureState, rapi::ResourceState textureTargetState,
-		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
-
+	void AsyncUpdate();
 	void ProcessRenderingThreadCommands();
 	void RunGarbageCollector();
 
 private: /* types */
 
-	struct ThreadLocalData
-	{
-		rapi::CommandListHandle CommandList;
-		uint64_t CommitIdx;
-
-		ThreadLocalData(rapi::Device* device);
-	};
-
 private: /* methods */
 
-	std::pair<ThreadLocalData*, SignalListener> GetThreadLocalData();
+	rapi::CommandListHandle GetNewCommandList();
 	uint64_t RequestUploadBufferSpace(size_t size);
 
 private: /* */
 	
-	struct SignalDataType
-	{
-		uint64_t CommitIdx;
-		SignalEmitter Signal;
-	};
-
-	RingBuffer<SignalDataType, 16> m_Signals;
-
-	std::unordered_map<std::thread::id, std::unique_ptr<ThreadLocalData>> m_ThreadLocal;
+	std::unordered_map<std::thread::id, rapi::CommandListHandle> m_ThreadLocal;
 	std::mutex m_ThreadLocalMutex;
 
 	rapi::BufferHandle m_UploadBuffer;
 	uint64_t m_UploadBufferHead;
 	uint64_t m_UploadBufferTail;
-	size_t m_UploadBufferUsed;
 	std::mutex m_UploadBufferMutex;
+
+	struct UploadBufferCompletionEntry
+	{
+		uint64_t CompletedIdx;
+		uint64_t BufferPosition;
+	};
+	RingBuffer<UploadBufferCompletionEntry, 32> m_UploadBufferCompletion;
+
+	struct InFlightCommandListEntry
+	{
+		uint64_t CompletedIdx;
+		std::vector<rapi::CommandListHandle> CommandLists;
+		SignalEmitter Signal;
+	};
+	RingBuffer<InFlightCommandListEntry, 32> m_InFlightCommandLists;
 
 	uint64_t m_CommitCount;
 	rapi::FenceHandle m_CommitFence;
+	SignalEmitter m_CurrentSignal;
 
 	st::rapi::Device* m_Device;
 };

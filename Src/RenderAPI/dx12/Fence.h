@@ -2,7 +2,7 @@
 
 #include "RenderAPI/Fence.h"
 #include <wrl/client.h>
-#include <d3d12.h>
+#include <directx/d3d12.h>
 
 namespace st::rapi::dx12
 {
@@ -12,6 +12,10 @@ namespace st::rapi::dx12
 
 		Fence(ID3D12Fence* fence) : m_D3d12Fence{ fence }
 		{}
+
+		uint64_t GetCompletedValue() override { return m_D3d12Fence->GetCompletedValue(); }
+
+		NativeResource GetNativeResource() override { return m_D3d12Fence.Get(); }
 
 	private:
 

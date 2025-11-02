@@ -19,3 +19,6 @@
 [submodule "3rdParty/Sources/stb"]
 	path = 3rdParty/Sources/stb
 	url = https://github.com/nothings/stb.git
+[submodule "3rdParty/Sources/DirectX-Headers"]
+	path = 3rdParty/Sources/DirectX-Headers
+	url = https://github.com/microsoft/DirectX-Headers.git

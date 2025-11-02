@@ -1,42 +1,30 @@
 #include "RenderAPI/Texture.h"
 
-st::rapi::TextureSubresourceSet st::rapi::TextureSubresourceSet::resolve(const TextureDesc& desc, bool singleMipLevel) const
+st::rapi::MipLevel st::rapi::TextureSubresourceSet::ResolveLastMipLevel(const TextureDesc& desc) const
 {
-    TextureSubresourceSet ret;
-    ret.baseMipLevel = baseMipLevel;
-
-    if (singleMipLevel)
+    if (numMipLevels == AllMipLevels)
     {
-        ret.numMipLevels = 1;
+        return desc.mipLevels - 1;
     }
     else
     {
-        int lastMipLevelPlusOne = std::min(baseMipLevel + numMipLevels, desc.mipLevels);
-        ret.numMipLevels = MipLevel(std::max(0u, lastMipLevelPlusOne - baseMipLevel));
+        return std::min(baseMipLevel + numMipLevels, desc.mipLevels) - 1;
     }
-
-    switch (desc.dimension)
-    {
-    case TextureDimension::Texture1DArray:
-    case TextureDimension::Texture2DArray:
-    case TextureDimension::TextureCube:
-    case TextureDimension::TextureCubeArray:
-    case TextureDimension::Texture2DMSArray: {
-        ret.baseArraySlice = baseArraySlice;
-        int lastArraySlicePlusOne = std::min(baseArraySlice + numArraySlices, desc.arraySize);
-        ret.numArraySlices = ArraySlice(std::max(0u, lastArraySlicePlusOne - baseArraySlice));
-        break;
-    }
-    default:
-        ret.baseArraySlice = 0;
-        ret.numArraySlices = 1;
-        break;
-    }
-
-    return ret;
 }
 
-bool st::rapi::TextureSubresourceSet::isEntireTexture(const st::rapi::TextureDesc& desc) const
+st::rapi::ArraySlice st::rapi::TextureSubresourceSet::ResolveLastArraySlice(const TextureDesc& desc) const
+{
+    if (numArraySlices == AllArraySlices)
+    {
+        return desc.arraySize - 1;
+    }
+    else
+    {
+        return std::min(baseArraySlice + numArraySlices, desc.arraySize) - 1;
+    }
+}
+
+bool st::rapi::TextureSubresourceSet::IsEntireTexture(const st::rapi::TextureDesc& desc) const
 {
     if (baseMipLevel > 0u || baseMipLevel + numMipLevels < desc.mipLevels)
         return false;

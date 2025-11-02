@@ -29,7 +29,7 @@ namespace st::rapi::dx12
 {
     struct DxgiFormatMapping
     {
-        st::rapi::Format abstractFormat;
+        st::rapi::Format format;
         DXGI_FORMAT resourceFormat;
         DXGI_FORMAT srvFormat;
         DXGI_FORMAT rtvFormat;

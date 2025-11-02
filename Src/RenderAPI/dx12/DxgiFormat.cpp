@@ -102,13 +102,13 @@ namespace st::rapi::dx12
         { Format::BC7_UNORM_SRGB,       DXGI_FORMAT_BC7_TYPELESS,           DXGI_FORMAT_BC7_UNORM_SRGB,           DXGI_FORMAT_BC7_UNORM_SRGB         },
     };
 
-    const DxgiFormatMapping& GetDxgiFormatMapping(Format abstractFormat)
+    const DxgiFormatMapping& GetDxgiFormatMapping(Format _format)
     {
         static_assert(sizeof(c_FormatMappings) / sizeof(DxgiFormatMapping) == size_t(Format::COUNT), 
             "The format mapping table doesn't have the right number of elements");
 
-        const DxgiFormatMapping& mapping = c_FormatMappings[uint32_t(abstractFormat)];
-        assert(mapping.abstractFormat == abstractFormat);
+        const DxgiFormatMapping& mapping = c_FormatMappings[uint32_t(_format)];
+        assert(mapping.format == _format);
         return mapping;
     }
 }

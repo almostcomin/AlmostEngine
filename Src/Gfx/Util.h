@@ -1,8 +1,8 @@
 #pragma once
 
-#include <nvrhi/nvrhi.h>
 #include <dxgi.h>
 #include "Core/Math.h"
+#include "RenderAPI/Format.h"
 
 namespace st::gfx
 {
@@ -42,10 +42,10 @@ namespace st::gfx
         bool IsCurveDOTS() { return (flags & InstanceFlags_CurveDisjointOrthogonalTriangleStrips) != 0; }
     };
 
-	nvrhi::Format GetFormat(DXGI_FORMAT format);
+	rapi::Format GetFormat(DXGI_FORMAT format);
 
-	uint32_t BitsPerPixel(nvrhi::Format format);
+	uint32_t BitsPerPixel(rapi::Format format);
 
-    nvrhi::VertexAttributeDesc GetVertexAttributeDesc(VertexAttribute attribute, const char* name, uint32_t bufferIndex);
+//    nvrhi::VertexAttributeDesc GetVertexAttributeDesc(VertexAttribute attribute, const char* name, uint32_t bufferIndex);
 
 } // namespace st::gfx

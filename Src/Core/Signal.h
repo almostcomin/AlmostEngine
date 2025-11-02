@@ -23,7 +23,7 @@ public:
 		m_Future{ std::move(other.m_Future) },
 		m_Signaled{ other.m_Signaled.exchange(false) }
 	{
-		other.m_Signaled = false;
+		other.ReInit();
 	}
 
 	SignalEmitter& operator =(SignalEmitter&& other) noexcept
@@ -33,22 +33,39 @@ public:
 			m_Promise = std::move(other.m_Promise);
 			m_Future = std::move(other.m_Future);
 			m_Signaled = other.m_Signaled.exchange(false);
+
+			other.ReInit();
 		}
 		return *this;
 	}
 
 	void Signal()
 	{
-		// Solo permite señal una vez (seguro contra doble set_value)
 		if (!m_Signaled.exchange(true))
 		{
 			m_Promise.set_value();
 		}
 	}
 
+	// warning! will orphan all listeners
+	void Reset()
+	{
+		if (!m_Signaled)
+			Signal();
+
+		ReInit();
+	}
+
 	SignalListener GetListener();
 
 private:
+
+	void ReInit()
+	{
+		m_Promise = {};
+		m_Future = m_Promise.get_future().share();
+		m_Signaled = false;
+	}
 
 	std::promise<void> m_Promise;
 	std::shared_future<void> m_Future;

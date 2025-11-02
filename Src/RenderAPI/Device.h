@@ -13,6 +13,8 @@ namespace st::rapi
 	{
     public:
 
+        virtual ShaderHandle CreateShader(const ShaderDesc& desc) = 0;
+
         virtual BufferHandle CreateBuffer(const BufferDesc& desc) = 0;
 
         virtual TextureHandle CreateHandleForNativeTexture(void* obj, const TextureDesc& desc) = 0;
@@ -22,6 +24,8 @@ namespace st::rapi
         virtual CommandListHandle CreateCommandList(const CommandListParams& params) = 0;
 
         virtual FenceHandle CreateFence() = 0;
+
+        virtual void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal = nullptr, uint64_t value = 0) = 0;
 
         virtual void WaitForIdle() = 0;
 	};

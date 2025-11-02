@@ -2,7 +2,7 @@
 
 #include "RenderAPI/Texture.h"
 #include <wrl/client.h>
-#include <d3d12.h>
+#include <directx/d3d12.h>
 
 namespace st::rapi::dx12
 {

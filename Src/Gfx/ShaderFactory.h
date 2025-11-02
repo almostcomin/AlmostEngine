@@ -18,7 +18,7 @@ public:
 
 	ShaderFactory(st::rapi::Device* device);
 
-	st::rapi::ShaderHandle CreateShader(const char* filename, st::rapi::ShaderType shaderType);
+	st::rapi::ShaderHandle CreateShader(const char* filename, rapi::ShaderType shaderType);
 
 private:
 

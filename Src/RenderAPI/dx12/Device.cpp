@@ -7,6 +7,7 @@
 #include "RenderAPI/dx12/Framebuffer.h"
 #include "RenderAPI/dx12/CommandList.h"
 #include "RenderAPI/dx12/Fence.h"
+#include "RenderAPI/dx12/Shader.h"
 #include "Core/Util.h"
 #include "Core/Log.h"
 
@@ -55,6 +56,8 @@ namespace st::rapi::dx12
 		GpuDevice(const DeviceDesc& desc);
 		~GpuDevice();
 
+		ShaderHandle CreateShader(const ShaderDesc& desc) override;
+
 		BufferHandle CreateBuffer(const BufferDesc& desc) override;
 
 		TextureHandle CreateHandleForNativeTexture(void* obj, const TextureDesc& desc) override;
@@ -64,6 +67,8 @@ namespace st::rapi::dx12
 		CommandListHandle CreateCommandList(const CommandListParams& params) override;
 
 		FenceHandle CreateFence() override;
+
+		void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value) override;
 
 		void WaitForIdle() override;
 
@@ -182,7 +187,12 @@ st::rapi::dx12::GpuDevice::~GpuDevice()
 	}
 }
 
-st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const st::rapi::BufferDesc& desc)
+st::rapi::ShaderHandle st::rapi::dx12::GpuDevice::CreateShader(const ShaderDesc& desc)
+{
+
+}
+
+st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc)
 {
 	// Descripción del recurso
 	D3D12_RESOURCE_DESC d3d12Desc = {};
@@ -321,7 +331,7 @@ st::rapi::CommandListHandle st::rapi::dx12::GpuDevice::CreateCommandList(const C
 	ComPtr<ID3D12GraphicsCommandList> d3d12CommandList;
 	m_D3d12Device->CreateCommandList(0, d3dCommandListType, d3d12CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&d3d12CommandList));
 
-	auto* commandList = new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType };
+	auto* commandList = new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType, m_D3d12Device.Get() };
 
 	return CommandListHandle{ commandList };
 }
@@ -333,6 +343,27 @@ st::rapi::FenceHandle st::rapi::dx12::GpuDevice::CreateFence()
 	HR_RETURN_NULL(hr);
 
 	return FenceHandle{ new Fence{ d3d12Fence.Get() }};
+}
+
+void st::rapi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value)
+{
+	if (!m_Queues[(int)type].queue)
+	{
+		LOG_ERROR("Queue type '%d' not initialized", (int)type);
+		return;
+	}
+
+	std::vector<ID3D12CommandList*> d3d12CommandLists;
+	d3d12CommandLists.reserve(commandLists.size());
+	for (auto cl : commandLists)
+		d3d12CommandLists.push_back(cl->GetNativeResource());
+
+	m_Queues[(int)type].queue->ExecuteCommandLists(d3d12CommandLists.size(), d3d12CommandLists.data());
+
+	if (signal)
+	{
+		m_Queues[(int)type].queue->Signal(signal->GetNativeResource(), value);
+	}
 }
 
 void st::rapi::dx12::GpuDevice::WaitForIdle()

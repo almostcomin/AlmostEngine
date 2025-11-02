@@ -10,16 +10,6 @@ namespace
 	static constexpr uint64_t c_FailedToReserveSpace = std::numeric_limits<uint64_t>::max();
 }
 
-st::gfx::DataUploader::ThreadLocalData::ThreadLocalData(rapi::Device* device)
-{
-	rapi::CommandListParams params{
-		.queueType = rapi::QueueType::Graphics
-	};
-	CommandList = device->CreateCommandList(params);
-
-	CommitIdx = 0;
-}
-
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
 st::gfx::DataUploader::DataUploader(rapi::Device* device) : 
 	m_CommitCount{ 1 }, m_CommitFence{ device->CreateFence() }, m_Device { device }
@@ -30,46 +20,10 @@ st::gfx::DataUploader::DataUploader(rapi::Device* device) :
 	});
 	m_UploadBufferHead = 0;
 	m_UploadBufferTail = 0;
-	m_UploadBufferUsed = 0;
 }
-
-std::expected<st::SignalListener, std::string>  st::gfx::DataUploader::UploadBufferData(
-	st::Blob&& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState dstCurrentBufferState, st::rapi::ResourceState dstBufferTargetState,
-	size_t dstStart, int dstSize, const char* opt_gpuMarker)
-{
-	auto result = UploadBufferData(st::WeakBlob{ srcData }, dstBuffer, dstCurrentBufferState, dstBufferTargetState, dstStart, dstSize, opt_gpuMarker);
-	if (result)
-	{
-		// Wait async to end to free srcData.
-		std::thread([this, event = *result, capturedData = std::move(srcData)]() 
-		{
-			event.Wait();
-		}).detach();
-	}
-
-	return result;
-}
-
-std::expected<st::SignalListener, std::string>  st::gfx::DataUploader::UploadBufferData(
-	st::SharedBlob&& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState dstCurrentBufferState, st::rapi::ResourceState dstBufferTargetState,
-	size_t dstStart, int dstSize, const char* opt_gpuMarker)
-{
-	auto result = UploadBufferData(st::WeakBlob{ srcData }, dstBuffer, dstCurrentBufferState, dstBufferTargetState, dstStart, dstSize, opt_gpuMarker);
-	if (result)
-	{
-		// Wait async to end to free srcData.
-		std::thread([this, event = *result, capturedData = std::move(srcData)]() 
-		{
-			event.Wait();
-		}).detach();
-	}
-
-	return result;
-}
-
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBufferData(
-	const st::WeakBlob& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState dstCurrentBufferState, st::rapi::ResourceState dstBufferTargetState,
+	const st::WeakBlob& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState currentBufferState, st::rapi::ResourceState targetBufferState,
 	size_t dstStart, const char* opt_gpuMarker)
 {
 	st::rapi::BufferDesc desc = dstBuffer->GetDesc();
@@ -78,6 +32,9 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBuff
 	uint64_t uploadBufferOffset = RequestUploadBufferSpace(srcData.size());
 	if (uploadBufferOffset == c_FailedToReserveSpace)
 	{
+		// TODO: Can just happen that wwe are requestion too much uploads in single frame.
+		// So we have to wait the completion of some in-flight commands to free space for new
+		// TODO: Create a pending commands list that can be activated after space is freed (RunGarbageCollector)
 		return std::unexpected("Failed to reserve memory in upload buffer");
 	}
 	void* uploadBufferMem = m_UploadBuffer->Map(uploadBufferOffset, srcData.size());
@@ -86,129 +43,134 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBuff
 		return std::unexpected("Failed to map upload buffer");
 	}	
 	std::memcpy(uploadBufferMem, srcData.data(), srcData.size());
+	m_UploadBuffer->Unmap(uploadBufferOffset, srcData.size());
 
-	auto [threadLocal, future] = GetThreadLocalData();
-	auto commandList = threadLocal->CommandList;
+	auto commandList = GetNewCommandList();
 
 	if (opt_gpuMarker)
 		commandList->BeginMarker(std::format("UploadBufferData [{}]", opt_gpuMarker).c_str());
 
+	commandList->PushBarrier(
+		rapi::Barrier::Buffer(dstBuffer.get(), currentBufferState, rapi::ResourceState::COPY_DST));
+
 	commandList->WriteBuffer(dstBuffer.get(), dstStart, m_UploadBuffer.get(), uploadBufferOffset, srcData.size());
 
-
-
-	commandList->commitBarriers();
-
-	if (opt_gpuMarker)
-		commandList->endMarker();
-
-	nvrhi::EventQueryHandle event = m_Device->createEventQuery();
-	m_Device->setEventQuery(event, nvrhi::CommandQueue::Graphics);
-
-	return future;
-}
-
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
-	st::Blob&& srcData, nvrhi::TextureHandle dstTexture, st::rapi::ResourceState currentTextureState, st::rapi::ResourceState textureTargetState,
-	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
-{
-	auto result = UploadTextureData(st::WeakBlob{ srcData }, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
-	if (result)
-	{
-		// Wait async to end to free srcData.
-		std::thread([this, event = *result, capturedData = std::move(srcData)]()
-		{
-			event.Wait();
-		}).detach();
-	}
-
-	return result;
-}
-
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
-	st::SharedBlob&& srcData, nvrhi::TextureHandle dstTexture, st::rapi::ResourceState currentTextureState, st::rapi::ResourceState textureTargetState,
-	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
-{
-	auto result = UploadTextureData(st::WeakBlob{ srcData }, dstTexture, currentTextureState, textureTargetState, subresources, opt_gpuMarker);
-	if (result)
-	{
-		// Wait async to end to free srcData.
-		std::thread([this, event = *result, capturedData = std::move(srcData)]()
-		{
-			event.Wait();
-		}).detach();
-	}
-
-	return result;
-}
-
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
-	const st::WeakBlob& srcData, nvrhi::TextureHandle dstTexture, st::rapi::ResourceState currentTextureState, st::rapi::ResourceState textureTargetState,
-	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
-{
-	auto [threadLocal, future] = GetThreadLocalData();
-	auto commandList = threadLocal->CommandList;
-
-	commandList->beginTrackingTextureState(dstTexture, {}, currentTextureState);
+	commandList->PushBarrier(
+		rapi::Barrier::Buffer(dstBuffer.get(), rapi::ResourceState::COPY_DST, targetBufferState));
 
 	if (opt_gpuMarker)
-		commandList->beginMarker(std::format("UploadTextureData [{}]", opt_gpuMarker).c_str());
+		commandList->EndMarker();
 
-	nvrhi::TextureDesc desc = dstTexture->getDesc();
+	return m_CurrentSignal.GetListener();
+}
 
-	ID3D12Device* d3d12Device = m_Device->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
-	ID3D12Resource* d3d12Texture = dstTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
-
-	uint64_t requiredSize = 0;
-	D3D12_RESOURCE_DESC d3d12Desc = d3d12Texture->GetDesc();
-	d3d12Device->GetCopyableFootprints(
-		&d3d12Desc,
-		subresources.baseArraySlice,
-		subresources.numArraySlices == rapi::TextureSubresourceSet::AllArraySlices ? d3d12Desc.DepthOrArraySize : subresources.numArraySlices,
-		0, nullptr, nullptr, nullptr, &requiredSize);
-	assert(requiredSize == srcData.size());
-
-	for (uint32_t arraySlice = 0; arraySlice < desc.arraySize; arraySlice++)
+std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
+	const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, st::rapi::ResourceState currentState, st::rapi::ResourceState targetState,
+	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+{
+	uint64_t uploadBufferOffset = RequestUploadBufferSpace(srcData.size());
+	if (uploadBufferOffset == c_FailedToReserveSpace)
 	{
-		for (uint32_t mipLevel = 0; mipLevel < desc.mipLevels; mipLevel++)
+		// TODO: Can just happen that wwe are requestion too much uploads in single frame.
+		// So we have to wait the completion of some in-flight commands to free space for new
+		// TODO: Create a pending commands list that can be activated after space is freed (RunGarbageCollector)
+		return std::unexpected("Failed to reserve memory in upload buffer");
+	}
+	void* uploadBufferMem = m_UploadBuffer->Map(uploadBufferOffset, srcData.size());
+	if (!uploadBufferMem)
+	{
+		return std::unexpected("Failed to map upload buffer");
+	}
+	std::memcpy(uploadBufferMem, srcData.data(), srcData.size());
+	m_UploadBuffer->Unmap(uploadBufferOffset, srcData.size());
+
+	auto commandList = GetNewCommandList();
+
+	if (opt_gpuMarker)
+		commandList->BeginMarker(std::format("UploadTextureData [{}]", opt_gpuMarker).c_str());
+
+	const rapi::TextureDesc& desc = dstTexture->GetDesc();
+	uint32_t lastArraySlice = subresources.ResolveLastArraySlice(desc);
+	uint32_t lastMip = subresources.ResolveLastMipLevel(desc);
+
+	// Transition to copy_dest
+	if (subresources.IsEntireTexture(desc))
+	{
+		commandList->PushBarrier(
+			rapi::Barrier::Texture(dstTexture.get(), currentState, rapi::ResourceState::COPY_DST));
+	}
+	else
+	{
+		std::vector<rapi::Barrier> barriers;
+		barriers.reserve(desc.mipLevels * desc.arraySize);
+
+		for (uint32_t arraySlice = subresources.baseArraySlice; arraySlice <= lastArraySlice; ++arraySlice)
 		{
-			const int rowPich = (desc.width >> mipLevel) * st::gfx::BitsPerPixel(desc.format) / 8;
-			commandList->writeTexture(dstTexture, arraySlice, mipLevel, srcData.data(), rowPich);
+			for (int mip = subresources.baseMipLevel; mip <= lastMip; ++mip)
+			{
+				barriers.push_back(rapi::Barrier::Texture(
+					dstTexture.get(), currentState, rapi::ResourceState::COPY_DST, mip, arraySlice));
+			}
+		}			
+
+		commandList->PushBarriers(barriers);
+	}
+
+	commandList->WriteTexture(dstTexture.get(), subresources, m_UploadBuffer.get(), uploadBufferOffset);
+
+	// Transition from copy_dest to target state
+	if (subresources.IsEntireTexture(desc))
+	{
+		commandList->PushBarrier(
+			rapi::Barrier::Texture(dstTexture.get(), rapi::ResourceState::COPY_DST, targetState));
+	}
+	else
+	{
+		std::vector<rapi::Barrier> barriers;
+		barriers.reserve(desc.mipLevels * desc.arraySize);
+
+		for (uint32_t arraySlice = subresources.baseArraySlice; arraySlice <= lastArraySlice; ++arraySlice)
+		{
+			for (int mip = subresources.baseMipLevel; mip <= lastMip; ++mip)
+			{
+				barriers.push_back(rapi::Barrier::Texture(
+					dstTexture.get(), rapi::ResourceState::COPY_DST, targetState, mip, arraySlice));
+			}
 		}
+
+		commandList->PushBarriers(barriers);
 	}
 
-	commandList->setPermanentTextureState(dstTexture, textureTargetState);
-	commandList->commitBarriers();
-
 	if (opt_gpuMarker)
-		commandList->endMarker();
+		commandList->EndMarker();
 
-	return future;
+	return m_CurrentSignal.GetListener();
 }
 
 void st::gfx::DataUploader::ProcessRenderingThreadCommands()
 {
 	std::scoped_lock lock{ m_ThreadLocalMutex };
 
-	std::vector<nvrhi::ICommandList*> commandListsToExecute;
+	std::vector<rapi::CommandListHandle> commandListsToExecute;
 	for (auto it = m_ThreadLocal.begin(); it != m_ThreadLocal.end(); ++it)
 	{
-		ThreadLocalData* threadLocal = it->second.get();
-
-		if (threadLocal->CommitIdx == m_CommitCount)
-		{
-			// Commit requested this frame.
-			threadLocal->CommandList->close();
-			commandListsToExecute.push_back(threadLocal->CommandList.Get());
-		}
+		it->second->Close();
+		commandListsToExecute.push_back(std::move(it->second));
 	}
+	m_ThreadLocal.clear();
 
 	if (!commandListsToExecute.empty())
 	{
-		m_Device->executeCommandLists(commandListsToExecute.data(), commandListsToExecute.size(), nvrhi::CommandQueue::Graphics);
+		std::vector<rapi::ICommandList*> commandLists;
+		commandLists.reserve(commandListsToExecute.size());
+		for (auto& cl : commandListsToExecute)
+			commandLists.push_back(cl.get());
 
-		ID3D12CommandQueue* queue = m_Device->getNativeQueue(nvrhi::ObjectTypes::D3D12_CommandQueue, nvrhi::CommandQueue::Graphics);
-		queue->Signal(m_CommitFence, m_CommitCount);
+		m_Device->ExecuteCommandLists(commandLists, rapi::QueueType::Graphics, m_CommitFence.get(), m_CommitCount);
+
+		m_InFlightCommandLists.Push(InFlightCommandListEntry{
+			m_CommitCount, std::move(commandListsToExecute), std::move(m_CurrentSignal) });
+
 		++m_CommitCount;
 	}
 }
@@ -216,70 +178,40 @@ void st::gfx::DataUploader::ProcessRenderingThreadCommands()
 void st::gfx::DataUploader::RunGarbageCollector()
 {
 	std::vector<st::SignalEmitter> toSignal;
+	uint64_t completedIdx = m_CommitFence->GetCompletedValue();
 
+	// Command list completed
 	{
 		std::scoped_lock lock{ m_ThreadLocalMutex };
-		uint64_t completedIdx = m_CommitFence->GetCompletedValue();
-
-		// Check wich thread local is not needed stale and can be removed
-		std::vector<std::unordered_map<std::thread::id, std::unique_ptr<ThreadLocalData>>::iterator> toRemove;
-		for (auto it = m_ThreadLocal.begin(); it != m_ThreadLocal.end(); ++it)
+		while (!m_InFlightCommandLists.Empty() || m_InFlightCommandLists.Front().CompletedIdx <= completedIdx)
 		{
-			if (it->second->CommitIdx <= completedIdx)
-				toRemove.push_back(it);
+			toSignal.push_back(std::move(m_InFlightCommandLists.Front().Signal));
+			m_InFlightCommandLists.Pop();
 		}
-		for (auto& it : toRemove)
-		{
-			m_ThreadLocal.erase(it);
-		}
+	}
 
-		// Signal completed data
-		while (!m_Signals.Empty() && m_Signals.Front().CommitIdx <= completedIdx)
+	// Return space to upload buffer
+	{
+		std::scoped_lock lock{ m_UploadBufferMutex };
+		while (!m_UploadBufferCompletion.Empty() || m_UploadBufferCompletion.Front().CompletedIdx <= completedIdx)
 		{
-			toSignal.emplace_back(std::move(m_Signals.Front().Signal));
-			m_Signals.Pop();
+			m_UploadBufferHead = m_UploadBufferCompletion.Front().BufferPosition;
+			m_UploadBufferCompletion.Pop();
 		}
 	}
 
 	for (auto& signal : toSignal)
 	{
 		signal.Signal();
-	}	
+	}
 }
 
-std::pair<st::gfx::DataUploader::ThreadLocalData*, st::SignalListener> st::gfx::DataUploader::GetThreadLocalData()
+st::rapi::CommandListHandle st::gfx::DataUploader::GetNewCommandList()
 {
-	std::scoped_lock lock{ m_ThreadLocalMutex };
-
-	auto this_thread_id = std::this_thread::get_id();
-	ThreadLocalData* threadLocal = nullptr;
-
-	auto it = m_ThreadLocal.find(this_thread_id);
-	if (it == m_ThreadLocal.end())
-	{
-		threadLocal = new ThreadLocalData{ m_Device };
-		m_ThreadLocal.insert(std::pair<std::thread::id, std::unique_ptr<ThreadLocalData>>{ this_thread_id, threadLocal});
-	}
-	else
-	{
-		threadLocal = it->second.get();
-	}
-
-	if (threadLocal->CommitIdx != m_CommitCount)
-	{
-		// Since this is the first time we request this command buffer this frame, open it and keep it open until the final submit.
-		threadLocal->CommandList->open();
-		threadLocal->CommitIdx = m_CommitCount;
-	}
-
-	// Create the promise
-	if (m_Signals.Empty() || m_Signals.Back().CommitIdx < m_CommitCount)
-	{
-		m_Signals.Push(SignalDataType{ m_CommitCount, {} });
-	}
-	assert(m_Signals.Back().CommitIdx == m_CommitCount);
-
-	return { threadLocal, m_Signals.Back().Signal.GetListener() };
+	rapi::CommandListParams params{
+		.queueType = rapi::QueueType::Graphics 
+	};
+	return m_Device->CreateCommandList(params);
 }
 
 uint64_t st::gfx::DataUploader::RequestUploadBufferSpace(size_t size)
@@ -309,7 +241,22 @@ uint64_t st::gfx::DataUploader::RequestUploadBufferSpace(size_t size)
 	if (found)
 	{
 		m_UploadBufferTail = tail + size;
+
+		// If there is no elements in the completion list or
+		// the last alement added is older than current commit idx
+		if (m_UploadBufferCompletion.Empty() || m_UploadBufferCompletion.Back().CompletedIdx < m_CommitCount)
+		{
+			m_UploadBufferCompletion.Push(UploadBufferCompletionEntry{ m_CommitCount, m_UploadBufferTail });
+		}
+		// else, we are uploading the same commit_idx, so just update the position
+		else
+		{
+			assert(m_UploadBufferCompletion.Back().CompletedIdx == m_CommitCount);
+			m_UploadBufferCompletion.Back().BufferPosition = m_UploadBufferTail;
+		}
+
 		return m_UploadBufferTail;
 	}
+
 	return c_FailedToReserveSpace;
 }
