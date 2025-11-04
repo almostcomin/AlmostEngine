@@ -1,6 +1,9 @@
 #pragma once
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <dxgi.h>
+
 #include "Core/Math.h"
 #include "RenderAPI/Format.h"
 

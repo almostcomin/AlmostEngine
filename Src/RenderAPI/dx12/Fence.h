@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RenderAPI/Fence.h"
-#include <wrl/client.h>
 #include <directx/d3d12.h>
 
 namespace st::rapi::dx12
@@ -19,6 +18,6 @@ namespace st::rapi::dx12
 
 	private:
 
-		Microsoft::WRL::ComPtr<ID3D12Fence> m_D3d12Fence;
+		ComPtr<ID3D12Fence> m_D3d12Fence;
 	};
 }

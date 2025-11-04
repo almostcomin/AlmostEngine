@@ -1,6 +1,6 @@
 #include "RenderAPI/dx12/Texture.h"
 
-st::rapi::dx12::Texture::Texture(const st::rapi::TextureDesc& desc, Microsoft::WRL::ComPtr<ID3D12Resource> resource, ID3D12Device* device)
+st::rapi::dx12::Texture::Texture(const st::rapi::TextureDesc& desc, ComPtr<ID3D12Resource> resource, ID3D12Device* device)
 	: m_Desc{ desc }
 	, m_D3d12Resource{ resource }
     , m_D3d12Device{ device }

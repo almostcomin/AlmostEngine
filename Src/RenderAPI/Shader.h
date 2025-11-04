@@ -3,6 +3,7 @@
 #include "RenderAPI/Resource.h"
 #include <string>
 #include "Core/Util.h"
+#include "Core/Blob.h"
 
 namespace st::rapi
 {
@@ -38,17 +39,17 @@ namespace st::rapi
     {
         ShaderType Type = ShaderType::None;
         std::string DebugName;
-        std::string EntryName = "main";
+        std::string EntryPoint = "main";
 
         constexpr ShaderDesc& SetShaderType(st::rapi::ShaderType value) { Type = value; return *this; }
         ShaderDesc& SetDebugName(const std::string& value) { DebugName = value; return *this; }
-        ShaderDesc& SetEntryName(const std::string& value) { EntryName = value; return *this; }
+        ShaderDesc& SetEntryPoint(const std::string& value) { EntryPoint = value; return *this; }
     };
 
 	class IShader : public IResource
 	{
-		[[nodiscard]] virtual const ShaderDesc& GetDesc() const = 0;
-		virtual void GetBytecode(const void** ppBytecode, size_t* pSize) const = 0;
+		virtual const ShaderDesc& GetDesc() const = 0;
+		virtual const WeakBlob& GetBytecode() const = 0;
 	};
 
 	using ShaderHandle = std::shared_ptr<IShader>;

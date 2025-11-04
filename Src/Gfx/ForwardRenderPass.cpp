@@ -7,6 +7,7 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/Camera.h"
 #include "Gfx/MeshInstance.h"
+#include "RenderAPI/Device.h"
 
 bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 {
@@ -23,10 +24,10 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 		return false;
 	}
 
-	nvrhi::DeviceHandle device = m_RenderView->GetDeviceManager()->GetDevice();
+	rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
-	m_CommandList->open();
-	m_CommandList->beginMarker("ForwardRenderPass");
+	m_CommandList->Open();
+	m_CommandList->BeginMarker("ForwardRenderPass");
 
 	const auto& frustum = camera->GetFrustum();
 	st::gfx::SceneGraph::Walker walker{ *m_SceneGraph };
@@ -81,26 +82,26 @@ bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
 		}
 	} // while(walker)
 
-	m_CommandList->endMarker();
-	m_CommandList->close();
+	m_CommandList->EndMarker();
+	m_CommandList->Close();
 
-	device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
+	device->ExecuteCommandList(m_CommandList.get(), rapi::QueueType::Graphics);
 
 	return true;
 }
 
 void st::gfx::ForwardRenderPass::OnAttached()
 {
-	nvrhi::DeviceHandle device = m_RenderView->GetDeviceManager()->GetDevice();
+	rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
-	nvrhi::CommandListParameters params{
-		.enableImmediateExecution = false
+	rapi::CommandListParams params{
+		.queueType = rapi::QueueType::Graphics
 	};
-	m_CommandList = device->createCommandList();
+	m_CommandList = device->CreateCommandList(params);
 	
 	st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();
-	m_Vs = shaderFactory->CreateShader("Shaders/forward_vs.vso", nvrhi::ShaderType::Vertex);
-	m_Ps = shaderFactory->CreateShader("Shaders/forward_ps.pso", nvrhi::ShaderType::Pixel);
+	m_Vs = shaderFactory->CreateShader("Shaders/forward_vs.vso", st::rapi::ShaderType::Vertex);
+	m_Ps = shaderFactory->CreateShader("Shaders/forward_ps.pso", st::rapi::ShaderType::Pixel);
 
 	// Create PSO
 #if 0
@@ -124,7 +125,7 @@ void st::gfx::ForwardRenderPass::OnAttached()
 
 void st::gfx::ForwardRenderPass::OnDetached()
 {
-	m_Vs.Reset();
-	m_Ps.Reset();
-	m_CommandList.Reset();
+	m_Vs.reset();
+	m_Ps.reset();
+	m_CommandList.reset();
 }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RenderAPI/Texture.h"
-#include <wrl/client.h>
 #include <directx/d3d12.h>
 
 namespace st::rapi::dx12
@@ -12,7 +11,7 @@ namespace st::rapi::dx12
 
 	public:
 
-		Texture(const TextureDesc& desc, Microsoft::WRL::ComPtr<ID3D12Resource> resource, ID3D12Device* device);
+		Texture(const TextureDesc& desc, ComPtr<ID3D12Resource> resource, ID3D12Device* device);
 		virtual ~Texture() override = default;
 
 		const TextureDesc& GetDesc() const override;
@@ -27,7 +26,7 @@ namespace st::rapi::dx12
 	private:
 
 		TextureDesc m_Desc;
-		Microsoft::WRL::ComPtr<ID3D12Resource> m_D3d12Resource;
+		ComPtr<ID3D12Resource> m_D3d12Resource;
 		ID3D12Device* m_D3d12Device;
 	};
 } // namespace st::rapi::dx12

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Gfx/RenderPass.h"
-#include <nvrhi/nvrhi.h>
 #include <imgui/imgui.h>
 #include <unordered_map>
 
@@ -52,7 +51,7 @@ private:
 	bool UpdateFontTexture();
 	bool UpdateGeometry();
 
-	bool ReallocateBuffer(nvrhi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
+	bool ReallocateBuffer(rapi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
 	nvrhi::GraphicsPipelineHandle GetPSO(nvrhi::IFramebuffer* frameBuffer);
 	nvrhi::IBindingSet* GetBindingSet(nvrhi::ITexture* texture);
 
@@ -81,8 +80,8 @@ private:
 	nvrhi::TextureHandle m_FontTexture;
 	nvrhi::SamplerHandle m_FontSampler;
 
-	nvrhi::BufferHandle m_VertexBuffer;
-	nvrhi::BufferHandle m_IndexBuffer;
+	rapi::BufferHandle m_VertexBuffer;
+	rapi::BufferHandle m_IndexBuffer;
 	std::vector<ImDrawVert> m_VertexData;
 	std::vector<ImDrawIdx> m_IndexData;
 

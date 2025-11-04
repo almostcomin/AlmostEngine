@@ -23,7 +23,7 @@ public:
 private:
 
 	std::unordered_map<std::string, st::Blob> m_BytecodeCache;
-	st::rapi::Device* m_Device;
+	rapi::Device* m_Device;
 };
 
 }

@@ -10,10 +10,10 @@
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/SceneCamera.h"
-#include <nvrhi/nvrhi.h>
 #include <filesystem>
 #include "Core/File.h"
 #include "Gfx/DeviceManager.h"
+#include "RenderAPI/Device.h"
 
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
@@ -751,27 +751,20 @@ void CollectPrimitiveTexcoords(const cgltf_accessor& texcoords, std::vector<glm:
     }
 }
 
-std::expected<std::pair<nvrhi::BufferHandle, st::SignalListener>, std::string>
-CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
+std::expected<std::pair<st::rapi::BufferHandle, st::SignalListener>, std::string>
+CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, st::rapi::Device* device)
 {
-    nvrhi::BufferDesc bufferDesc;
-    bufferDesc.isIndexBuffer = true;
-    bufferDesc.byteSize = indexData.size();
+    st::rapi::BufferDesc bufferDesc;
+    bufferDesc.usage = st::rapi::BufferUsage::IndexBuffer;
+    bufferDesc.sizeBytes = indexData.size();
     bufferDesc.debugName = "IndexBuffer";
-    bufferDesc.canHaveTypedViews = true;
-    bufferDesc.canHaveRawViews = true;
-    bufferDesc.format = idx32bits ? nvrhi::Format::R32_UINT : nvrhi::Format::R16_UINT;
-    bufferDesc.isAccelStructBuildInput = false; // TODO
 
-    nvrhi::BufferHandle indexBuffer = device->createBuffer(bufferDesc);
+    st::rapi::BufferHandle indexBuffer = device->CreateBuffer(bufferDesc);
     auto uploadResult = dataUploader->UploadBufferData(
-        std::move(indexData),
+        st::WeakBlob{ indexData },
         indexBuffer,
-        nvrhi::ResourceStates::Common,
-        nvrhi::ResourceStates::IndexBuffer | nvrhi::ResourceStates::ShaderResource,
-        0,
-        indexData.size(),
-        debugName);
+        st::rapi::ResourceState::UNDEFINED,
+        st::rapi::ResourceState::INDEX_BUFFER | st::rapi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
     {
@@ -783,26 +776,20 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
     }
 }
 
-std::expected<std::pair<nvrhi::BufferHandle, st::SignalListener>, std::string>
-CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device)
+std::expected<std::pair<st::rapi::BufferHandle, st::SignalListener>, std::string>
+CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUploader* dataUploader, st::rapi::Device* device)
 {
-    nvrhi::BufferDesc bufferDesc;
-    bufferDesc.isVertexBuffer = true;
-    bufferDesc.byteSize = vertexData.size();
+    st::rapi::BufferDesc bufferDesc;
+    bufferDesc.usage = st::rapi::BufferUsage::StructuredBuffer;
+    bufferDesc.sizeBytes = vertexData.size();
     bufferDesc.debugName = "VertexBuffer";
-    bufferDesc.canHaveTypedViews = true;
-    bufferDesc.canHaveRawViews = true;
-    bufferDesc.isAccelStructBuildInput = false; // TODO
 
-    auto vertexBuffer = device->createBuffer(bufferDesc);
+    auto vertexBuffer = device->CreateBuffer(bufferDesc);
     auto uploadResult = dataUploader->UploadBufferData(
-        std::move(vertexData),
+        st::WeakBlob{ vertexData },
         vertexBuffer,
-        nvrhi::ResourceStates::Common,
-        nvrhi::ResourceStates::VertexBuffer | nvrhi::ResourceStates::ShaderResource,
-        0,
-        vertexData.size(),
-        debugName);
+        st::rapi::ResourceState::UNDEFINED,
+        st::rapi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
     {
@@ -816,7 +803,7 @@ CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUp
 
 std::expected<std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>>, std::string>
 LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>>& matMap, 
-    const char* filename, st::gfx::DataUploader* dataUploader, nvrhi::IDevice* device, std::vector<st::SignalListener>& out_handlesToWait)
+    const char* filename, st::gfx::DataUploader* dataUploader, st::rapi::Device* device, std::vector<st::SignalListener>& out_handlesToWait)
 {
     std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>> meshMap;
 

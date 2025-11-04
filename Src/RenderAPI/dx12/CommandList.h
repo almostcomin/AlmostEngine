@@ -2,7 +2,6 @@
 
 #include "RenderAPI/CommandList.h"
 #include "RenderAPI/Texture.h"
-#include <wrl/client.h>
 #include <directx/d3d12.h>
 
 namespace st::rapi::dx12
@@ -39,8 +38,8 @@ namespace st::rapi::dx12
 
 	private:
 
-		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_D3d12Commandlist;
-		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_D3d12CommandAllocator;
+		ComPtr<ID3D12GraphicsCommandList> m_D3d12Commandlist;
+		ComPtr<ID3D12CommandAllocator> m_D3d12CommandAllocator;
 		
 		QueueType m_Type;
 

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Gfx/RenderPass.h"
 #include "Core/Memory.h"
-#include <nvrhi/nvrhi.h>
+#include "RenderAPI/CommandList.h"
+#include "RenderAPI/Shader.h"
+#include "Gfx/RenderPass.h"
 
 namespace st::gfx
 {
@@ -32,10 +33,10 @@ private:
 
 	st::weak<SceneGraph> m_SceneGraph;
 
-	nvrhi::CommandListHandle m_CommandList;
+	st::rapi::CommandListHandle m_CommandList;
 
-	nvrhi::ShaderHandle m_Vs;
-	nvrhi::ShaderHandle m_Ps;
+	st::rapi::ShaderHandle m_Vs;
+	st::rapi::ShaderHandle m_Ps;
 };
 
 } // namespace st::gfx

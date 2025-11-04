@@ -1,6 +1,5 @@
 #pragma once
 #include <memory>
-#include <nvrhi/nvrhi.h>
 #include "Core/Util.h"
 #include "Core/Memory.h"
 

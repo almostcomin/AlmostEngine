@@ -81,4 +81,7 @@ constexpr bool has_flag(T lhs, T rhs)
     return (lhs & rhs) == rhs;
 }
 
+std::wstring ToWide(const char* utf8);
+std::string ToUtf8(const wchar_t* wide);
+
 } // namespace st

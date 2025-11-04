@@ -1,6 +1,5 @@
 #pragma once
 
-#include <nvrhi/nvrhi.h>
 #include <expected>
 #include <memory>
 #include "Gfx/TextureInfo.h"

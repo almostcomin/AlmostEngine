@@ -1,6 +1,7 @@
 #include "Util.h"
 #include <chrono>
 #include <random>
+#include <windows.h> // For MultiByteToWideChar
 
 std::string_view st::GetFilenameFromPath(const std::string_view& path)
 {
@@ -45,4 +46,22 @@ std::string st::MakeUniqueStringId()
         << std::setw(16) << std::setfill('0') << low;
 
     return ss.str();
+}
+
+std::wstring st::ToWide(const char* utf8)
+{
+    int size = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, nullptr, 0);
+    std::wstring wide(size, 0);
+    MultiByteToWideChar(CP_UTF8, 0, utf8, -1, wide.data(), size);
+    return wide;
+}
+
+std::string ToUtf8(const wchar_t* wide)
+{
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
+    if (size_needed <= 0)
+        return {};
+    std::string utf8(size_needed - 1, 0); // -1 to remove last '\0'
+    WideCharToMultiByte(CP_UTF8, 0, wide, -1, utf8.data(), size_needed, nullptr, nullptr);
+    return utf8;
 }

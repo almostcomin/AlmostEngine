@@ -4,8 +4,6 @@
 #include <cassert>
 #include <algorithm>
 
-using namespace Microsoft::WRL;
-
 st::rapi::dx12::DescriptorHeap::DescriptorHeap(ID3D12Device* device)
 	: m_Device{ device }
 {}

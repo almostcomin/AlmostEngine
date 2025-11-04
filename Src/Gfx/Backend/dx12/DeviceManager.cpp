@@ -4,7 +4,6 @@
 #include <dxgidebug.h>
 #include <SDL3/SDL_video.h>
 #include "Core/Log.h"
-#include <wrl/client.h>
 #include "RenderAPI/dx12/Device.h"
 #include "RenderAPI/dx12/DxgiFormat.h"
 #include "RenderAPI/Format.h"

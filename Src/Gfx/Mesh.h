@@ -2,8 +2,8 @@
 
 #include <string>
 #include <memory>
-#include <nvrhi/nvrhi.h>
 #include "Core/Math/aabox.h"
+#include "RenderAPI/Buffer.h"
 
 namespace st::gfx
 {
@@ -21,15 +21,15 @@ public:
 
 	const st::math::aabox3f& GetBounds() const { return m_Bounds; }
 
-	void SetIndexBuffer(nvrhi::BufferHandle indexBuffer) { m_IndexBuffer = indexBuffer; }
-	void SetVertexBuffer(nvrhi::BufferHandle vertexBuffer) { m_VertexBuffer = vertexBuffer; }
+	void SetIndexBuffer(rapi::BufferHandle indexBuffer) { m_IndexBuffer = indexBuffer; }
+	void SetVertexBuffer(rapi::BufferHandle vertexBuffer) { m_VertexBuffer = vertexBuffer; }
 
 	void SetMaterial(std::shared_ptr<Material> mat);
 
 	void SetBounds(const st::math::aabox3f& bounds) { m_Bounds = bounds; }
 
-	nvrhi::BufferHandle GetIndexBuffer() const { return m_IndexBuffer; }
-	nvrhi::BufferHandle GetVertexBuffer() const { return m_VertexBuffer; }
+	rapi::BufferHandle GetIndexBuffer() const { return m_IndexBuffer; }
+	rapi::BufferHandle GetVertexBuffer() const { return m_VertexBuffer; }
 
 private:
 
@@ -38,8 +38,8 @@ private:
 
 	st::math::aabox3f m_Bounds;
 
-	nvrhi::BufferHandle m_IndexBuffer;
-	nvrhi::BufferHandle m_VertexBuffer;
+	rapi::BufferHandle m_IndexBuffer;
+	rapi::BufferHandle m_VertexBuffer;
 
 	std::shared_ptr<Material> m_Material;
 };

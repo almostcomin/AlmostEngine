@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RenderAPI/Buffer.h"
-#include <wrl/client.h>
 #include <directx/d3d12.h>
 
 namespace st::rapi::dx12
@@ -23,7 +22,7 @@ namespace st::rapi::dx12
 
 		BufferDesc m_Desc;
 		char* m_mapAddr;
-		Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
+		ComPtr<ID3D12Resource> m_Resource;
 	};
 
 }  // namespace st::rapi

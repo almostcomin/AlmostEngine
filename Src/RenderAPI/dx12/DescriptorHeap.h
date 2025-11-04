@@ -1,10 +1,10 @@
 #pragma once
 
 #include <directx/d3d12.h>
-#include <wrl/client.h>
 #include <cstdint>
 #include <vector>
 #include <mutex>
+#include "Core/ComPtr.h"
 
 namespace st::rapi::dx12
 {
@@ -32,7 +32,7 @@ namespace st::rapi::dx12
 
         HRESULT Grow(uint32_t minRequiredSize);
 
-        Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_Heap;
+        ComPtr<ID3D12DescriptorHeap> m_Heap;
         bool m_ShaderVisible = false;
         D3D12_DESCRIPTOR_HEAP_TYPE m_HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         D3D12_CPU_DESCRIPTOR_HANDLE m_StartCpuHandle = { 0 };
@@ -44,7 +44,7 @@ namespace st::rapi::dx12
         uint32_t m_NumAllocatedDescriptors = 0;
         std::mutex m_Mutex;
 
-        Microsoft::WRL::ComPtr<ID3D12Device> m_Device;
+        ComPtr<ID3D12Device> m_Device;
     };
 
 } // namespace st::rapi::dx12

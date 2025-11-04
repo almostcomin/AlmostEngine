@@ -1,5 +1,4 @@
 #include "Gfx/TextureLoader.h"
-#include <nvrhi/d3d12.h>
 #include "Core/File.h"
 #include "Core/Log.h"
 #include "Gfx/Util.h"

@@ -377,7 +377,7 @@ bool st::ui::ImGuiRenderPass::UpdateGeometry()
     return true;
 }
 
-bool st::ui::ImGuiRenderPass::ReallocateBuffer(nvrhi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
+bool st::ui::ImGuiRenderPass::ReallocateBuffer(rapi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 

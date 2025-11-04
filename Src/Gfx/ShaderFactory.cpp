@@ -1,6 +1,7 @@
 #include "Gfx/ShaderFactory.h"
 #include "Core/Log.h"
 #include "Core/File.h"
+#include "RenderAPI/Device.h"
 
 st::gfx::ShaderFactory::ShaderFactory(st::rapi::Device* device) : m_Device(device)
 {
@@ -30,11 +31,11 @@ st::rapi::ShaderHandle st::gfx::ShaderFactory::CreateShader(const char* filename
 		bytecode = st::WeakBlob{ it->second };
 	}
 
-	nvrhi::ShaderDesc shaderDesc{
-		.shaderType = shaderType,
-		.debugName = filename,
-		.entryName = "main" 
+	rapi::ShaderDesc shaderDesc{
+		.Type = shaderType,
+		.DebugName = filename,
+		.EntryPoint = "main"
 	};
 
-	return m_Device->createShader(shaderDesc, bytecode.data(), bytecode.size());
+	return m_Device->CreateShader(shaderDesc, bytecode);
 }

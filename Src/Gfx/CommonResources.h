@@ -1,7 +1,5 @@
 #pragma once
 
-#include <nvrhi/nvrhi.h>
-
 namespace st::gfx
 {
 	class ShaderFactory;

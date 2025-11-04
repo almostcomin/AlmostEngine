@@ -1,6 +1,5 @@
 #pragma once
 
-#include <nvrhi/nvrhi.h>
 #include <filesystem>
 
 namespace st::gfx

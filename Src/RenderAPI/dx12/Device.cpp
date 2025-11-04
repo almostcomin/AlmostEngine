@@ -1,5 +1,4 @@
 #include "RenderAPI/dx12/Device.h"
-#include <wrl/client.h>
 #include <array>
 #include "RenderAPI/dx12/DescriptorHeap.h"
 #include "RenderAPI/dx12/Buffer.h"
@@ -10,8 +9,6 @@
 #include "RenderAPI/dx12/Shader.h"
 #include "Core/Util.h"
 #include "Core/Log.h"
-
-using namespace Microsoft::WRL;
 
 #define HR_RETURN_NULL(hr) if(FAILED(hr)) { LOG_ERROR("HRESULT error code = {:#x}", hr); return nullptr; }
 
@@ -56,7 +53,7 @@ namespace st::rapi::dx12
 		GpuDevice(const DeviceDesc& desc);
 		~GpuDevice();
 
-		ShaderHandle CreateShader(const ShaderDesc& desc) override;
+		ShaderHandle CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode) override;
 
 		BufferHandle CreateBuffer(const BufferDesc& desc) override;
 
@@ -69,6 +66,7 @@ namespace st::rapi::dx12
 		FenceHandle CreateFence() override;
 
 		void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value) override;
+		void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value) override;
 
 		void WaitForIdle() override;
 
@@ -187,9 +185,9 @@ st::rapi::dx12::GpuDevice::~GpuDevice()
 	}
 }
 
-st::rapi::ShaderHandle st::rapi::dx12::GpuDevice::CreateShader(const ShaderDesc& desc)
+st::rapi::ShaderHandle st::rapi::dx12::GpuDevice::CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode)
 {
-
+	return ShaderHandle{ new Shader{desc, bytecode} };
 }
 
 st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc)
@@ -364,6 +362,11 @@ void st::rapi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> com
 	{
 		m_Queues[(int)type].queue->Signal(signal->GetNativeResource(), value);
 	}
+}
+
+void st::rapi::dx12::GpuDevice::ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value)
+{
+	ExecuteCommandLists(std::span<ICommandList*, 1>{&commandList, 1}, type, signal, value);
 }
 
 void st::rapi::dx12::GpuDevice::WaitForIdle()

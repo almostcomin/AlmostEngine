@@ -2,6 +2,7 @@
 
 #include "RenderAPI/Resource.h"
 #include "RenderAPI/Barriers.h"
+#include "RenderAPI/Texture.h"
 #include <span>
 
 namespace st::rapi

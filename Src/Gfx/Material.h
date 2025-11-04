@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <nvrhi/nvrhi.h>
 #include <memory>
 
 namespace st::gfx
