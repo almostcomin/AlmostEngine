@@ -1,11 +1,11 @@
 #pragma once
 
 #include <string>
-#include <memory>
+#include "RenderAPI/Texture.h"
 
 namespace st::gfx
 {
-	class TextureHandle;
+	class LoadedTexture;
 };
 
 namespace st::gfx
@@ -18,11 +18,11 @@ public:
 	Material(const std::string& name = {}, const std::string& filename = {});
 	~Material();
 
-	void SetDiffuseTexture(std::shared_ptr<TextureHandle> textureHandle);
+	void SetDiffuseTexture(rapi::TextureHandle textureHandle);
 
 private:
 
-	std::shared_ptr<TextureHandle> m_DiffuseTexture;
+	rapi::TextureHandle m_DiffuseTexture;
 
 	std::string m_Name;
 	std::string m_SourceFileName; // where this material originated from, e.g. GLTF file name

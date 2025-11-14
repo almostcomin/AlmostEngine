@@ -14,6 +14,7 @@
 #include "Core/File.h"
 #include "Gfx/DeviceManager.h"
 #include "RenderAPI/Device.h"
+#include "Gfx/LoadedTexture.h"
 
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
@@ -52,8 +53,8 @@ struct GltfInlineData
 
 struct LoadTexCache
 {
-    std::unordered_map<const cgltf_texture*, std::shared_ptr<st::gfx::TextureHandle>> texCache;
-    std::unordered_map<const cgltf_image*, std::shared_ptr<st::gfx::TextureHandle>> imageCache;
+    std::unordered_map<const cgltf_texture*, std::shared_ptr<st::gfx::LoadedTexture>> texCache;
+    std::unordered_map<const cgltf_image*, std::shared_ptr<st::gfx::LoadedTexture>> imageCache;
     std::unordered_map<const cgltf_image*, std::shared_ptr<GltfInlineData>> inlineDataCache;
     std::filesystem::path path;
     st::gfx::TextureCache* textureCache;
@@ -472,7 +473,7 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
     return result;
 };
 
-std::shared_ptr<st::gfx::TextureHandle> LoadImage(const cgltf_image* image, bool sRGB, bool searchForDDS, LoadTexCache& loadCache, 
+std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool sRGB, bool searchForDDS, LoadTexCache& loadCache,
     int imageIndex, const cgltf_options& options)
 {
     auto it = loadCache.imageCache.find(image);
@@ -481,7 +482,7 @@ std::shared_ptr<st::gfx::TextureHandle> LoadImage(const cgltf_image* image, bool
 
     FilePathOrInlineData textureSource = LoadImageData(image, searchForDDS, loadCache, imageIndex, options);
 
-    std::shared_ptr<st::gfx::TextureHandle> texture;
+    std::shared_ptr<st::gfx::LoadedTexture> texture;
     if (textureSource.data)
     {
         auto loadResult = loadCache.textureCache->Load(st::WeakBlob{ textureSource.data->buffer }, textureSource.data->name, false, sRGB);
@@ -513,7 +514,7 @@ std::shared_ptr<st::gfx::TextureHandle> LoadImage(const cgltf_image* image, bool
     return texture;
 };
 
-std::shared_ptr<st::gfx::TextureHandle> LoadTexture(cgltf_texture* texture, const cgltf_data* objects, bool sRGB,
+std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, const cgltf_data* objects, bool sRGB,
     LoadTexCache& loadCache, const cgltf_options& options)
 {
     auto it = loadCache.texCache.find(texture);
@@ -521,7 +522,7 @@ std::shared_ptr<st::gfx::TextureHandle> LoadTexture(cgltf_texture* texture, cons
         return it->second;
 
     const TextureExtensions extensions = ParseTextureExtensions(texture, objects);
-    std::shared_ptr<st::gfx::TextureHandle> loadedTexture;
+    std::shared_ptr<st::gfx::LoadedTexture> loadedTexture;
 
     // See if the extensions include a DDS image.
     // Try loading the DDS first if it's specified, fall back to the regular image.
@@ -548,11 +549,12 @@ std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>>
 GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options)
 {
     std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> matMap;
-    auto loadTex = [objects, &loadCache, &options](cgltf_texture* texture, bool sRGB) -> std::shared_ptr<st::gfx::TextureHandle>
+    auto loadTex = [objects, &loadCache, &options](cgltf_texture* texture, bool sRGB) -> st::rapi::TextureHandle
     {
         if (!texture)
             return {};
-        return LoadTexture(texture, objects, sRGB, loadCache, options);
+        auto loadedTexture = LoadTexture(texture, objects, sRGB, loadCache, options);
+        return loadedTexture->texture;
     };
 
     for (size_t mat_idx = 0; mat_idx < objects->materials_count; mat_idx++)

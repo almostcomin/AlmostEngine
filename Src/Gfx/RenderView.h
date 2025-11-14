@@ -2,6 +2,7 @@
 #include <memory>
 #include "Core/Util.h"
 #include "Core/Memory.h"
+#include "RenderAPI/Framebuffer.h"
 
 namespace st::gfx
 {
@@ -23,7 +24,7 @@ public:
 
 	// Sets render to an offscreen framebuffer. If not initialized or set to null, will render to 
 	// main onscreen framebuffer aka main framebuffer
-	void SetOffscreenFrameBuffer(nvrhi::FramebufferHandle frameBuffer);
+	void SetOffscreenFrameBuffer(st::rapi::FramebufferHandle frameBuffer);
 
 	void SetRenderPasses(std::vector<std::shared_ptr<RenderPass>>&& renderPasses);
 
@@ -36,7 +37,7 @@ public:
 private:
 
 	std::shared_ptr<Camera> m_Camera;
-	nvrhi::FramebufferHandle m_OffscreenFramebuffer;	
+	st::rapi::FramebufferHandle m_OffscreenFramebuffer;
 
 	std::vector<std::shared_ptr<RenderPass>> m_RenderPasses;
 

@@ -48,6 +48,8 @@ namespace st::rapi
 
 	class IShader : public IResource
 	{
+    public:
+
 		virtual const ShaderDesc& GetDesc() const = 0;
 		virtual const WeakBlob& GetBytecode() const = 0;
 	};

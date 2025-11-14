@@ -3,6 +3,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/RenderView.h"
+#include "Gfx/Shaders/Interop/ImGUI_CB.h"
 #include <imgui/imgui.h>
 
 void st::ui::ImGuiRenderPass::ReconcileInputState()

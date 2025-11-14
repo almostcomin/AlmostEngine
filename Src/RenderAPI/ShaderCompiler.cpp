@@ -1,20 +1,20 @@
 #include "RenderAPI/ShaderCompiler.h"
-#include <dxcapi.h> // TODO
 #include <filesystem>
 #include "Core/Log.h"
 #include <string>
-
-using namespace Microsoft::WRL;
+#include "Core/ComPtr.h"
+#include "RenderAPI/dx12/d3d12_headers.h"
+#include <dxcapi.h> // TODO
 
 #define CHECK(expr) { HRESULT hr = expr; if(FAILED(hr)) { LOG_ERROR("Failed " #expr ", hr = '{}'", hr); return {}; }}
 
 namespace
 {
     // Responsible for the actual compilation of shaders.
-    ComPtr<IDxcCompiler3> Compiler;
+    st::ComPtr<IDxcCompiler3> Compiler;
     // Used to create include handle and provides interfaces for loading shader to blob, etc.
-    ComPtr<IDxcUtils> Utils;
-    ComPtr<IDxcIncludeHandler> IncludeHandler;
+    st::ComPtr<IDxcUtils> Utils;
+    st::ComPtr<IDxcIncludeHandler> IncludeHandler;
 
     std::wstring ShaderDirectory;
 
@@ -22,8 +22,6 @@ namespace
 
 st::Blob st::rapi::ShaderCompiler::Compile(ShaderType shaderType, const std::string& path, const std::string& entryPoint, bool debugMode, st::Blob* opt_rootSignature)
 {
-    HRESULT hr = S_OK;
-
     if (!Utils)
     {
         CHECK(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&Utils)));

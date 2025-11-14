@@ -7,6 +7,8 @@
 #include "RenderAPI/dx12/CommandList.h"
 #include "RenderAPI/dx12/Fence.h"
 #include "RenderAPI/dx12/Shader.h"
+#include "RenderAPI/dx12/DxgiFormat.h"
+#include "RenderAPI/dx12/ResourceState.h"
 #include "Core/Util.h"
 #include "Core/Log.h"
 
@@ -24,6 +26,28 @@ namespace
 			fence->SetEventOnCompletion(value, event);
 			WaitForSingleObject(event, INFINITE);
 		}
+	}
+
+	D3D12_CLEAR_VALUE ConvertTextureClearValue(const st::rapi::TextureDesc& d)
+	{
+		const auto& formatMapping = st::rapi::dx12::GetDxgiFormatMapping(d.format);
+		const auto& formatInfo = st::rapi::GetFormatInfo(d.format);
+		D3D12_CLEAR_VALUE clearValue = {};
+		clearValue.Format = formatMapping.rtvFormat;
+		if (formatInfo.hasDepth || formatInfo.hasStencil)
+		{
+			clearValue.DepthStencil.Depth = d.clearValue.x;
+			clearValue.DepthStencil.Stencil = UINT8(d.clearValue.y);
+		}
+		else
+		{
+			clearValue.Color[0] = d.clearValue.x;
+			clearValue.Color[1] = d.clearValue.y;
+			clearValue.Color[2] = d.clearValue.z;
+			clearValue.Color[3] = d.clearValue.w;
+		}
+
+		return clearValue;
 	}
 } // anonymous namespace
 
@@ -54,21 +78,23 @@ namespace st::rapi::dx12
 		~GpuDevice();
 
 		ShaderHandle CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode) override;
-
 		BufferHandle CreateBuffer(const BufferDesc& desc) override;
-
+		TextureHandle CreateTexture(const TextureDesc& desc, ResourceState initialState) override;
 		TextureHandle CreateHandleForNativeTexture(void* obj, const TextureDesc& desc) override;
-		
 		FramebufferHandle CreateFramebuffer(const FramebufferDesc& desc) override;
-
 		CommandListHandle CreateCommandList(const CommandListParams& params) override;
-
+		GraphicsPipelineStateHandle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc) override;
 		FenceHandle CreateFence() override;
 
 		void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value) override;
 		void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value) override;
 
 		void WaitForIdle() override;
+
+	private:
+
+		void CreateBindlessRootSignature();
+		D3D12_BLEND_DESC GetBlendDesc(const BlendState& desc) const;
 
 	private:
 
@@ -98,6 +124,8 @@ namespace st::rapi::dx12
 		ComPtr<ID3D12Device2> m_D3d12Device2;
 		ComPtr<ID3D12Device5> m_D3d12Device5;
 		ComPtr<ID3D12Device8> m_D3d12Device8;
+
+		ComPtr<ID3D12RootSignature> m_BindlessRootSignature;
 	};
 
 } // namespace st::rapi::dx12
@@ -172,6 +200,8 @@ st::rapi::dx12::GpuDevice::GpuDevice(const st::rapi::dx12::DeviceDesc& desc) :
 	}
 
 	m_FenceEvent = CreateEvent(nullptr, false, false, nullptr);
+
+	CreateBindlessRootSignature();
 };
 
 st::rapi::dx12::GpuDevice::~GpuDevice()
@@ -192,7 +222,6 @@ st::rapi::ShaderHandle st::rapi::dx12::GpuDevice::CreateShader(const ShaderDesc&
 
 st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc)
 {
-	// Descripción del recurso
 	D3D12_RESOURCE_DESC d3d12Desc = {};
 	d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	d3d12Desc.Alignment = 0; // D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT
@@ -228,6 +257,78 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 	HR_RETURN_NULL(hr);
 
 	return BufferHandle{ new Buffer{ desc, d3d12Buffer.Get() } };
+}
+
+st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDesc& desc, ResourceState initialState)
+{
+	const DxgiFormatMapping& formatMap = GetDxgiFormatMapping(desc.format);
+	const FormatInfo& formatInfo = GetFormatInfo(desc.format);
+
+	D3D12_RESOURCE_DESC d3d12Desc = {};
+	switch (desc.dimension)
+	{
+	case TextureDimension::Texture1D:
+	case TextureDimension::Texture1DArray:
+		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
+		d3d12Desc.DepthOrArraySize = desc.arraySize;
+		break;
+	case TextureDimension::Texture2D:
+	case TextureDimension::Texture2DArray:
+	case TextureDimension::TextureCube:
+	case TextureDimension::TextureCubeArray:
+	case TextureDimension::Texture2DMS:
+	case TextureDimension::Texture2DMSArray:
+		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		d3d12Desc.DepthOrArraySize = desc.arraySize;
+		break;
+	case TextureDimension::Texture3D:
+		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+		d3d12Desc.DepthOrArraySize = desc.depth;
+		break;
+	default:
+		assert(!"Invalid Enumeration Value");
+	}
+	d3d12Desc.Alignment = 0; // D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT
+	d3d12Desc.Width = desc.width;
+	d3d12Desc.Height = desc.height;
+	d3d12Desc.MipLevels = desc.mipLevels;
+	d3d12Desc.Format = formatMap.resourceFormat;
+	d3d12Desc.SampleDesc.Count = desc.sampleCount;
+	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
+	if (!desc.isShaderResource)
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+	if (desc.isRenderTarget)
+	{
+		if (formatInfo.hasDepth || formatInfo.hasStencil)
+			d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		else
+			d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	}
+	if (desc.isUAV)
+		d3d12Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	if (desc.isTiled)
+		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
+
+	D3D12_HEAP_PROPERTIES heapProps = {};
+	D3D12_HEAP_FLAGS heapFlags = D3D12_HEAP_FLAG_NONE;
+
+	D3D12_CLEAR_VALUE clearValue;
+	if (desc.useClearValue)
+	{
+		clearValue = ConvertTextureClearValue(desc);
+	}
+
+	ComPtr<ID3D12Resource> d3d12Texture;
+	HRESULT hr = m_D3d12Device->CreateCommittedResource(
+		&heapProps,
+		heapFlags,
+		&d3d12Desc,
+		MapResourceState(initialState),
+		desc.useClearValue ? &clearValue : nullptr,
+		IID_PPV_ARGS(&d3d12Texture));
+	HR_RETURN_NULL(hr);
+
+	return TextureHandle{ new Texture{ desc, d3d12Texture, m_D3d12Device.Get() } };
 }
 
 st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateHandleForNativeTexture(void* obj, const TextureDesc& desc)
@@ -334,6 +435,26 @@ st::rapi::CommandListHandle st::rapi::dx12::GpuDevice::CreateCommandList(const C
 	return CommandListHandle{ commandList };
 }
 
+st::rapi::GraphicsPipelineStateHandle st::rapi::dx12::GpuDevice::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc)
+{
+	// TODO: cache
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3d12Desc = {};
+	d3d12Desc.pRootSignature = m_BindlessRootSignature.Get();
+	d3d12Desc.VS = desc.VS ? D3D12_SHADER_BYTECODE{ desc.VS->GetBytecode().data(), desc.VS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
+	d3d12Desc.PS = desc.PS ? D3D12_SHADER_BYTECODE{ desc.PS->GetBytecode().data(), desc.PS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
+	d3d12Desc.DS = desc.DS ? D3D12_SHADER_BYTECODE{ desc.DS->GetBytecode().data(), desc.DS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
+	d3d12Desc.HS = desc.HS ? D3D12_SHADER_BYTECODE{ desc.HS->GetBytecode().data(), desc.HS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
+	d3d12Desc.GS = desc.GS ? D3D12_SHADER_BYTECODE{ desc.GS->GetBytecode().data(), desc.GS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
+	d3d12Desc.BlendState = desc.blendState;
+
+
+//	ComPtr<ID3D12PipelineState> d3d12PSO;
+//	m_D3d12Device->CreateGraphicsPipelineState(
+
+	return {};
+}
+
 st::rapi::FenceHandle st::rapi::dx12::GpuDevice::CreateFence()
 {
 	ComPtr<ID3D12Fence> d3d12Fence;
@@ -382,4 +503,208 @@ void st::rapi::dx12::GpuDevice::WaitForIdle()
 			WaitForFence(queue.fence.Get(), queue.lastSubmittedInstance, m_FenceEvent);
 		}
 	}
+}
+
+void st::rapi::dx12::GpuDevice::CreateBindlessRootSignature()
+{
+	// Need to map BindlessRS.hlsli
+
+	// --- Static samplers
+
+	D3D12_STATIC_SAMPLER_DESC staticSamplers[10] = {};
+
+	staticSamplers[0] = {
+		D3D12_FILTER_MIN_MAG_MIP_POINT,			// filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// W
+		0.0f,									// mipLODBias
+		0,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		0,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	staticSamplers[1] = {
+		D3D12_FILTER_MIN_MAG_MIP_POINT,			// filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// W
+		0.0f,									// mipLODBias
+		0,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		1,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	staticSamplers[2] = {
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,		// filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// W
+		0.0f,									// mipLODBias
+		0,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		2,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	staticSamplers[3] = {
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,		// filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// W
+		0.0f,									// mipLODBias
+		0,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		3,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	staticSamplers[4] = {
+		D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// W
+		0.0f,									// mipLODBias
+		0,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		4,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	staticSamplers[5] = {
+		D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// W
+		0.0f,									// mipLODBias
+		0,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		5,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	staticSamplers[6] = {
+		D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// W
+		0.0f,									// mipLODBias
+		0,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		6,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	staticSamplers[7] = {
+		D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// W
+		0.0f,									// mipLODBias
+		0,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		7,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	staticSamplers[8] = {
+		D3D12_FILTER_ANISOTROPIC,				// filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// W
+		0.0f,									// mipLODBias
+		16,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		0,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	staticSamplers[9] = {
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,		// filter
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,		// U
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,		// V
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,		// W
+		0.0f,									// mipLODBias
+		0,										// maxAnisotropy
+		D3D12_COMPARISON_FUNC_ALWAYS,			// comparisonFunc
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
+		0.0f,									// minLOD
+		100.0f,									// maxLOD
+		1,										// shaderRegister
+		0,										// registerSpace
+		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
+	};
+
+	// --- Root Constants (64 x 32-bit = 256 bytes)
+
+	D3D12_ROOT_PARAMETER rootParams[1] = {};
+	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	rootParams[0].Constants.Num32BitValues = 64;
+	rootParams[0].Constants.RegisterSpace = 0;
+	rootParams[0].Constants.ShaderRegister = 0;
+	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	// --- Create root signature
+
+	D3D12_ROOT_SIGNATURE_DESC desc = {};
+	desc.NumParameters = 1;
+	desc.pParameters = rootParams;
+	desc.NumStaticSamplers = _countof(staticSamplers);
+	desc.pStaticSamplers = staticSamplers;
+	desc.Flags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |
+		D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED;
+
+	ComPtr<ID3DBlob> rootSignatureBlob;
+	ComPtr<ID3DBlob> errorsBlob;
+
+	D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_1, &rootSignatureBlob, &errorsBlob);
+	[[maybe_unused]] HRESULT hr = m_D3d12Device->CreateRootSignature(
+		0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_BindlessRootSignature));
+	
+	assert(SUCCEEDED(hr));
+}
+
+D3D12_BLEND_DESC st::rapi::dx12::GpuDevice::GetBlendDesc(const BlendState& desc) const
+{
+
 }

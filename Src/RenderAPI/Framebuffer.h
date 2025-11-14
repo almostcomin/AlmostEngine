@@ -12,7 +12,7 @@ namespace st::rapi
 struct FramebufferAttachment
 {
     ITexture* texture = nullptr;
-    TextureSubresourceSet subresources = TextureSubresourceSet(0, 1, 0, 1);
+    TextureSubresourceSet subresources = TextureSubresourceSet{ 0, 1, 0, 1 };
     Format format = Format::UNKNOWN;
     bool isReadOnly = false;
 
@@ -24,7 +24,7 @@ struct FramebufferAttachment
     constexpr FramebufferAttachment& SetFormat(Format f) { format = f; return *this; }
     constexpr FramebufferAttachment& SetReadOnly(bool ro) { isReadOnly = ro; return *this; }
 
-    [[nodiscard]] bool Valid() const { return texture != nullptr; }
+    bool Valid() const { return texture != nullptr; }
 };
 
 struct FramebufferDesc

@@ -5,7 +5,7 @@
 namespace st::gfx
 {
 
-class TextureHandle : private st::noncopyable_nonmovable
+class LoadedTexture : private st::noncopyable_nonmovable
 {
 	friend class TextureCache;
 
@@ -18,13 +18,13 @@ public:
 		Ready
 	};
 
-	nvrhi::TextureHandle texture;
+	rapi::TextureHandle texture;
 	std::string id;
 	State state = State::Unloaded;
 
 private:
 
-	TextureHandle() = default;
+	LoadedTexture() = default;
 };
 
 } // namespace st::gfx

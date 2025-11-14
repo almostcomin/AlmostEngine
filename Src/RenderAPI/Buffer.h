@@ -28,10 +28,10 @@ namespace st::rapi
 	class IBuffer : public IResource
 	{
     public:
-        [[nodiscard]] virtual const BufferDesc& GetDesc() const = 0;
-        [[nodiscard]] virtual GpuVirtualAddress GetGpuVirtualAddress() const = 0;
+        virtual const BufferDesc& GetDesc() const = 0;
+        virtual GpuVirtualAddress GetGpuVirtualAddress() const = 0;
 
-        [[nodiscard]] virtual void* Map(uint64_t bufferStart = 0, size_t size = 0) = 0;
+        virtual void* Map(uint64_t bufferStart = 0, size_t size = 0) = 0;
         virtual void Unmap(uint64_t bufferStart = 0, size_t size = 0) = 0;
 	};
 

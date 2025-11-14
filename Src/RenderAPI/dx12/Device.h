@@ -1,6 +1,6 @@
 #pragma once
 
-#include <directx/d3d12.h>
+#include "RenderAPI/dx12/d3d12_headers.h"
 #include <cstdint>
 #include <memory>
 #include "RenderAPI/Device.h"

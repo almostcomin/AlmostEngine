@@ -7,7 +7,6 @@
 #include <pix_win.h>
 #include <cassert>
 #include <vector>
-#include <directx/d3dx12.h>
 #include "Core/Log.h"
 
 namespace

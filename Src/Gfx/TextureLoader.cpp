@@ -11,7 +11,7 @@
 
 namespace
 {
-    void GetSurfaceInfo(size_t width, size_t height, nvrhi::Format fmt, uint32_t bitsPerPixel,
+    void GetSurfaceInfo(size_t width, size_t height, st::rapi::Format fmt, uint32_t bitsPerPixel,
         size_t* outNumBytes, size_t* outRowBytes, size_t* outNumRows)
     {
         size_t numBytes = 0;
@@ -22,24 +22,24 @@ namespace
         size_t bpe = 0;
         switch (fmt)
         {
-        case nvrhi::Format::BC1_UNORM:
-        case nvrhi::Format::BC1_UNORM_SRGB:
-        case nvrhi::Format::BC4_UNORM:
-        case nvrhi::Format::BC4_SNORM:
+        case st::rapi::Format::BC1_UNORM:
+        case st::rapi::Format::BC1_UNORM_SRGB:
+        case st::rapi::Format::BC4_UNORM:
+        case st::rapi::Format::BC4_SNORM:
             bc = true;
             bpe = 8;
             break;
 
-        case nvrhi::Format::BC2_UNORM:
-        case nvrhi::Format::BC2_UNORM_SRGB:
-        case nvrhi::Format::BC3_UNORM:
-        case nvrhi::Format::BC3_UNORM_SRGB:
-        case nvrhi::Format::BC5_UNORM:
-        case nvrhi::Format::BC5_SNORM:
-        case nvrhi::Format::BC6H_UFLOAT:
-        case nvrhi::Format::BC6H_SFLOAT:
-        case nvrhi::Format::BC7_UNORM:
-        case nvrhi::Format::BC7_UNORM_SRGB:
+        case st::rapi::Format::BC2_UNORM:
+        case st::rapi::Format::BC2_UNORM_SRGB:
+        case st::rapi::Format::BC3_UNORM:
+        case st::rapi::Format::BC3_UNORM_SRGB:
+        case st::rapi::Format::BC5_UNORM:
+        case st::rapi::Format::BC5_SNORM:
+        case st::rapi::Format::BC6H_UFLOAT:
+        case st::rapi::Format::BC6H_SFLOAT:
+        case st::rapi::Format::BC7_UNORM:
+        case st::rapi::Format::BC7_UNORM_SRGB:
             bc = true;
             bpe = 16;
             break;
@@ -142,7 +142,7 @@ st::gfx::LoadDDSTexture(const st::WeakBlob& fileData)
 
 	st::gfx::TextureInfo texInfo;
     texInfo.format = GetFormat(metadata.format);
-    assert(texInfo.format != nvrhi::Format::UNKNOWN);
+    assert(texInfo.format != st::rapi::Format::UNKNOWN);
 	texInfo.width = metadata.width;
 	texInfo.height = metadata.height;
 	texInfo.mipLevels = metadata.mipLevels;
@@ -153,19 +153,19 @@ st::gfx::LoadDDSTexture(const st::WeakBlob& fileData)
     switch (metadata.dimension)
     {
     case DirectX::TEX_DIMENSION_TEXTURE1D:
-        texInfo.dimension = metadata.arraySize > 1 ? nvrhi::TextureDimension::Texture1DArray : nvrhi::TextureDimension::Texture1D;
+        texInfo.dimension = metadata.arraySize > 1 ? st::rapi::TextureDimension::Texture1DArray : st::rapi::TextureDimension::Texture1D;
         texInfo.arraySize = metadata.arraySize;
         break;
 
     case DirectX::TEX_DIMENSION_TEXTURE2D:
         if (metadata.IsCubemap())
         {
-            texInfo.dimension = metadata.arraySize > 1 ? nvrhi::TextureDimension::TextureCubeArray : nvrhi::TextureDimension::TextureCube;
+            texInfo.dimension = metadata.arraySize > 1 ? st::rapi::TextureDimension::TextureCubeArray : st::rapi::TextureDimension::TextureCube;
             texInfo.arraySize = metadata.arraySize * 6;
         }
         else
         {
-            texInfo.dimension = metadata.arraySize > 1 ? nvrhi::TextureDimension::Texture2DArray : nvrhi::TextureDimension::Texture2D;
+            texInfo.dimension = metadata.arraySize > 1 ? st::rapi::TextureDimension::Texture2DArray : st::rapi::TextureDimension::Texture2D;
             texInfo.arraySize = metadata.arraySize;
         }
         break;
@@ -173,7 +173,7 @@ st::gfx::LoadDDSTexture(const st::WeakBlob& fileData)
     case DirectX::TEX_DIMENSION_TEXTURE3D:
         assert(metadata.IsVolumemap());
         texInfo.depth = metadata.depth;
-        texInfo.dimension = nvrhi::TextureDimension::Texture3D;
+        texInfo.dimension = st::rapi::TextureDimension::Texture3D;
         break;
     }
 
@@ -221,7 +221,7 @@ st::gfx::LoadImageTexture(const st::WeakBlob& fileData, bool forceSRGB)
 	texInfo.width = static_cast<uint32_t>(width);
 	texInfo.height = static_cast<uint32_t>(height);
 	texInfo.mipLevels = 1;
-	texInfo.dimension = nvrhi::TextureDimension::Texture2D;
+	texInfo.dimension = st::rapi::TextureDimension::Texture2D;
 
 	texInfo.dataLayout.resize(1);
 	texInfo.dataLayout[0].resize(1);
@@ -235,14 +235,14 @@ st::gfx::LoadImageTexture(const st::WeakBlob& fileData, bool forceSRGB)
 	switch (channels)
 	{
 	case 1:
-		texInfo.format = is_hdr ? nvrhi::Format::R32_FLOAT : nvrhi::Format::R8_UNORM;
+		texInfo.format = is_hdr ? st::rapi::Format::R32_FLOAT : st::rapi::Format::R8_UNORM;
 		break;
 	case 2:
-		texInfo.format = is_hdr ? nvrhi::Format::RG32_FLOAT : nvrhi::Format::RG8_UNORM;
+		texInfo.format = is_hdr ? st::rapi::Format::RG32_FLOAT : st::rapi::Format::RG8_UNORM;
 		break;
 	case 4:
-		texInfo.format = is_hdr ? nvrhi::Format::RGBA32_FLOAT : 
-            forceSRGB ? nvrhi::Format::SRGBA8_UNORM : nvrhi::Format::RGBA8_UNORM;
+		texInfo.format = is_hdr ? st::rapi::Format::RGBA32_FLOAT :
+            forceSRGB ? st::rapi::Format::SRGBA8_UNORM : st::rapi::Format::RGBA8_UNORM;
 		break;
 	default:
 		return std::unexpected(std::format("Unsupported number of components ({})", channels));

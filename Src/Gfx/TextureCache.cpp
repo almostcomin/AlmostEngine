@@ -4,15 +4,16 @@
 #include "Gfx/TextureLoader.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/DataUploader.h"
-#include "Gfx/TextureHandle.h"
+#include "Gfx/LoadedTexture.h"
+#include "RenderAPI/Device.h"
 #include <filesystem>
 
 namespace
 {
 
-nvrhi::TextureDesc TexInfoToNvrhiTexDesc(const st::gfx::TextureInfo& texInfo)
+st::rapi::TextureDesc TexInfoToNvrhiTexDesc(const st::gfx::TextureInfo& texInfo)
 {
-    return nvrhi::TextureDesc {
+    return st::rapi::TextureDesc {
         .width = texInfo.width,
         .height = texInfo.height,
         .depth = texInfo.depth,
@@ -26,19 +27,19 @@ nvrhi::TextureDesc TexInfoToNvrhiTexDesc(const st::gfx::TextureInfo& texInfo)
     };
 }
 
-nvrhi::TextureHandle CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, nvrhi::DeviceHandle device)
+st::rapi::TextureHandle CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, st::rapi::Device* device)
 {
-    nvrhi::TextureDesc desc = TexInfoToNvrhiTexDesc(texInfo);
-    return device->createTexture(desc);
+    st::rapi::TextureDesc desc = TexInfoToNvrhiTexDesc(texInfo);
+    return device->CreateTexture(desc, st::rapi::ResourceState::COPY_DST);
 }
 
 } // anonymous namespace
 
-st::gfx::TextureCache::TextureCache(nvrhi::DeviceHandle device, st::gfx::DataUploader* dataUploader) :
+st::gfx::TextureCache::TextureCache(rapi::Device* device, st::gfx::DataUploader* dataUploader) :
     m_Device{ device }, m_DataUploader{ dataUploader }
 {}
 
-std::shared_ptr<st::gfx::TextureHandle> st::gfx::TextureCache::Get(const std::string& id)
+std::shared_ptr<st::gfx::LoadedTexture> st::gfx::TextureCache::Get(const std::string& id)
 {
     std::scoped_lock lockMaps{ m_MapMutex };
     auto it = m_Textures.find(id);
@@ -57,7 +58,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string&
     auto textureHandle = Get(path);
     if (textureHandle)
     {
-        return std::pair<std::shared_ptr<st::gfx::TextureHandle>, st::SignalListener>(textureHandle, {});
+        return std::pair<std::shared_ptr<st::gfx::LoadedTexture>, st::SignalListener>(textureHandle, {});
     }
 
     st::fs::File file{ path };
@@ -86,7 +87,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const st::WeakBlob
     auto textureHandle = Get(id);
     if (textureHandle)
     {
-        return std::pair<std::shared_ptr<st::gfx::TextureHandle>, st::SignalListener>(textureHandle, {});
+        return std::pair<std::shared_ptr<st::gfx::LoadedTexture>, st::SignalListener>(textureHandle, {});
     }
 
     auto loadResult = LoadInternal(blob, id, isDDS, forceSRGB);
@@ -109,7 +110,7 @@ void st::gfx::TextureCache::Update()
         {
             if(m_InFlightTextures[i].event.Poll())
             {
-                m_Textures[m_InFlightTextures[i].id].lock()->state = TextureHandle::State::Ready;
+                m_Textures[m_InFlightTextures[i].id].lock()->state = LoadedTexture::State::Ready;
                 m_InFlightTextures.erase(m_InFlightTextures.begin() + i);
             }
             else
@@ -153,43 +154,43 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
 
     TextureInfo& texInfo = loadResult->first;
     texInfo.debugName = id;
-    nvrhi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_Device);
+    rapi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_Device);
     if (!texture)
     {
         return std::unexpected(std::format("Failed creating texture {}.", id));
     }
 
     auto uploadResult = m_DataUploader->UploadTextureData(
-        std::move(loadResult->second), texture, nvrhi::ResourceStates::Common, nvrhi::ResourceStates::ShaderResource, nvrhi::AllSubresources, texInfo.debugName.c_str());
+        WeakBlob{ loadResult->second }, texture, rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE, rapi::AllSubresources, texInfo.debugName.c_str());
     if (!uploadResult)
     {
         return std::unexpected(std::move(uploadResult.error()));
     }
 
-    std::shared_ptr<TextureHandle> handle;
+    std::shared_ptr<LoadedTexture> handle;
     handle = CreateHandle();
     handle->texture = texture;
     handle->id = id;
-    handle->state = TextureHandle::Loading;
+    handle->state = LoadedTexture::Loading;
 
     st::SignalListener uploadEvent = std::move(*uploadResult);
 
     {
         std::scoped_lock loc{ m_MapMutex };
-        m_Textures.emplace(id, std::weak_ptr<TextureHandle>(handle));
+        m_Textures.emplace(id, std::weak_ptr<LoadedTexture>(handle));
     }
     {
         std::scoped_lock loc{ m_InFlightMapMutex };
         m_InFlightTextures.push_back(InFlightData{ id, handle, uploadEvent });
     }
 
-    return std::pair<std::shared_ptr<st::gfx::TextureHandle>, st::SignalListener>
+    return std::pair<std::shared_ptr<st::gfx::LoadedTexture>, st::SignalListener>
         { std::move(handle), uploadEvent };
 }
 
-std::shared_ptr<st::gfx::TextureHandle> st::gfx::TextureCache::CreateHandle()
+std::shared_ptr<st::gfx::LoadedTexture> st::gfx::TextureCache::CreateHandle()
 {
-    return std::shared_ptr<TextureHandle>{ new TextureHandle, [this](TextureHandle* h) {
+    return std::shared_ptr<LoadedTexture>{ new LoadedTexture, [this](LoadedTexture* h) {
         std::scoped_lock lock{ m_StaleMapMutex };
         m_StaleTextures.push_back(std::move(h->id));
     } };

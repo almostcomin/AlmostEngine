@@ -2,7 +2,8 @@
 
 #include "RenderAPI/CommandList.h"
 #include "RenderAPI/Texture.h"
-#include <directx/d3d12.h>
+#include "RenderAPI/dx12/d3d12_headers.h"
+#include "Core/ComPtr.h"
 
 namespace st::rapi::dx12
 {

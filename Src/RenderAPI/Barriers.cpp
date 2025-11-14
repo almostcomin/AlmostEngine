@@ -1,6 +1,6 @@
 #include "RenderAPI/Barriers.h"
 
-st::rapi::Barrier st::rapi::Barrier::Memory(const st::rapi::IResource* resource)
+st::rapi::Barrier st::rapi::Barrier::Memory(st::rapi::IResource* resource)
 {
 	Barrier barrier;
 	barrier.type = Type::MEMORY;
@@ -8,7 +8,7 @@ st::rapi::Barrier st::rapi::Barrier::Memory(const st::rapi::IResource* resource)
 	return barrier;
 }
 
-st::rapi::Barrier st::rapi::Barrier::Buffer(const IBuffer* buffer, ResourceState before, ResourceState after)
+st::rapi::Barrier st::rapi::Barrier::Buffer(IBuffer* buffer, ResourceState before, ResourceState after)
 {
 	Barrier barrier;
 	barrier.type = Type::BUFFER;
@@ -18,7 +18,7 @@ st::rapi::Barrier st::rapi::Barrier::Buffer(const IBuffer* buffer, ResourceState
 	return barrier;
 }
 
-st::rapi::Barrier st::rapi::Barrier::Texture(const ITexture* texture, ResourceState before, ResourceState after, int mip, int slice, ImageAspect aspect)
+st::rapi::Barrier st::rapi::Barrier::Texture(ITexture* texture, ResourceState before, ResourceState after, int mip, int slice, ImageAspect aspect)
 {
 	Barrier barrier;
 	barrier.type = Type::TEXTURE;
@@ -31,9 +31,10 @@ st::rapi::Barrier st::rapi::Barrier::Texture(const ITexture* texture, ResourceSt
 	return barrier;
 }
 
-st::rapi::Barrier st::rapi::Barrier::Aliasing(const IResource* before, const IResource* after)
+st::rapi::Barrier st::rapi::Barrier::Aliasing(IResource* before, IResource* after)
 {
 	Barrier barrier;
 	barrier.aliasing.resource_before = before;
 	barrier.aliasing.resource_after = after;
+	return barrier;
 }

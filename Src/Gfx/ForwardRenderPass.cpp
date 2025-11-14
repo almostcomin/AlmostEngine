@@ -9,7 +9,7 @@
 #include "Gfx/MeshInstance.h"
 #include "RenderAPI/Device.h"
 
-bool st::gfx::ForwardRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
+bool st::gfx::ForwardRenderPass::Render(st::rapi::IFramebuffer* frameBuffer)
 {
 	if (!m_SceneGraph)
 	{

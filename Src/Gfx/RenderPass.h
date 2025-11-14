@@ -3,7 +3,7 @@
 #include "Core/Math/glm_config.h"
 #include "Core/Memory.h"
 
-namespace nvrhi
+namespace st::rapi
 {
 	class IFramebuffer;
 };
@@ -16,7 +16,7 @@ class RenderPass
 
 public:
 
-	virtual bool Render(nvrhi::IFramebuffer* frameBuffer) = 0;
+	virtual bool Render(rapi::IFramebuffer* frameBuffer) = 0;
 	virtual void OnBackbufferResize(const glm::ivec2& size) = 0;
 
 protected:

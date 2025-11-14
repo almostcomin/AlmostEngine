@@ -12,7 +12,7 @@ void st::gfx::RenderView::SetCamera(std::shared_ptr<st::gfx::Camera> camera)
 	m_Camera = camera;
 }
 
-void st::gfx::RenderView::SetOffscreenFrameBuffer(nvrhi::FramebufferHandle frameBuffer)
+void st::gfx::RenderView::SetOffscreenFrameBuffer(st::rapi::FramebufferHandle frameBuffer)
 {
 	m_OffscreenFramebuffer = frameBuffer;
 }
@@ -34,8 +34,8 @@ void st::gfx::RenderView::SetRenderPasses(std::vector<std::shared_ptr<RenderPass
 
 void st::gfx::RenderView::Render()
 {
-	nvrhi::IFramebuffer* frameBuffer = m_OffscreenFramebuffer ? 
-		m_OffscreenFramebuffer.Get() : m_DeviceManager->GetCurrentFrameBuffer();
+	st::rapi::IFramebuffer* frameBuffer = m_OffscreenFramebuffer ?
+		m_OffscreenFramebuffer.get() : m_DeviceManager->GetCurrentFramebuffer();
 
 	if (frameBuffer)
 	{

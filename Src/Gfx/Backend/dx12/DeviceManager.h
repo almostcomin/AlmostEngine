@@ -1,7 +1,7 @@
 #pragma once
 #include "Gfx/DeviceManager.h"
 #include <dxgi1_5.h>
-#include <directx/d3d12.h>
+#include "RenderAPI/dx12/d3d12_headers.h"
 #include "RenderAPI/Texture.h"
 #include "Core/ComPtr.h"
 

@@ -9,10 +9,15 @@
 #include "Core/Util.h"
 #include "Core/Signal.h"
 
+namespace st::rapi
+{
+	class Device;
+}
+
 namespace st::gfx
 {
 	class DataUploader;
-	class TextureHandle;
+	class LoadedTexture;
 }
 
 namespace st::gfx
@@ -22,11 +27,11 @@ class TextureCache
 {
 public:
 
-	using LoadResult = std::expected<std::pair<std::shared_ptr<TextureHandle>, st::SignalListener>, std::string>;
+	using LoadResult = std::expected<std::pair<std::shared_ptr<LoadedTexture>, st::SignalListener>, std::string>;
 
 	TextureCache(rapi::Device* device, st::gfx::DataUploader* dataUploader);
 
-	std::shared_ptr<TextureHandle> Get(const std::string& id);
+	std::shared_ptr<LoadedTexture> Get(const std::string& id);
 
 	LoadResult Load(const std::string& path, bool forceSRGB = false);
 	LoadResult Load(const st::WeakBlob& blob, const std::string& id = MakeUniqueStringId(), bool isDDS = false, bool forceSRGB = false);
@@ -37,18 +42,18 @@ private:
 
 	LoadResult LoadInternal(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB);
 
-	std::shared_ptr<TextureHandle> CreateHandle();
+	std::shared_ptr<LoadedTexture> CreateHandle();
 
 private:
 
 	struct InFlightData
 	{
 		std::string id;
-		std::shared_ptr<TextureHandle> texture;
+		std::shared_ptr<LoadedTexture> texture;
 		st::SignalListener event;
 	};
 
-	std::unordered_map<std::string, std::weak_ptr<TextureHandle>> m_Textures;
+	std::unordered_map<std::string, std::weak_ptr<LoadedTexture>> m_Textures;
 	std::vector<InFlightData> m_InFlightTextures;
 	std::vector<std::string> m_StaleTextures;
 
