@@ -1,7 +1,13 @@
 #pragma once
 
+#include "Core/static_vector.h"
+#include "Core/Math/aabox.h"
+#include "Core/Math.h"
+
 namespace st::rapi
 {
+
+static constexpr uint32_t c_MaxViewports = 16;
 
 struct Viewport
 {
@@ -29,8 +35,20 @@ struct Viewport
     }
     bool operator !=(const Viewport& b) const { return !(*this == b); }
 
-    [[nodiscard]] float width() const { return maxX - minX; }
-    [[nodiscard]] float height() const { return maxY - minY; }
+    [[nodiscard]] float Width() const { return maxX - minX; }
+    [[nodiscard]] float Height() const { return maxY - minY; }
+};
+
+struct ViewportState
+{
+    static_vector<Viewport, c_MaxViewports> viewports;
+    static_vector<st::math::aabox2i, c_MaxViewports> scissorRects;
+
+    ViewportState& AddViewport(const Viewport& v) { viewports.push_back(v); return *this; }
+    ViewportState& AddScissorRect(const st::math::aabox2i& r) { scissorRects.push_back(r); return *this; }
+    ViewportState& AddViewportAndScissorRect(const Viewport& v) {
+        return AddViewport(v).AddScissorRect(st::math::aabox2i{ int2{v.minX, v.minY}, int2{v.maxX, v.maxY} });
+    }
 };
 
 } // namespace st::rapi

@@ -1,11 +1,17 @@
 #pragma once
 
+#include <type_traits>
+#include <Unknwn.h>
+
 namespace st
 {
 
 template <typename T>
 class ComPtr 
 {
+    static_assert(std::is_base_of<IUnknown, T>::value,
+        "ComPtr only works with COM objects");
+
 public:
 
     ComPtr() noexcept : ptr_{ nullptr } {}

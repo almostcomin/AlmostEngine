@@ -25,6 +25,17 @@ std::string_view GetExtensionFromPath(const std::string_view& path);
 // Based on 128 bits number
 std::string MakeUniqueStringId();
 
+template<typename T>
+constexpr T AlignTo(T value, T alignment)
+{
+    return ((value + alignment - T(1)) / alignment) * alignment;
+}
+template<typename T>
+constexpr bool IsAligned(T value, T alignment)
+{
+    return value == AlignTo(value, alignment);
+}
+
 inline uint32_t NextPowerOf2(uint32_t v)
 {
     // https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
@@ -52,7 +63,6 @@ constexpr T MiB(T val)
 }
 
 // A type cast that is safer than static_cast in debug builds, and is a simple static_cast in release builds.
-// Used for downcasting various ISomething* pointers to their implementation classes in the backends.
 template <typename T, typename U>
 T checked_cast(U u)
 {
@@ -76,7 +86,7 @@ T checked_cast(U u)
     inline bool operator !=(T a, uint32_t b) { return uint32_t(a) != b; }
 
 template<typename T>
-constexpr bool has_flag(T lhs, T rhs)
+constexpr bool hasFlag(T lhs, T rhs)
 {
     return (lhs & rhs) == rhs;
 }

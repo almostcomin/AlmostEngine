@@ -5,6 +5,9 @@
 
 #include "Core/Math.h"
 
+using uint = uint32_t;
+
+/*
 using int2 = st::int2;
 using int3 = st::int3;
 using int4 = st::int4;
@@ -17,7 +20,7 @@ using float3 = st::float3;
 using float4 = st::float4;
 using float3x3 = st::float3x3;
 using float4x4 = st::float4x4;
-
+*/
 #define column_major
 #define row_major
 

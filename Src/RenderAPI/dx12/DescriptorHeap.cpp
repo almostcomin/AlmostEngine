@@ -28,7 +28,7 @@ HRESULT st::rapi::dx12::DescriptorHeap::AllocateResources(D3D12_DESCRIPTOR_HEAP_
     m_StartCpuHandle = m_Heap->GetCPUDescriptorHandleForHeapStart();
     m_StartGpuHandleShaderVisible = m_Heap->GetGPUDescriptorHandleForHeapStart();
     m_Stride = m_Device->GetDescriptorHandleIncrementSize(heapDesc.Type);
-    m_AllocatedDescriptors.resize(m_NumDescriptors);
+    m_AllocatedDescriptors.resize(m_NumDescriptors, false);
 
     return S_OK;
 }
@@ -117,6 +117,11 @@ void st::rapi::dx12::DescriptorHeap::ReleaseDescriptor(DescriptorIndex index)
 
 D3D12_CPU_DESCRIPTOR_HANDLE st::rapi::dx12::DescriptorHeap::GetCpuHandle(DescriptorIndex index)
 {
+    if (index == c_InvalidDescriptorIndex)
+        return { 0u };
+
+    assert(index < m_NumDescriptors, "Descriptor index out of bounds");
+
     D3D12_CPU_DESCRIPTOR_HANDLE handle = m_StartCpuHandle;
     handle.ptr += index * m_Stride;
     return handle;

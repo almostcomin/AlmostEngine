@@ -2,16 +2,21 @@
 
 #include "RenderAPI/CommandList.h"
 #include "RenderAPI/Texture.h"
+#include "RenderAPI/Framebuffer.h"
 #include "RenderAPI/dx12/d3d12_headers.h"
 #include "Core/ComPtr.h"
 
 namespace st::rapi::dx12
 {
+	class GpuDevice;
+
 	class CommandList : public ICommandList
 	{
 	public:
 
-		CommandList(ID3D12GraphicsCommandList* d3d12CommandList, ID3D12CommandAllocator* commandAllocator, QueueType type, ID3D12Device* device) :
+		using NativeCommandListType = ID3D12GraphicsCommandList4;
+
+		CommandList(NativeCommandListType* d3d12CommandList, ID3D12CommandAllocator* commandAllocator, QueueType type, GpuDevice* device) :
 			m_D3d12Commandlist{ d3d12CommandList },
 			m_D3d12CommandAllocator{ commandAllocator },
 			m_Type{ type },
@@ -27,6 +32,21 @@ namespace st::rapi::dx12
 		void PushBarriers(std::span<const Barrier> barriers) override;
 		void PushBarrier(const Barrier& barrier) override;
 		
+		void SetPipelineState(IGraphicsPipelineState* pso) override;
+
+		void SetViewport(const rapi::ViewportState& vp) override;
+
+		void SetStencilRef(uint8_t value);
+
+		void SetBlendFactor(const float4& value);
+
+		void PushConstants(const uint32_t* data, size_t numElements, size_t elementsOffset) override;
+
+		void BeginRenderPass(rapi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags flags) override;
+		void EndRenderPass() override;
+
+		void DrawIndexed(uint32_t indexCount) override;
+
 		void Discard(IBuffer* buffer) override;
 		void Discard(ITexture* texture, int mipLevel, int arraySlice) override;
 
@@ -39,11 +59,13 @@ namespace st::rapi::dx12
 
 	private:
 
-		ComPtr<ID3D12GraphicsCommandList> m_D3d12Commandlist;
+		ComPtr<NativeCommandListType> m_D3d12Commandlist;
 		ComPtr<ID3D12CommandAllocator> m_D3d12CommandAllocator;
 		
 		QueueType m_Type;
 
-		ID3D12Device* m_Device;
+		st::rapi::FramebufferHandle m_CurrentFB;
+
+		GpuDevice* m_Device;
 	};
 }

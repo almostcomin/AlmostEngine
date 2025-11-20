@@ -1,5 +1,4 @@
-#include "RenderAPI/dx12/Device.h"
-#include <array>
+#include "RenderAPI/dx12/GpuDevice.h"
 #include "RenderAPI/dx12/DescriptorHeap.h"
 #include "RenderAPI/dx12/Buffer.h"
 #include "RenderAPI/dx12/Texture.h"
@@ -9,10 +8,19 @@
 #include "RenderAPI/dx12/Shader.h"
 #include "RenderAPI/dx12/DxgiFormat.h"
 #include "RenderAPI/dx12/ResourceState.h"
+#include "RenderAPI/dx12/PipelineState.h"
+#include "RenderAPI/dx12/Utils.h"
 #include "Core/Util.h"
 #include "Core/Log.h"
+#include <array>
 
-#define HR_RETURN_NULL(hr) if(FAILED(hr)) { LOG_ERROR("HRESULT error code = {:#x}", hr); return nullptr; }
+#define HR_RETURN_NULL(hr)			\
+	do {							\
+		if(FAILED(hr)) {			\
+			LOG_ERROR("HRESULT error code = {:#x} in function '{}'", hr,  __FUNCTION__); \
+			return nullptr;			\
+		}							\
+	} while(0)
 
 namespace
 {
@@ -50,85 +58,6 @@ namespace
 		return clearValue;
 	}
 } // anonymous namespace
-
-namespace st::rapi::dx12
-{
-	struct Queue
-	{
-		ComPtr<ID3D12CommandQueue> queue;
-		ComPtr<ID3D12Fence> fence;
-		uint64_t lastSubmittedInstance = 0;
-		uint64_t lastCompletedInstance = 0;
-
-		uint64_t UpdateLastCompletedInstance()
-		{
-			if (lastCompletedInstance < lastSubmittedInstance)
-			{
-				lastCompletedInstance = fence->GetCompletedValue();
-			}
-			return lastCompletedInstance;
-		}
-	};
-
-	class GpuDevice : public st::rapi::Device
-	{
-	public:
-
-		GpuDevice(const DeviceDesc& desc);
-		~GpuDevice();
-
-		ShaderHandle CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode) override;
-		BufferHandle CreateBuffer(const BufferDesc& desc) override;
-		TextureHandle CreateTexture(const TextureDesc& desc, ResourceState initialState) override;
-		TextureHandle CreateHandleForNativeTexture(void* obj, const TextureDesc& desc) override;
-		FramebufferHandle CreateFramebuffer(const FramebufferDesc& desc) override;
-		CommandListHandle CreateCommandList(const CommandListParams& params) override;
-		GraphicsPipelineStateHandle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc) override;
-		FenceHandle CreateFence() override;
-
-		void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value) override;
-		void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value) override;
-
-		void WaitForIdle() override;
-
-	private:
-
-		void CreateBindlessRootSignature();
-		D3D12_BLEND_DESC GetBlendDesc(const BlendState& desc) const;
-
-	private:
-
-		std::array<Queue, (int)QueueType::_Count> m_Queues;
-
-		DescriptorHeap m_DepthStencilViewHeap;
-		DescriptorHeap m_RenderTargetViewHeap;
-		DescriptorHeap m_ShaderResourceViewHeap;
-		DescriptorHeap m_SamplerHeap;
-
-		D3D12_FEATURE_DATA_D3D12_OPTIONS  m_Options = {};
-		D3D12_FEATURE_DATA_D3D12_OPTIONS1 m_Options1 = {};
-		D3D12_FEATURE_DATA_D3D12_OPTIONS5 m_Options5 = {};
-		D3D12_FEATURE_DATA_D3D12_OPTIONS6 m_Options6 = {};
-		D3D12_FEATURE_DATA_D3D12_OPTIONS7 m_Options7 = {};
-
-		bool m_MeshletsSupported = false;
-		bool m_RayTracingSupported = false;
-		bool m_TraceRayInlineSupported = false;
-		bool m_SamplerFeedbackSupported = false;
-		bool m_VariableRateShadingSupported = false;
-		bool m_HeapDirectlyIndexedSupported = false;
-
-		HANDLE m_FenceEvent;
-
-		ComPtr<ID3D12Device> m_D3d12Device;
-		ComPtr<ID3D12Device2> m_D3d12Device2;
-		ComPtr<ID3D12Device5> m_D3d12Device5;
-		ComPtr<ID3D12Device8> m_D3d12Device8;
-
-		ComPtr<ID3D12RootSignature> m_BindlessRootSignature;
-	};
-
-} // namespace st::rapi::dx12
 
 std::unique_ptr<st::rapi::Device> st::rapi::dx12::CreateDevice(const st::rapi::dx12::DeviceDesc& desc)
 {
@@ -237,7 +166,7 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 
 	// TODO: D3D12MA
 	D3D12_HEAP_PROPERTIES heapProps = {};
-	switch (desc.usage)
+	switch (desc.bufferUsage)
 	{
 	case st::rapi::BufferUsage::UploadBuffer:
 	case st::rapi::BufferUsage::ConstantBuffer:
@@ -256,7 +185,7 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 		&heapProps, D3D12_HEAP_FLAG_NONE, &d3d12Desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&d3d12Buffer));
 	HR_RETURN_NULL(hr);
 
-	return BufferHandle{ new Buffer{ desc, d3d12Buffer.Get() } };
+	return BufferHandle{ new Buffer{ desc, d3d12Buffer.Get(), this } };
 }
 
 st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDesc& desc, ResourceState initialState)
@@ -295,7 +224,7 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 	d3d12Desc.Format = formatMap.resourceFormat;
 	d3d12Desc.SampleDesc.Count = desc.sampleCount;
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
-	if (!desc.isShaderResource)
+	if (!hasFlag(desc.usage, ResourceUsage::ShaderResource))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	if (desc.isRenderTarget)
 	{
@@ -304,7 +233,7 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 		else
 			d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	}
-	if (desc.isUAV)
+	if (hasFlag(desc.usage, ResourceUsage::UnorderedAccess))
 		d3d12Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	if (desc.isTiled)
 		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
@@ -328,7 +257,8 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 		IID_PPV_ARGS(&d3d12Texture));
 	HR_RETURN_NULL(hr);
 
-	return TextureHandle{ new Texture{ desc, d3d12Texture, m_D3d12Device.Get() } };
+	auto texture = new Texture{ desc, d3d12Texture, this };
+	return TextureHandle{ texture };
 }
 
 st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateHandleForNativeTexture(void* obj, const TextureDesc& desc)
@@ -338,7 +268,7 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateHandleForNativeTexture(
 		return nullptr;
 	}
 
-	Texture* tex = new Texture{ desc, static_cast<ID3D12Resource*>(obj), m_D3d12Device.Get() };
+	Texture* tex = new Texture{ desc, static_cast<ID3D12Resource*>(obj), this };
 	return TextureHandle{ tex };
 }
 
@@ -351,14 +281,14 @@ st::rapi::FramebufferHandle st::rapi::dx12::GpuDevice::CreateFramebuffer(const F
 	if (!desc.ColorAttachments.empty())
 	{
 		Texture* texture = checked_cast<Texture*>(desc.ColorAttachments[0].texture);
-		fb->rtWidth = texture->m_Desc.width;
-		fb->rtHeight = texture->m_Desc.height;
+		fb->rtWidth = texture->GetDesc().width;
+		fb->rtHeight = texture->GetDesc().height;
 	}
 	else if (desc.DepthAttachment.Valid())
 	{
 		Texture* texture = checked_cast<Texture*>(desc.DepthAttachment.texture);
-		fb->rtWidth = texture->m_Desc.width;
-		fb->rtHeight = texture->m_Desc.height;
+		fb->rtWidth = texture->GetDesc().width;
+		fb->rtHeight = texture->GetDesc().height;
 	}
 
 	for (size_t rt = 0; rt < desc.ColorAttachments.size(); rt++)
@@ -366,8 +296,8 @@ st::rapi::FramebufferHandle st::rapi::dx12::GpuDevice::CreateFramebuffer(const F
 		auto& attachment = desc.ColorAttachments[rt];
 
 		Texture* texture = checked_cast<Texture*>(attachment.texture);
-		assert(texture->m_Desc.width == fb->rtWidth);
-		assert(texture->m_Desc.height == fb->rtHeight);
+		assert(texture->GetDesc().width == fb->rtWidth);
+		assert(texture->GetDesc().height == fb->rtHeight);
 
 		DescriptorIndex index = m_RenderTargetViewHeap.AllocateDescriptor();
 
@@ -377,14 +307,14 @@ st::rapi::FramebufferHandle st::rapi::dx12::GpuDevice::CreateFramebuffer(const F
 		fb->RTVs.push_back(index);
 
 		st::rapi::TextureHandle handle = std::static_pointer_cast<ITexture>(texture->shared_from_this());
-		fb->textures.push_back(handle);
+		fb->rtvTextures.push_back(handle);
 	}
 
 	if (desc.DepthAttachment.Valid())
 	{
 		Texture* texture = checked_cast<Texture*>(desc.DepthAttachment.texture);
-		assert(texture->m_Desc.width == fb->rtWidth);
-		assert(texture->m_Desc.height == fb->rtHeight);
+		assert(texture->GetDesc().width == fb->rtWidth);
+		assert(texture->GetDesc().height == fb->rtHeight);
 
 		DescriptorIndex index = m_DepthStencilViewHeap.AllocateDescriptor();
 
@@ -394,7 +324,7 @@ st::rapi::FramebufferHandle st::rapi::dx12::GpuDevice::CreateFramebuffer(const F
 		fb->DSV = index;
 
 		st::rapi::TextureHandle handle = std::static_pointer_cast<ITexture>(texture->shared_from_this());
-		fb->textures.push_back(handle);
+		fb->dsvTexture = handle;
 	}
 
 	return FramebufferHandle{ fb };
@@ -426,16 +356,17 @@ st::rapi::CommandListHandle st::rapi::dx12::GpuDevice::CreateCommandList(const C
 	}
 
 	ComPtr<ID3D12CommandAllocator> d3d12CommandAllocator;
-	m_D3d12Device->CreateCommandAllocator(d3dCommandListType, IID_PPV_ARGS(&d3d12CommandAllocator));
-	ComPtr<ID3D12GraphicsCommandList> d3d12CommandList;
-	m_D3d12Device->CreateCommandList(0, d3dCommandListType, d3d12CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&d3d12CommandList));
+	HRESULT hr = m_D3d12Device->CreateCommandAllocator(d3dCommandListType, IID_PPV_ARGS(&d3d12CommandAllocator));
+	HR_RETURN_NULL(hr);
+	ComPtr<CommandList::NativeCommandListType> d3d12CommandList;
+	hr = m_D3d12Device->CreateCommandList(0, d3dCommandListType, d3d12CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&d3d12CommandList));
+	HR_RETURN_NULL(hr);
 
-	auto* commandList = new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType, m_D3d12Device.Get() };
-
+	auto* commandList = new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType, this };
 	return CommandListHandle{ commandList };
 }
 
-st::rapi::GraphicsPipelineStateHandle st::rapi::dx12::GpuDevice::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc)
+st::rapi::GraphicsPipelineStateHandle st::rapi::dx12::GpuDevice::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo)
 {
 	// TODO: cache
 
@@ -446,13 +377,24 @@ st::rapi::GraphicsPipelineStateHandle st::rapi::dx12::GpuDevice::CreateGraphicsP
 	d3d12Desc.DS = desc.DS ? D3D12_SHADER_BYTECODE{ desc.DS->GetBytecode().data(), desc.DS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
 	d3d12Desc.HS = desc.HS ? D3D12_SHADER_BYTECODE{ desc.HS->GetBytecode().data(), desc.HS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
 	d3d12Desc.GS = desc.GS ? D3D12_SHADER_BYTECODE{ desc.GS->GetBytecode().data(), desc.GS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
-	d3d12Desc.BlendState = desc.blendState;
+	d3d12Desc.BlendState = GetBlendDesc(desc.blendState);
+	d3d12Desc.SampleMask = ~0u;
+	d3d12Desc.RasterizerState = GetRasterizerState(desc.rasterState);
+	d3d12Desc.DepthStencilState = GetDepthStencilState(desc.depthStencilState);
+	d3d12Desc.PrimitiveTopologyType = GetPrimitiveType(desc.primTopo);
+	d3d12Desc.NumRenderTargets = fbInfo.colorFormats.size();
+	for (uint32_t i = 0; i < d3d12Desc.NumRenderTargets; ++i)
+		d3d12Desc.RTVFormats[i] = GetDxgiFormatMapping(fbInfo.colorFormats[i]).rtvFormat;
+	d3d12Desc.DSVFormat = GetDxgiFormatMapping(fbInfo.depthFormat).rtvFormat;
+	d3d12Desc.SampleDesc.Count = fbInfo.sampleCount;
+	d3d12Desc.SampleDesc.Quality = fbInfo.sampleQuality;
 
+	ComPtr<ID3D12PipelineState> d3d12PSO;
+	HRESULT hr = m_D3d12Device->CreateGraphicsPipelineState(&d3d12Desc, IID_PPV_ARGS(&d3d12PSO));
+	HR_RETURN_NULL(hr);
 
-//	ComPtr<ID3D12PipelineState> d3d12PSO;
-//	m_D3d12Device->CreateGraphicsPipelineState(
-
-	return {};
+	auto* pso = new GraphicsPipelineState{ d3d12PSO, d3d12Desc, desc };
+	return GraphicsPipelineStateHandle{ pso };
 }
 
 st::rapi::FenceHandle st::rapi::dx12::GpuDevice::CreateFence()
@@ -461,7 +403,12 @@ st::rapi::FenceHandle st::rapi::dx12::GpuDevice::CreateFence()
 	HRESULT hr = m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3d12Fence));
 	HR_RETURN_NULL(hr);
 
-	return FenceHandle{ new Fence{ d3d12Fence.Get() }};
+	return FenceHandle{ new Fence{ d3d12Fence.Get() } };
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE st::rapi::dx12::GpuDevice::GetRTVCPUDescriptorHandle(DescriptorIndex idx)
+{
+	return m_RenderTargetViewHeap.GetCpuHandle(idx);
 }
 
 void st::rapi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value)
@@ -700,11 +647,6 @@ void st::rapi::dx12::GpuDevice::CreateBindlessRootSignature()
 	D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_1, &rootSignatureBlob, &errorsBlob);
 	[[maybe_unused]] HRESULT hr = m_D3d12Device->CreateRootSignature(
 		0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_BindlessRootSignature));
-	
+
 	assert(SUCCEEDED(hr));
-}
-
-D3D12_BLEND_DESC st::rapi::dx12::GpuDevice::GetBlendDesc(const BlendState& desc) const
-{
-
 }

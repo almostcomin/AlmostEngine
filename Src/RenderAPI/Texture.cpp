@@ -1,6 +1,6 @@
 #include "RenderAPI/Texture.h"
 
-st::rapi::MipLevel st::rapi::TextureSubresourceSet::ResolveLastMipLevel(const TextureDesc& desc) const
+st::rapi::MipLevel st::rapi::TextureSubresourceSet::GetLastMipLevel(const TextureDesc& desc) const
 {
     if (numMipLevels == AllMipLevels)
     {
@@ -12,7 +12,7 @@ st::rapi::MipLevel st::rapi::TextureSubresourceSet::ResolveLastMipLevel(const Te
     }
 }
 
-st::rapi::ArraySlice st::rapi::TextureSubresourceSet::ResolveLastArraySlice(const TextureDesc& desc) const
+st::rapi::ArraySlice st::rapi::TextureSubresourceSet::GetLastArraySlice(const TextureDesc& desc) const
 {
     if (numArraySlices == AllArraySlices)
     {
@@ -22,6 +22,12 @@ st::rapi::ArraySlice st::rapi::TextureSubresourceSet::ResolveLastArraySlice(cons
     {
         return std::min(baseArraySlice + numArraySlices, desc.arraySize) - 1;
     }
+}
+
+void st::rapi::TextureSubresourceSet::Resolve(const TextureDesc& desc)
+{
+    numMipLevels = GetLastMipLevel(desc) - baseMipLevel + 1;
+    numArraySlices = GetLastArraySlice(desc) - baseArraySlice + 1;
 }
 
 bool st::rapi::TextureSubresourceSet::IsEntireTexture(const st::rapi::TextureDesc& desc) const

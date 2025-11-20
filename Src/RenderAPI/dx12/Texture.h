@@ -2,22 +2,27 @@
 
 #include "RenderAPI/Texture.h"
 #include "RenderAPI/dx12/d3d12_headers.h"
+#include "Core/ComPtr.h"
+#include "RenderAPI/Descriptors.h"
+#include <array>
 
 namespace st::rapi::dx12
 {
+	class GpuDevice;
+
 	class Texture : public ITexture
 	{
-		friend class GpuDevice;
-
 	public:
 
-		Texture(const TextureDesc& desc, ComPtr<ID3D12Resource> resource, ID3D12Device* device);
+		Texture(const TextureDesc& desc, ComPtr<ID3D12Resource> resource, GpuDevice* device);
 		virtual ~Texture() override = default;
 
 		const TextureDesc& GetDesc() const override;
 
-		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources) const;
-		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources) const;
+		DescriptorIndex GetDescriptorIndex(DescriptorType type) override;
+
+		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, const TextureSubresourceSet subresources) const;
+		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, const TextureSubresourceSet subresources) const;
 		void CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources) const;
 		void CreateDSV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly = false) const;
 
@@ -27,6 +32,8 @@ namespace st::rapi::dx12
 
 		TextureDesc m_Desc;
 		ComPtr<ID3D12Resource> m_D3d12Resource;
-		ID3D12Device* m_D3d12Device;
+		std::array<DescriptorIndex, (int)DescriptorType::_Size> m_DescriptorIndex;
+
+		GpuDevice* m_Device;
 	};
 } // namespace st::rapi::dx12

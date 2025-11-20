@@ -5,13 +5,12 @@
 #include <vector>
 #include <mutex>
 #include "Core/ComPtr.h"
+#include "Core/Util.h"
+#include "RenderAPI/Descriptors.h"
 
 namespace st::rapi::dx12
 {
-    using DescriptorIndex = uint32_t;
-    constexpr DescriptorIndex c_InvalidDescriptorIndex = ~0u;
-
-    class DescriptorHeap
+    class DescriptorHeap : public noncopyable_nonmovable
     {
     public:
 

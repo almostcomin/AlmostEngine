@@ -1,19 +1,44 @@
 #include "RenderAPI/dx12/Texture.h"
+#include "RenderAPI/dx12/DxgiFormat.h"
+#include "RenderAPI/dx12/GpuDevice.h"
 
-st::rapi::dx12::Texture::Texture(const st::rapi::TextureDesc& desc, ComPtr<ID3D12Resource> resource, ID3D12Device* device)
+st::rapi::dx12::Texture::Texture(const st::rapi::TextureDesc& desc, ComPtr<ID3D12Resource> resource, GpuDevice* device)
 	: m_Desc{ desc }
 	, m_D3d12Resource{ resource }
-    , m_D3d12Device{ device }
-{}
+    , m_DescriptorIndex{ c_InvalidDescriptorIndex, c_InvalidDescriptorIndex }
+    , m_Device{ device }
+{
+    if (hasFlag(desc.usage, ResourceUsage::ShaderResource))
+    {
+        auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
+        DescriptorIndex index = descriptorHeap->AllocateDescriptor();
+        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(index);
+        CreateSRV(descriptorHandle, desc.format, desc.dimension, AllSubresources);
+        m_DescriptorIndex[(int)DescriptorType::SRV] = index;
+    }
+    if (hasFlag(desc.usage, ResourceUsage::UnorderedAccess))
+    {
+        auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
+        DescriptorIndex index = descriptorHeap->AllocateDescriptor();
+        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(index);
+        CreateUAV(descriptorHandle, desc.format, desc.dimension, AllSubresources);
+        m_DescriptorIndex[(int)DescriptorType::UAV] = index;
+    }
+}
 
 const st::rapi::TextureDesc& st::rapi::dx12::Texture::GetDesc() const
 {
 	return m_Desc;
 }
 
+st::rapi::DescriptorIndex st::rapi::dx12::Texture::GetDescriptorIndex(DescriptorType type)
+{
+    return m_DescriptorIndex[(int)type];
+}
+
 void st::rapi::dx12::Texture::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources) const
 {
-    subresources = subresources.resolve(m_Desc, false);
+    subresources.Resolve(m_Desc);
 
     if (dimension == TextureDimension::Unknown)
         dimension = m_Desc.dimension;
@@ -84,12 +109,12 @@ void st::rapi::dx12::Texture::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, 
         return;
     }
 
-    m_D3d12Device->CreateShaderResourceView(m_D3d12Resource.Get(), &viewDesc, descriptor);
+    m_Device->GetNativeDevice()->CreateShaderResourceView(m_D3d12Resource.Get(), &viewDesc, descriptor);
 }
 
 void st::rapi::dx12::Texture::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources) const
 {
-    subresources = subresources.resolve(m_Desc, true);
+    subresources.Resolve(m_Desc);
 
     if (dimension == TextureDimension::Unknown)
         dimension = m_Desc.dimension;
@@ -139,12 +164,12 @@ void st::rapi::dx12::Texture::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, 
         return;
     }
 
-    m_D3d12Device->CreateUnorderedAccessView(m_D3d12Resource.Get(), nullptr, &viewDesc, descriptor);
+    m_Device->GetNativeDevice()->CreateUnorderedAccessView(m_D3d12Resource.Get(), nullptr, &viewDesc, descriptor);
 }
 
 void st::rapi::dx12::Texture::CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources) const
 {
-    subresources = subresources.resolve(m_Desc, true);
+    subresources.Resolve(m_Desc);
 
     D3D12_RENDER_TARGET_VIEW_DESC viewDesc = {};
 
@@ -194,12 +219,12 @@ void st::rapi::dx12::Texture::CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, 
         return;
     }
 
-    m_D3d12Device->CreateRenderTargetView(m_D3d12Resource.Get(), &viewDesc, descriptor);
+    m_Device->GetNativeDevice()->CreateRenderTargetView(m_D3d12Resource.Get(), &viewDesc, descriptor);
 }
 
 void st::rapi::dx12::Texture::CreateDSV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly) const
 {
-    subresources = subresources.resolve(m_Desc, true);
+    subresources.Resolve(m_Desc);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC viewDesc = {};
 
@@ -254,5 +279,5 @@ void st::rapi::dx12::Texture::CreateDSV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, 
         return;
     }
 
-    m_D3d12Device->CreateDepthStencilView(m_D3d12Resource.Get(), &viewDesc, descriptor);
+    m_Device->GetNativeDevice()->CreateDepthStencilView(m_D3d12Resource.Get(), &viewDesc, descriptor);
 }

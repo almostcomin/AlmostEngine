@@ -2,7 +2,12 @@
 #include "RenderAPI/dx12/Buffer.h"
 #include "RenderAPI/dx12/Texture.h"
 #include "RenderAPI/dx12/ResourceState.h"
+#include "RenderAPI/dx12/PipelineState.h"
 #include "RenderAPI/dx12/DxgiFormat.h"
+#include "RenderAPI/dx12/FrameBuffer.h"
+#include "RenderAPI/dx12/GPUDevice.h"
+#include "RenderAPI/dx12/Utils.h"
+#include "RenderAPI/Viewport.h"
 #include "Core/Util.h"
 #include <pix_win.h>
 #include <cassert>
@@ -29,6 +34,10 @@ namespace
 
 void st::rapi::dx12::CommandList::Open()
 {
+	ID3D12DescriptorHeap* heaps[] = {
+		m_Device->GetShaderResourceViewHeap()->GetHeap()
+	};
+	m_D3d12Commandlist->SetDescriptorHeaps(std::size(heaps), heaps);
 	m_D3d12Commandlist->Reset(m_D3d12CommandAllocator.Get(), nullptr);
 }
 
@@ -51,8 +60,8 @@ void st::rapi::dx12::CommandList::WriteBuffer(IBuffer* dstBuffer, uint64_t dstOf
 void st::rapi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rapi::TextureSubresourceSet& subresources, IBuffer* srcBuffer, uint64_t srcOffset)
 {
 	const TextureDesc& desc = dstTexture->GetDesc();
-	uint32_t lastArraySlice = subresources.ResolveLastArraySlice(desc);
-	uint32_t lastMip = subresources.ResolveLastMipLevel(desc);
+	uint32_t lastArraySlice = subresources.GetLastArraySlice(desc);
+	uint32_t lastMip = subresources.GetLastMipLevel(desc);
 	ID3D12Resource* d3d12Texture = dstTexture->GetNativeResource();
 	D3D12_RESOURCE_DESC d3d12Desc = d3d12Texture->GetDesc();
 
@@ -77,7 +86,7 @@ void st::rapi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rapi:
 			src.PlacedFootprint.Footprint.Depth = desc.depth;
 
 			uint64_t totalBytes = 0;
-			m_Device->GetCopyableFootprints(
+			m_Device->GetNativeDevice()->GetCopyableFootprints(
 				&d3d12Desc,
 				D3D12CalcSubresource(mip, arraySlice, 0, desc.mipLevels, desc.arraySize),
 				1,
@@ -178,6 +187,100 @@ void st::rapi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers
 void st::rapi::dx12::CommandList::PushBarrier(const Barrier& barrier)
 {
 	PushBarriers(std::span{ &barrier, 1 });
+}
+
+void st::rapi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
+{
+	GraphicsPipelineState* impl = checked_cast<GraphicsPipelineState*>(pso);
+
+	// TODO: Do not always set root signature
+	m_D3d12Commandlist->SetGraphicsRootSignature(impl->GetD3d12Desc().pRootSignature);
+	m_D3d12Commandlist->SetPipelineState(pso->GetNativeResource());
+	m_D3d12Commandlist->IASetPrimitiveTopology(GetPrimitiveTopology(impl->GetDesc().primTopo, impl->GetDesc().patchControlPoints));
+}
+
+void st::rapi::dx12::CommandList::SetViewport(const st::rapi::ViewportState& vp)
+{
+	D3D12_VIEWPORT d3d12Viewport[c_MaxViewports];
+	for (int i = 0; i < vp.viewports.size(); ++i)
+	{
+		d3d12Viewport[i].TopLeftX = vp.viewports[0].minX;
+		d3d12Viewport[i].TopLeftY = vp.viewports[0].minY;
+		d3d12Viewport[i].Width = vp.viewports[0].Width();
+		d3d12Viewport[i].Height = vp.viewports[0].Height();
+		d3d12Viewport[i].MinDepth = vp.viewports[i].minZ;
+		d3d12Viewport[i].MaxDepth = vp.viewports[i].maxX;
+	}
+	m_D3d12Commandlist->RSSetViewports(vp.viewports.size(), d3d12Viewport);
+
+	D3D12_RECT sr[c_MaxViewports];
+	for (int i = 0; i < vp.scissorRects.size(); ++i)
+	{
+		sr[i].left = vp.scissorRects[i].min.x;
+		sr[i].top = vp.scissorRects[i].min.y;
+		sr[i].right = vp.scissorRects[i].max.x;
+		sr[i].bottom = vp.scissorRects[i].max.y;
+	}
+	m_D3d12Commandlist->RSSetScissorRects(vp.scissorRects.size(), sr);
+}
+
+void st::rapi::dx12::CommandList::SetStencilRef(uint8_t value)
+{
+	m_D3d12Commandlist->OMSetStencilRef(value);
+}
+
+void st::rapi::dx12::CommandList::SetBlendFactor(const float4& value)
+{
+	m_D3d12Commandlist->OMSetBlendFactor(&value.x);
+}
+
+void st::rapi::dx12::CommandList::PushConstants(const uint32_t* data, size_t numElements, size_t elementsOffset)
+{
+	m_D3d12Commandlist->SetGraphicsRoot32BitConstants(0, numElements, data, elementsOffset);
+}
+
+void st::rapi::dx12::CommandList::BeginRenderPass(rapi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags rpFlags)
+{
+	m_CurrentFB = std::static_pointer_cast<rapi::IFramebuffer>(_fb->shared_from_this());
+
+	Framebuffer* fb = checked_cast<Framebuffer*>(_fb);
+
+	D3D12_RENDER_PASS_RENDER_TARGET_DESC RTVs[c_MaxRenderTargets] = {};
+	for (int rtv_idx = 0; rtv_idx < fb->RTVs.size(); ++rtv_idx)
+	{
+		RTVs[rtv_idx].cpuDescriptor = m_Device->GetRTVCPUDescriptorHandle(fb->RTVs[rtv_idx]);
+		RTVs[rtv_idx].BeginningAccess = GetRenderPassBeginningAccess(
+			rtvRenderPassOp[rtv_idx].loadOp, rtvRenderPassOp[rtv_idx].clearValue, fb->rtvTextures[rtv_idx]->GetDesc().format);
+		RTVs[rtv_idx].EndingAccess = GetRenderPassEngindAccess(rtvRenderPassOp[rtv_idx].storeOp);
+	}
+
+	D3D12_RENDER_PASS_DEPTH_STENCIL_DESC DSV = {};
+	if (fb->DSV != c_InvalidDescriptorIndex)
+	{
+		DSV.cpuDescriptor = m_Device->GetRTVCPUDescriptorHandle(fb->DSV);
+		DSV.DepthBeginningAccess = GetRenderPassBeginningAccess(
+			dsvRenderPassOp.loadOp, dsvRenderPassOp.clearValue, fb->dsvTexture->GetDesc().format);
+		DSV.DepthEndingAccess = GetRenderPassEngindAccess(dsvRenderPassOp.storeOp);
+	}
+
+	D3D12_RENDER_PASS_FLAGS flags = D3D12_RENDER_PASS_FLAG_NONE;
+	if (hasFlag(rpFlags, RenderPassFlags::AllowUAVWrites))
+	{
+		flags |= D3D12_RENDER_PASS_FLAG_ALLOW_UAV_WRITES;
+	}
+
+	m_D3d12Commandlist->BeginRenderPass(fb->RTVs.size(), RTVs, fb->DSV == c_InvalidDescriptorIndex ? nullptr : &DSV, flags);
+}
+
+void st::rapi::dx12::CommandList::EndRenderPass()
+{
+	m_D3d12Commandlist->EndRenderPass();
+	m_CurrentFB = {};
+}
+
+void st::rapi::dx12::CommandList::DrawIndexed(uint32_t indexCount)
+{
+	m_D3d12Commandlist->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
 }
 
 void st::rapi::dx12::CommandList::Discard(IBuffer* buffer)

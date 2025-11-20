@@ -8,9 +8,10 @@ namespace interop
     ConstantBufferStruct ImGUI_CB
     {
         float2 invDisplaySize;
-        uint positionBufferIndex;
-        uint textureCoordBufferIndex;
-        uint colorBufferIndex;
+        uint indexBuffer;
+        uint indexOffset;
+        uint vertexBuffer;
+        uint vertexBufferOffset;
         uint textureIndex;
     };
 

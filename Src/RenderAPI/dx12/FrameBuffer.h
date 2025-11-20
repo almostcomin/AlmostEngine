@@ -12,8 +12,9 @@ public:
     FramebufferDesc desc;
     FramebufferInfo framebufferInfo;
 
-    static_vector<TextureHandle, c_MaxRenderTargets + 1> textures;
+    static_vector<TextureHandle, c_MaxRenderTargets> rtvTextures;
     static_vector<DescriptorIndex, c_MaxRenderTargets> RTVs;
+    TextureHandle dsvTexture;
     DescriptorIndex DSV = c_InvalidDescriptorIndex;
     uint32_t rtWidth = 0;
     uint32_t rtHeight = 0;

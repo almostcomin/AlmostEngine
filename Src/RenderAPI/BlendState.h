@@ -61,7 +61,7 @@ struct BlendState
 
 	struct RenderTargetBlendState
 	{
-		bool BlendEnable = false;
+		bool blendEnable = false;
 		BlendFactor srcBlend = BlendFactor::SrcAlpha;
 		BlendFactor destBlend = BlendFactor::InvSrcAlpha;
 		BlendOp blendOp = BlendOp::Add;
@@ -70,7 +70,7 @@ struct BlendState
 		BlendOp blendOpAlpha = BlendOp::Add;
 		ColorMask renderTargetWriteMask = ColorMask::All;
 	};
-	RenderTargetBlendState render_target[8];
+	RenderTargetBlendState renderTarget[8];
 };
 
 } // namespace st::rapi

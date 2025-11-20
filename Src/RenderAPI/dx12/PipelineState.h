@@ -11,17 +11,22 @@ namespace st::rapi::dx12
 	{
 	public:
 
-		GraphicsPipelineState(ComPtr<ID3D12PipelineState> pso, const GraphicsPipelineStateDesc& desc) : 
+		GraphicsPipelineState(ComPtr<ID3D12PipelineState> pso, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& d3d12Desc, const GraphicsPipelineStateDesc& desc) :
 			m_PSO{ pso },
+			m_D3d12Desc{ d3d12Desc },
 			m_Desc{ desc }
 		{}
 
 		const GraphicsPipelineStateDesc& GetDesc() const override { return m_Desc; }
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC GetD3d12Desc() const { return m_D3d12Desc; }
+
+		NativeResource GetNativeResource() override { return m_PSO.Get(); }
 
 	private:
 
-		GraphicsPipelineStateDesc m_Desc;
 		ComPtr<ID3D12PipelineState> m_PSO;
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC m_D3d12Desc;
+		GraphicsPipelineStateDesc m_Desc;
 	};
 
 } // namespace st::rapi::dx12

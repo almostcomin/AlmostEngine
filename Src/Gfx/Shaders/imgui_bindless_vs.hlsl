@@ -9,20 +9,38 @@ struct PS_INPUT
     float2 out_uv  : TEXCOORD0;
 };
 
+struct ImDrawVert
+{
+    float2 pos;
+    float2 uv;
+    uint color; // RGBA8 packed
+};
+
+float4 UnpackColor(uint v)
+{
+    return float4(
+        (v.col & 0xFF) / 255.0,
+        ((v.col >> 8) & 0xFF) / 255.0,
+        ((v.col >> 16) & 0xFF) / 255.0,
+        ((v.col >> 24) & 0xFF) / 255.0);
+};
+
 PS_INPUT main(uint vertexID : SV_VertexID)
 {
-    StructuredBuffer<float3> positionBuffer = ResourceDescriptorHeap[renderResources.positionBufferIndex];
-    StructuredBuffer<float4> colorBuffer = ResourceDescriptorHeap[renderResources.colorBufferIndex];
-    StructuredBuffer<float2> textureCoordBuffer = ResourceDescriptorHeap[renderResources.textureCoordBufferIndex];
+    StructuredBuffer<uint> indexBuffer = ResourceDescriptorHeap[renderResources.indexBuffer];
+    StructuredBuffer<ImDrawVert> vertexBuffer = ResourceDescriptorHeap[renderResources.vertexBuffer];
     
     PS_INPUT output;
     
+    uint baseIndex = indexBuffer[vertexID + renderResources.indexOffset];
+    ImDrawVert v = vertexBuffer[baseIndex + renderResources.positionBufferOffset];
+    
     // Transform to NDC
-    output.out_pos.xy = positionBuffer[vertexID].xy * g_Const.invDisplaySize * float2(2.0, -2.0) + float2(-1.0, 1.0);
+    output.out_pos.xy = v.pos.xy * g_Const.invDisplaySize * float2(2.0, -2.0) + float2(-1.0, 1.0);
     output.out_pos.zw = float2(0, 1);
     
-    output.out_col = colorBuffer[vertexID];
-    output.out_uv = textureCoordBuffer[vertexID];
+    output.out_col = UnpackColor[v.color];
+    output.out_uv = textureCoordBuffer[v.uv];
     
     return output;
 }

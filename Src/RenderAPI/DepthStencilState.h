@@ -41,10 +41,10 @@ struct DepthStencilState
 
 	struct DepthStencilOp
 	{
-		StencilOp stencil_fail_op = StencilOp::Keep;
-		StencilOp stencil_depth_fail_op = StencilOp::Keep;
-		StencilOp stencil_pass_op = StencilOp::Keep;
-		ComparisonFunc stencil_func = ComparisonFunc::Always;
+		StencilOp failOp = StencilOp::Keep;
+		StencilOp depthFailOp = StencilOp::Keep;
+		StencilOp passOp = StencilOp::Keep;
+		ComparisonFunc func = ComparisonFunc::Always;
 	};
 	DepthStencilOp frontFaceStencil;
 	DepthStencilOp backFaceStencil;

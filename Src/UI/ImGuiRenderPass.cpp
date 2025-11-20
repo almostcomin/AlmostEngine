@@ -4,6 +4,7 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/Shaders/Interop/ImGUI_CB.h"
+#include "RenderAPI/Device.h"
 #include <imgui/imgui.h>
 
 void st::ui::ImGuiRenderPass::ReconcileInputState()
@@ -62,10 +63,10 @@ void st::ui::ImGuiRenderPass::DrawCenteredText(const char* text)
     ImGui::TextUnformatted(text);
 }
 
-bool st::ui::ImGuiRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
+bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-    nvrhi::DeviceHandle device = deviceManager->GetDevice();
+    st::rapi::Device* device = deviceManager->GetDevice();
 	auto& io = ImGui::GetIO();
 
     glm::ivec2 dim = deviceManager->GetWindowDimensions();
@@ -81,20 +82,72 @@ bool st::ui::ImGuiRenderPass::Render(nvrhi::IFramebuffer* frameBuffer)
     if (drawData->TotalIdxCount == 0)
         return true; // nothing to render
 
-    m_CommandList->open();
+    m_CommandList->Open();
 
     if (!UpdateGeometry())
     {
-        m_CommandList->close();
+        m_CommandList->Close();
         return false;
     }
-
-    m_CommandList->clearTextureFloat(deviceManager->GetCurrentBackBuffer(), nvrhi::AllSubresources, nvrhi::Color(0.f));
 
     // Handle DPI scaling
     drawData->ScaleClipRects(io.DisplayFramebufferScale);
 
-    float invDisplaySize[2] = { 1.f / io.DisplaySize.x, 1.f / io.DisplaySize.y };
+    float2 invDisplaySize = { 1.f / io.DisplaySize.x, 1.f / io.DisplaySize.y };
+
+    rapi::RenderPassOp op;
+
+    m_CommandList->BeginRenderPass(
+        frameBuffer,
+        { rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Black} },
+        {},
+        rapi::RenderPassFlags::None);
+
+    m_CommandList->SetPipelineState(m_PSO.get());
+    
+    m_CommandList->SetViewport(rapi::ViewportState().AddViewport({
+        io.DisplaySize.x* io.DisplayFramebufferScale.x,
+        io.DisplaySize.y* io.DisplayFramebufferScale.y }));
+
+    int idxOffset = 0;
+    int vtxOffset = 0;
+    m_CommandList->BeginMarker("ImGui");
+    for (int n = 0; n < drawData->CmdLists.Size; n++)
+    {
+        const ImDrawList* cmdList = drawData->CmdLists[n];
+        for (int i = 0; i < cmdList->CmdBuffer.Size; i++)
+        {
+            const ImDrawCmd* pCmd = &cmdList->CmdBuffer[i];
+
+            if (pCmd->UserCallback)
+            {
+                pCmd->UserCallback(cmdList, pCmd);
+            }
+            else
+            {
+                m_CommandList->SetViewport(rapi::ViewportState().AddViewport({
+                    io.DisplaySize.x * io.DisplayFramebufferScale.x,
+                    io.DisplaySize.y * io.DisplayFramebufferScale.y }).AddScissorRect({
+                    int2 { pCmd->ClipRect.x, pCmd->ClipRect.y }, int2{pCmd->ClipRect.z, pCmd->ClipRect.w} }));
+
+                interop::ImGUI_CB cb = {};
+                cb.invDisplaySize = invDisplaySize;
+                cb.indexBuffer = m_IndexBuffer->GetDescriptorIndex(rapi::DescriptorType::SRV);
+                cb.indexOffset = idxOffset;
+                cb.vertexBuffer = m_VertexBuffer->GetDescriptorIndex(rapi::DescriptorType::SRV);
+                cb.vertexBufferOffset = vtxOffset;
+                cb.textureIndex = m_FontTexture->GetDescriptorIndex(rapi::DescriptorType::SRV);
+
+                m_CommandList->PushConstants(&cb, sizeof(interop::ImGUI_CB));
+                
+                m_CommandList->DrawIndexed(pCmd->ElemCount);
+            }
+        }
+    }
+
+
+
+
 
     // Set up graphics state
     nvrhi::GraphicsState drawState;
@@ -312,12 +365,12 @@ bool st::ui::ImGuiRenderPass::UpdateFontTexture()
     if (!pixels)
         return false;
 
-    nvrhi::TextureDesc textureDesc;
+    rapi::TextureDesc textureDesc;
     textureDesc.width = width;
     textureDesc.height = height;
-    textureDesc.format = nvrhi::Format::RGBA8_UNORM;
-    textureDesc.debugName = "ImGui font texture";
-    m_FontTexture = deviceManager->GetDevice()->createTexture(textureDesc);
+    textureDesc.format = rapi::Format::RGBA8_UNORM;
+    textureDesc.debugName = "ImGuiFontTexture";
+    m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rapi::ResourceState::SHADER_RESOURCE);
     if (!m_FontTexture)
         return false;
 

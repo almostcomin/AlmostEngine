@@ -2,6 +2,7 @@
 
 #include "RenderAPI/Resource.h"
 #include "RenderAPI/Format.h"
+#include "RenderAPI/Descriptors.h"
 #include "Core/Math.h"
 #include <memory>
 #include <string>
@@ -38,9 +39,9 @@ namespace st::rapi
         TextureDimension dimension = TextureDimension::Texture2D;
         std::string debugName;
 
-        bool isShaderResource = true; // Note: isShaderResource is initialized to 'true' for backward compatibility
+        ResourceUsage usage = ResourceUsage::None;
+
         bool isRenderTarget = false;
-        bool isUAV = false;
         bool isTypeless = false;
         bool isShadingRateSurface = false;
 
@@ -64,7 +65,7 @@ namespace st::rapi
         constexpr TextureDesc& setDimension(TextureDimension value) { dimension = value; return *this; }
         TextureDesc& setDebugName(const std::string& value) { debugName = value; return *this; }
         constexpr TextureDesc& setIsRenderTarget(bool value) { isRenderTarget = value; return *this; }
-        constexpr TextureDesc& setIsUAV(bool value) { isUAV = value; return *this; }
+        constexpr TextureDesc& setUsage(ResourceUsage value) { usage = value; return *this; }
         constexpr TextureDesc& setIsTypeless(bool value) { isTypeless = value; return *this; }
         constexpr TextureDesc& setIsVirtual(bool value) { isVirtual = value; return *this; }
         constexpr TextureDesc& setClearValue(const float4& value) { clearValue = value; useClearValue = true; return *this; }
@@ -90,8 +91,9 @@ namespace st::rapi
             , numArraySlices(_numArraySlices)
         {}
 
-        MipLevel ResolveLastMipLevel(const TextureDesc& desc) const;
-        ArraySlice ResolveLastArraySlice(const TextureDesc& desc) const;
+        MipLevel GetLastMipLevel(const TextureDesc& desc) const;
+        ArraySlice GetLastArraySlice(const TextureDesc& desc) const;
+        void Resolve(const TextureDesc& desc);
         bool IsEntireTexture(const TextureDesc& desc) const;
 
         bool operator ==(const TextureSubresourceSet& other) const
@@ -116,7 +118,9 @@ namespace st::rapi
 	{
     public:
 
-		[[nodiscard]] virtual const TextureDesc& GetDesc() const = 0;
+		virtual const TextureDesc& GetDesc() const = 0;
+
+        virtual DescriptorIndex GetDescriptorIndex(DescriptorType type) = 0;
 	};
 
 	using TextureHandle = std::shared_ptr<ITexture>;

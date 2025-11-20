@@ -23,6 +23,9 @@ struct aabox
         *this = reset();
     }
 
+    aabox(const vec_t& _min, const vec_t& _max) : min{ _min }, max{ _max }
+    {}
+
     aabox& reset() // Set default/invalid aabox
     {
         min = vec_t{ std::numeric_limits<T>::max() };
@@ -67,6 +70,8 @@ struct aabox
     }
 };
 
+using aabox2f = aabox<float, 2>;
 using aabox3f = aabox<float, 3>;
+using aabox2i = aabox<int, 2>;
 
 } // namespace st::math

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include "Core/Util.h"
 
 namespace st::rapi
 {
@@ -18,7 +19,7 @@ namespace st::rapi
 		operator T* () const { return static_cast<T*>(pointer); }
 	};
 
-	class IResource : public std::enable_shared_from_this<IResource>
+	class IResource : public std::enable_shared_from_this<IResource>, st::noncopyable_nonmovable
 	{
 	public:
 
