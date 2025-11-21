@@ -11,13 +11,13 @@ st::rapi::dx12::Buffer::Buffer(const st::rapi::BufferDesc& desc, ID3D12Resource*
     m_Resource { buffer },
     m_Device{ device }
 {
-    if (desc.bufferUsage == BufferUsage::UploadBuffer || desc.bufferUsage == BufferUsage::ConstantBuffer)
+    if (desc.memoryAccess == MemoryAccess::Upload)
     {
         // always mapped
         m_Resource->Map(0, nullptr, (void**)&m_mapAddr);
     }
 
-    if (hasFlag(desc.resourceUsage, ResourceUsage::ShaderResource))
+    if (hasFlag(desc.shaderUsage, ShaderUsage::ShaderResource))
     {
         auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
         DescriptorIndex index = descriptorHeap->AllocateDescriptor();
@@ -25,7 +25,7 @@ st::rapi::dx12::Buffer::Buffer(const st::rapi::BufferDesc& desc, ID3D12Resource*
         CreateSRV(descriptorHandle, Format::UNKNOWN, 0, m_Desc.sizeBytes);
         m_DescriptorIndex[(int)DescriptorType::SRV] = index;
     }
-    if (hasFlag(desc.resourceUsage, ResourceUsage::UnorderedAccess))
+    if (hasFlag(desc.shaderUsage, ShaderUsage::UnorderedAccess))
     {
         auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
         DescriptorIndex index = descriptorHeap->AllocateDescriptor();
@@ -71,16 +71,14 @@ void st::rapi::dx12::Buffer::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, s
 
     if (format == Format::UNKNOWN)
     {
-        if (m_Desc.bufferUsage == BufferUsage::StructuredBuffer)
+        if (m_Desc.stride != 0) // Structured buffer
         {
-            uint32_t stride = m_Desc.stride;
-            assert(IsAligned(offsetBytes, stride));
-
+            assert(IsAligned(offsetBytes, m_Desc.stride));
             viewDesc.Format = DXGI_FORMAT_UNKNOWN;
             viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-            viewDesc.Buffer.FirstElement = offsetBytes / stride;
-            viewDesc.Buffer.NumElements = std::min(sizeBytes, m_Desc.sizeBytes) / stride;
-            viewDesc.Buffer.StructureByteStride = stride;
+            viewDesc.Buffer.FirstElement = offsetBytes / m_Desc.stride;
+            viewDesc.Buffer.NumElements = std::min(sizeBytes, m_Desc.sizeBytes) / m_Desc.stride;
+            viewDesc.Buffer.StructureByteStride = m_Desc.stride;
         }
         else
         {
@@ -111,15 +109,13 @@ void st::rapi::dx12::Buffer::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, s
 
     if (format == Format::UNKNOWN)
     {
-        if (m_Desc.bufferUsage == BufferUsage::StructuredBuffer)
+        if (m_Desc.stride != 0) // Structured buffer
         {
-            uint32_t stride = m_Desc.stride;
-            assert(IsAligned(offsetBytes, stride));
-
+            assert(IsAligned(offsetBytes, m_Desc.stride));
             viewDesc.Format = DXGI_FORMAT_UNKNOWN;
-            viewDesc.Buffer.FirstElement = offsetBytes / stride;
-            viewDesc.Buffer.NumElements = std::min(sizeBytes, m_Desc.sizeBytes) / stride;
-            viewDesc.Buffer.StructureByteStride = stride;
+            viewDesc.Buffer.FirstElement = offsetBytes / m_Desc.stride;
+            viewDesc.Buffer.NumElements = std::min(sizeBytes, m_Desc.sizeBytes) / m_Desc.stride;
+            viewDesc.Buffer.StructureByteStride = m_Desc.stride;
         }
         else
         {

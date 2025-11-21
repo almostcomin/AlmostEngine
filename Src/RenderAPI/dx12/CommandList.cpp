@@ -234,9 +234,12 @@ void st::rapi::dx12::CommandList::SetBlendFactor(const float4& value)
 	m_D3d12Commandlist->OMSetBlendFactor(&value.x);
 }
 
-void st::rapi::dx12::CommandList::PushConstants(const uint32_t* data, size_t numElements, size_t elementsOffset)
+void st::rapi::dx12::CommandList::PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes)
 {
-	m_D3d12Commandlist->SetGraphicsRoot32BitConstants(0, numElements, data, elementsOffset);
+	assert(IsAligned(sizeBytes, sizeof(uint32_t)));
+	assert(IsAligned(offsetBytes, sizeof(uint32_t)));
+
+	m_D3d12Commandlist->SetGraphicsRoot32BitConstants(0, sizeBytes / 4, data, offsetBytes / 4);
 }
 
 void st::rapi::dx12::CommandList::BeginRenderPass(rapi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags rpFlags)

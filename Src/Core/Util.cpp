@@ -56,7 +56,7 @@ std::wstring st::ToWide(const char* utf8)
     return wide;
 }
 
-std::string ToUtf8(const wchar_t* wide)
+std::string st::ToUtf8(const wchar_t* wide)
 {
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
     if (size_needed <= 0)

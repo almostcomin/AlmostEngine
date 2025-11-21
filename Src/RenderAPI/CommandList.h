@@ -85,7 +85,7 @@ public:
 
 	virtual void SetBlendFactor(const float4& value) = 0;
 
-	virtual void PushConstants(const uint32_t* data, size_t numElements, size_t elementsOffset) = 0;
+	virtual void PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes) = 0;
 
 	virtual void BeginRenderPass(rapi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags flags) = 0;
 	virtual void EndRenderPass() = 0;

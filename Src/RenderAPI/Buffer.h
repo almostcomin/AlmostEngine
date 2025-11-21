@@ -8,22 +8,13 @@
 
 namespace st::rapi
 {
-    // Vertex buffer's are not used in the engine. Rather vertex pulling is used and data is stored in structured buffer.
-    enum class BufferUsage
-    {
-        UploadBuffer,       // implies local mem
-        ConstantBuffer,     // implies local mem
-        IndexBuffer,        // implies gpu mem
-        StructuredBuffer    // implies gpu mem
-    };
-
     struct BufferDesc
     {
-        BufferUsage bufferUsage = BufferUsage::StructuredBuffer;
-        ResourceUsage resourceUsage = ResourceUsage::ShaderResource;
+        MemoryAccess memoryAccess = MemoryAccess::Default;
+        ShaderUsage shaderUsage = ShaderUsage::ShaderResource;
         size_t sizeBytes = 0;
         bool allowUAV = false;
-        uint32_t stride = 0; // only needed for structured buffer types!
+        uint32_t stride = 0; // set stride for structured buffer
 
         std::string debugName;
     };

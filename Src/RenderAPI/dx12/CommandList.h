@@ -40,7 +40,7 @@ namespace st::rapi::dx12
 
 		void SetBlendFactor(const float4& value);
 
-		void PushConstants(const uint32_t* data, size_t numElements, size_t elementsOffset) override;
+		void PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes) override;
 
 		void BeginRenderPass(rapi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags flags) override;
 		void EndRenderPass() override;

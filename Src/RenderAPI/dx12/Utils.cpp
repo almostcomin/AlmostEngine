@@ -196,7 +196,7 @@ D3D12_PRIMITIVE_TOPOLOGY_TYPE st::rapi::dx12::GetPrimitiveType(st::rapi::Primiti
 	}
 }
 
-D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveTopology(st::rapi::PrimitiveTopology primTopo, uint32_t controlPoints)
+D3D12_PRIMITIVE_TOPOLOGY st::rapi::dx12::GetPrimitiveTopology(st::rapi::PrimitiveTopology primTopo, uint32_t controlPoints)
 {
 	switch (primTopo)
 	{
@@ -230,7 +230,7 @@ D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveTopology(st::rapi::PrimitiveTopology primTo
 	}
 }
 
-D3D12_RENDER_PASS_BEGINNING_ACCESS GetRenderPassBeginningAccess(st::rapi::RenderPassOp::LoadOp op, const st::rapi::ClearValue& clearValue, st::rapi::Format format)
+D3D12_RENDER_PASS_BEGINNING_ACCESS st::rapi::dx12::GetRenderPassBeginningAccess(st::rapi::RenderPassOp::LoadOp op, const st::rapi::ClearValue& clearValue, st::rapi::Format format)
 {
 	D3D12_RENDER_PASS_BEGINNING_ACCESS ret = {};
 	switch (op)
@@ -258,7 +258,7 @@ D3D12_RENDER_PASS_BEGINNING_ACCESS GetRenderPassBeginningAccess(st::rapi::Render
 	return ret;
 }
 
-D3D12_RENDER_PASS_ENDING_ACCESS GetRenderPassEngindAccess(st::rapi::RenderPassOp::StoreOp op)
+D3D12_RENDER_PASS_ENDING_ACCESS st::rapi::dx12::GetRenderPassEngindAccess(st::rapi::RenderPassOp::StoreOp op)
 {
 	D3D12_RENDER_PASS_ENDING_ACCESS ret = {};
 	switch (op)

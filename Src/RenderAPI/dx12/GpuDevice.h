@@ -31,7 +31,7 @@ namespace st::rapi::dx12
 		~GpuDevice();
 
 		ShaderHandle CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode) override;
-		BufferHandle CreateBuffer(const BufferDesc& desc) override;
+		BufferHandle CreateBuffer(const BufferDesc& desc, ResourceState initialState) override;
 		TextureHandle CreateTexture(const TextureDesc& desc, ResourceState initialState) override;
 		TextureHandle CreateHandleForNativeTexture(void* obj, const TextureDesc& desc) override;
 		FramebufferHandle CreateFramebuffer(const FramebufferDesc& desc) override;

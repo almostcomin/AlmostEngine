@@ -757,15 +757,17 @@ std::expected<std::pair<st::rapi::BufferHandle, st::SignalListener>, std::string
 CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, st::rapi::Device* device)
 {
     st::rapi::BufferDesc bufferDesc;
-    bufferDesc.usage = st::rapi::BufferUsage::IndexBuffer;
+    bufferDesc.memoryAccess = st::rapi::MemoryAccess::Default;
+    bufferDesc.shaderUsage = st::rapi::ShaderUsage::ShaderResource;
     bufferDesc.sizeBytes = indexData.size();
+    bufferDesc.stride = idx32bits ? sizeof(int32_t) : sizeof(int16_t);
     bufferDesc.debugName = "IndexBuffer";
 
-    st::rapi::BufferHandle indexBuffer = device->CreateBuffer(bufferDesc);
+    st::rapi::BufferHandle indexBuffer = device->CreateBuffer(bufferDesc, st::rapi::ResourceState::COPY_DST);
     auto uploadResult = dataUploader->UploadBufferData(
         st::WeakBlob{ indexData },
         indexBuffer,
-        st::rapi::ResourceState::UNDEFINED,
+        st::rapi::ResourceState::COPY_DST,
         st::rapi::ResourceState::INDEX_BUFFER | st::rapi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
@@ -779,18 +781,20 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
 }
 
 std::expected<std::pair<st::rapi::BufferHandle, st::SignalListener>, std::string>
-CreateVertexBuffer(st::Blob&& vertexData, const char* debugName, st::gfx::DataUploader* dataUploader, st::rapi::Device* device)
+CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugName, st::gfx::DataUploader* dataUploader, st::rapi::Device* device)
 {
     st::rapi::BufferDesc bufferDesc;
-    bufferDesc.usage = st::rapi::BufferUsage::StructuredBuffer;
+    bufferDesc.memoryAccess = st::rapi::MemoryAccess::Default;
+    bufferDesc.shaderUsage = st::rapi::ShaderUsage::ShaderResource;
     bufferDesc.sizeBytes = vertexData.size();
+    bufferDesc.stride = vertexStride;
     bufferDesc.debugName = "VertexBuffer";
 
-    auto vertexBuffer = device->CreateBuffer(bufferDesc);
+    auto vertexBuffer = device->CreateBuffer(bufferDesc, st::rapi::ResourceState::COPY_DST);
     auto uploadResult = dataUploader->UploadBufferData(
         st::WeakBlob{ vertexData },
         vertexBuffer,
-        st::rapi::ResourceState::UNDEFINED,
+        st::rapi::ResourceState::COPY_DST,
         st::rapi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
@@ -1029,7 +1033,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             }
 
             // Create vertex buffer
-            auto vertexBufferResult = CreateVertexBuffer(std::move(vertexData), srcMesh.name, dataUploader, device);
+            auto vertexBufferResult = CreateVertexBuffer(std::move(vertexData), vertexStride, srcMesh.name, dataUploader, device);
             if (vertexBufferResult)
             {
                 mesh->SetVertexBuffer(vertexBufferResult->first);

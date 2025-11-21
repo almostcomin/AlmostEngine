@@ -86,13 +86,13 @@ private:
 
 	rapi::BufferHandle m_VertexBuffer;
 	rapi::BufferHandle m_IndexBuffer;
-	std::vector<ImDrawVert> m_VertexData;
-	std::vector<ImDrawIdx> m_IndexData;
 
 	rapi::GraphicsPipelineStateHandle m_PSO;
 	rapi::CommandListHandle m_CommandList;
 
 	//std::unordered_map<nvrhi::ITexture*, nvrhi::BindingSetHandle> m_BindingsCache;
+
+	rapi::BufferHandle m_TextureUploadBuffer;
 };
 
 }

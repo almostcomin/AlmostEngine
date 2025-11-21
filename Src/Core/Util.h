@@ -62,7 +62,7 @@ constexpr T MiB(T val)
     return KiB(val) * 1024;
 }
 
-// A type cast that is safer than static_cast in debug builds, and is a simple static_cast in release builds.
+// A type cast that is dynamic_cast in debug builds and static_cast in release builds.
 template <typename T, typename U>
 T checked_cast(U u)
 {

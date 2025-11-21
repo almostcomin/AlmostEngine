@@ -69,11 +69,6 @@ target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/SDL/$
 target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/SDL/$<CONFIG>/lib")
 target_link_libraries(Structure PRIVATE SDL3-static)
 
-# NVRHI
-target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/NVRHI/$<CONFIG>/include")
-target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/NVRHI/$<CONFIG>/lib")
-target_link_libraries(Structure PRIVATE nvrhi nvrhi_d3d12)
-
 # ImGUI
 target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/imgui/$<CONFIG>/include")
 target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/imgui/$<CONFIG>/lib")

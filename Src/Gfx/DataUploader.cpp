@@ -15,9 +15,10 @@ st::gfx::DataUploader::DataUploader(rapi::Device* device) :
 	m_CommitCount{ 1 }, m_CommitFence{ device->CreateFence() }, m_Device { device }
 {
 	m_UploadBuffer = m_Device->CreateBuffer(rapi::BufferDesc{
-		.usage = rapi::BufferUsage::UploadBuffer,
+		.memoryAccess = rapi::MemoryAccess::Upload,
+		.shaderUsage = rapi::ShaderUsage::None,
 		.sizeBytes = c_UploadBufferSize
-	});
+	}, rapi::ResourceState::COMMON);
 	m_UploadBufferHead = 0;
 	m_UploadBufferTail = 0;
 }
@@ -90,8 +91,8 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 		commandList->BeginMarker(std::format("UploadTextureData [{}]", opt_gpuMarker).c_str());
 
 	const rapi::TextureDesc& desc = dstTexture->GetDesc();
-	uint32_t lastArraySlice = subresources.ResolveLastArraySlice(desc);
-	uint32_t lastMip = subresources.ResolveLastMipLevel(desc);
+	uint32_t lastArraySlice = subresources.GetLastArraySlice(desc);
+	uint32_t lastMip = subresources.GetLastMipLevel(desc);
 
 	// Transition to copy_dest
 	if (subresources.IsEntireTexture(desc))

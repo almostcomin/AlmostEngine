@@ -16,12 +16,20 @@ enum class DescriptorType : uint8_t
 	_Size
 };
 
-enum class ResourceUsage
+enum class ShaderUsage
 {
 	None = 0x0,
 	ShaderResource = 0x1,
 	UnorderedAccess = 0x2
 };
-ENUM_CLASS_FLAG_OPERATORS(ResourceUsage)
+ENUM_CLASS_FLAG_OPERATORS(ShaderUsage)
+
+
+enum class MemoryAccess
+{
+	Default,
+	Upload,		// CPU write, GPU read
+	Readback	// CPU read, GPU write
+};
 
 } // namespace st::rapi

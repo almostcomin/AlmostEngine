@@ -31,7 +31,7 @@ struct GraphicsPipelineStateDesc
     ShaderHandle GS;
     ShaderHandle PS;
 
-    InputLayout inputLayout;
+    //InputLayout inputLayout;
     BlendState blendState;
     DepthStencilState depthStencilState;
     RasterizerState rasterState;

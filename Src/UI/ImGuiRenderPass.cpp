@@ -4,6 +4,7 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/Shaders/Interop/ImGUI_CB.h"
+#include "Gfx/DataUploader.h"
 #include "RenderAPI/Device.h"
 #include <imgui/imgui.h>
 
@@ -84,8 +85,18 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
 
     m_CommandList->Open();
 
+    // Address any change in font data
+    if (!UpdateFontTexture())
+    {
+        LOG_ERROR("Failed to update ImGui font texture");
+        m_CommandList->Close();
+        return false;
+    }
+
+    // Address any change in geometry data
     if (!UpdateGeometry())
     {
+        LOG_ERROR("Failed to update ImGui geometry buffer");
         m_CommandList->Close();
         return false;
     }
@@ -138,17 +149,19 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
                 cb.vertexBufferOffset = vtxOffset;
                 cb.textureIndex = m_FontTexture->GetDescriptorIndex(rapi::DescriptorType::SRV);
 
-                m_CommandList->PushConstants(&cb, sizeof(interop::ImGUI_CB));
+                m_CommandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0);
                 
                 m_CommandList->DrawIndexed(pCmd->ElemCount);
             }
         }
     }
 
+    m_CommandList->EndMarker();
+    m_CommandList->Close();
+    
+    device->ExecuteCommandList(m_CommandList.get(), st::rapi::QueueType::Graphics);
 
-
-
-
+#if 0
     // Set up graphics state
     nvrhi::GraphicsState drawState;
     drawState.framebuffer = frameBuffer;
@@ -211,6 +224,7 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
     m_CommandList->endMarker();
     m_CommandList->close();
     device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
+#endif
 
     return true;
 }
@@ -267,83 +281,58 @@ bool st::ui::ImGuiRenderPass::OnMouseButtonUpdate(MouseButton button, KeyAction 
 bool st::ui::ImGuiRenderPass::Init()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-    nvrhi::DeviceHandle device = deviceManager->GetDevice();
+    st::rapi::Device* device = deviceManager->GetDevice();
     st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 
-    nvrhi::CommandListParameters params{
-        .enableImmediateExecution = false
-    };
-    m_CommandList = device->createCommandList(params);
+    m_CommandList = device->CreateCommandList(st::rapi::CommandListParams{ st::rapi::QueueType::Graphics });
 
-    m_VS = shaderFactory->CreateShader("./Shaders/imgui_vs.vso", nvrhi::ShaderType::Vertex);
-    m_PS = shaderFactory->CreateShader("./Shaders/imgui_ps.pso", nvrhi::ShaderType::Pixel);
+    m_VS = shaderFactory->CreateShader("./Shaders/imgui_vs.vso", rapi::ShaderType::Vertex);
+    m_PS = shaderFactory->CreateShader("./Shaders/imgui_ps.pso", rapi::ShaderType::Pixel);
     if (!m_VS || !m_PS)
     {
         LOG_ERROR("Failed to create ImGui shaders");
         return false;
     }
 
-    // create attribute layout object
-    nvrhi::VertexAttributeDesc vertexAttribLayout[] = {
-        { "POSITION", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,pos), sizeof(ImDrawVert), false },
-        { "TEXCOORD", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,uv),  sizeof(ImDrawVert), false },
-        { "COLOR",    nvrhi::Format::RGBA8_UNORM, 1, 0, offsetof(ImDrawVert,col), sizeof(ImDrawVert), false },
-    };
-    m_ShaderAttribLayout = device->createInputLayout(vertexAttribLayout, sizeof(vertexAttribLayout) / sizeof(vertexAttribLayout[0]), m_VS);
-
     // Create PSO
     {
-        nvrhi::BlendState blendState;
-        blendState.targets[0].setBlendEnable(true)
-            .setSrcBlend(nvrhi::BlendFactor::SrcAlpha)
-            .setDestBlend(nvrhi::BlendFactor::InvSrcAlpha)
-            .setSrcBlendAlpha(nvrhi::BlendFactor::InvSrcAlpha)
-            .setDestBlendAlpha(nvrhi::BlendFactor::Zero);
-
-        auto rasterState = nvrhi::RasterState()
-            .setFillSolid()
-            .setCullNone()
-            .setScissorEnable(true)
-            .setDepthClipEnable(true);
-
-        auto depthStencilState = nvrhi::DepthStencilState()
-            .disableDepthTest()
-            .enableDepthWrite()
-            .disableStencil()
-            .setDepthFunc(nvrhi::ComparisonFunc::Always);
-
-        nvrhi::RenderState renderState;
-        renderState.blendState = blendState;
-        renderState.depthStencilState = depthStencilState;
-        renderState.rasterState = rasterState;
-
-        nvrhi::BindingLayoutDesc layoutDesc;
-        layoutDesc.visibility = nvrhi::ShaderType::All;
-        layoutDesc.bindings = {
-            nvrhi::BindingLayoutItem::PushConstants(0, sizeof(float) * 2),
-            nvrhi::BindingLayoutItem::Texture_SRV(0),
-            nvrhi::BindingLayoutItem::Sampler(0)
+        rapi::BlendState blendState;
+        blendState.renderTarget[0] = rapi::BlendState::RenderTargetBlendState
+        {
+            .blendEnable = true,
+            .srcBlend = rapi::BlendFactor::SrcAlpha,
+            .destBlend = rapi::BlendFactor::InvSrcAlpha,
+            .srcBlendAlpha = rapi::BlendFactor::InvSrcAlpha,
+            .destBlendAlpha = rapi::BlendFactor::Zero
         };
-        m_BindingLayout = device->createBindingLayout(layoutDesc);
 
-        m_BasePSODesc.primType = nvrhi::PrimitiveType::TriangleList;
-        m_BasePSODesc.inputLayout = m_ShaderAttribLayout;
-        m_BasePSODesc.VS = m_VS;
-        m_BasePSODesc.PS = m_PS;
-        m_BasePSODesc.renderState = renderState;
-        m_BasePSODesc.bindingLayouts = { m_BindingLayout };
-    }
+        rapi::RasterizerState rasterState =
+        {
+            .fillMode = rapi::FillMode::Solid,
+            .cullMode = rapi::CullMode::None,
+            .depthClipEnable = true,
+            .scissorEnable = true
+        };
 
-    {
-        const auto desc = nvrhi::SamplerDesc()
-            .setAllAddressModes(nvrhi::SamplerAddressMode::Wrap)
-            .setAllFilters(true);
-        m_FontSampler = device->createSampler(desc);
+        rapi::DepthStencilState depthStencilState =
+        {
+            .depthTestEnable = false,
+            .depthWriteEnable = true,
+            .depthFunc = rapi::ComparisonFunc::Always,
+            .stencilEnable = false
+        };
+
+        m_BasePSODesc = rapi::GraphicsPipelineStateDesc
+        {
+            .VS = m_VS,
+            .PS = m_PS,
+            .blendState = blendState,
+            .depthStencilState = depthStencilState,
+            .rasterState = rasterState
+        };
     }
 
     ImGui::CreateContext();
-
-    UpdateFontTexture();
 
     return true;
 }
@@ -351,6 +340,7 @@ bool st::ui::ImGuiRenderPass::Init()
 bool st::ui::ImGuiRenderPass::UpdateFontTexture()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+    auto* device = deviceManager->GetDevice();
     ImGuiIO& io = ImGui::GetIO();
 
     // If the font texture exists and is bound to ImGui, we're done.
@@ -370,20 +360,23 @@ bool st::ui::ImGuiRenderPass::UpdateFontTexture()
     textureDesc.height = height;
     textureDesc.format = rapi::Format::RGBA8_UNORM;
     textureDesc.debugName = "ImGuiFontTexture";
-    m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rapi::ResourceState::SHADER_RESOURCE);
+    m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rapi::ResourceState::COPY_DST);
     if (!m_FontTexture)
         return false;
 
-    m_CommandList->open();
-    m_CommandList->beginTrackingTextureState(m_FontTexture, nvrhi::AllSubresources, nvrhi::ResourceStates::Common);
-    m_CommandList->writeTexture(m_FontTexture, 0, 0, pixels, width * 4);
-    m_CommandList->setPermanentTextureState(m_FontTexture, nvrhi::ResourceStates::ShaderResource);
-    m_CommandList->commitBarriers();
-    m_CommandList->close();
+    m_TextureUploadBuffer = device->CreateBuffer(rapi::BufferDesc{
+        .memoryAccess = rapi::MemoryAccess::Upload,
+        .shaderUsage = rapi::ShaderUsage::None,
+        .sizeBytes = (size_t)width * height * 4,
+        .debugName = "ImGui TextureUploadBuffer" }, rapi::ResourceState::COMMON);
+    
+    void* uploadData = m_TextureUploadBuffer->Map();
+    std::memcpy(uploadData, pixels, width * height * 4);
+    m_TextureUploadBuffer->Unmap();
 
-    deviceManager->GetDevice()->executeCommandList(m_CommandList);
+    m_CommandList->WriteTexture(m_FontTexture.get(), rapi::AllSubresources, m_TextureUploadBuffer.get(), 0);
 
-    io.Fonts->TexRef = m_FontTexture.Get();
+    io.Fonts->TexRef = m_FontTexture.get();
 
     return true;
 }
@@ -409,10 +402,8 @@ bool st::ui::ImGuiRenderPass::UpdateGeometry()
     }
 
     // Copy and convert all vertices into a single contiguous buffer
-    m_VertexData.resize(drawData->TotalVtxCount);
-    m_IndexData.resize(drawData->TotalIdxCount);
-    ImDrawVert* vtxDst = m_VertexData.data();
-    ImDrawIdx* idxDst = m_IndexData.data();
+    ImDrawVert* vtxDst = (ImDrawVert*)m_VertexBuffer->Map();
+    ImDrawIdx* idxDst = (ImDrawIdx*)m_IndexBuffer->Map();
 
     for (int n = 0; n < drawData->CmdListsCount; n++)
     {
@@ -425,8 +416,8 @@ bool st::ui::ImGuiRenderPass::UpdateGeometry()
         idxDst += cmdList->IdxBuffer.Size;
     }
 
-    m_CommandList->writeBuffer(m_VertexBuffer, m_VertexData.data(), m_VertexData.size() * sizeof(ImDrawVert));
-    m_CommandList->writeBuffer(m_IndexBuffer, m_IndexData.data(), m_IndexData.size() * sizeof(ImDrawIdx));
+    m_VertexBuffer->Unmap();
+    m_IndexBuffer->Unmap();
 
     return true;
 }
@@ -435,60 +426,31 @@ bool st::ui::ImGuiRenderPass::ReallocateBuffer(rapi::BufferHandle& buffer, size_
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 
-    if (buffer == nullptr || size_t(buffer->getDesc().byteSize) < requiredSize)
+    if (buffer == nullptr || size_t(buffer->GetDesc().sizeBytes) < requiredSize)
     {
-        nvrhi::BufferDesc desc;
-        desc.byteSize = uint32_t(reallocateSize);
-        desc.structStride = 0;
+        rapi::BufferDesc desc;
+        desc.memoryAccess = rapi::MemoryAccess::Upload;
+        desc.shaderUsage = rapi::ShaderUsage::ShaderResource;
+        desc.sizeBytes = uint32_t(reallocateSize);
+        desc.allowUAV = false;
+        desc.stride = 0;
         desc.debugName = indexBuffer ? "ImGui index buffer" : "ImGui vertex buffer";
-        desc.canHaveUAVs = false;
-        desc.isVertexBuffer = !indexBuffer;
-        desc.isIndexBuffer = indexBuffer;
-        desc.isDrawIndirectArgs = false;
-        desc.isVolatile = false;
-        desc.initialState = indexBuffer ? nvrhi::ResourceStates::IndexBuffer : nvrhi::ResourceStates::VertexBuffer;
-        desc.keepInitialState = true;
 
-        buffer = deviceManager->GetDevice()->createBuffer(desc);
+        buffer = deviceManager->GetDevice()->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);
         if (!buffer)
             return false;
     }
     return true;
 }
 
-nvrhi::GraphicsPipelineHandle st::ui::ImGuiRenderPass::GetPSO(nvrhi::IFramebuffer* frameBuffer)
+st::rapi::GraphicsPipelineStateHandle st::ui::ImGuiRenderPass::GetPSO(rapi::IFramebuffer* frameBuffer)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 
     if (!m_PSO)
     {
-        m_PSO = deviceManager->GetDevice()->createGraphicsPipeline(m_BasePSODesc, frameBuffer);
+        m_PSO = deviceManager->GetDevice()->CreateGraphicsPipelineState(m_BasePSODesc, frameBuffer->GetFramebufferInfo());
         assert(m_PSO);
     }
     return m_PSO;
-}
-
-nvrhi::IBindingSet* st::ui::ImGuiRenderPass::GetBindingSet(nvrhi::ITexture* texture)
-{
-    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-
-    auto iter = m_BindingsCache.find(texture);
-    if (iter != m_BindingsCache.end())
-    {
-        return iter->second;
-    }
-
-    nvrhi::BindingSetDesc desc;
-    desc.bindings = {
-        nvrhi::BindingSetItem::PushConstants(0, sizeof(float) * 2),
-        nvrhi::BindingSetItem::Texture_SRV(0, texture),
-        nvrhi::BindingSetItem::Sampler(0, m_FontSampler)
-    };
-
-    nvrhi::BindingSetHandle binding;
-    binding = deviceManager->GetDevice()->createBindingSet(desc, m_BindingLayout);
-    assert(binding);
-
-    m_BindingsCache[texture] = binding;
-    return binding;
 }

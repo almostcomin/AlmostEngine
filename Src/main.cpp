@@ -79,7 +79,6 @@ int SDL_main(int argc, char* argv[])
 	st::gfx::DeviceManager::DeviceParams initParams{
 		.WindowHandle = window,
 		.DebugRuntime = true,
-		.NvrhiValidationLayer = true,
 		.VSyncEnabled = false
 	};
 	deviceManager->Init(initParams);

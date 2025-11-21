@@ -432,7 +432,6 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
         textureDesc.format = m_DeviceParams.SwapChainFormat;
         textureDesc.debugName = "SwapChainBuffer";
         textureDesc.isRenderTarget = true;
-        textureDesc.isUAV = false;
 
         m_SwapChainBuffers[n] = m_Device->CreateHandleForNativeTexture(
             m_SwapChainNativeBuffers[n].Get(), textureDesc);

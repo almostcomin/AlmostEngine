@@ -8,7 +8,7 @@ st::rapi::dx12::Texture::Texture(const st::rapi::TextureDesc& desc, ComPtr<ID3D1
     , m_DescriptorIndex{ c_InvalidDescriptorIndex, c_InvalidDescriptorIndex }
     , m_Device{ device }
 {
-    if (hasFlag(desc.usage, ResourceUsage::ShaderResource))
+    if (hasFlag(desc.shaderUsage, ShaderUsage::ShaderResource))
     {
         auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
         DescriptorIndex index = descriptorHeap->AllocateDescriptor();
@@ -16,7 +16,7 @@ st::rapi::dx12::Texture::Texture(const st::rapi::TextureDesc& desc, ComPtr<ID3D1
         CreateSRV(descriptorHandle, desc.format, desc.dimension, AllSubresources);
         m_DescriptorIndex[(int)DescriptorType::SRV] = index;
     }
-    if (hasFlag(desc.usage, ResourceUsage::UnorderedAccess))
+    if (hasFlag(desc.shaderUsage, ShaderUsage::UnorderedAccess))
     {
         auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
         DescriptorIndex index = descriptorHeap->AllocateDescriptor();

@@ -33,7 +33,7 @@ HRESULT st::rapi::dx12::DescriptorHeap::AllocateResources(D3D12_DESCRIPTOR_HEAP_
     return S_OK;
 }
 
-st::rapi::dx12::DescriptorIndex st::rapi::dx12::DescriptorHeap::DescriptorHeap::AllocateDescriptors(uint32_t count)
+st::rapi::DescriptorIndex st::rapi::dx12::DescriptorHeap::DescriptorHeap::AllocateDescriptors(uint32_t count)
 {
     std::lock_guard lockGuard(m_Mutex);
 
@@ -80,7 +80,7 @@ st::rapi::dx12::DescriptorIndex st::rapi::dx12::DescriptorHeap::DescriptorHeap::
     return foundIndex;
 }
 
-st::rapi::dx12::DescriptorIndex st::rapi::dx12::DescriptorHeap::AllocateDescriptor()
+st::rapi::DescriptorIndex st::rapi::dx12::DescriptorHeap::AllocateDescriptor()
 {
     return AllocateDescriptors(1);
 }
@@ -120,7 +120,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE st::rapi::dx12::DescriptorHeap::GetCpuHandle(Descrip
     if (index == c_InvalidDescriptorIndex)
         return { 0u };
 
-    assert(index < m_NumDescriptors, "Descriptor index out of bounds");
+    assert(index < m_NumDescriptors && "Descriptor index out of bounds");
 
     D3D12_CPU_DESCRIPTOR_HANDLE handle = m_StartCpuHandle;
     handle.ptr += index * m_Stride;

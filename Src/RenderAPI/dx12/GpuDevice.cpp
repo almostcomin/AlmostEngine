@@ -149,7 +149,7 @@ st::rapi::ShaderHandle st::rapi::dx12::GpuDevice::CreateShader(const ShaderDesc&
 	return ShaderHandle{ new Shader{desc, bytecode} };
 }
 
-st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc)
+st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc, ResourceState initialState)
 {
 	D3D12_RESOURCE_DESC d3d12Desc = {};
 	d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -166,15 +166,16 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 
 	// TODO: D3D12MA
 	D3D12_HEAP_PROPERTIES heapProps = {};
-	switch (desc.bufferUsage)
+	switch (desc.memoryAccess)
 	{
-	case st::rapi::BufferUsage::UploadBuffer:
-	case st::rapi::BufferUsage::ConstantBuffer:
+	case MemoryAccess::Default:
+		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+		break;
+	case MemoryAccess::Upload:
 		heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 		break;
-	case st::rapi::BufferUsage::IndexBuffer:
-	case st::rapi::BufferUsage::StructuredBuffer:
-		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+	case MemoryAccess::Readback:
+		heapProps.Type = D3D12_HEAP_TYPE_READBACK;
 		break;
 	}
 	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -182,7 +183,7 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 
 	ComPtr<ID3D12Resource> d3d12Buffer;
 	HRESULT hr = m_D3d12Device->CreateCommittedResource(
-		&heapProps, D3D12_HEAP_FLAG_NONE, &d3d12Desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&d3d12Buffer));
+		&heapProps, D3D12_HEAP_FLAG_NONE, &d3d12Desc, MapResourceState(initialState), nullptr, IID_PPV_ARGS(&d3d12Buffer));
 	HR_RETURN_NULL(hr);
 
 	return BufferHandle{ new Buffer{ desc, d3d12Buffer.Get(), this } };
@@ -224,7 +225,7 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 	d3d12Desc.Format = formatMap.resourceFormat;
 	d3d12Desc.SampleDesc.Count = desc.sampleCount;
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
-	if (!hasFlag(desc.usage, ResourceUsage::ShaderResource))
+	if (!hasFlag(desc.shaderUsage, ShaderUsage::ShaderResource))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	if (desc.isRenderTarget)
 	{
@@ -233,7 +234,7 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 		else
 			d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	}
-	if (hasFlag(desc.usage, ResourceUsage::UnorderedAccess))
+	if (hasFlag(desc.shaderUsage, ShaderUsage::UnorderedAccess))
 		d3d12Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	if (desc.isTiled)
 		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
