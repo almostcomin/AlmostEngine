@@ -90,8 +90,10 @@ st::rapi::dx12::GpuDevice::GpuDevice(const st::rapi::dx12::DeviceDesc& desc) :
 
 	m_DepthStencilViewHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, desc.depthStencilViewHeapSize, false);
 	m_RenderTargetViewHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, desc.renderTargetViewHeapSize, false);
-	m_ShaderResourceViewHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, desc.shaderResourceViewHeapSize, true);
-	m_SamplerHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, desc.samplerHeapSize, true);
+	m_ShaderResourceViewHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 
+		std::min(desc.shaderResourceViewHeapSize, (uint32_t)D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2), true);
+	m_SamplerHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 
+		std::min(desc.samplerHeapSize, (uint32_t)D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE), true);
 
 	m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &m_Options, sizeof(m_Options));
 	m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &m_Options1, sizeof(m_Options1));
@@ -186,6 +188,8 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 		&heapProps, D3D12_HEAP_FLAG_NONE, &d3d12Desc, MapResourceState(initialState), nullptr, IID_PPV_ARGS(&d3d12Buffer));
 	HR_RETURN_NULL(hr);
 
+	d3d12Buffer->SetName(ToWide(desc.debugName.c_str()).c_str());
+
 	return BufferHandle{ new Buffer{ desc, d3d12Buffer.Get(), this } };
 }
 
@@ -240,6 +244,8 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
 
 	D3D12_HEAP_PROPERTIES heapProps = {};
+	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+
 	D3D12_HEAP_FLAGS heapFlags = D3D12_HEAP_FLAG_NONE;
 
 	D3D12_CLEAR_VALUE clearValue;
@@ -258,6 +264,8 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 		IID_PPV_ARGS(&d3d12Texture));
 	HR_RETURN_NULL(hr);
 
+	d3d12Texture->SetName(ToWide(desc.debugName.c_str()).c_str());
+
 	auto texture = new Texture{ desc, d3d12Texture, this };
 	return TextureHandle{ texture };
 }
@@ -268,6 +276,8 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateHandleForNativeTexture(
 	{
 		return nullptr;
 	}
+
+	static_cast<ID3D12Resource*>(obj)->SetName(ToWide(desc.debugName.c_str()).c_str());
 
 	Texture* tex = new Texture{ desc, static_cast<ID3D12Resource*>(obj), this };
 	return TextureHandle{ tex };
@@ -362,6 +372,7 @@ st::rapi::CommandListHandle st::rapi::dx12::GpuDevice::CreateCommandList(const C
 	ComPtr<CommandList::NativeCommandListType> d3d12CommandList;
 	hr = m_D3d12Device->CreateCommandList(0, d3dCommandListType, d3d12CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&d3d12CommandList));
 	HR_RETURN_NULL(hr);
+	d3d12CommandList->Close(); // Start closed
 
 	auto* commandList = new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType, this };
 	return CommandListHandle{ commandList };
@@ -600,7 +611,7 @@ void st::rapi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
 		0.0f,									// minLOD
 		100.0f,									// maxLOD
-		0,										// shaderRegister
+		8,										// shaderRegister
 		0,										// registerSpace
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
@@ -616,7 +627,7 @@ void st::rapi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,	// borderColor
 		0.0f,									// minLOD
 		100.0f,									// maxLOD
-		1,										// shaderRegister
+		9,										// shaderRegister
 		0,										// registerSpace
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
@@ -645,8 +656,15 @@ void st::rapi::dx12::GpuDevice::CreateBindlessRootSignature()
 	ComPtr<ID3DBlob> rootSignatureBlob;
 	ComPtr<ID3DBlob> errorsBlob;
 
-	D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_1, &rootSignatureBlob, &errorsBlob);
-	[[maybe_unused]] HRESULT hr = m_D3d12Device->CreateRootSignature(
+	HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &rootSignatureBlob, &errorsBlob);
+	assert(SUCCEEDED(hr));
+	if (FAILED(hr))
+	{
+		LPCSTR errors = (LPCSTR)errorsBlob->GetBufferPointer();
+		LOG_FATAL("Failed serializing root signature:\n{}", errors);
+	}
+
+	hr = m_D3d12Device->CreateRootSignature(
 		0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_BindlessRootSignature));
 
 	assert(SUCCEEDED(hr));

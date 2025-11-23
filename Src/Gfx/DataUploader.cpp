@@ -184,7 +184,7 @@ void st::gfx::DataUploader::RunGarbageCollector()
 	// Command list completed
 	{
 		std::scoped_lock lock{ m_ThreadLocalMutex };
-		while (!m_InFlightCommandLists.Empty() || m_InFlightCommandLists.Front().CompletedIdx <= completedIdx)
+		while (!m_InFlightCommandLists.Empty() && m_InFlightCommandLists.Front().CompletedIdx <= completedIdx)
 		{
 			toSignal.push_back(std::move(m_InFlightCommandLists.Front().Signal));
 			m_InFlightCommandLists.Pop();
@@ -194,7 +194,7 @@ void st::gfx::DataUploader::RunGarbageCollector()
 	// Return space to upload buffer
 	{
 		std::scoped_lock lock{ m_UploadBufferMutex };
-		while (!m_UploadBufferCompletion.Empty() || m_UploadBufferCompletion.Front().CompletedIdx <= completedIdx)
+		while (!m_UploadBufferCompletion.Empty() && m_UploadBufferCompletion.Front().CompletedIdx <= completedIdx)
 		{
 			m_UploadBufferHead = m_UploadBufferCompletion.Front().BufferPosition;
 			m_UploadBufferCompletion.Pop();

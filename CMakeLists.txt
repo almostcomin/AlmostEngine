@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(Structure)
 
 include(FetchContent)
-include(CompileShaders.cmake)
+include(dxc.cmake)
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo" CACHE STRING "" FORCE)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -16,12 +16,15 @@ file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/Src/*.*"
 )
 
-file(GLOB_RECURSE HLSL_FILES
-    "${CMAKE_SOURCE_DIR}/Src/*.hlsl"
-    "${CMAKE_SOURCE_DIR}/Src/*.hlsli"
+file(GLOB_RECURSE SHADER_FILES
+    "${CMAKE_SOURCE_DIR}/Shaders/*.*"
 )
 
-add_executable(Structure WIN32 ${SRC_FILES})
+foreach(shader ${SHADER_FILES})
+    set_source_files_properties(${shader} PROPERTIES HEADER_FILE_ONLY TRUE)
+endforeach()
+
+add_executable(Structure WIN32 ${SRC_FILES} ${SHADER_FILES})
 
 if(MSVC)
     foreach(hlsl_file ${HLSL_FILES})
@@ -36,6 +39,7 @@ set_target_properties(Structure PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Data"
 )
 source_group(TREE "${CMAKE_SOURCE_DIR}" FILES ${SRC_FILES})
+source_group(TREE "${CMAKE_SOURCE_DIR}" FILES ${SHADER_FILES})
 
 target_compile_features(Structure PUBLIC cxx_std_23)
 set_target_properties(Structure PROPERTIES
@@ -45,6 +49,7 @@ set_target_properties(Structure PROPERTIES
 
 target_include_directories(Structure PRIVATE
     "${CMAKE_SOURCE_DIR}/Src"
+    "${CMAKE_SOURCE_DIR}/Shaders"
     "${CMAKE_SOURCE_DIR}/3rdParty/Sources/glm"
     "${CMAKE_SOURCE_DIR}/3rdParty/Sources/cgltf"
 )
@@ -87,7 +92,25 @@ target_link_libraries(Structure PRIVATE DirectX-Guids.lib)
 # stb
 target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/stb/include")
 
-target_link_libraries(Structure PRIVATE winmm imm32 version setupapi)
-target_link_libraries(Structure PRIVATE dxgi d3d12)
+# dxc
+GetDXC()
+target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/dxc/inc")
+target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/dxc/lib/x64")
+target_link_libraries(Structure PRIVATE dxcompiler.lib)
 
-GenShaders()
+add_custom_command(
+    TARGET Structure POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/3rdParty/dxc/bin/x64/dxcompiler.dll"
+        $<TARGET_FILE_DIR:Structure>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/3rdParty/dxc/bin/x64/dxil.dll"
+        $<TARGET_FILE_DIR:Structure>        
+)
+
+target_link_libraries(Structure PRIVATE winmm imm32 version setupapi)
+target_link_libraries(Structure PRIVATE dxgi dxguid d3d12)
+
+target_compile_definitions(Structure PRIVATE
+    SHADERS_SRC_FOLDER="${CMAKE_SOURCE_DIR}/Shaders"
+)

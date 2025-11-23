@@ -26,7 +26,10 @@ HRESULT st::rapi::dx12::DescriptorHeap::AllocateResources(D3D12_DESCRIPTOR_HEAP_
     m_NumDescriptors = heapDesc.NumDescriptors;
     m_HeapType = heapDesc.Type;
     m_StartCpuHandle = m_Heap->GetCPUDescriptorHandleForHeapStart();
-    m_StartGpuHandleShaderVisible = m_Heap->GetGPUDescriptorHandleForHeapStart();
+    if (shaderVisible)
+    {
+        m_StartGpuHandleShaderVisible = m_Heap->GetGPUDescriptorHandleForHeapStart();
+    }
     m_Stride = m_Device->GetDescriptorHandleIncrementSize(heapDesc.Type);
     m_AllocatedDescriptors.resize(m_NumDescriptors, false);
 

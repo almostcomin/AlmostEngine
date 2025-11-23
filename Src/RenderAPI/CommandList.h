@@ -90,7 +90,7 @@ public:
 	virtual void BeginRenderPass(rapi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags flags) = 0;
 	virtual void EndRenderPass() = 0;
 
-	virtual void DrawIndexed(uint32_t indexCount) = 0;
+	virtual void Draw(uint32_t vertexCount) = 0;
 
 	virtual void Discard(IBuffer* buffer) = 0;
 	virtual void Discard(ITexture* texture, int mipLevel = -1, int arraySlice = -1) = 0;

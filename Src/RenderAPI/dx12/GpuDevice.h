@@ -42,6 +42,7 @@ namespace st::rapi::dx12
 		D3D12_CPU_DESCRIPTOR_HANDLE GetRTVCPUDescriptorHandle(DescriptorIndex idx);
 
 		DescriptorHeap* GetShaderResourceViewHeap() { return &m_ShaderResourceViewHeap; }
+		DescriptorHeap* GetSamperHeap() { return &m_SamplerHeap; }
 
 		void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value) override;
 		void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value) override;

@@ -45,7 +45,7 @@ namespace st::rapi::dx12
 		void BeginRenderPass(rapi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags flags) override;
 		void EndRenderPass() override;
 
-		void DrawIndexed(uint32_t indexCount) override;
+		void Draw(uint32_t vertexCount) override;
 
 		void Discard(IBuffer* buffer) override;
 		void Discard(ITexture* texture, int mipLevel, int arraySlice) override;

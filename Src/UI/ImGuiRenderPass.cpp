@@ -3,7 +3,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/RenderView.h"
-#include "Gfx/Shaders/Interop/ImGUI_CB.h"
+#include "Interop/ImGUI_CB.h"
 #include "Gfx/DataUploader.h"
 #include "RenderAPI/Device.h"
 #include <imgui/imgui.h>
@@ -73,6 +73,20 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
     glm::ivec2 dim = deviceManager->GetWindowDimensions();
     io.DisplaySize = ImVec2(dim.x, dim.y);
 
+    m_CommandList->Open();
+    m_CommandList->BeginMarker("ImGui");
+
+    m_CommandList->PushBarrier(rapi::Barrier().Texture(
+        frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::COMMON, rapi::ResourceState::RENDERTARGET));
+
+    // Address any change in font data. Needs to be called before ImGui::NewFrame()
+    if (!UpdateFontTexture())
+    {
+        LOG_ERROR("Failed to update ImGui font texture");
+        m_CommandList->Close();
+        return false;
+    }
+
     ImGui::NewFrame();
     BuildUI();
     ImGui::Render();
@@ -82,16 +96,6 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
     ImDrawData* drawData = ImGui::GetDrawData();
     if (drawData->TotalIdxCount == 0)
         return true; // nothing to render
-
-    m_CommandList->Open();
-
-    // Address any change in font data
-    if (!UpdateFontTexture())
-    {
-        LOG_ERROR("Failed to update ImGui font texture");
-        m_CommandList->Close();
-        return false;
-    }
 
     // Address any change in geometry data
     if (!UpdateGeometry())
@@ -106,15 +110,13 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
 
     float2 invDisplaySize = { 1.f / io.DisplaySize.x, 1.f / io.DisplaySize.y };
 
-    rapi::RenderPassOp op;
-
     m_CommandList->BeginRenderPass(
         frameBuffer,
         { rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Black} },
         {},
         rapi::RenderPassFlags::None);
 
-    m_CommandList->SetPipelineState(m_PSO.get());
+    m_CommandList->SetPipelineState(GetPSO(frameBuffer).get());
     
     m_CommandList->SetViewport(rapi::ViewportState().AddViewport({
         io.DisplaySize.x* io.DisplayFramebufferScale.x,
@@ -122,7 +124,6 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
 
     int idxOffset = 0;
     int vtxOffset = 0;
-    m_CommandList->BeginMarker("ImGui");
     for (int n = 0; n < drawData->CmdLists.Size; n++)
     {
         const ImDrawList* cmdList = drawData->CmdLists[n];
@@ -151,12 +152,18 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
 
                 m_CommandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0);
                 
-                m_CommandList->DrawIndexed(pCmd->ElemCount);
+                m_CommandList->Draw(pCmd->ElemCount);
+
+                idxOffset += pCmd->ElemCount;
             }
+            vtxOffset += cmdList->VtxBuffer.Size;
         }
     }
 
     m_CommandList->EndMarker();
+    m_CommandList->EndRenderPass();
+    m_CommandList->PushBarrier(rapi::Barrier().Texture(
+        frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::RENDERTARGET, rapi::ResourceState::COMMON));
     m_CommandList->Close();
     
     device->ExecuteCommandList(m_CommandList.get(), st::rapi::QueueType::Graphics);
@@ -286,8 +293,8 @@ bool st::ui::ImGuiRenderPass::Init()
 
     m_CommandList = device->CreateCommandList(st::rapi::CommandListParams{ st::rapi::QueueType::Graphics });
 
-    m_VS = shaderFactory->CreateShader("./Shaders/imgui_vs.vso", rapi::ShaderType::Vertex);
-    m_PS = shaderFactory->CreateShader("./Shaders/imgui_ps.pso", rapi::ShaderType::Pixel);
+    m_VS = shaderFactory->LoadShader("imgui_bindless_vs.vso", rapi::ShaderType::Vertex);
+    m_PS = shaderFactory->LoadShader("imgui_bindless_ps.pso", rapi::ShaderType::Pixel);
     if (!m_VS || !m_PS)
     {
         LOG_ERROR("Failed to create ImGui shaders");
@@ -360,6 +367,7 @@ bool st::ui::ImGuiRenderPass::UpdateFontTexture()
     textureDesc.height = height;
     textureDesc.format = rapi::Format::RGBA8_UNORM;
     textureDesc.debugName = "ImGuiFontTexture";
+    textureDesc.shaderUsage = rapi::ShaderUsage::ShaderResource;
     m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rapi::ResourceState::COPY_DST);
     if (!m_FontTexture)
         return false;

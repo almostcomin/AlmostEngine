@@ -14,10 +14,10 @@ namespace st::rapi::dx12
         ID3D12CommandQueue* pComputeCommandQueue = nullptr;
         ID3D12CommandQueue* pCopyCommandQueue = nullptr;
 
-        uint32_t renderTargetViewHeapSize = 1024;
-        uint32_t depthStencilViewHeapSize = 1024;
-        uint32_t shaderResourceViewHeapSize = 16384;
-        uint32_t samplerHeapSize = 1024;
+        uint32_t renderTargetViewHeapSize = 256;
+        uint32_t depthStencilViewHeapSize = 32;
+        uint32_t shaderResourceViewHeapSize = UINT_MAX; // Platform defined max
+        uint32_t samplerHeapSize = 16; // Though static ones should be enough
         uint32_t maxTimerQueries = 256;
 
         bool aftermathEnabled = false;

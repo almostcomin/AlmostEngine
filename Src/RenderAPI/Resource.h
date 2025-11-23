@@ -25,7 +25,7 @@ namespace st::rapi
 
 		// Returns a native object or interface, for example ID3D11Device*, or nullptr if the requested interface is unavailable.
 		// Does *not* AddRef the returned interface.
-		virtual NativeResource GetNativeResource() { return nullptr; }
+		virtual NativeResource GetNativeResource() { assert(0); return nullptr; }
 
 	protected:
 

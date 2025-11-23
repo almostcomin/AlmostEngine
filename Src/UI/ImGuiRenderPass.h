@@ -57,7 +57,6 @@ private:
 
 	bool ReallocateBuffer(rapi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
 	rapi::GraphicsPipelineStateHandle GetPSO(rapi::IFramebuffer* frameBuffer);
-	//nvrhi::IBindingSet* GetBindingSet(nvrhi::ITexture* texture);
 
 	void ReconcileInputState();
 

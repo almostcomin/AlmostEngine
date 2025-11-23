@@ -27,6 +27,8 @@ namespace st::rapi::dx12
 		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rapi::Format format, uint32_t offsetBytes, size_t sizeBytes);
 		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rapi::Format format, uint32_t offsetBytes, size_t sizeBytes);
 
+		NativeResource GetNativeResource() override { return m_Resource.Get(); }
+
 	private:
 
 		BufferDesc m_Desc;

@@ -10,7 +10,8 @@
 #include "RenderAPI/Device.h"
 
 bool st::gfx::ForwardRenderPass::Render(st::rapi::IFramebuffer* frameBuffer)
-{
+{ return true;
+
 	if (!m_SceneGraph)
 	{
 		LOG_WARNING("No scene graph set. Nothing to render");
@@ -92,6 +93,7 @@ bool st::gfx::ForwardRenderPass::Render(st::rapi::IFramebuffer* frameBuffer)
 
 void st::gfx::ForwardRenderPass::OnAttached()
 {
+#if 0
 	rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 	rapi::CommandListParams params{
@@ -102,24 +104,6 @@ void st::gfx::ForwardRenderPass::OnAttached()
 	st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();
 	m_Vs = shaderFactory->CreateShader("Shaders/forward_vs.vso", st::rapi::ShaderType::Vertex);
 	m_Ps = shaderFactory->CreateShader("Shaders/forward_ps.pso", st::rapi::ShaderType::Pixel);
-
-	// Create PSO
-#if 0
-	const nvrhi::VertexAttributeDesc inputDescs[] =
-	{
-		GetVertexAttributeDesc(VertexAttribute::Position, "POS", 0),
-		GetVertexAttributeDesc(VertexAttribute::PrevPosition, "PREV_POS", 1),
-		GetVertexAttributeDesc(VertexAttribute::TexCoord1, "TEXCOORD", 2),
-		GetVertexAttributeDesc(VertexAttribute::Normal, "NORMAL", 3),
-		GetVertexAttributeDesc(VertexAttribute::Tangent, "TANGENT", 4),
-		GetVertexAttributeDesc(VertexAttribute::Transform, "TRANSFORM", 5),
-	};
-
-	device->createInputLayout(
-
-	nvrhi::GraphicsPipelineDesc psoDesc = {};
-	psoDesc.primType = nvrhi::PrimitiveType::TriangleList;
-	psoDesc.inputLayout = shaderAttribLayout;
 #endif
 }
 

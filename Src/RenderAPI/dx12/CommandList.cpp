@@ -34,11 +34,13 @@ namespace
 
 void st::rapi::dx12::CommandList::Open()
 {
+	m_D3d12Commandlist->Reset(m_D3d12CommandAllocator.Get(), nullptr);
+
 	ID3D12DescriptorHeap* heaps[] = {
-		m_Device->GetShaderResourceViewHeap()->GetHeap()
+		m_Device->GetShaderResourceViewHeap()->GetHeap(),
+		m_Device->GetSamperHeap()->GetHeap()
 	};
 	m_D3d12Commandlist->SetDescriptorHeaps(std::size(heaps), heaps);
-	m_D3d12Commandlist->Reset(m_D3d12CommandAllocator.Get(), nullptr);
 }
 
 void st::rapi::dx12::CommandList::Close()
@@ -281,9 +283,9 @@ void st::rapi::dx12::CommandList::EndRenderPass()
 	m_CurrentFB = {};
 }
 
-void st::rapi::dx12::CommandList::DrawIndexed(uint32_t indexCount)
+void st::rapi::dx12::CommandList::Draw(uint32_t vertexCount)
 {
-	m_D3d12Commandlist->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
+	m_D3d12Commandlist->DrawInstanced(vertexCount, 1, 0, 0);
 }
 
 void st::rapi::dx12::CommandList::Discard(IBuffer* buffer)

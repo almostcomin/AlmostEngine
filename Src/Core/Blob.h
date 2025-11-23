@@ -52,7 +52,8 @@ public:
 	char* data() const { return m_data; }
 	size_t size() const { return m_size; }
 	bool empty() const { return m_data == nullptr || m_size == 0; }
-	bool owns_data() const { return true; }
+
+	operator bool() const { return !empty(); }
 
 	void reset()
 	{
@@ -181,10 +182,12 @@ public:
 	size_t size() const { return m_size; }
 	bool empty() const { return m_data == nullptr || m_size == 0; }
 
+	operator bool() const { return !empty(); }
+
 private:
 
-	char* m_data;
-	size_t m_size;
+	char* m_data = nullptr;
+	size_t m_size = 0;
 };
 
 } // namespace st

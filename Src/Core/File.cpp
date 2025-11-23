@@ -1,9 +1,9 @@
 #include "Core/File.h"
 #include <format>
 
-st::fs::File::File(const std::string& path)
+st::fs::File::File(const std::string& path, OpenMode mode)
 {
-	Open(path);	
+	Open(path, mode);	
 }
 
 st::fs::File::~File()
@@ -11,14 +11,22 @@ st::fs::File::~File()
 	Close();
 }
 
-bool st::fs::File::Open(const std::string& path)
+bool st::fs::File::Open(const std::string& path, OpenMode mode)
 {
-	m_FileStream.open(path, std::ios::binary);
+	m_FileStream.open(path, (mode == OpenMode::Read ? std::ios::in : std::ios::out) | std::ios::binary);
 	if (m_FileStream.is_open())
 	{
-		m_FileStream.seekg(0, std::ios::end);
-		m_FileSize = m_FileStream.tellg();
-		m_FileStream.seekg(0, std::ios::beg);
+		m_Mode = mode;
+		if (m_Mode == OpenMode::Read)
+		{
+			m_FileStream.seekg(0, std::ios::end);
+			m_FileSize = m_FileStream.tellg();
+			m_FileStream.seekg(0, std::ios::beg);
+		}
+		else
+		{
+			m_FileSize = 0;
+		}
 
 		return true;
 	}
@@ -39,6 +47,10 @@ std::expected<st::Blob, std::string> st::fs::File::Read(int size)
 	if (!m_FileStream.is_open())
 	{
 		return std::unexpected("File is not opened");
+	}
+	if (m_Mode != OpenMode::Read)
+	{
+		return std::unexpected("Invalid open mode for a read operation");
 	}
 
 	size_t pos = m_FileStream.tellg();
@@ -62,6 +74,21 @@ std::expected<st::Blob, std::string> st::fs::File::Read(int size)
 	m_FileStream.read(mem, size);
 	
 	return st::Blob( mem, (size_t)size );
+}
+
+std::expected<size_t, std::string> st::fs::File::Write(const void* data, size_t size)
+{
+	if (!m_FileStream.is_open())
+	{
+		return std::unexpected("File is not opened");
+	}
+	if (m_Mode != OpenMode::Write)
+	{
+		return std::unexpected("Invalid open mode for a write operation");
+	}
+
+	m_FileStream.write((const char*)data, size);
+	return size;
 }
 
 bool st::fs::File::IsOpen() const
