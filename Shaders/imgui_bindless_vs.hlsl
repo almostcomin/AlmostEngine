@@ -34,8 +34,11 @@ PS_INPUT main(uint vertexID : SV_VertexID)
     
     PS_INPUT output;
     
-    uint baseIndex = indexBuffer[vertexID + CB.indexOffset];
-    ImDrawVert v = vertexBuffer[baseIndex + CB.vertexBufferOffset];
+    uint idxOffset = CB.indexOffset;
+    uint baseIndex = indexBuffer[vertexID + idxOffset];
+    
+    uint vertexOffset = CB.vertexBufferOffset;
+    ImDrawVert v = vertexBuffer[baseIndex + vertexOffset];
     
     // Transform to NDC
     output.out_pos.xy = v.pos.xy * CB.invDisplaySize * float2(2.0, -2.0) + float2(-1.0, 1.0);

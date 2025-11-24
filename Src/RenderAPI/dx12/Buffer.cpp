@@ -22,7 +22,7 @@ st::rapi::dx12::Buffer::Buffer(const st::rapi::BufferDesc& desc, ID3D12Resource*
         auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
         DescriptorIndex index = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(index);
-        CreateSRV(descriptorHandle, Format::UNKNOWN, 0, m_Desc.sizeBytes);
+        CreateSRV(descriptorHandle, m_Desc.format, 0, m_Desc.sizeBytes);
         m_DescriptorIndex[(int)DescriptorType::SRV] = index;
     }
     if (hasFlag(desc.shaderUsage, ShaderUsage::UnorderedAccess))
@@ -30,7 +30,7 @@ st::rapi::dx12::Buffer::Buffer(const st::rapi::BufferDesc& desc, ID3D12Resource*
         auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
         DescriptorIndex index = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(index);
-        CreateUAV(descriptorHandle, Format::UNKNOWN, 0, m_Desc.sizeBytes);
+        CreateUAV(descriptorHandle, m_Desc.format, 0, m_Desc.sizeBytes);
         m_DescriptorIndex[(int)DescriptorType::UAV] = index;
     }
 }

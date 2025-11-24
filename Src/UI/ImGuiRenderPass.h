@@ -68,6 +68,8 @@ protected:
 	void BeginFullScreenWindow();
 	void EndFullScreenWindow();
 	void DrawCenteredText(const char* text);
+	rapi::BufferHandle& GetCurrentVB();
+	rapi::BufferHandle& GetCurrentIB();
 
 private:
 
@@ -83,8 +85,8 @@ private:
 	rapi::TextureHandle m_FontTexture;
 	//rapi::SamplerHandle m_FontSampler;
 
-	rapi::BufferHandle m_VertexBuffer;
-	rapi::BufferHandle m_IndexBuffer;
+	rapi::BufferHandle m_VertexBuffer[3];
+	rapi::BufferHandle m_IndexBuffer[3];
 
 	rapi::GraphicsPipelineStateHandle m_PSO;
 	rapi::CommandListHandle m_CommandList;

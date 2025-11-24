@@ -16,6 +16,7 @@ st::rapi::ShaderHandle st::gfx::ShaderFactory::LoadShader(const char* filename, 
 	if (it == m_BytecodeCache.end())
 	{
 		st::Blob byteCode;
+/*
 		st::fs::File file{ filename };
 		if (file.IsOpen())
 		{
@@ -23,7 +24,9 @@ st::rapi::ShaderHandle st::gfx::ShaderFactory::LoadShader(const char* filename, 
 			assert(readResult);
 			byteCode = std::move(*readResult);
 		}
-		//else
+		else
+*/
+		st::fs::File file;
 		{
 			std::filesystem::path shaderSourcePath = SHADERS_SRC_FOLDER;
 			shaderSourcePath /= filename;

@@ -117,6 +117,7 @@ public:
     st::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
     st::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }
 
+    uint32_t GetFrameCount() const { return m_FrameCount; }
     st::rapi::Device* GetDevice() { return m_Device.get(); }
 
 protected:

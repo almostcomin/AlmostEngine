@@ -64,6 +64,18 @@ void st::ui::ImGuiRenderPass::DrawCenteredText(const char* text)
     ImGui::TextUnformatted(text);
 }
 
+st::rapi::BufferHandle& st::ui::ImGuiRenderPass::GetCurrentVB()
+{
+    uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
+    return m_VertexBuffer[currentFrameIdx % 3];
+}
+
+st::rapi::BufferHandle& st::ui::ImGuiRenderPass::GetCurrentIB()
+{
+    uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
+    return m_IndexBuffer[currentFrameIdx % 3];
+}
+
 bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
@@ -144,20 +156,19 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
 
                 interop::ImGUI_CB cb = {};
                 cb.invDisplaySize = invDisplaySize;
-                cb.indexBuffer = m_IndexBuffer->GetDescriptorIndex(rapi::DescriptorType::SRV);
+                cb.indexBuffer = GetCurrentIB()->GetDescriptorIndex(rapi::DescriptorType::SRV);
                 cb.indexOffset = idxOffset;
-                cb.vertexBuffer = m_VertexBuffer->GetDescriptorIndex(rapi::DescriptorType::SRV);
+                cb.vertexBuffer = GetCurrentVB()->GetDescriptorIndex(rapi::DescriptorType::SRV);
                 cb.vertexBufferOffset = vtxOffset;
                 cb.textureIndex = m_FontTexture->GetDescriptorIndex(rapi::DescriptorType::SRV);
 
                 m_CommandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0);
                 
                 m_CommandList->Draw(pCmd->ElemCount);
-
-                idxOffset += pCmd->ElemCount;
             }
-            vtxOffset += cmdList->VtxBuffer.Size;
+            idxOffset += pCmd->ElemCount;
         }
+        vtxOffset += cmdList->VtxBuffer.Size;
     }
 
     m_CommandList->EndMarker();
@@ -391,17 +402,20 @@ bool st::ui::ImGuiRenderPass::UpdateFontTexture()
 
 bool st::ui::ImGuiRenderPass::UpdateGeometry()
 {
+    rapi::BufferHandle& currentVB = GetCurrentVB();
+    rapi::BufferHandle& currentIB = GetCurrentIB();
+
     const ImDrawData* drawData = ImGui::GetDrawData();
 
     // Create/resize vertex and index buffers if needed
-    if (!ReallocateBuffer(m_VertexBuffer,
+    if (!ReallocateBuffer(currentVB,
         drawData->TotalVtxCount * sizeof(ImDrawVert),
         (drawData->TotalVtxCount + 5000) * sizeof(ImDrawVert),
         false))
     {
         return false;
     }
-    if (!ReallocateBuffer(m_IndexBuffer,
+    if (!ReallocateBuffer(currentIB,
         drawData->TotalIdxCount * sizeof(ImDrawIdx),
         (drawData->TotalIdxCount + 5000) * sizeof(ImDrawIdx),
         true))
@@ -410,8 +424,8 @@ bool st::ui::ImGuiRenderPass::UpdateGeometry()
     }
 
     // Copy and convert all vertices into a single contiguous buffer
-    ImDrawVert* vtxDst = (ImDrawVert*)m_VertexBuffer->Map();
-    ImDrawIdx* idxDst = (ImDrawIdx*)m_IndexBuffer->Map();
+    ImDrawVert* vtxDst = (ImDrawVert*)currentVB->Map();
+    ImDrawIdx* idxDst = (ImDrawIdx*)currentIB->Map();
 
     for (int n = 0; n < drawData->CmdListsCount; n++)
     {
@@ -424,8 +438,8 @@ bool st::ui::ImGuiRenderPass::UpdateGeometry()
         idxDst += cmdList->IdxBuffer.Size;
     }
 
-    m_VertexBuffer->Unmap();
-    m_IndexBuffer->Unmap();
+    currentVB->Unmap();
+    currentIB->Unmap();
 
     return true;
 }
@@ -441,7 +455,14 @@ bool st::ui::ImGuiRenderPass::ReallocateBuffer(rapi::BufferHandle& buffer, size_
         desc.shaderUsage = rapi::ShaderUsage::ShaderResource;
         desc.sizeBytes = uint32_t(reallocateSize);
         desc.allowUAV = false;
-        desc.stride = 0;
+        if (indexBuffer)
+        {
+            desc.format = rapi::Format::R16_UINT;
+        }
+        else
+        {
+            desc.stride = sizeof(ImDrawVert);
+        }
         desc.debugName = indexBuffer ? "ImGui index buffer" : "ImGui vertex buffer";
 
         buffer = deviceManager->GetDevice()->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);

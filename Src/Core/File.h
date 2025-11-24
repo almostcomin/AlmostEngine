@@ -19,6 +19,7 @@ class File
 {
 public:
 
+	File() = default;
 	File(const std::string& path, OpenMode mode = OpenMode::Read);
 	~File();
 

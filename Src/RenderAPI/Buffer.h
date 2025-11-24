@@ -14,6 +14,7 @@ namespace st::rapi
         ShaderUsage shaderUsage = ShaderUsage::ShaderResource;
         size_t sizeBytes = 0;
         bool allowUAV = false;
+        Format format = Format::UNKNOWN; // For typed views
         uint32_t stride = 0; // set stride for structured buffer
 
         std::string debugName;
