@@ -16,7 +16,7 @@ class RenderPass
 
 public:
 
-	virtual bool Render(rapi::IFramebuffer* frameBuffer) = 0;
+	virtual bool Render() = 0;
 	virtual void OnBackbufferResize(const glm::ivec2& size) = 0;
 
 protected:

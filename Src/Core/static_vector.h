@@ -156,6 +156,16 @@ namespace st {
             return back();
         }
 
+        void clear() noexcept
+        {
+            if constexpr (!std::is_trivially_destructible_v<T>)
+            {
+                for (size_type i = 0; i < current_size; i++)
+                    (*this)[i] = T{};
+            }
+            current_size = 0;
+        }
+
     private:
         size_type current_size = 0;
     };

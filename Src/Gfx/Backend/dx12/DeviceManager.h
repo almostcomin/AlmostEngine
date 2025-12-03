@@ -50,16 +50,15 @@ private:
 	ComPtr<ID3D12CommandQueue>	m_ComputeQueue;
 	ComPtr<ID3D12CommandQueue>	m_CopyQueue;
 
-	DXGI_SWAP_CHAIN_DESC1						m_SwapChainDesc;
-	DXGI_SWAP_CHAIN_FULLSCREEN_DESC				m_FullScreenDesc;
-	bool										m_TearingSupported;
-	std::vector<ComPtr<ID3D12Resource>> m_SwapChainNativeBuffers;
-	std::vector<st::rapi::TextureHandle>		m_SwapChainBuffers;
+	DXGI_SWAP_CHAIN_DESC1			m_SwapChainDesc;
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC	m_FullScreenDesc;
+	bool							m_TearingSupported;
+	std::vector<st::rapi::TextureHandle> m_SwapChainBuffers;
 
-	ComPtr<ID3D12Fence>			m_FrameFence;
-	std::vector<HANDLE>							m_FrameFenceEvents;
+	ComPtr<ID3D12Fence>				m_FrameFence;
+	std::vector<HANDLE>				m_FrameFenceEvents;
 
-	std::string									m_RendererString;
+	std::string						m_RendererString;
 };
 
 }

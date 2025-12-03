@@ -39,7 +39,7 @@ public:
 
 	virtual void BuildUI() = 0;
 
-	bool Render(st::rapi::IFramebuffer* frameBuffer) override;
+	bool Render() override;
 
 	void OnBackbufferResize(const glm::ivec2& size) override;
 
@@ -51,6 +51,7 @@ protected:
 private:
 
 	bool Init();
+	void Release();
 
 	bool UpdateFontTexture();
 	bool UpdateGeometry();
@@ -78,22 +79,14 @@ private:
 	rapi::ShaderHandle m_VS;
 	rapi::ShaderHandle m_PS;
 
-	//nvrhi::InputLayoutHandle m_ShaderAttribLayout;
-	//nvrhi::BindingLayoutHandle m_BindingLayout;
 	rapi::GraphicsPipelineStateDesc m_BasePSODesc;
 
 	rapi::TextureHandle m_FontTexture;
-	//rapi::SamplerHandle m_FontSampler;
 
 	rapi::BufferHandle m_VertexBuffer[3];
 	rapi::BufferHandle m_IndexBuffer[3];
 
 	rapi::GraphicsPipelineStateHandle m_PSO;
-	rapi::CommandListHandle m_CommandList;
-
-	//std::unordered_map<nvrhi::ITexture*, nvrhi::BindingSetHandle> m_BindingsCache;
-
-	rapi::BufferHandle m_TextureUploadBuffer;
 };
 
 }

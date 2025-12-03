@@ -38,7 +38,7 @@ namespace st::rapi
     struct ShaderDesc
     {
         ShaderType Type = ShaderType::None;
-        std::string DebugName;
+        std::string DebugName = "{null}";
         std::string EntryPoint = "main";
 
         constexpr ShaderDesc& SetShaderType(st::rapi::ShaderType value) { Type = value; return *this; }
@@ -52,7 +52,9 @@ namespace st::rapi
 
 		virtual const ShaderDesc& GetDesc() const = 0;
 		virtual const WeakBlob& GetBytecode() const = 0;
+
+        ResourceType GetResourceType() const override { return ResourceType::Shader; }
 	};
 
-	using ShaderHandle = std::shared_ptr<IShader>;
+	using ShaderHandle = st::weak<IShader>;
 }

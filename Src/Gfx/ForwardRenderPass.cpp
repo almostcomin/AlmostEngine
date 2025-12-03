@@ -9,7 +9,7 @@
 #include "Gfx/MeshInstance.h"
 #include "RenderAPI/Device.h"
 
-bool st::gfx::ForwardRenderPass::Render(st::rapi::IFramebuffer* frameBuffer)
+bool st::gfx::ForwardRenderPass::Render()
 { return true;
 
 	if (!m_SceneGraph)
@@ -26,9 +26,9 @@ bool st::gfx::ForwardRenderPass::Render(st::rapi::IFramebuffer* frameBuffer)
 	}
 
 	rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	auto commandList = m_RenderView->GetCommandList();
 
-	m_CommandList->Open();
-	m_CommandList->BeginMarker("ForwardRenderPass");
+	commandList->BeginMarker("ForwardRenderPass");
 
 	const auto& frustum = camera->GetFrustum();
 	st::gfx::SceneGraph::Walker walker{ *m_SceneGraph };
@@ -83,10 +83,7 @@ bool st::gfx::ForwardRenderPass::Render(st::rapi::IFramebuffer* frameBuffer)
 		}
 	} // while(walker)
 
-	m_CommandList->EndMarker();
-	m_CommandList->Close();
-
-	device->ExecuteCommandList(m_CommandList.get(), rapi::QueueType::Graphics);
+	commandList->EndMarker();
 
 	return true;
 }
@@ -111,5 +108,4 @@ void st::gfx::ForwardRenderPass::OnDetached()
 {
 	m_Vs.reset();
 	m_Ps.reset();
-	m_CommandList.reset();
 }

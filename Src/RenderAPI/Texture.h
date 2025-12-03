@@ -37,7 +37,7 @@ namespace st::rapi
         uint32_t sampleQuality = 0;
         Format format = Format::UNKNOWN;
         TextureDimension dimension = TextureDimension::Texture2D;
-        std::string debugName;
+        std::string debugName = "{null}";
 
         ShaderUsage shaderUsage = ShaderUsage::None;
 
@@ -123,5 +123,5 @@ namespace st::rapi
         virtual DescriptorIndex GetDescriptorIndex(DescriptorType type) = 0;
 	};
 
-	using TextureHandle = std::shared_ptr<ITexture>;
+	using TextureHandle = st::weak<ITexture>;
 }

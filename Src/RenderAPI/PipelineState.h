@@ -38,6 +38,8 @@ struct GraphicsPipelineStateDesc
 
     PrimitiveTopology primTopo = PrimitiveTopology::TriangleList;
     uint32_t patchControlPoints = 0;
+
+    std::string debugName = "{null}";
 };
 
 class IGraphicsPipelineState : public IResource
@@ -47,6 +49,6 @@ public:
     virtual const GraphicsPipelineStateDesc& GetDesc() const = 0;
 };
 
-using GraphicsPipelineStateHandle = std::shared_ptr<IGraphicsPipelineState>;
+using GraphicsPipelineStateHandle = st::weak<IGraphicsPipelineState>;
 
 } // namespace st::rapi

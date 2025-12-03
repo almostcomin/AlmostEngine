@@ -68,7 +68,9 @@ st::rapi::dx12::GpuDevice::GpuDevice(const st::rapi::dx12::DeviceDesc& desc) :
 	m_DepthStencilViewHeap{ desc.pDevice },
 	m_RenderTargetViewHeap{ desc.pDevice },
 	m_ShaderResourceViewHeap{ desc.pDevice },
-	m_SamplerHeap{ desc.pDevice }
+	m_SamplerHeap{ desc.pDevice },
+	m_CurrentFrameIdx{ 1 },
+	m_Desc{ desc }
 {
 	m_D3d12Device = desc.pDevice;
 
@@ -133,6 +135,8 @@ st::rapi::dx12::GpuDevice::GpuDevice(const st::rapi::dx12::DeviceDesc& desc) :
 	m_FenceEvent = CreateEvent(nullptr, false, false, nullptr);
 
 	CreateBindlessRootSignature();
+
+	m_StaleResources.resize(m_Desc.swapChainFrames);
 };
 
 st::rapi::dx12::GpuDevice::~GpuDevice()
@@ -148,7 +152,7 @@ st::rapi::dx12::GpuDevice::~GpuDevice()
 
 st::rapi::ShaderHandle st::rapi::dx12::GpuDevice::CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode)
 {
-	return ShaderHandle{ new Shader{desc, bytecode} };
+	return InsertNewResource<IShader>(new Shader{desc, bytecode});
 }
 
 st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc, ResourceState initialState)
@@ -188,9 +192,10 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 		&heapProps, D3D12_HEAP_FLAG_NONE, &d3d12Desc, MapResourceState(initialState), nullptr, IID_PPV_ARGS(&d3d12Buffer));
 	HR_RETURN_NULL(hr);
 
-	d3d12Buffer->SetName(ToWide(desc.debugName.c_str()).c_str());
+	auto ws_nmame = ToWide(desc.debugName.c_str());
+	d3d12Buffer->SetName(ws_nmame.c_str());
 
-	return BufferHandle{ new Buffer{ desc, d3d12Buffer.Get(), this } };
+	return InsertNewResource<IBuffer>(new Buffer{ desc, d3d12Buffer.Get(), this });
 }
 
 st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDesc& desc, ResourceState initialState)
@@ -264,10 +269,10 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 		IID_PPV_ARGS(&d3d12Texture));
 	HR_RETURN_NULL(hr);
 
-	d3d12Texture->SetName(ToWide(desc.debugName.c_str()).c_str());
+	auto ws_nmame = ToWide(desc.debugName.c_str());
+	d3d12Texture->SetName(ws_nmame.c_str());
 
-	auto texture = new Texture{ desc, d3d12Texture, this };
-	return TextureHandle{ texture };
+	return InsertNewResource<ITexture>(new Texture{ desc, d3d12Texture, this });
 }
 
 st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateHandleForNativeTexture(void* obj, const TextureDesc& desc)
@@ -277,10 +282,12 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateHandleForNativeTexture(
 		return nullptr;
 	}
 
-	static_cast<ID3D12Resource*>(obj)->SetName(ToWide(desc.debugName.c_str()).c_str());
+	ID3D12Resource* d3d12Resource = static_cast<ID3D12Resource*>(obj);
 
-	Texture* tex = new Texture{ desc, static_cast<ID3D12Resource*>(obj), this };
-	return TextureHandle{ tex };
+	auto ws_nmame = ToWide(desc.debugName.c_str());
+	d3d12Resource->SetName(ws_nmame.c_str());
+
+	return InsertNewResource<ITexture>(new Texture{ desc, d3d12Resource, this });
 }
 
 st::rapi::FramebufferHandle st::rapi::dx12::GpuDevice::CreateFramebuffer(const FramebufferDesc& desc)
@@ -317,7 +324,7 @@ st::rapi::FramebufferHandle st::rapi::dx12::GpuDevice::CreateFramebuffer(const F
 
 		fb->RTVs.push_back(index);
 
-		st::rapi::TextureHandle handle = std::static_pointer_cast<ITexture>(texture->shared_from_this());
+		st::rapi::TextureHandle handle = st::checked_pointer_cast<ITexture>(texture->weak_from_this());
 		fb->rtvTextures.push_back(handle);
 	}
 
@@ -334,11 +341,11 @@ st::rapi::FramebufferHandle st::rapi::dx12::GpuDevice::CreateFramebuffer(const F
 
 		fb->DSV = index;
 
-		st::rapi::TextureHandle handle = std::static_pointer_cast<ITexture>(texture->shared_from_this());
+		st::rapi::TextureHandle handle = st::checked_pointer_cast<ITexture>(texture->weak_from_this());
 		fb->dsvTexture = handle;
 	}
 
-	return FramebufferHandle{ fb };
+	return InsertNewResource<IFramebuffer>(fb);
 }
 
 st::rapi::CommandListHandle st::rapi::dx12::GpuDevice::CreateCommandList(const CommandListParams& params)
@@ -372,10 +379,13 @@ st::rapi::CommandListHandle st::rapi::dx12::GpuDevice::CreateCommandList(const C
 	ComPtr<CommandList::NativeCommandListType> d3d12CommandList;
 	hr = m_D3d12Device->CreateCommandList(0, d3dCommandListType, d3d12CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&d3d12CommandList));
 	HR_RETURN_NULL(hr);
+
+	auto ws_nmame = ToWide(params.debugName.c_str());
+	d3d12CommandList->SetName(ws_nmame.c_str());
+
 	d3d12CommandList->Close(); // Start closed
 
-	auto* commandList = new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType, this };
-	return CommandListHandle{ commandList };
+	return InsertNewResource<ICommandList>(new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType, this, params.debugName });
 }
 
 st::rapi::GraphicsPipelineStateHandle st::rapi::dx12::GpuDevice::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo)
@@ -405,17 +415,36 @@ st::rapi::GraphicsPipelineStateHandle st::rapi::dx12::GpuDevice::CreateGraphicsP
 	HRESULT hr = m_D3d12Device->CreateGraphicsPipelineState(&d3d12Desc, IID_PPV_ARGS(&d3d12PSO));
 	HR_RETURN_NULL(hr);
 
-	auto* pso = new GraphicsPipelineState{ d3d12PSO, d3d12Desc, desc };
-	return GraphicsPipelineStateHandle{ pso };
+	auto ws_nmame = ToWide(desc.debugName.c_str());
+	d3d12PSO->SetName(ws_nmame.c_str());
+
+	return InsertNewResource<IGraphicsPipelineState>(new GraphicsPipelineState{ d3d12PSO, d3d12Desc, desc });
 }
 
-st::rapi::FenceHandle st::rapi::dx12::GpuDevice::CreateFence()
+st::rapi::FenceHandle st::rapi::dx12::GpuDevice::CreateFence(uint64_t initialVale, const char* debugName)
 {
 	ComPtr<ID3D12Fence> d3d12Fence;
-	HRESULT hr = m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3d12Fence));
+	HRESULT hr = m_D3d12Device->CreateFence(initialVale, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3d12Fence));
 	HR_RETURN_NULL(hr);
 
-	return FenceHandle{ new Fence{ d3d12Fence.Get() } };
+	auto ws_nmame = ToWide(debugName);
+	d3d12Fence->SetName(ws_nmame.c_str());
+
+	return InsertNewResource<IFence>(new Fence{ d3d12Fence.Get(), debugName ? debugName : "{null}" });
+}
+
+void st::rapi::dx12::GpuDevice::ReleaseImmediately(const weak<IResource>& handle)
+{
+	ReleaseResource(handle.get());
+
+	std::scoped_lock lock{ m_LivingResourcesMutex };
+	m_LivingResources.erase(handle.get());
+}
+
+void st::rapi::dx12::GpuDevice::ReleaseQueued(const weak<IResource>& handle)
+{
+	std::scoped_lock lock{ m_StaleResourcesMutex };
+	m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].push_back(handle.get());
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE st::rapi::dx12::GpuDevice::GetRTVCPUDescriptorHandle(DescriptorIndex idx)
@@ -447,6 +476,47 @@ void st::rapi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> com
 void st::rapi::dx12::GpuDevice::ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value)
 {
 	ExecuteCommandLists(std::span<ICommandList*, 1>{&commandList, 1}, type, signal, value);
+}
+
+void st::rapi::dx12::GpuDevice::NextFrame()
+{
+	uint64_t nextFrameModule = (m_CurrentFrameIdx + 1) % m_Desc.swapChainFrames;
+
+	// Remove the stale resources
+	{
+		std::scoped_lock lock{ m_LivingResourcesMutex };
+		for (IResource* pres : m_StaleResources[nextFrameModule])
+		{
+			ReleaseResource(pres);
+			m_LivingResources.erase(pres);
+		}
+	}
+
+	m_StaleResources[nextFrameModule].clear();
+	++m_CurrentFrameIdx;
+}
+
+void st::rapi::dx12::GpuDevice::Shutdown()
+{
+	for(int i = 0; i < m_StaleResources.size(); ++i)
+	{
+		for (IResource* pres : m_StaleResources[i])
+		{
+			ReleaseResource(pres);
+			m_LivingResources.erase(pres);
+		}
+	}
+
+	if (!m_LivingResources.empty())
+	{
+		for (auto& res : m_LivingResources)
+		{
+			LOG_ERROR("Resource addr [0x{:08x}] of type {}, debug name '{}' not released!", 
+				(uintptr_t)res.get(), ResourceTypeToString(res->GetResourceType()), res->GetDebugName());
+			ReleaseResource(res.get());
+		}
+		m_LivingResources.clear();
+	}
 }
 
 void st::rapi::dx12::GpuDevice::WaitForIdle()

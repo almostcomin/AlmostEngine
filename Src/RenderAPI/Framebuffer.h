@@ -3,8 +3,9 @@
 #include "RenderAPI/Texture.h"
 #include "RenderAPI/Constants.h"
 #include "RenderAPI/Viewport.h"
-#include "Core/static_vector.h"
 #include "RenderAPI/Resource.h"
+#include "Core/static_vector.h"
+#include "Core/Memory.h"
 
 namespace st::rapi
 {
@@ -32,6 +33,7 @@ struct FramebufferDesc
     static_vector<FramebufferAttachment, c_MaxRenderTargets> ColorAttachments;
     FramebufferAttachment DepthAttachment;
     FramebufferAttachment ShadingRateAttachment;
+    std::string DebugName = "{null}";
 
     FramebufferDesc& AddColorAttachment(const FramebufferAttachment& a) { ColorAttachments.push_back(a); return *this; }
     FramebufferDesc& AddColorAttachment(ITexture* texture) { ColorAttachments.push_back(FramebufferAttachment().SetTexture(texture)); return *this; }
@@ -42,6 +44,7 @@ struct FramebufferDesc
     FramebufferDesc& SetShadingRateAttachment(const FramebufferAttachment& d) { ShadingRateAttachment = d; return *this; }
     FramebufferDesc& SetShadingRateAttachment(ITexture* texture) { ShadingRateAttachment = FramebufferAttachment().SetTexture(texture); return *this; }
     FramebufferDesc& SetShadingRateAttachment(ITexture* texture, TextureSubresourceSet subresources) { ShadingRateAttachment = FramebufferAttachment().SetTexture(texture).SetSubresources(subresources); return *this; }
+    FramebufferDesc& SetDebugName(const std::string& debugName) { DebugName = debugName; return *this; }
 };
 
 // Describes the parameters of a framebuffer that can be used to determine if a given framebuffer
@@ -90,6 +93,6 @@ public:
 	[[nodiscard]] virtual const FramebufferInfo& GetFramebufferInfo() const = 0;
 };
 
-using FramebufferHandle = std::shared_ptr<IFramebuffer>;
+using FramebufferHandle = st::weak<IFramebuffer>;
 
 } // namespace st::rapi

@@ -246,7 +246,7 @@ void st::rapi::dx12::CommandList::PushConstants(const void* data, size_t sizeByt
 
 void st::rapi::dx12::CommandList::BeginRenderPass(rapi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags rpFlags)
 {
-	m_CurrentFB = std::static_pointer_cast<rapi::IFramebuffer>(_fb->shared_from_this());
+	m_CurrentFB = st::checked_pointer_cast<rapi::IFramebuffer>(_fb->weak_from_this());
 
 	Framebuffer* fb = checked_cast<Framebuffer*>(_fb);
 
@@ -317,4 +317,11 @@ void st::rapi::dx12::CommandList::BeginMarker(const char* str)
 void st::rapi::dx12::CommandList::EndMarker()
 {
 	PIXEndEvent(m_D3d12Commandlist.Get());
+}
+
+void st::rapi::dx12::CommandList::Release(Device* device)
+{
+	assert(!m_CurrentFB);
+	m_D3d12CommandAllocator.Reset();
+	m_D3d12Commandlist.Reset();
 }

@@ -20,9 +20,13 @@ namespace st::rapi::dx12
 		const GraphicsPipelineStateDesc& GetDesc() const override { return m_Desc; }
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC GetD3d12Desc() const { return m_D3d12Desc; }
 
+		ResourceType GetResourceType() const override { return ResourceType::GraphicsPipelineState; }
 		NativeResource GetNativeResource() override { return m_PSO.Get(); }
+		const std::string& GetDebugName() override { return m_Desc.debugName; }
 
 	private:
+
+		void Release(Device* device) override { m_PSO.Reset(); }
 
 		ComPtr<ID3D12PipelineState> m_PSO;
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC m_D3d12Desc;

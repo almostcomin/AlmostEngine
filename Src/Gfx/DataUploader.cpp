@@ -12,15 +12,28 @@ namespace
 
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
 st::gfx::DataUploader::DataUploader(rapi::Device* device) : 
-	m_CommitCount{ 1 }, m_CommitFence{ device->CreateFence() }, m_Device { device }
+	m_CommitCount{ 1 }, m_Device { device }
 {
 	m_UploadBuffer = m_Device->CreateBuffer(rapi::BufferDesc{
 		.memoryAccess = rapi::MemoryAccess::Upload,
 		.shaderUsage = rapi::ShaderUsage::None,
-		.sizeBytes = c_UploadBufferSize
+		.sizeBytes = c_UploadBufferSize,
+		.debugName = "UploadBuffer"
 	}, rapi::ResourceState::COMMON);
+
+	m_CommitFence = m_Device->CreateFence(0, "DataUploader fence");
+
 	m_UploadBufferHead = 0;
 	m_UploadBufferTail = 0;
+}
+
+st::gfx::DataUploader::~DataUploader()
+{
+	assert(m_ThreadLocal.empty());
+	assert(m_UploadBufferHead == m_UploadBufferTail);
+
+	m_Device->ReleaseImmediately(m_CommitFence);
+	m_Device->ReleaseImmediately(m_UploadBuffer);
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBufferData(

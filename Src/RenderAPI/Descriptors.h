@@ -12,6 +12,8 @@ enum class DescriptorType : uint8_t
 {
 	SRV,
 	UAV,
+	RTV,
+	DSV,
 
 	_Size
 };

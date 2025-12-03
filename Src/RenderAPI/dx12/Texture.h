@@ -26,13 +26,20 @@ namespace st::rapi::dx12
 		void CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources) const;
 		void CreateDSV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly = false) const;
 
+		ResourceType GetResourceType() const override { return ResourceType::Texture; }
 		NativeResource GetNativeResource() override { return m_D3d12Resource.Get(); }
+		const std::string& GetDebugName() override { return m_Desc.debugName; }
+
+	protected:
+
+		void Release(Device* device) override;
 
 	private:
 
 		TextureDesc m_Desc;
 		ComPtr<ID3D12Resource> m_D3d12Resource;
-		std::array<DescriptorIndex, (int)DescriptorType::_Size> m_DescriptorIndex;
+		DescriptorIndex m_SRV;
+		DescriptorIndex m_UAV;
 
 		GpuDevice* m_Device;
 	};

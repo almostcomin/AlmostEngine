@@ -11,5 +11,5 @@ namespace st::rapi
 		virtual uint64_t GetCompletedValue() = 0;
 	};
 
-	using FenceHandle = std::shared_ptr<IFence>;
+	using FenceHandle = st::weak<IFence>;
 }

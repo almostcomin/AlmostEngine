@@ -8,7 +8,10 @@ namespace st::rapi::dx12
 
 class Framebuffer : public IFramebuffer
 {
+    friend class GpuDevice;
+
 public:
+
     FramebufferDesc desc;
     FramebufferInfo framebufferInfo;
 
@@ -21,6 +24,14 @@ public:
 
     const FramebufferDesc& GetDesc() const override { return desc; }
     const FramebufferInfo& GetFramebufferInfo() const override { return framebufferInfo; }
+
+    ResourceType GetResourceType() const override { return ResourceType::Framebuffer; }
+
+    std::string& GetDebugName() override { return desc.DebugName; }
+
+protected:
+
+    void Release(Device* device) override;
 };
 
 } // namespace st::rapi::dx12

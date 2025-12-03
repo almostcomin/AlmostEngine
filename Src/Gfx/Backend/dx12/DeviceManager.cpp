@@ -119,6 +119,8 @@ bool st::gfx::dx12::DeviceManager::Present()
     m_GraphicsQueue->Signal(m_FrameFence.Get(), m_FrameCount);
     m_FrameCount++;
 
+    m_Device->NextFrame();
+
     return SUCCEEDED(result);
 }
 
@@ -147,8 +149,6 @@ bool st::gfx::dx12::DeviceManager::InternalInit(const DeviceParams& params)
 
 void st::gfx::dx12::DeviceManager::InternalShutdown()
 {
-    st::gfx::DeviceManager::Shutdown();
-
     ReleaseRenderTargets();
 
     for (auto fenceEvent : m_FrameFenceEvents)
@@ -168,6 +168,9 @@ void st::gfx::dx12::DeviceManager::InternalShutdown()
     m_D3d12Device = nullptr;
 
     m_RendererString.clear();
+
+    m_Device->Shutdown();
+    m_Device.reset();
 
     if (m_DeviceParams.DebugRuntime)
     {
@@ -293,7 +296,6 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
     deviceDesc.pGraphicsCommandQueue = m_GraphicsQueue.Get();
     deviceDesc.pComputeCommandQueue = m_ComputeQueue.Get();
     deviceDesc.pCopyCommandQueue = m_CopyQueue.Get();
-    deviceDesc.logBufferLifetime = false;// m_DeviceParams.logBufferLifetime;
 
     m_Device = st::rapi::dx12::CreateDevice(deviceDesc);
 
@@ -416,14 +418,14 @@ st::rapi::ITexture* st::gfx::dx12::DeviceManager::GetBackBuffer(uint32_t index)
 
 bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
 {
-    m_SwapChainNativeBuffers.resize(m_SwapChainDesc.BufferCount);
     m_SwapChainBuffers.resize(m_SwapChainDesc.BufferCount);
 
     for (UINT n = 0; n < m_SwapChainDesc.BufferCount; n++)
     {
-        const HRESULT hr = m_SwapChain->GetBuffer(n, IID_PPV_ARGS(&m_SwapChainNativeBuffers[n]));
-        HR_RETURN(hr)
-
+        ComPtr<ID3D12Resource> nativeBuffer;
+        const HRESULT hr = m_SwapChain->GetBuffer(n, IID_PPV_ARGS(&nativeBuffer));
+        HR_RETURN(hr);        
+        
         rapi::TextureDesc textureDesc;
         textureDesc.width = m_SwapChainDesc.Width;
         textureDesc.height = m_SwapChainDesc.Height;
@@ -434,7 +436,7 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
         textureDesc.isRenderTarget = true;
 
         m_SwapChainBuffers[n] = m_Device->CreateHandleForNativeTexture(
-            m_SwapChainNativeBuffers[n].Get(), textureDesc);
+            nativeBuffer.Get(), textureDesc);
     }
 
     return true;
@@ -453,6 +455,9 @@ void st::gfx::dx12::DeviceManager::ReleaseRenderTargets()
         SetEvent(e);
 
     // Release the old buffers because ResizeBuffers requires that
+    for (auto& texture : m_SwapChainBuffers)
+    {
+        m_Device->ReleaseImmediately(texture);
+    }
     m_SwapChainBuffers.clear();
-    m_SwapChainNativeBuffers.clear();
 }

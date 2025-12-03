@@ -24,19 +24,27 @@ namespace st::rapi::dx12
 
 		DescriptorIndex GetDescriptorIndex(DescriptorType type) override;
 
-		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rapi::Format format, uint32_t offsetBytes, size_t sizeBytes);
-		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rapi::Format format, uint32_t offsetBytes, size_t sizeBytes);
+		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rapi::Format format, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device);
+		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rapi::Format format, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device);
 
+		ResourceType GetResourceType() const override { return ResourceType::Buffer; }
 		NativeResource GetNativeResource() override { return m_Resource.Get(); }
+
+		const std::string& GetDebugName() override { return m_Desc.debugName; }
+
+	protected:
+
+		void Release(Device* device) override;
 
 	private:
 
 		BufferDesc m_Desc;
 		char* m_mapAddr;
-		std::array<DescriptorIndex, (int)DescriptorType::_Size> m_DescriptorIndex;
-		ComPtr<ID3D12Resource> m_Resource;
 
-		GpuDevice* m_Device;
+		DescriptorIndex m_SRV;
+		DescriptorIndex m_UAV;
+
+		ComPtr<ID3D12Resource> m_Resource;
 	};
 
 }  // namespace st::rapi

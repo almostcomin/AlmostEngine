@@ -99,7 +99,7 @@ public:
 
     virtual glm::ivec2 GetWindowDimensions() const = 0;
     
-    st::rapi::IFramebuffer* GetCurrentFramebuffer();
+    st::rapi::FramebufferHandle GetCurrentFramebuffer();
 
     virtual uint32_t GetCurrentBackBufferIndex() const = 0;
     virtual st::rapi::ITexture* GetCurrentBackBuffer() = 0;
@@ -117,7 +117,10 @@ public:
     st::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
     st::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }
 
-    uint32_t GetFrameCount() const { return m_FrameCount; }
+    uint64_t GetFrameCount() const { return m_FrameCount; }
+    uint32_t GetSwapchainBufferCount() const { return m_SwapChainFramebuffers.size(); }
+    uint32_t GetFrameModuleIndex() const;
+
     st::rapi::Device* GetDevice() { return m_Device.get(); }
 
 protected:
@@ -126,7 +129,7 @@ protected:
 
     DeviceParams m_DeviceParams;
 
-    uint32_t m_FrameCount = 0;
+    uint64_t m_FrameCount = 0;
     std::vector<st::rapi::FramebufferHandle> m_SwapChainFramebuffers;
 
     uint32_t m_BackBufferWidth = 0;

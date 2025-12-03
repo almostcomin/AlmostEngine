@@ -25,6 +25,7 @@ class DataUploader
 public:
 
 	DataUploader(rapi::Device* device);
+	~DataUploader();
 
 	/// Uploads data to a buffer object.
 	/// 
@@ -57,7 +58,6 @@ public:
 		const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentState, rapi::ResourceState targetState,
 		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
-	void AsyncUpdate();
 	void ProcessRenderingThreadCommands();
 	void RunGarbageCollector();
 

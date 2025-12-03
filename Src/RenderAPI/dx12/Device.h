@@ -20,11 +20,7 @@ namespace st::rapi::dx12
         uint32_t samplerHeapSize = 16; // Though static ones should be enough
         uint32_t maxTimerQueries = 256;
 
-        bool aftermathEnabled = false;
-
-        // Enable logging the buffer lifetime to IMessageCallback
-        // Useful for debugging resource lifetimes
-        bool logBufferLifetime = false;
+        uint32_t swapChainFrames = 3;        
     };
 
     std::unique_ptr<st::rapi::Device> CreateDevice(const DeviceDesc& desc);

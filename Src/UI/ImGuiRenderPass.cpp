@@ -29,8 +29,7 @@ void st::ui::ImGuiRenderPass::OnAttached()
 
 void st::ui::ImGuiRenderPass::OnDetached()
 {
-    // TODO
-    assert(0);
+    Release();
 }
 
 void st::ui::ImGuiRenderPass::BeginFullScreenWindow()
@@ -76,7 +75,7 @@ st::rapi::BufferHandle& st::ui::ImGuiRenderPass::GetCurrentIB()
     return m_IndexBuffer[currentFrameIdx % 3];
 }
 
-bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
+bool st::ui::ImGuiRenderPass::Render()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
     st::rapi::Device* device = deviceManager->GetDevice();
@@ -85,17 +84,13 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
     glm::ivec2 dim = deviceManager->GetWindowDimensions();
     io.DisplaySize = ImVec2(dim.x, dim.y);
 
-    m_CommandList->Open();
-    m_CommandList->BeginMarker("ImGui");
-
-    m_CommandList->PushBarrier(rapi::Barrier().Texture(
-        frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::COMMON, rapi::ResourceState::RENDERTARGET));
+    rapi::CommandListHandle commandList = m_RenderView->GetCommandList();
+    commandList->BeginMarker("ImGui");
 
     // Address any change in font data. Needs to be called before ImGui::NewFrame()
     if (!UpdateFontTexture())
     {
         LOG_ERROR("Failed to update ImGui font texture");
-        m_CommandList->Close();
         return false;
     }
 
@@ -113,7 +108,6 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
     if (!UpdateGeometry())
     {
         LOG_ERROR("Failed to update ImGui geometry buffer");
-        m_CommandList->Close();
         return false;
     }
 
@@ -122,15 +116,17 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
 
     float2 invDisplaySize = { 1.f / io.DisplaySize.x, 1.f / io.DisplaySize.y };
 
-    m_CommandList->BeginRenderPass(
-        frameBuffer,
+    rapi::FramebufferHandle frameBuffer = m_RenderView->GetFramebuffer();
+
+    commandList->BeginRenderPass(
+        frameBuffer.get(),
         { rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Black} },
         {},
         rapi::RenderPassFlags::None);
 
-    m_CommandList->SetPipelineState(GetPSO(frameBuffer).get());
+    commandList->SetPipelineState(GetPSO(frameBuffer.get()).get());
     
-    m_CommandList->SetViewport(rapi::ViewportState().AddViewport({
+    commandList->SetViewport(rapi::ViewportState().AddViewport({
         io.DisplaySize.x* io.DisplayFramebufferScale.x,
         io.DisplaySize.y* io.DisplayFramebufferScale.y }));
 
@@ -149,7 +145,7 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
             }
             else
             {
-                m_CommandList->SetViewport(rapi::ViewportState().AddViewport({
+                commandList->SetViewport(rapi::ViewportState().AddViewport({
                     io.DisplaySize.x * io.DisplayFramebufferScale.x,
                     io.DisplaySize.y * io.DisplayFramebufferScale.y }).AddScissorRect({
                     int2 { pCmd->ClipRect.x, pCmd->ClipRect.y }, int2{pCmd->ClipRect.z, pCmd->ClipRect.w} }));
@@ -162,88 +158,18 @@ bool st::ui::ImGuiRenderPass::Render(rapi::IFramebuffer* frameBuffer)
                 cb.vertexBufferOffset = vtxOffset;
                 cb.textureIndex = m_FontTexture->GetDescriptorIndex(rapi::DescriptorType::SRV);
 
-                m_CommandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0);
+                commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0);
                 
-                m_CommandList->Draw(pCmd->ElemCount);
+                commandList->Draw(pCmd->ElemCount);
             }
             idxOffset += pCmd->ElemCount;
         }
         vtxOffset += cmdList->VtxBuffer.Size;
     }
 
-    m_CommandList->EndMarker();
-    m_CommandList->EndRenderPass();
-    m_CommandList->PushBarrier(rapi::Barrier().Texture(
-        frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::RENDERTARGET, rapi::ResourceState::COMMON));
-    m_CommandList->Close();
+    commandList->EndRenderPass();
+    commandList->EndMarker();
     
-    device->ExecuteCommandList(m_CommandList.get(), st::rapi::QueueType::Graphics);
-
-#if 0
-    // Set up graphics state
-    nvrhi::GraphicsState drawState;
-    drawState.framebuffer = frameBuffer;
-    assert(drawState.framebuffer);
-    drawState.pipeline = GetPSO(drawState.framebuffer);
-    drawState.viewport.viewports.push_back(nvrhi::Viewport{
-        io.DisplaySize.x * io.DisplayFramebufferScale.x,
-        io.DisplaySize.y * io.DisplayFramebufferScale.y });
-    drawState.viewport.scissorRects.resize(1);
-
-    nvrhi::VertexBufferBinding vbufBinding;
-    vbufBinding.buffer = m_VertexBuffer;
-    vbufBinding.slot = 0;
-    vbufBinding.offset = 0;
-    drawState.vertexBuffers.push_back(vbufBinding);
-
-    drawState.indexBuffer.buffer = m_IndexBuffer;
-    drawState.indexBuffer.format = (sizeof(ImDrawIdx) == 2 ? nvrhi::Format::R16_UINT : nvrhi::Format::R32_UINT);
-    drawState.indexBuffer.offset = 0;
-
-    // Render command lists
-    m_CommandList->beginMarker("ImGui");
-    int vtxOffset = 0;
-    int idxOffset = 0;
-    for (int n = 0; n < drawData->CmdLists.Size; n++)
-    {
-        const ImDrawList* cmdList = drawData->CmdLists[n];
-        for (int i = 0; i < cmdList->CmdBuffer.Size; i++)
-        {
-            const ImDrawCmd* pCmd = &cmdList->CmdBuffer[i];
-
-            if (pCmd->UserCallback)
-            {
-                pCmd->UserCallback(cmdList, pCmd);
-            }
-            else 
-            {
-                drawState.bindings = { GetBindingSet((nvrhi::ITexture*)pCmd->GetTexID()) };
-                assert(drawState.bindings[0]);
-
-                drawState.viewport.scissorRects[0] = nvrhi::Rect(int(pCmd->ClipRect.x),
-                    int(pCmd->ClipRect.z),
-                    int(pCmd->ClipRect.y),
-                    int(pCmd->ClipRect.w));
-
-                nvrhi::DrawArguments drawArguments;
-                drawArguments.vertexCount = pCmd->ElemCount;
-                drawArguments.startIndexLocation = idxOffset;
-                drawArguments.startVertexLocation = vtxOffset;
-
-                m_CommandList->setGraphicsState(drawState);
-                m_CommandList->setPushConstants(invDisplaySize, sizeof(invDisplaySize));
-                m_CommandList->drawIndexed(drawArguments);
-            }
-            idxOffset += pCmd->ElemCount;
-        }
-        vtxOffset += cmdList->VtxBuffer.Size;
-    }
-
-    m_CommandList->endMarker();
-    m_CommandList->close();
-    device->executeCommandList(m_CommandList, nvrhi::CommandQueue::Graphics);
-#endif
-
     return true;
 }
 
@@ -302,8 +228,6 @@ bool st::ui::ImGuiRenderPass::Init()
     st::rapi::Device* device = deviceManager->GetDevice();
     st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 
-    m_CommandList = device->CreateCommandList(st::rapi::CommandListParams{ st::rapi::QueueType::Graphics });
-
     m_VS = shaderFactory->LoadShader("imgui_bindless_vs.vso", rapi::ShaderType::Vertex);
     m_PS = shaderFactory->LoadShader("imgui_bindless_ps.pso", rapi::ShaderType::Pixel);
     if (!m_VS || !m_PS)
@@ -355,6 +279,23 @@ bool st::ui::ImGuiRenderPass::Init()
     return true;
 }
 
+void st::ui::ImGuiRenderPass::Release()
+{
+    auto* device = m_RenderView->GetDeviceManager()->GetDevice();
+
+    ImGui::DestroyContext();
+
+    device->ReleaseQueued(m_FontTexture);
+    device->ReleaseQueued(m_PSO);
+    for (int i = 0; i < 3; ++i)
+    {
+        device->ReleaseQueued(m_VertexBuffer[i]);
+        device->ReleaseQueued(m_IndexBuffer[i]);
+    }
+    device->ReleaseQueued(m_VS);
+    device->ReleaseQueued(m_PS);
+}
+
 bool st::ui::ImGuiRenderPass::UpdateFontTexture()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
@@ -382,18 +323,20 @@ bool st::ui::ImGuiRenderPass::UpdateFontTexture()
     m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rapi::ResourceState::COPY_DST);
     if (!m_FontTexture)
         return false;
-
-    m_TextureUploadBuffer = device->CreateBuffer(rapi::BufferDesc{
+    
+    rapi::BufferHandle textureUploadBuffer = device->CreateBuffer(rapi::BufferDesc{
         .memoryAccess = rapi::MemoryAccess::Upload,
         .shaderUsage = rapi::ShaderUsage::None,
         .sizeBytes = (size_t)width * height * 4,
         .debugName = "ImGui TextureUploadBuffer" }, rapi::ResourceState::COMMON);
     
-    void* uploadData = m_TextureUploadBuffer->Map();
+    void* uploadData = textureUploadBuffer->Map();
     std::memcpy(uploadData, pixels, width * height * 4);
-    m_TextureUploadBuffer->Unmap();
+    textureUploadBuffer->Unmap();
 
-    m_CommandList->WriteTexture(m_FontTexture.get(), rapi::AllSubresources, m_TextureUploadBuffer.get(), 0);
+    m_RenderView->GetCommandList()->WriteTexture(m_FontTexture.get(), rapi::AllSubresources, textureUploadBuffer.get(), 0);
+
+    device->ReleaseQueued(textureUploadBuffer);
 
     io.Fonts->TexRef = m_FontTexture.get();
 

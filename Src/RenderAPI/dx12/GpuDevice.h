@@ -3,6 +3,7 @@
 #include "Core/ComPtr.h"
 #include "RenderAPI/dx12/Device.h"
 #include "RenderAPI/dx12/DescriptorHeap.h"
+#include <unordered_set>
 
 namespace st::rapi::dx12
 {
@@ -37,10 +38,15 @@ namespace st::rapi::dx12
 		FramebufferHandle CreateFramebuffer(const FramebufferDesc& desc) override;
 		CommandListHandle CreateCommandList(const CommandListParams& params) override;
 		GraphicsPipelineStateHandle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo) override;
-		FenceHandle CreateFence() override;
+		FenceHandle CreateFence(uint64_t initialVale, const char* debugName) override;
+
+		void ReleaseImmediately(const weak<IResource>& handle) override;
+		void ReleaseQueued(const weak<IResource>& handle) override;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetRTVCPUDescriptorHandle(DescriptorIndex idx);
 
+		DescriptorHeap* GetDepthStencilViewHeap() { return &m_DepthStencilViewHeap; }
+		DescriptorHeap* GetRenderTargetViewHeap() { return &m_RenderTargetViewHeap; }
 		DescriptorHeap* GetShaderResourceViewHeap() { return &m_ShaderResourceViewHeap; }
 		DescriptorHeap* GetSamperHeap() { return &m_SamplerHeap; }
 
@@ -49,11 +55,23 @@ namespace st::rapi::dx12
 
 		void WaitForIdle() override;
 
+		void NextFrame() override;
+
+		void Shutdown() override;
+
 		ID3D12Device* GetNativeDevice() { return m_D3d12Device.Get(); }
 
 	private:
 
 		void CreateBindlessRootSignature();
+
+		template<class T>
+		st::weak<T> InsertNewResource(T* p)
+		{
+			std::scoped_lock lock{ m_LivingResourcesMutex };
+			auto insertResult = m_LivingResources.insert(std::move(st::unique<IResource>{ checked_cast<IResource*>(p), ResourceDeleter }));
+			return st::static_pointer_cast<T>(insertResult.first->get_weak());
+		}
 
 	private:
 
@@ -85,6 +103,16 @@ namespace st::rapi::dx12
 		ComPtr<ID3D12Device8> m_D3d12Device8;
 
 		ComPtr<ID3D12RootSignature> m_BindlessRootSignature;
+
+		std::mutex m_LivingResourcesMutex;
+		std::unordered_set<st::unique<IResource>, ResourcePtrHash, ResourcePtrEqual> m_LivingResources;
+
+		std::mutex m_StaleResourcesMutex;
+		std::vector<std::vector<IResource*>> m_StaleResources;
+
+		uint64_t m_CurrentFrameIdx;
+
+		DeviceDesc m_Desc;
 	};
 
 } // namespace st::rapi::dx12

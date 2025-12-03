@@ -178,6 +178,11 @@ int SDL_main(int argc, char* argv[])
 	}
 
 	// Clean up
+	camera.reset();
+	renderView.reset();
+	uiRenderPass.reset();
+	fwdRenderPass.reset();
+	sceneGraph.reset();
 
 	deviceManager->Shutdown();
 

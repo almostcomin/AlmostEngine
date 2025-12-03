@@ -3,6 +3,7 @@
 #include "RenderAPI/Resource.h"
 #include "RenderAPI/Barriers.h"
 #include "RenderAPI/Texture.h"
+#include "Core/Memory.h"
 #include <span>
 
 namespace st::rapi
@@ -24,6 +25,7 @@ enum class QueueType : uint8_t
 struct CommandListParams
 {
 	QueueType queueType = QueueType::Graphics;
+	std::string debugName = "{null}";
 };
 
 union ClearValue
@@ -101,6 +103,6 @@ public:
 	virtual QueueType GetType() const = 0;
 };
 
-using CommandListHandle = std::shared_ptr<ICommandList>;
+using CommandListHandle = st::weak<ICommandList>;
 
 } // namespace st::rapi

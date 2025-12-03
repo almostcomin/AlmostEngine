@@ -15,6 +15,10 @@ public:
 	const ShaderDesc& GetDesc() const override { return m_Desc; }
 	const WeakBlob& GetBytecode() const override { return m_Bytecode; }
 
+	const std::string& GetDebugName() override { return m_Desc.DebugName; }
+
+	void Release(Device* device) override {}
+
 private:
 
 	ShaderDesc m_Desc;

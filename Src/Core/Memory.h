@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <functional>
+#include <cassert>
 
 namespace st
 {
@@ -8,15 +10,69 @@ namespace st
 template<class T>
 class weak
 {
+    template <typename U>
+    friend class weak;
+
     template<class T>
     friend class unique;
+
     template<class T>
     friend class enable_weak_from_this;
+
+    template<class T, class U>
+    friend st::weak<T> static_pointer_cast(const st::weak<U>& r) noexcept;
+
+    template<class T, class U>
+    friend st::weak<T> dynamic_pointer_cast(const st::weak<U>& r) noexcept;
+
+    template<class T, class U>
+    friend st::weak<T> checked_pointer_cast(const st::weak<U>& r) noexcept;
+
 public:
     weak() : ptr(nullptr) {};
-    bool expired() const { return flag.expired(); }
-    T* get() const { return expired() ? nullptr : ptr; }
-    void reset() { ptr = nullptr; flag.reset(); }
+    weak(std::nullptr_t) : ptr(nullptr) {}
+
+    weak(const weak<T>& other) :
+        ptr(other.ptr),
+        flag(other.flag)
+    {}
+
+    weak(weak<T>&& other) :
+        ptr(std::move(other.ptr)),
+        flag(std::move(other.flag))
+    {}
+
+    template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+    weak(const weak<U>& other) :
+        ptr(other.ptr),
+        flag(other.flag)
+    {}
+
+    template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+    weak(weak<U>&& other) :
+        ptr(std::move(other.ptr)),
+        flag(std::move(other.flag))
+    {}
+
+    weak<T>& operator=(const weak<T>& other)
+    {
+        if (this != &other)
+        {
+            ptr = other.ptr;
+            flag = other.flag;
+        }
+        return *this;
+    }
+
+    weak<T>& operator=(weak<T>&& other)
+    {
+        if (this != &other)
+        {
+            ptr = std::move(other.ptr);
+            flag = std::move(other.flag);
+        }
+        return *this;
+    }
 
     T& operator*() const { return *ptr; }
     T* operator->() const { return ptr; }
@@ -26,6 +82,20 @@ public:
     bool operator ==(const weak<U>& other) const { return ptr == other.ptr; }
     template<class U>
     bool operator !=(const weak<U>& other) const { return ptr != other.ptr; }
+
+    bool operator==(std::nullptr_t) const { return expired(); }
+    bool operator!=(std::nullptr_t) const { return !expired(); }
+
+    friend bool operator==(std::nullptr_t, const weak& w) { return w.expired(); }
+    friend bool operator!=(std::nullptr_t, const weak& w) { return !w.expired(); }
+
+    bool operator<(const weak& other) const {
+        return ptr < other.ptr;
+    }
+
+    bool expired() const { return flag.expired(); }
+    T* get() const { return expired() ? nullptr : ptr; }
+    void reset() { ptr = nullptr; flag.reset(); }
 
 private:
     weak(T* p, const std::weak_ptr<void>& f) : ptr(p), flag(f) {}
@@ -57,22 +127,44 @@ public:
     unique() = default;
 
     explicit unique(T* ptr) :
-        obj(ptr),
+        obj(ptr, [](T* ptr) { delete ptr; }),
         flag(std::make_shared<int>(0))
     {
-        if constexpr (std::is_base_of_v<enable_weak_from_this<T>, T>)
-            obj->control = flag;
+        setup_weak_from_this();
     }
 
+    template<typename Deleter>
+    explicit unique(T* ptr, Deleter&& del) :
+        obj(ptr, std::forward<Deleter>(del)),
+        flag(std::make_shared<int>(0))
+    {
+        setup_weak_from_this();
+    }
+
+    template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+    explicit unique(U* ptr) :
+        obj(ptr, [](T* ptr) { delete ptr; }),
+        flag(std::make_shared<int>(0))
+    {
+        setup_weak_from_this();
+    }
+
+    template<class U, typename Deleter, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+    explicit unique(U* ptr, Deleter&& del) :
+        obj(ptr, std::forward<Deleter>(del)),
+        flag(std::make_shared<int>(0))
+    {
+        setup_weak_from_this();
+    }
+/*
     template<typename... Args>
     explicit unique(Args&&... args) :
         obj(std::make_unique<T>(std::forward<Args>(args)...)),
         flag(std::make_shared<int>(0))
     {
-        if constexpr (std::is_base_of_v<enable_weak_from_this<T>, T>)
-            obj->control = flag;
+        setup_weak_from_this();
     }
-
+*/
     unique(const unique&) = delete;
     unique& operator=(const unique&) = delete;
 
@@ -83,7 +175,7 @@ public:
 
     template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
     unique(unique<U>&& other) :
-        obj(std::move(other.obj)),
+        obj(other.release()),
         flag(std::move(other.flag))
     {}
 
@@ -114,15 +206,44 @@ public:
     bool valid() const { return obj ? true : false; }
     operator bool() const { return valid(); }
 
+    bool operator<(const unique& other) const {
+        return obj.get() < other.obj.get();
+    }
+
     template<class U>
     bool operator ==(const unique<U>& other) const { return obj.get() == other.obj.get(); }
     template<class U>
     bool operator !=(const unique<U>& other) const { return obj.get() != other.obj.get(); }
 
+    T* release()
+    {
+        flag.reset();
+        return obj.release();
+    }
+
+    void reset() 
+    { 
+        obj.reset(); 
+        flag.reset(); 
+    }
+
     weak<T> get_weak() const { return weak<T>{obj.get(), flag}; }
 
 private:
-    std::unique_ptr<T> obj;
+
+    void setup_weak_from_this() 
+    {
+        if constexpr (std::is_base_of_v<enable_weak_from_this<T>, T>) 
+        {
+            if (obj) 
+            {
+                flag = std::make_shared<int>(0);
+                obj->control = flag;
+            }
+        }
+    }
+
+    std::unique_ptr<T, std::function<void(T*)>> obj;
     std::shared_ptr<void> flag;
 };
 
@@ -131,6 +252,41 @@ unique<T> make_unique_with_weak(Args&&... args)
 {
     T* p = new T(std::forward<Args>(args)...);
     return unique<T>(p);
+}
+
+template<class T, class U>
+st::weak<T> static_pointer_cast(const st::weak<U>& r) noexcept
+{
+    static_assert(!std::is_same<T, U>::value, "Redundant checked_pointer_cast");
+    auto* p = static_cast<T*>(r.get());
+    return st::weak<T>{ p, r.flag };
+}
+
+template<class T, class U>
+st::weak<T> dynamic_pointer_cast(const st::weak<U>& r) noexcept
+{
+    static_assert(!std::is_same<T, U>::value, "Redundant checked_pointer_cast");
+    if (!r) return nullptr;
+    auto* p = dynamic_cast<T*>(r.get());
+    if (!p) return { nullptr };
+    return st::weak<T>{ p, r.flag };
+}
+
+template<class T, class U>
+st::weak<T> checked_pointer_cast(const st::weak<U>& r) noexcept
+{
+#ifdef _DEBUG
+    if (!r) return nullptr;
+    auto* p = dynamic_cast<T*>(r.get());
+    if (!p)
+    {
+        assert(!"Invalid type cast");
+        return { nullptr };
+    }
+    return st::weak<T>{ p, r.flag };
+#else
+    return static_pointer_cast<T>(u);
+#endif
 }
 
 } // namespace st

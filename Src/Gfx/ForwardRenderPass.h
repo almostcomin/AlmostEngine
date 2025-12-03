@@ -21,7 +21,7 @@ public:
 
 	void SetSceneGraph(st::weak<SceneGraph> sceneGraph) { m_SceneGraph = sceneGraph; }
 
-	bool Render(st::rapi::IFramebuffer* frameBuffer) override;
+	bool Render() override;
 	void OnBackbufferResize(const glm::ivec2& size) override {};
 
 private:
@@ -32,8 +32,6 @@ private:
 private:
 
 	st::weak<SceneGraph> m_SceneGraph;
-
-	st::rapi::CommandListHandle m_CommandList;
 
 	st::rapi::ShaderHandle m_Vs;
 	st::rapi::ShaderHandle m_Ps;

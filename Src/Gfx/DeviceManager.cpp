@@ -40,10 +40,14 @@ bool st::gfx::DeviceManager::Init(const DeviceParams& params)
 
 void st::gfx::DeviceManager::Shutdown()
 {
+	m_Device->WaitForIdle();
+
 	m_TextureCache.reset();
 	m_DataUploader.reset();
 	m_ShaderFactory.reset();
 
+	for (auto& fb : m_SwapChainFramebuffers)
+		m_Device->ReleaseQueued(fb);
 	m_SwapChainFramebuffers.clear();
 
 	InternalShutdown();
@@ -54,9 +58,9 @@ void st::gfx::DeviceManager::Update()
 	m_TextureCache->Update();
 }
 
-st::rapi::IFramebuffer* st::gfx::DeviceManager::GetCurrentFramebuffer()
+st::rapi::FramebufferHandle st::gfx::DeviceManager::GetCurrentFramebuffer()
 {
-	return m_SwapChainFramebuffers[GetCurrentBackBufferIndex()].get();
+	return m_SwapChainFramebuffers[GetCurrentBackBufferIndex()];
 }
 
 bool st::gfx::DeviceManager::UpdateWindowSize()
@@ -78,6 +82,8 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 
 	if (int(m_BackBufferWidth) != width || int(m_BackBufferHeight) != height)
 	{
+		for (auto& fb : m_SwapChainFramebuffers)
+			m_Device->ReleaseQueued(fb);
 		m_SwapChainFramebuffers.clear();
 
 		m_BackBufferWidth = width;
@@ -89,8 +95,9 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 		m_SwapChainFramebuffers.resize(backBufferCount);
 		for (uint32_t index = 0; index < backBufferCount; index++)
 		{
-			m_SwapChainFramebuffers[index] = m_Device->CreateFramebuffer(
-				st::rapi::FramebufferDesc().AddColorAttachment(GetBackBuffer(index)));
+			m_SwapChainFramebuffers[index] = m_Device->CreateFramebuffer(st::rapi::FramebufferDesc()
+				.AddColorAttachment(GetBackBuffer(index))
+				.SetDebugName(std::format("Swapchain FrameBuffer[{}]", index)));
 		}
 
 		return true;
@@ -119,4 +126,9 @@ void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 
 	m_DataUploader->RunGarbageCollector();
 	m_TextureCache->Update(); // Data uploader so it updates the state of the textures
+}
+
+uint32_t st::gfx::DeviceManager::GetFrameModuleIndex() const
+{
+	return m_FrameCount % m_SwapChainFramebuffers.size();
 }
