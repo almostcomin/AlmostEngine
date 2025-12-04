@@ -58,21 +58,21 @@ public:
 		const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentState, rapi::ResourceState targetState,
 		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
-	void ProcessRenderingThreadCommands();
 	void RunGarbageCollector();
 
 private: /* types */
 
 private: /* methods */
 
-	rapi::CommandListHandle GetNewCommandList();
+	rapi::CommandListHandle GetCommandList();
+	SignalListener FinishCommandList(rapi::CommandListHandle commandList);
+
 	uint64_t RequestUploadBufferSpace(size_t size);
+
+	void AsyncUpdate();
 
 private: /* */
 	
-	std::unordered_map<std::thread::id, rapi::CommandListHandle> m_ThreadLocal;
-	std::mutex m_ThreadLocalMutex;
-
 	rapi::BufferHandle m_UploadBuffer;
 	uint64_t m_UploadBufferHead;
 	uint64_t m_UploadBufferTail;
@@ -88,14 +88,18 @@ private: /* */
 	struct InFlightCommandListEntry
 	{
 		uint64_t CompletedIdx;
-		std::vector<rapi::CommandListHandle> CommandLists;
+		rapi::CommandListHandle CommandList;
 		SignalEmitter Signal;
 	};
-	RingBuffer<InFlightCommandListEntry, 32> m_InFlightCommandLists;
+	RingBuffer<InFlightCommandListEntry, 256> m_InFlightCommandLists;
+	std::mutex m_InFlightCommandListsMutex;
 
 	uint64_t m_CommitCount;
 	rapi::FenceHandle m_CommitFence;
-	SignalEmitter m_CurrentSignal;
+
+	std::thread m_ProcessInFlightCommandsThread;
+	std::condition_variable m_InFlightCommandListsCV;
+	std::atomic<bool> m_AsyncShutdown;
 
 	st::rapi::Device* m_Device;
 };

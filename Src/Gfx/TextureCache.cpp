@@ -11,7 +11,7 @@
 namespace
 {
 
-st::rapi::TextureDesc TexInfoToNvrhiTexDesc(const st::gfx::TextureInfo& texInfo)
+st::rapi::TextureDesc TexInfoToTexDesc(const st::gfx::TextureInfo& texInfo)
 {
     return st::rapi::TextureDesc {
         .width = texInfo.width,
@@ -23,13 +23,14 @@ st::rapi::TextureDesc TexInfoToNvrhiTexDesc(const st::gfx::TextureInfo& texInfo)
         .sampleQuality = 0,
         .format = texInfo.format,
         .dimension = texInfo.dimension,
-        .debugName = texInfo.debugName
+        .debugName = texInfo.debugName,
+        .shaderUsage = st::rapi::ShaderUsage::ShaderResource
     };
 }
 
 st::rapi::TextureHandle CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, st::rapi::Device* device)
 {
-    st::rapi::TextureDesc desc = TexInfoToNvrhiTexDesc(texInfo);
+    st::rapi::TextureDesc desc = TexInfoToTexDesc(texInfo);
     return device->CreateTexture(desc, st::rapi::ResourceState::COPY_DST);
 }
 

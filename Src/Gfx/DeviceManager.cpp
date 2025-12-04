@@ -108,8 +108,6 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 
 void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 {
-	m_DataUploader->ProcessRenderingThreadCommands();
-
 	// Check window resize
 	if (UpdateWindowSize())
 	{
