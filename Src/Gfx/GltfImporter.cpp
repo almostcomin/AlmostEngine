@@ -758,7 +758,7 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
 {
     st::rapi::BufferDesc bufferDesc;
     bufferDesc.memoryAccess = st::rapi::MemoryAccess::Default;
-    bufferDesc.shaderUsage = st::rapi::ShaderUsage::ShaderResource;
+    bufferDesc.shaderUsage = st::rapi::BufferShaderUsage::ShaderResource;
     bufferDesc.sizeBytes = indexData.size();
     bufferDesc.stride = idx32bits ? sizeof(int32_t) : sizeof(int16_t);
     bufferDesc.debugName = "IndexBuffer";
@@ -785,7 +785,7 @@ CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugNam
 {
     st::rapi::BufferDesc bufferDesc;
     bufferDesc.memoryAccess = st::rapi::MemoryAccess::Default;
-    bufferDesc.shaderUsage = st::rapi::ShaderUsage::ShaderResource;
+    bufferDesc.shaderUsage = st::rapi::BufferShaderUsage::ShaderResource;
     bufferDesc.sizeBytes = vertexData.size();
     bufferDesc.stride = vertexStride;
     bufferDesc.debugName = "VertexBuffer";

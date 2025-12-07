@@ -26,14 +26,14 @@ std::string_view GetExtensionFromPath(const std::string_view& path);
 std::string MakeUniqueStringId();
 
 template<typename T>
-constexpr T AlignTo(T value, T alignment)
+constexpr T AlignUp(T value, T alignment)
 {
     return ((value + alignment - T(1)) / alignment) * alignment;
 }
 template<typename T>
 constexpr bool IsAligned(T value, T alignment)
 {
-    return value == AlignTo(value, alignment);
+    return (value % alignment) == T(0);
 }
 
 inline uint32_t NextPowerOf2(uint32_t v)

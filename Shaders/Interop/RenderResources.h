@@ -2,7 +2,6 @@
 #define __SHADERS_INTEROP_RENDERRESOURCES_H__
 
 #include "Interop.h"
-#include "Interop/RenderResources.h"
 
 namespace interop
 {

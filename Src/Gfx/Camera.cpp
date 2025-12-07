@@ -14,18 +14,18 @@ st::gfx::Camera::Camera() :
 {
 }
 
-st::gfx::Camera& st::gfx::Camera::SetPosition(const glm::vec3& pos)
+st::gfx::Camera& st::gfx::Camera::SetPosition(const float3& pos)
 {
 	m_Position = pos;
 	m_IsDirty = true;
 	return *this;
 }
 
-st::gfx::Camera& st::gfx::Camera::SetForward(const glm::vec3& dir)
+st::gfx::Camera& st::gfx::Camera::SetForward(const float3& dir)
 {
 	m_Forward = glm::normalize(dir);
 
-	m_Right = glm::cross(m_Forward, glm::vec3{ 0.f, 1.f, 0.f });
+	m_Right = glm::cross(m_Forward, float3{ 0.f, 1.f, 0.f });
 	m_Up = glm::cross(m_Right, m_Forward);
 
 	m_IsDirty = true;
@@ -67,19 +67,19 @@ st::gfx::Camera& st::gfx::Camera::SetProjectionModel(st::gfx::Camera::Projection
 	return *this;
 }
 
-const glm::mat4& st::gfx::Camera::GeViewMatrix()
+const float4x4& st::gfx::Camera::GeViewMatrix()
 {
 	UpdateMatrices();
 	return m_ViewMatrix;
 }
 
-const glm::mat4& st::gfx::Camera::GetProjectionMatrix()
+const float4x4& st::gfx::Camera::GetProjectionMatrix()
 {
 	UpdateMatrices();
 	return m_ProjectionMatrix;
 }
 
-glm::mat4 st::gfx::Camera::GetViewProjectionMatrix()
+float4x4 st::gfx::Camera::GetViewProjectionMatrix()
 {
 	UpdateMatrices();
 	return m_ProjectionMatrix * m_ViewMatrix;
@@ -122,7 +122,7 @@ void st::gfx::Camera::UpdateProjectionMatrix()
 	float xScale = yScale / m_Aspect;
 	float zScale = 1.0f / (m_zFar - m_zNear);
 
-	m_ProjectionMatrix = glm::mat4{
+	m_ProjectionMatrix = float4x4{
 		xScale,	0,		0,							0,
 		0,		yScale,	0,							0,
 		0,		0,		m_zFar * zScale,			1,
@@ -134,7 +134,7 @@ void st::gfx::Camera::UpdateProjectionMatrixReverse()
 {
 	float yScale = 1.0f / tanf(0.5f * m_VerticalFov);
 	float xScale = yScale / m_Aspect;
-	m_ProjectionMatrix = glm::mat4{
+	m_ProjectionMatrix = float4x4{
 		xScale,	0,		0,			0,
 		0,		yScale, 0,			0,
 		0,		0,		0,			1,

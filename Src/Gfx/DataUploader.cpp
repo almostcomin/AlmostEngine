@@ -16,7 +16,7 @@ st::gfx::DataUploader::DataUploader(rapi::Device* device) :
 {
 	m_UploadBuffer = m_Device->CreateBuffer(rapi::BufferDesc{
 		.memoryAccess = rapi::MemoryAccess::Upload,
-		.shaderUsage = rapi::ShaderUsage::None,
+		.shaderUsage = rapi::BufferShaderUsage::None,
 		.sizeBytes = c_UploadBufferSize,
 		.debugName = "UploadBuffer"
 	}, rapi::ResourceState::COMMON);

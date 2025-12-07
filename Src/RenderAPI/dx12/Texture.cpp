@@ -5,22 +5,21 @@
 st::rapi::dx12::Texture::Texture(const st::rapi::TextureDesc& desc, ComPtr<ID3D12Resource> resource, GpuDevice* device)
 	: m_Desc{ desc }
 	, m_D3d12Resource{ resource }
-    , m_SRV{ c_InvalidDescriptorIndex }
-    , m_UAV{ c_InvalidDescriptorIndex }
+    , m_ShaderViews{ c_InvalidDescriptorIndex, c_InvalidDescriptorIndex, c_InvalidDescriptorIndex, c_InvalidDescriptorIndex }
     , m_Device{ device }
 {
-    if (hasFlag(desc.shaderUsage, ShaderUsage::ShaderResource))
+    if (hasFlag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
     {
         auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
-        m_SRV = descriptorHeap->AllocateDescriptor();
-        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_SRV);
+        m_ShaderViews[(int)TextureShaderView::ShaderResource] = descriptorHeap->AllocateDescriptor();
+        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)TextureShaderView::ShaderResource]);
         CreateSRV(descriptorHandle, desc.format, desc.dimension, AllSubresources);
     }
-    if (hasFlag(desc.shaderUsage, ShaderUsage::UnorderedAccess))
+    if (hasFlag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
     {
         auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
-        m_UAV = descriptorHeap->AllocateDescriptor();
-        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_UAV);
+        m_ShaderViews[(int)TextureShaderView::UnorderedAcces] = descriptorHeap->AllocateDescriptor();
+        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)TextureShaderView::UnorderedAcces]);
         CreateUAV(descriptorHandle, desc.format, desc.dimension, AllSubresources);
     }
 }
@@ -30,17 +29,9 @@ const st::rapi::TextureDesc& st::rapi::dx12::Texture::GetDesc() const
 	return m_Desc;
 }
 
-st::rapi::DescriptorIndex st::rapi::dx12::Texture::GetDescriptorIndex(DescriptorType type)
+st::rapi::DescriptorIndex st::rapi::dx12::Texture::GetShaderViewIndex(TextureShaderView type)
 {
-    switch (type)
-    {
-    case DescriptorType::SRV:
-        return m_SRV;
-    case DescriptorType::UAV:
-        return m_UAV;
-    default:
-        return c_InvalidDescriptorIndex;
-    }
+    return m_ShaderViews[(int)type];
 }
 
 void st::rapi::dx12::Texture::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources) const
@@ -293,17 +284,14 @@ void st::rapi::dx12::Texture::Release(Device* device)
 {
     auto* gpuDevice = checked_cast<GpuDevice*>(device);
 
-    if (m_SRV != c_InvalidDescriptorIndex)
+    for (size_t i = 0; i < m_ShaderViews.size(); ++i)
     {
-        auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
-        descriptorHeap->ReleaseDescriptor(m_SRV);
-        m_SRV = c_InvalidDescriptorIndex;
-    }
-    if (m_UAV != c_InvalidDescriptorIndex)
-    {
-        auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
-        descriptorHeap->ReleaseDescriptor(m_UAV);
-        m_UAV = c_InvalidDescriptorIndex;
+        if (m_ShaderViews[i] != c_InvalidDescriptorIndex)
+        {
+            auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
+            descriptorHeap->ReleaseDescriptor(m_ShaderViews[i]);
+            m_ShaderViews[i] = c_InvalidDescriptorIndex;
+        }
     }
 
     m_D3d12Resource.Release();

@@ -22,8 +22,9 @@ namespace st::rapi::dx12
 		void* Map(uint64_t bufferStart = 0, size_t size = 0) override;
 		void Unmap(uint64_t bufferStart = 0, size_t size = 0) override;
 
-		DescriptorIndex GetDescriptorIndex(DescriptorType type) override;
+		DescriptorIndex GetShaderViewIndex(BufferShaderView type) override;
 
+		void CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device);
 		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rapi::Format format, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device);
 		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rapi::Format format, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device);
 
@@ -41,8 +42,7 @@ namespace st::rapi::dx12
 		BufferDesc m_Desc;
 		char* m_mapAddr;
 
-		DescriptorIndex m_SRV;
-		DescriptorIndex m_UAV;
+		std::array<DescriptorIndex, (int)BufferShaderView::_Size> m_ShaderViews;
 
 		ComPtr<ID3D12Resource> m_Resource;
 	};

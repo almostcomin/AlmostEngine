@@ -3,6 +3,8 @@
 #include "Core/Memory.h"
 #include "RenderAPI/CommandList.h"
 #include "RenderAPI/Shader.h"
+#include "RenderAPI/PipelineState.h"
+#include "RenderAPI/Buffer.h"
 #include "Gfx/RenderPass.h"
 
 namespace st::gfx
@@ -29,12 +31,18 @@ private:
 	void OnAttached() override;
 	void OnDetached() override;
 
+	rapi::DescriptorIndex GetCameraCB();
+
 private:
 
 	st::weak<SceneGraph> m_SceneGraph;
 
-	st::rapi::ShaderHandle m_Vs;
-	st::rapi::ShaderHandle m_Ps;
+	st::rapi::ShaderHandle m_VS;
+	st::rapi::ShaderHandle m_PS;
+	st::rapi::GraphicsPipelineStateHandle m_PSO;
+
+	st::rapi::BufferHandle m_CameraCB;
+	st::rapi::BufferHandle m_TransformCB;
 };
 
 } // namespace st::gfx

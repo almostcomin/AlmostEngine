@@ -45,6 +45,8 @@ st::rapi::ShaderHandle st::gfx::ShaderFactory::LoadShader(const char* filename, 
 				byteCode = st::rapi::ShaderCompiler::Compile(shaderType, st::WeakBlob{ *readResult }, SHADERS_SRC_FOLDER, "main", true);
 				if (byteCode)
 				{
+					LOG_INFO("Shader '{}' compiled OK", shaderSourcePath.string());
+
 					// Save compìled shader and pdb if present
 					file.Open(filename, fs::OpenMode::Write);
 					assert(file.IsOpen());

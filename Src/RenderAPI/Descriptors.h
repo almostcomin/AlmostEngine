@@ -7,9 +7,10 @@ namespace st::rapi
 
 using DescriptorIndex = uint32_t;
 constexpr DescriptorIndex c_InvalidDescriptorIndex = ~0u;
-
+/*
 enum class DescriptorType : uint8_t
 {
+	CBV,
 	SRV,
 	UAV,
 	RTV,
@@ -17,15 +18,43 @@ enum class DescriptorType : uint8_t
 
 	_Size
 };
+*/
 
-enum class ShaderUsage
+enum class TextureShaderView
+{
+	ShaderResource = 0,
+	UnorderedAcces = 1,
+	RenderTarget = 2,
+	DepthStencil = 3,
+
+	_Size
+};
+enum class TextureShaderUsage
 {
 	None = 0x0,
-	ShaderResource = 0x1,
-	UnorderedAccess = 0x2
+	ShaderResource = 0x1 << (int)TextureShaderView::ShaderResource,
+	UnorderedAccess = 0x1 << (int)TextureShaderView::UnorderedAcces,
+	RenderTarget = 0x1 << (int)TextureShaderView::RenderTarget,
+	DepthStencil = 0x1 << (int)TextureShaderView::DepthStencil
 };
-ENUM_CLASS_FLAG_OPERATORS(ShaderUsage)
+ENUM_CLASS_FLAG_OPERATORS(TextureShaderUsage)
 
+enum class BufferShaderView
+{
+	ConstantBuffer = 0,
+	ShaderResource = 1,
+	UnorderedAccess = 2,
+
+	_Size
+};
+enum class BufferShaderUsage
+{
+	None = 0x0,
+	ConstantBuffer = 0x1 << (int)BufferShaderView::ConstantBuffer,
+	ShaderResource = 0x1 << (int)BufferShaderView::ShaderResource,
+	UnorderedAccess = 0x1 << (int)BufferShaderView::UnorderedAccess
+};
+ENUM_CLASS_FLAG_OPERATORS(BufferShaderUsage)
 
 enum class MemoryAccess
 {

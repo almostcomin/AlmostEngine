@@ -39,7 +39,7 @@ namespace st::rapi
         TextureDimension dimension = TextureDimension::Texture2D;
         std::string debugName = "{null}";
 
-        ShaderUsage shaderUsage = ShaderUsage::None;
+        TextureShaderUsage shaderUsage = TextureShaderUsage::None;
 
         bool isRenderTarget = false;
         bool isTypeless = false;
@@ -65,7 +65,7 @@ namespace st::rapi
         constexpr TextureDesc& setDimension(TextureDimension value) { dimension = value; return *this; }
         TextureDesc& setDebugName(const std::string& value) { debugName = value; return *this; }
         constexpr TextureDesc& setIsRenderTarget(bool value) { isRenderTarget = value; return *this; }
-        constexpr TextureDesc& setShaderUsage(ShaderUsage value) { shaderUsage = value; return *this; }
+        constexpr TextureDesc& setShaderUsage(TextureShaderUsage value) { shaderUsage = value; return *this; }
         constexpr TextureDesc& setIsTypeless(bool value) { isTypeless = value; return *this; }
         constexpr TextureDesc& setIsVirtual(bool value) { isVirtual = value; return *this; }
         constexpr TextureDesc& setClearValue(const float4& value) { clearValue = value; useClearValue = true; return *this; }
@@ -120,7 +120,7 @@ namespace st::rapi
 
 		virtual const TextureDesc& GetDesc() const = 0;
 
-        virtual DescriptorIndex GetDescriptorIndex(DescriptorType type) = 0;
+        virtual DescriptorIndex GetShaderViewIndex(TextureShaderView type) = 0;
 	};
 
 	using TextureHandle = st::weak<ITexture>;

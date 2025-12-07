@@ -7,10 +7,13 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/Camera.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/Mesh.h"
 #include "RenderAPI/Device.h"
+#include "Interop/ConstantBuffers.h"
+#include "Interop/ForwardRP.h"
 
 bool st::gfx::ForwardRenderPass::Render()
-{ return true;
+{
 
 	if (!m_SceneGraph)
 	{
@@ -29,6 +32,8 @@ bool st::gfx::ForwardRenderPass::Render()
 	auto commandList = m_RenderView->GetCommandList();
 
 	commandList->BeginMarker("ForwardRenderPass");
+	commandList->SetPipelineState(m_PSO.get());
+	rapi::DescriptorIndex cameraCBIndex = GetCameraCB();
 
 	const auto& frustum = camera->GetFrustum();
 	st::gfx::SceneGraph::Walker walker{ *m_SceneGraph };
@@ -46,32 +51,8 @@ bool st::gfx::ForwardRenderPass::Render()
 					auto meshInstance = dynamic_cast<st::gfx::MeshInstance*>(leaf.get());
 					if (meshInstance)
 					{
-#if 0
-						nvrhi::BindingLayoutDesc layoutDesc;
-						layoutDesc.visibility = nvrhi::ShaderType::All;
-						layoutDesc.bindings = {
-							nvrhi::BindingLayoutItem::PushConstants(0, sizeof(float) * 2),
-							nvrhi::BindingLayoutItem::Texture_SRV(0),
-							nvrhi::BindingLayoutItem::Sampler(0)
-						};
-						auto bindingLayout = m_Device->createBindingLayout(layoutDesc);
-
-						// Create PSO
-						nvrhi::GraphicsPipelineDesc psoDesc = {};
-						psoDesc.primType = nvrhi::PrimitiveType::TriangleList;
-						//psoDesc.inputLayout = shaderAttribLayout;
-						//psoDesc.VS = vertexShader;
-						//psoDesc.PS = pixelShader;
-						psoDesc.renderState = {}; // let's use default one
-						psoDesc.bindingLayouts 
-
-						// Set up graphics state
-						nvrhi::GraphicsState drawState;
-						drawState.framebuffer = frameBuffer;
-						drawState.pipeline = GetPSO(drawState.framebuffer);
-
-						// TODO
-#endif
+						auto meshData = meshInstance->GetMesh();
+						meshData->GetIndexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
 					}
 				}
 			}
@@ -90,22 +71,92 @@ bool st::gfx::ForwardRenderPass::Render()
 
 void st::gfx::ForwardRenderPass::OnAttached()
 {
-#if 0
-	rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 
-	rapi::CommandListParams params{
-		.queueType = rapi::QueueType::Graphics
-	};
-	m_CommandList = device->CreateCommandList(params);
-	
-	st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();
-	m_Vs = shaderFactory->CreateShader("Shaders/forward_vs.vso", st::rapi::ShaderType::Vertex);
-	m_Ps = shaderFactory->CreateShader("Shaders/forward_ps.pso", st::rapi::ShaderType::Pixel);
-#endif
+	st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+	m_VS = shaderFactory->LoadShader("ForwardRP_vs.vso", rapi::ShaderType::Vertex);
+	m_PS = shaderFactory->LoadShader("ForwardRP_ps.vso", rapi::ShaderType::Vertex);
+
+	// Create PSO
+	{
+		rapi::BlendState blendState;
+		blendState.renderTarget[0] = rapi::BlendState::RenderTargetBlendState
+		{
+			.blendEnable = false,
+		};
+
+		rapi::RasterizerState rasterState =
+		{
+			.fillMode = rapi::FillMode::Solid,
+			.cullMode = rapi::CullMode::Back
+		};
+
+		rapi::DepthStencilState depthStencilState =
+		{
+			.depthTestEnable = true,
+			.depthWriteEnable = true,
+			.depthFunc = rapi::ComparisonFunc::LessEqual,
+			.stencilEnable = false
+		};
+
+
+		auto PSODesc = rapi::GraphicsPipelineStateDesc
+		{
+			.VS = m_VS,
+			.PS = m_PS,
+			.blendState = blendState,
+			.depthStencilState = depthStencilState,
+			.rasterState = rasterState
+		};
+
+		m_PSO = deviceManager->GetDevice()->CreateGraphicsPipelineState(
+			rapi::GraphicsPipelineStateDesc{
+				.VS = m_VS,
+				.PS = m_PS,
+				.blendState = blendState,
+				.depthStencilState = depthStencilState,
+				.rasterState = rasterState },
+				m_RenderView->GetFramebuffer()->GetFramebufferInfo());
+	}
 }
 
 void st::gfx::ForwardRenderPass::OnDetached()
 {
-	m_Vs.reset();
-	m_Ps.reset();
+	st::rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+
+	device->ReleaseQueued(m_PSO);
+	device->ReleaseQueued(m_VS);
+	device->ReleaseQueued(m_PS);
+}
+
+st::rapi::DescriptorIndex st::gfx::ForwardRenderPass::GetCameraCB()
+{
+	auto camera = m_RenderView->GetCamera();
+	if (!camera)
+	{
+		LOG_ERROR("Not camera defined");
+		return {};
+	}
+
+	if (!m_CameraCB)
+	{
+		rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+
+		rapi::BufferDesc desc{
+			.memoryAccess = rapi::MemoryAccess::Upload,
+			.shaderUsage = rapi::BufferShaderUsage::ConstantBuffer,
+			.sizeBytes = sizeof(interop::CameraCB),
+			.allowUAV = false,
+			.stride = 0 };
+
+		m_CameraCB = device->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);
+		
+		interop::CameraCB* cameraData = (interop::CameraCB*)m_CameraCB->Map();
+
+		cameraData->viewProjectionMatrix = camera->GetViewProjectionMatrix();
+		
+		m_CameraCB->Unmap();
+	}
+
+	return m_CameraCB->GetShaderViewIndex(rapi::BufferShaderView::ConstantBuffer);
 }

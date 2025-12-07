@@ -25,8 +25,16 @@ namespace st::rapi
         virtual GraphicsPipelineStateHandle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo) = 0;
         virtual FenceHandle CreateFence(uint64_t initialVale = 0, const char* debugName = nullptr) = 0;
 
-        virtual void ReleaseImmediately(const weak<IResource>& handle) = 0;
-        virtual void ReleaseQueued(const weak<IResource>& handle) = 0;
+        template<class T>
+        void ReleaseImmediately(weak<T>& handle) {
+            ReleaseImmediatelyInternal(handle.get());
+            handle.reset();
+        }
+        template<class T>
+        void ReleaseQueued(weak<T>& handle) {
+            ReleaseQueuedInternal(handle.get());
+            handle.reset();
+        }
 
         virtual void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal = nullptr, uint64_t value = 0) = 0;
         virtual void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal = nullptr, uint64_t value = 0) = 0;
@@ -38,6 +46,9 @@ namespace st::rapi
         virtual void Shutdown() = 0;
 
     protected:
+
+        virtual void ReleaseImmediatelyInternal(IResource* resource) = 0;
+        virtual void ReleaseQueuedInternal(IResource* resource) = 0;
 
         static void ResourceDeleter(IResource* p) {
             delete p;

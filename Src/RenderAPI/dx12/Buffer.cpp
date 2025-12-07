@@ -2,14 +2,14 @@
 #include "RenderAPI/dx12/GpuDevice.h"
 #include "RenderAPI/dx12/DxgiFormat.h"
 #include "Core/Log.h"
+#include "Core/Util.h"
 #include <cassert>
 #include <algorithm>
 
 st::rapi::dx12::Buffer::Buffer(const st::rapi::BufferDesc& desc, ID3D12Resource* buffer, st::rapi::dx12::GpuDevice* device) :
     m_Desc{ desc }, 
-    m_mapAddr{ nullptr }, 
-    m_SRV{ c_InvalidDescriptorIndex },
-    m_UAV{ c_InvalidDescriptorIndex },
+    m_mapAddr{ nullptr },
+    m_ShaderViews{ c_InvalidDescriptorIndex, c_InvalidDescriptorIndex, c_InvalidDescriptorIndex },
     m_Resource { buffer }
 {
     if (desc.memoryAccess == MemoryAccess::Upload)
@@ -17,19 +17,26 @@ st::rapi::dx12::Buffer::Buffer(const st::rapi::BufferDesc& desc, ID3D12Resource*
         // always mapped
         m_Resource->Map(0, nullptr, (void**)&m_mapAddr);
     }
-
-    if (hasFlag(desc.shaderUsage, ShaderUsage::ShaderResource))
+    
+    if (hasFlag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
     {
         auto descriptorHeap = device->GetShaderResourceViewHeap();
-        m_SRV = descriptorHeap->AllocateDescriptor();
-        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_SRV);
+        m_ShaderViews[(int)BufferShaderView::ConstantBuffer] = descriptorHeap->AllocateDescriptor();
+        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)BufferShaderView::ConstantBuffer]);
+        CreateCBV(descriptorHandle, 0, m_Desc.sizeBytes, device);
+    }
+    if (hasFlag(desc.shaderUsage, BufferShaderUsage::ShaderResource))
+    {
+        auto descriptorHeap = device->GetShaderResourceViewHeap();
+        m_ShaderViews[(int)BufferShaderView::ShaderResource] = descriptorHeap->AllocateDescriptor();
+        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)BufferShaderView::ShaderResource]);
         CreateSRV(descriptorHandle, m_Desc.format, 0, m_Desc.sizeBytes, device);
     }
-    if (hasFlag(desc.shaderUsage, ShaderUsage::UnorderedAccess))
+    if (hasFlag(desc.shaderUsage, BufferShaderUsage::UnorderedAccess))
     {
         auto descriptorHeap = device->GetShaderResourceViewHeap();
-        m_UAV = descriptorHeap->AllocateDescriptor();
-        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_UAV);
+        m_ShaderViews[(int)BufferShaderView::UnorderedAccess] = descriptorHeap->AllocateDescriptor();
+        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)BufferShaderView::UnorderedAccess]);
         CreateUAV(descriptorHandle, m_Desc.format, 0, m_Desc.sizeBytes, device);
     }
 }
@@ -48,17 +55,14 @@ void st::rapi::dx12::Buffer::Release(Device* device)
         m_Resource->Unmap(0, nullptr);
     m_mapAddr = nullptr;
 
-    if (m_SRV != c_InvalidDescriptorIndex)
+    for (size_t i = 0; i < m_ShaderViews.size(); ++i)
     {
-        auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
-        descriptorHeap->ReleaseDescriptor(m_SRV);
-        m_SRV = c_InvalidDescriptorIndex;
-    }
-    if (m_UAV != c_InvalidDescriptorIndex)
-    {
-        auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
-        descriptorHeap->ReleaseDescriptor(m_UAV);
-        m_UAV = c_InvalidDescriptorIndex;
+        if (m_ShaderViews[i] != c_InvalidDescriptorIndex)
+        {
+            auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
+            descriptorHeap->ReleaseDescriptor(m_ShaderViews[i]);
+            m_ShaderViews[i] = c_InvalidDescriptorIndex;
+        }
     }
 
     m_Resource.Release();
@@ -85,17 +89,22 @@ void st::rapi::dx12::Buffer::Unmap(uint64_t /*bufferStart*/, size_t /*size*/)
     // no-op
 }
 
-st::rapi::DescriptorIndex st::rapi::dx12::Buffer::GetDescriptorIndex(DescriptorType type)
+st::rapi::DescriptorIndex st::rapi::dx12::Buffer::GetShaderViewIndex(BufferShaderView type)
 {
-    switch (type)
-    {
-    case DescriptorType::SRV:
-        return m_SRV;
-    case DescriptorType::UAV:
-        return m_UAV;
-    default:
-        return c_InvalidDescriptorIndex;
-    }
+    return m_ShaderViews[(int)type];
+}
+
+void st::rapi::dx12::Buffer::CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device)
+{
+    assert(IsAligned(offsetBytes, (uint32_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+    assert(IsAligned(sizeBytes, (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+
+    D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+    desc.BufferLocation = m_Resource->GetGPUVirtualAddress() + offsetBytes;
+    desc.SizeInBytes = sizeBytes;
+
+    device->GetNativeDevice()->CreateConstantBufferView(
+        &desc, descriptor);
 }
 
 void st::rapi::dx12::Buffer::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rapi::Format format, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device)

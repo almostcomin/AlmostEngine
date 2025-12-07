@@ -13,7 +13,7 @@ namespace st::rapi
 struct BufferDesc
 {
     MemoryAccess memoryAccess = MemoryAccess::Default;
-    ShaderUsage shaderUsage = ShaderUsage::ShaderResource;
+    BufferShaderUsage shaderUsage = BufferShaderUsage::None;
     size_t sizeBytes = 0;
     bool allowUAV = false;
     Format format = Format::UNKNOWN; // For typed views
@@ -31,7 +31,7 @@ public:
     virtual void* Map(uint64_t bufferStart = 0, size_t size = 0) = 0;
     virtual void Unmap(uint64_t bufferStart = 0, size_t size = 0) = 0;
 
-    virtual DescriptorIndex GetDescriptorIndex(DescriptorType type) = 0;
+    virtual DescriptorIndex GetShaderViewIndex(BufferShaderView type) = 0;
 
 protected:
 

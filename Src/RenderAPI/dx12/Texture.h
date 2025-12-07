@@ -19,7 +19,7 @@ namespace st::rapi::dx12
 
 		const TextureDesc& GetDesc() const override;
 
-		DescriptorIndex GetDescriptorIndex(DescriptorType type) override;
+		DescriptorIndex GetShaderViewIndex(TextureShaderView type) override;
 
 		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, const TextureSubresourceSet subresources) const;
 		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, const TextureSubresourceSet subresources) const;
@@ -37,9 +37,10 @@ namespace st::rapi::dx12
 	private:
 
 		TextureDesc m_Desc;
+
+		std::array<DescriptorIndex, (int)TextureShaderView::_Size> m_ShaderViews;
+
 		ComPtr<ID3D12Resource> m_D3d12Resource;
-		DescriptorIndex m_SRV;
-		DescriptorIndex m_UAV;
 
 		GpuDevice* m_Device;
 	};

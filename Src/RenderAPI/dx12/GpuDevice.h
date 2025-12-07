@@ -40,9 +40,6 @@ namespace st::rapi::dx12
 		GraphicsPipelineStateHandle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo) override;
 		FenceHandle CreateFence(uint64_t initialVale, const char* debugName) override;
 
-		void ReleaseImmediately(const weak<IResource>& handle) override;
-		void ReleaseQueued(const weak<IResource>& handle) override;
-
 		D3D12_CPU_DESCRIPTOR_HANDLE GetRTVCPUDescriptorHandle(DescriptorIndex idx);
 
 		DescriptorHeap* GetDepthStencilViewHeap() { return &m_DepthStencilViewHeap; }
@@ -60,6 +57,11 @@ namespace st::rapi::dx12
 		void Shutdown() override;
 
 		ID3D12Device* GetNativeDevice() { return m_D3d12Device.Get(); }
+
+	protected:
+
+		void ReleaseImmediatelyInternal(IResource* resource) override;
+		void ReleaseQueuedInternal(IResource* resource) override;
 
 	private:
 

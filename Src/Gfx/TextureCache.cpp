@@ -24,7 +24,7 @@ st::rapi::TextureDesc TexInfoToTexDesc(const st::gfx::TextureInfo& texInfo)
         .format = texInfo.format,
         .dimension = texInfo.dimension,
         .debugName = texInfo.debugName,
-        .shaderUsage = st::rapi::ShaderUsage::ShaderResource
+        .shaderUsage = st::rapi::TextureShaderUsage::ShaderResource
     };
 }
 

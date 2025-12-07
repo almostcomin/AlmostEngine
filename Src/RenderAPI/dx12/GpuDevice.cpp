@@ -157,9 +157,18 @@ st::rapi::ShaderHandle st::rapi::dx12::GpuDevice::CreateShader(const ShaderDesc&
 
 st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc, ResourceState initialState)
 {
+	BufferDesc fixedDesc = desc;
+
+	uint64_t alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+	if (hasFlag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
+	{
+		fixedDesc.sizeBytes = AlignUp(fixedDesc.sizeBytes, (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+	}
+
 	D3D12_RESOURCE_DESC d3d12Desc = {};
 	d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	d3d12Desc.Alignment = 0; // D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT
+	d3d12Desc.Alignment = alignment;
 	d3d12Desc.Width = desc.sizeBytes;
 	d3d12Desc.Height = 1;
 	d3d12Desc.DepthOrArraySize = 1;
@@ -234,7 +243,7 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 	d3d12Desc.Format = formatMap.resourceFormat;
 	d3d12Desc.SampleDesc.Count = desc.sampleCount;
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
-	if (!hasFlag(desc.shaderUsage, ShaderUsage::ShaderResource))
+	if (!hasFlag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	if (desc.isRenderTarget)
 	{
@@ -243,7 +252,7 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 		else
 			d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	}
-	if (hasFlag(desc.shaderUsage, ShaderUsage::UnorderedAccess))
+	if (hasFlag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
 		d3d12Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	if (desc.isTiled)
 		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
@@ -433,20 +442,6 @@ st::rapi::FenceHandle st::rapi::dx12::GpuDevice::CreateFence(uint64_t initialVal
 	return InsertNewResource<IFence>(new Fence{ d3d12Fence.Get(), debugName ? debugName : "{null}" });
 }
 
-void st::rapi::dx12::GpuDevice::ReleaseImmediately(const weak<IResource>& handle)
-{
-	ReleaseResource(handle.get());
-
-	std::scoped_lock lock{ m_LivingResourcesMutex };
-	m_LivingResources.erase(handle.get());
-}
-
-void st::rapi::dx12::GpuDevice::ReleaseQueued(const weak<IResource>& handle)
-{
-	std::scoped_lock lock{ m_StaleResourcesMutex };
-	m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].push_back(handle.get());
-}
-
 D3D12_CPU_DESCRIPTOR_HANDLE st::rapi::dx12::GpuDevice::GetRTVCPUDescriptorHandle(DescriptorIndex idx)
 {
 	return m_RenderTargetViewHeap.GetCpuHandle(idx);
@@ -517,6 +512,20 @@ void st::rapi::dx12::GpuDevice::Shutdown()
 		}
 		m_LivingResources.clear();
 	}
+}
+
+void st::rapi::dx12::GpuDevice::ReleaseImmediatelyInternal(IResource* resource)
+{
+	ReleaseResource(resource);
+
+	std::scoped_lock lock{ m_LivingResourcesMutex };
+	m_LivingResources.erase(resource);
+}
+
+void st::rapi::dx12::GpuDevice::ReleaseQueuedInternal(IResource* resource)
+{
+	std::scoped_lock lock{ m_StaleResourcesMutex };
+	m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].push_back(resource);
 }
 
 void st::rapi::dx12::GpuDevice::WaitForIdle()
