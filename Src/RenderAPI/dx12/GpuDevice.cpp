@@ -245,15 +245,12 @@ st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDe
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
 	if (!hasFlag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-	if (desc.isRenderTarget)
-	{
-		if (formatInfo.hasDepth || formatInfo.hasStencil)
-			d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-		else
-			d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	}
+	if(hasFlag(desc.shaderUsage, TextureShaderUsage::RenderTarget))
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	if(hasFlag(desc.shaderUsage, TextureShaderUsage::DepthStencil))
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	if (hasFlag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
-		d3d12Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	if (desc.isTiled)
 		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
 
@@ -524,6 +521,9 @@ void st::rapi::dx12::GpuDevice::ReleaseImmediatelyInternal(IResource* resource)
 
 void st::rapi::dx12::GpuDevice::ReleaseQueuedInternal(IResource* resource)
 {
+	if (!resource) 
+		return;
+
 	std::scoped_lock lock{ m_StaleResourcesMutex };
 	m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].push_back(resource);
 }

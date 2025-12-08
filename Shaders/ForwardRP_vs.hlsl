@@ -3,14 +3,14 @@
 #include "Interop/ConstantBuffers.h"
 #include "BindlessRS.hlsli"
 
-float2 LoadAttribute2(ByteAddressBuffer buffer, uint offset, uint stride)
+float2 LoadVertexAttribute2(ByteAddressBuffer buffer, uint offset, uint stride)
 {
     if (stride == 0xFFFFFFFF)
         return float2(0, 0);
     return asfloat(buffer.Load2(offset + stride));
 };
 
-float3 LoadAttribute3(ByteAddressBuffer buffer, uint offset, uint stride)
+float3 LoadVertexAttribute3(ByteAddressBuffer buffer, uint offset, uint stride)
 {
     if (stride == 0xFFFFFFFF)
         return float3(0, 0, 0);
@@ -40,9 +40,9 @@ PS_INPUT main(uint vertexID : SV_VertexID)
     uint baseIndex = indexBuffer[vertexID + meshData.indexOffset];
     uint vertexBufferOffset = meshData.vertexBufferOffsetBytes + (baseIndex * meshData.vertexStride);
     
-    float3 pos = LoadAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexPosStride);
-    float3 normal = LoadAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexNormalStride);
-    float2 uv0 = LoadAttribute2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Stride);
+    float3 pos = LoadVertexAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexPosStride);
+    float3 normal = LoadVertexAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexNormalStride);
+    float2 uv0 = LoadVertexAttribute2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Stride);
         
     // Transform
     float4 posWorld = mul(float4(pos, 1.0f), transformData.modelMatrix);

@@ -37,11 +37,9 @@ namespace st::rapi
         uint32_t sampleQuality = 0;
         Format format = Format::UNKNOWN;
         TextureDimension dimension = TextureDimension::Texture2D;
-        std::string debugName = "{null}";
 
         TextureShaderUsage shaderUsage = TextureShaderUsage::None;
 
-        bool isRenderTarget = false;
         bool isTypeless = false;
         bool isShadingRateSurface = false;
 
@@ -54,6 +52,8 @@ namespace st::rapi
         float4 clearValue;
         bool useClearValue = false;
 
+        std::string debugName = "{null}";
+
         constexpr TextureDesc& setWidth(uint32_t value) { width = value; return *this; }
         constexpr TextureDesc& setHeight(uint32_t value) { height = value; return *this; }
         constexpr TextureDesc& setDepth(uint32_t value) { depth = value; return *this; }
@@ -64,7 +64,6 @@ namespace st::rapi
         constexpr TextureDesc& setFormat(Format value) { format = value; return *this; }
         constexpr TextureDesc& setDimension(TextureDimension value) { dimension = value; return *this; }
         TextureDesc& setDebugName(const std::string& value) { debugName = value; return *this; }
-        constexpr TextureDesc& setIsRenderTarget(bool value) { isRenderTarget = value; return *this; }
         constexpr TextureDesc& setShaderUsage(TextureShaderUsage value) { shaderUsage = value; return *this; }
         constexpr TextureDesc& setIsTypeless(bool value) { isTypeless = value; return *this; }
         constexpr TextureDesc& setIsVirtual(bool value) { isVirtual = value; return *this; }

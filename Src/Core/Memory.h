@@ -175,7 +175,7 @@ public:
 
     template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
     unique(unique<U>&& other) :
-        obj(other.release()),
+        obj(std::move(other.obj.release())),
         flag(std::move(other.flag))
     {}
 

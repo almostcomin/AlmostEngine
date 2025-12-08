@@ -152,11 +152,11 @@ bool st::ui::ImGuiRenderPass::Render()
 
                 interop::ImGUI_CB cb = {};
                 cb.invDisplaySize = invDisplaySize;
-                cb.indexBuffer = GetCurrentIB()->GetDescriptorIndex(rapi::DescriptorType::SRV);
+                cb.indexBuffer = GetCurrentIB()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
                 cb.indexOffset = idxOffset;
-                cb.vertexBuffer = GetCurrentVB()->GetDescriptorIndex(rapi::DescriptorType::SRV);
+                cb.vertexBuffer = GetCurrentVB()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
                 cb.vertexBufferOffset = vtxOffset;
-                cb.textureIndex = m_FontTexture->GetDescriptorIndex(rapi::DescriptorType::SRV);
+                cb.textureIndex = m_FontTexture->GetShaderViewIndex(rapi::TextureShaderView::ShaderResource);
 
                 commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0);
                 
@@ -319,14 +319,14 @@ bool st::ui::ImGuiRenderPass::UpdateFontTexture()
     textureDesc.height = height;
     textureDesc.format = rapi::Format::RGBA8_UNORM;
     textureDesc.debugName = "ImGuiFontTexture";
-    textureDesc.shaderUsage = rapi::ShaderUsage::ShaderResource;
+    textureDesc.shaderUsage = rapi::TextureShaderUsage::ShaderResource;
     m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rapi::ResourceState::COPY_DST);
     if (!m_FontTexture)
         return false;
     
     rapi::BufferHandle textureUploadBuffer = device->CreateBuffer(rapi::BufferDesc{
         .memoryAccess = rapi::MemoryAccess::Upload,
-        .shaderUsage = rapi::ShaderUsage::None,
+        .shaderUsage = rapi::BufferShaderUsage::None,
         .sizeBytes = (size_t)width * height * 4,
         .debugName = "ImGui TextureUploadBuffer" }, rapi::ResourceState::COMMON);
     
@@ -395,7 +395,7 @@ bool st::ui::ImGuiRenderPass::ReallocateBuffer(rapi::BufferHandle& buffer, size_
     {
         rapi::BufferDesc desc;
         desc.memoryAccess = rapi::MemoryAccess::Upload;
-        desc.shaderUsage = rapi::ShaderUsage::ShaderResource;
+        desc.shaderUsage = rapi::BufferShaderUsage::ShaderResource;
         desc.sizeBytes = uint32_t(reallocateSize);
         desc.allowUAV = false;
         if (indexBuffer)

@@ -432,8 +432,8 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
         textureDesc.sampleCount = m_DeviceParams.SwapChainSampleCount;
         textureDesc.sampleQuality = m_DeviceParams.SwapChainSampleQuality;
         textureDesc.format = m_DeviceParams.SwapChainFormat;
+        textureDesc.shaderUsage = rapi::TextureShaderUsage::RenderTarget;
         textureDesc.debugName = "SwapChainBuffer";
-        textureDesc.isRenderTarget = true;
 
         m_SwapChainBuffers[n] = m_Device->CreateHandleForNativeTexture(
             nativeBuffer.Get(), textureDesc);

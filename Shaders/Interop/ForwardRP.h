@@ -18,6 +18,10 @@ namespace interop
         uint vertexTexCoord1Stride;
         uint vertexColorStride;
         uint vertexStride;
+    };
+
+    struct MaterialCB
+    {
         uint textureIndex;
     };
 
@@ -25,6 +29,7 @@ namespace interop
     {
         uint CameraCBIndex;
         uint MeshCBIndex;
+        uint MaterialCBIndex;
         uint TransformCBIndex;
     };
 

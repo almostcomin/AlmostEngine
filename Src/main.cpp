@@ -15,6 +15,7 @@
 #include "StructureUI.h"
 #include <thread>
 #include <sstream>
+#include <iomanip>
 
 namespace
 {
@@ -25,6 +26,7 @@ void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
     while(walker)
     {
         std::stringstream ss;
+		ss << std::fixed << std::setprecision(2);
 
         for (int i = 0; i < depth; i++)
             ss << "   ";
@@ -95,6 +97,7 @@ int SDL_main(int argc, char* argv[])
 		if (importResult)
 		{
 			sceneGraph = std::move(*importResult);
+			sceneGraph->Refresh();
 			fwdRenderPass->SetSceneGraph(sceneGraph.get_weak());
 			PrintSceneGraph(sceneGraph->GetRoot());
 		}

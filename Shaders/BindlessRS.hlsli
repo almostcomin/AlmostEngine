@@ -27,8 +27,8 @@
 // Samplers
 SamplerState pointClampSampler : register(s0);
 SamplerState pointWrapSampler : register(s1);
-SamplerState linearWrapSampler : register(s2);
-SamplerState linearClampSampler : register(s3);
+SamplerState linearClampSampler : register(s2);
+SamplerState linearWrapSampler : register(s3);
 SamplerState minMapLinearMipPointClampSampler : register(s4);
 SamplerState minMapLinearMipPointWrapSampler : register(s5);
 SamplerState minMapPointMipLinearClampSampler : register(s6);

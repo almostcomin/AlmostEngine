@@ -5,6 +5,7 @@
 #include "RenderAPI/Shader.h"
 #include "RenderAPI/PipelineState.h"
 #include "RenderAPI/Buffer.h"
+#include "RenderAPI/Framebuffer.h"
 #include "Gfx/RenderPass.h"
 
 namespace st::gfx
@@ -43,6 +44,11 @@ private:
 
 	st::rapi::BufferHandle m_CameraCB;
 	st::rapi::BufferHandle m_TransformCB;
+	st::rapi::BufferHandle m_MaterialCB;
+
+	st::rapi::TextureHandle m_RenderTarget;
+	st::rapi::TextureHandle m_DepthStencil;
+	st::rapi::FramebufferHandle m_FB;
 };
 
 } // namespace st::gfx

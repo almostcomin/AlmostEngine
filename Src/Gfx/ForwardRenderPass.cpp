@@ -13,7 +13,7 @@
 #include "Interop/ForwardRP.h"
 
 bool st::gfx::ForwardRenderPass::Render()
-{
+{return true;
 
 	if (!m_SceneGraph)
 	{
@@ -51,6 +51,9 @@ bool st::gfx::ForwardRenderPass::Render()
 					auto meshInstance = dynamic_cast<st::gfx::MeshInstance*>(leaf.get());
 					if (meshInstance)
 					{
+						interop::ForwardRP forwardCB;
+						forwardCB.CameraCBIndex = cameraCBIndex;
+
 						auto meshData = meshInstance->GetMesh();
 						meshData->GetIndexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
 					}
@@ -72,10 +75,37 @@ bool st::gfx::ForwardRenderPass::Render()
 void st::gfx::ForwardRenderPass::OnAttached()
 {
 	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	rapi::Device* device = deviceManager->GetDevice();
 
 	st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 	m_VS = shaderFactory->LoadShader("ForwardRP_vs.vso", rapi::ShaderType::Vertex);
-	m_PS = shaderFactory->LoadShader("ForwardRP_ps.vso", rapi::ShaderType::Vertex);
+	m_PS = shaderFactory->LoadShader("ForwardRP_ps.vso", rapi::ShaderType::Pixel);
+
+	auto fbInfo = m_RenderView->GetFramebuffer()->GetFramebufferInfo();
+
+	// Create render targets
+	rapi::TextureDesc rtDesc{
+		.width = fbInfo.width,
+		.height = fbInfo.height,
+		.format = rapi::Format::SRGBA8_UNORM,
+		.shaderUsage = rapi::TextureShaderUsage::ShaderResource | rapi::TextureShaderUsage::RenderTarget,
+		.debugName = "ForwardRenderPass_RT"};
+	m_RenderTarget = device->CreateTexture(rtDesc, rapi::ResourceState::RENDERTARGET);
+
+	rapi::TextureDesc dsDesc{
+		.width = fbInfo.width,
+		.height = fbInfo.height,
+		.format = rapi::Format::D24S8,
+		.shaderUsage = rapi::TextureShaderUsage::ShaderResource | rapi::TextureShaderUsage::DepthStencil,
+		.debugName = "ForwardRenderPass_DS" };
+	m_DepthStencil = device->CreateTexture(dsDesc, rapi::ResourceState::DEPTHSTENCIL);
+
+	// Create Framebuffer
+	auto fbDesc = rapi::FramebufferDesc()
+		.AddColorAttachment(m_RenderTarget.get())
+		.SetDepthAttachment(m_DepthStencil.get())
+		.SetDebugName("ForwardRenderPass_FB");
+	m_FB = device->CreateFramebuffer(fbDesc);
 
 	// Create PSO
 	{
@@ -99,7 +129,6 @@ void st::gfx::ForwardRenderPass::OnAttached()
 			.stencilEnable = false
 		};
 
-
 		auto PSODesc = rapi::GraphicsPipelineStateDesc
 		{
 			.VS = m_VS,
@@ -109,20 +138,27 @@ void st::gfx::ForwardRenderPass::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_PSO = deviceManager->GetDevice()->CreateGraphicsPipelineState(
+		m_PSO = device->CreateGraphicsPipelineState(
 			rapi::GraphicsPipelineStateDesc{
 				.VS = m_VS,
 				.PS = m_PS,
 				.blendState = blendState,
 				.depthStencilState = depthStencilState,
 				.rasterState = rasterState },
-				m_RenderView->GetFramebuffer()->GetFramebufferInfo());
+				m_FB->GetFramebufferInfo());
 	}
 }
 
 void st::gfx::ForwardRenderPass::OnDetached()
 {
 	st::rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+
+	device->ReleaseQueued(m_CameraCB);
+	device->ReleaseQueued(m_TransformCB);
+	device->ReleaseQueued(m_MaterialCB);
+
+	device->ReleaseQueued(m_RenderTarget);
+	device->ReleaseQueued(m_DepthStencil);
 
 	device->ReleaseQueued(m_PSO);
 	device->ReleaseQueued(m_VS);
