@@ -182,22 +182,42 @@ void st::gfx::SceneGraph::Refresh()
                     {
                         node->m_HasBounds = false;
                     }
+                    // Set content flags
+                    if (node->m_Leaf)
+                    {
+                        node->m_ContentFlags = node->m_Leaf->GetContentFlags();
+                    }
+                    else
+                    {
+                        node->m_ContentFlags = SceneContentFlags::None;
+                    }
+
                     node->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::Leaf;
 
                     int depth = subgraphWalker.Next();
 
-                    // Update parent bounds if next is sibling or parent
-                    if (node->m_HasBounds && depth <= 0) // Sibling or going up.
+                    // Update parent bounds and content flags if next is sibling or parent
+                    bool updateBounds = node->m_HasBounds;
+                    bool updateContentFlags = any(node->m_ContentFlags);
+                    if ((updateBounds || updateContentFlags) && depth <= 0) // Sibling or going up.
                     {
                         for (int i = depth; i <= 0; ++i)
                         {
                             if (!node->m_Parent)
                                 break;
 
-                            assert(node->m_Parent);
                             // Update parent bounds
-                            node->m_Parent->m_WorldBounds.merge(node->m_WorldBounds);
-                            node->m_Parent->m_HasBounds = true;
+                            if (updateBounds)
+                            {
+                                node->m_Parent->m_WorldBounds.merge(node->m_WorldBounds);
+                                node->m_Parent->m_HasBounds = true;
+                            }
+
+                            // Update content flags
+                            if (updateContentFlags)
+                            {
+                                node->m_Parent->m_ContentFlags |= node->m_ContentFlags;
+                            }
 
                             node = node->m_Parent;
                         }

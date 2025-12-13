@@ -74,27 +74,31 @@ public:
         return *this;
     }
 
-    T& operator*() const { return *ptr; }
-    T* operator->() const { return ptr; }
-    operator bool() const { return !expired(); }
+    T& operator*() const { assert(!expired()); return *ptr; }
+    T* operator->() const { assert(!expired()); return ptr; }
+    operator bool() const { return ptr != nullptr; }
 
     template<class U>
     bool operator ==(const weak<U>& other) const { return ptr == other.ptr; }
     template<class U>
     bool operator !=(const weak<U>& other) const { return ptr != other.ptr; }
 
-    bool operator==(std::nullptr_t) const { return expired(); }
-    bool operator!=(std::nullptr_t) const { return !expired(); }
+    bool operator==(std::nullptr_t) const { return ptr == nullptr; }
+    bool operator!=(std::nullptr_t) const { return ptr != nullptr; }
 
-    friend bool operator==(std::nullptr_t, const weak& w) { return w.expired(); }
-    friend bool operator!=(std::nullptr_t, const weak& w) { return !w.expired(); }
+    friend bool operator==(std::nullptr_t, const weak& w) { return w.ptr == nullptr; }
+    friend bool operator!=(std::nullptr_t, const weak& w) { return w.ptr != nullptr; }
 
     bool operator<(const weak& other) const {
         return ptr < other.ptr;
     }
 
     bool expired() const { return flag.expired(); }
-    T* get() const { return expired() ? nullptr : ptr; }
+    T* get() const 
+    { 
+        assert(!expired()); 
+        return ptr; 
+    }
     void reset() { ptr = nullptr; flag.reset(); }
 
 private:
@@ -156,15 +160,7 @@ public:
     {
         setup_weak_from_this();
     }
-/*
-    template<typename... Args>
-    explicit unique(Args&&... args) :
-        obj(std::make_unique<T>(std::forward<Args>(args)...)),
-        flag(std::make_shared<int>(0))
-    {
-        setup_weak_from_this();
-    }
-*/
+
     unique(const unique&) = delete;
     unique& operator=(const unique&) = delete;
 
@@ -225,6 +221,12 @@ public:
     { 
         obj.reset(); 
         flag.reset(); 
+    }
+
+    void reset(T* ptr)
+    {
+        obj.reset(ptr);
+        flag = std::make_shared<int>(0);
     }
 
     weak<T> get_weak() const { return weak<T>{obj.get(), flag}; }

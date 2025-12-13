@@ -1,7 +1,7 @@
-#include "Interop/ForwardRP.h"
+#include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 
-ConstantBuffer<interop:: ForwardRP> CB : register(b0);
+ConstantBuffer<interop::ForwardRP> CB : register(b0);
 
 struct PS_INPUT
 {
@@ -13,9 +13,13 @@ struct PS_INPUT
 [RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {
-    ConstantBuffer<interop::MaterialCB> materialData = ResourceDescriptorHeap[CB.MaterialCBIndex];
-        
-    Texture2D albedo = ResourceDescriptorHeap[materialData.textureIndex];
+    StructuredBuffer<interop::InstanceData> instancesBuffer = ResourceDescriptorHeap[CB.instanceBufferDI];
+    StructuredBuffer<interop::MeshData> meshesBuffer = ResourceDescriptorHeap[CB.meshesBufferDI];
+    
+    interop::InstanceData instanceData = instancesBuffer[CB.instanceIdx];
+    interop::MeshData meshData = meshesBuffer[instanceData.meshIndex];
+            
+    Texture2D albedo = ResourceDescriptorHeap[meshData.textureIndex];
     
     float4 out_col = albedo.Sample(linearWrapSampler, input.uv);
     return out_col;

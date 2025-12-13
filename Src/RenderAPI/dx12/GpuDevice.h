@@ -40,6 +40,13 @@ namespace st::rapi::dx12
 		GraphicsPipelineStateHandle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo) override;
 		FenceHandle CreateFence(uint64_t initialVale, const char* debugName) override;
 
+		StorageRequirements GetStorageRequirements(const BufferDesc& desc) override;
+		StorageRequirements GetStorageRequirements(const TextureDesc& desc) override;
+		StorageRequirements GetCopyableRequirements(const BufferDesc& desc) override;
+		StorageRequirements GetCopyableRequirements(const TextureDesc& desc) override;
+
+		size_t GetCopyDataAlignment(CopyMethod method) override;
+
 		D3D12_CPU_DESCRIPTOR_HANDLE GetRTVCPUDescriptorHandle(DescriptorIndex idx);
 
 		DescriptorHeap* GetDepthStencilViewHeap() { return &m_DepthStencilViewHeap; }
@@ -66,6 +73,8 @@ namespace st::rapi::dx12
 	private:
 
 		void CreateBindlessRootSignature();
+
+		D3D12_RESOURCE_DESC BuildD3d12Desc(const TextureDesc& desc);
 
 		template<class T>
 		st::weak<T> InsertNewResource(T* p)

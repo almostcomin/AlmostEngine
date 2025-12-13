@@ -1,5 +1,6 @@
 #include "Gfx/ForwardRenderPass.h"
 #include "Core/Log.h"
+#include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/RenderView.h"
@@ -9,15 +10,14 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 #include "RenderAPI/Device.h"
-#include "Interop/ConstantBuffers.h"
-#include "Interop/ForwardRP.h"
+#include "Interop/RenderResources.h"
 
 bool st::gfx::ForwardRenderPass::Render()
 {return true;
 
-	if (!m_SceneGraph)
+	if (!m_Scene)
 	{
-		LOG_WARNING("No scene graph set. Nothing to render");
+		LOG_WARNING("No scene set. Nothing to render");
 		return false;
 	}
 
@@ -33,10 +33,14 @@ bool st::gfx::ForwardRenderPass::Render()
 
 	commandList->BeginMarker("ForwardRenderPass");
 	commandList->SetPipelineState(m_PSO.get());
-	rapi::DescriptorIndex cameraCBIndex = GetCameraCB();
+
+	interop::ForwardRP fwData;
+	fwData.sceneDI = GetSceneDI();
+	fwData.instanceBufferDI = m_Scene->GetInstancesBufferDI();
+	fwData.meshesBufferDI = m_Scene->GetMeshesBufferDI();
 
 	const auto& frustum = camera->GetFrustum();
-	st::gfx::SceneGraph::Walker walker{ *m_SceneGraph };
+	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
 	while(walker)
 	{
 		auto node = *walker;
@@ -46,17 +50,13 @@ bool st::gfx::ForwardRenderPass::Render()
 			if (leaf && leaf->GetContentFlags() == SceneContentFlags::OpaqueMeshes)
 			{
 				const st::math::aabox3f worldBounds = leaf->GetBounds() * node->GetWorldTransform();
-				if (frustum.check(worldBounds))
+				//if (frustum.check(worldBounds))
 				{
-					auto meshInstance = dynamic_cast<st::gfx::MeshInstance*>(leaf.get());
-					if (meshInstance)
-					{
-						interop::ForwardRP forwardCB;
-						forwardCB.CameraCBIndex = cameraCBIndex;
+					auto* meshInstance = st::checked_cast<st::gfx::MeshInstance*>(leaf.get());
+					fwData.instanceIdx = m_Scene->GetInstanceIndex(meshInstance);
 
-						auto meshData = meshInstance->GetMesh();
-						meshData->GetIndexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
-					}
+					commandList->PushConstants(fwData);
+					commandList->Draw(meshInstance->GetMesh()->GetPrimitiveCount() * 3);
 				}
 			}
 			walker.Next();
@@ -153,9 +153,7 @@ void st::gfx::ForwardRenderPass::OnDetached()
 {
 	st::rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
-	device->ReleaseQueued(m_CameraCB);
-	device->ReleaseQueued(m_TransformCB);
-	device->ReleaseQueued(m_MaterialCB);
+	device->ReleaseQueued(m_SceneCB);
 
 	device->ReleaseQueued(m_RenderTarget);
 	device->ReleaseQueued(m_DepthStencil);
@@ -165,7 +163,7 @@ void st::gfx::ForwardRenderPass::OnDetached()
 	device->ReleaseQueued(m_PS);
 }
 
-st::rapi::DescriptorIndex st::gfx::ForwardRenderPass::GetCameraCB()
+st::rapi::DescriptorIndex st::gfx::ForwardRenderPass::GetSceneDI()
 {
 	auto camera = m_RenderView->GetCamera();
 	if (!camera)
@@ -174,25 +172,23 @@ st::rapi::DescriptorIndex st::gfx::ForwardRenderPass::GetCameraCB()
 		return {};
 	}
 
-	if (!m_CameraCB)
+	if (!m_SceneCB)
 	{
 		rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 		rapi::BufferDesc desc{
 			.memoryAccess = rapi::MemoryAccess::Upload,
 			.shaderUsage = rapi::BufferShaderUsage::ConstantBuffer,
-			.sizeBytes = sizeof(interop::CameraCB),
+			.sizeBytes = sizeof(interop::Scene),
 			.allowUAV = false,
 			.stride = 0 };
 
-		m_CameraCB = device->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);
+		m_SceneCB = device->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);
 		
-		interop::CameraCB* cameraData = (interop::CameraCB*)m_CameraCB->Map();
-
-		cameraData->viewProjectionMatrix = camera->GetViewProjectionMatrix();
-		
-		m_CameraCB->Unmap();
+		interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
+		sceneData->viewProjectionMatrix = camera->GetViewProjectionMatrix();		
+		m_SceneCB->Unmap();
 	}
 
-	return m_CameraCB->GetShaderViewIndex(rapi::BufferShaderView::ConstantBuffer);
+	return m_SceneCB->GetShaderViewIndex(rapi::BufferShaderView::ConstantBuffer);
 }

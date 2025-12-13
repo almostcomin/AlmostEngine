@@ -986,7 +986,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             st::Blob vertexData{ (char*)malloc(vertexStride * vertexPosData.size()), vertexStride * vertexPosData.size() };
 
             // Interleave
-            int vertexOffset = 0;
+            uint32_t vertexOffset = 0;
             // Positions
             if (!vertexPosData.empty())
             {
@@ -1036,7 +1036,12 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             auto vertexBufferResult = CreateVertexBuffer(std::move(vertexData), vertexStride, srcMesh.name, dataUploader, device);
             if (vertexBufferResult)
             {
-                mesh->SetVertexBuffer(vertexBufferResult->first);
+                mesh->SetVertexBuffer(vertexBufferResult->first, st::gfx::Mesh::VertexStride{
+                    .Vertex = vertexOffset,
+                    .Position = posElemSize,
+                    .Normal = normalElemSize,
+                    .Tangent = tangentElemSize,
+                    .TexCoord0 = texCoordElemSize });
                 out_handlesToWait.push_back(vertexBufferResult->second);
             }
 

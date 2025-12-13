@@ -5,14 +5,13 @@
 st::gfx::SceneGraphNode::SceneGraphNode() :
 	m_HasBounds{ false },
 	m_WorldBounds{ st::math::aabox3f::InitEmpty },
-	m_DirtyFlags{0},
+	m_ContentFlags{ SceneContentFlags::None },
+	m_DirtyFlags{ DirtyFlags::None },
 	m_Name{ "noname" }
-{
-}
+{}
 
 st::gfx::SceneGraphNode::~SceneGraphNode()
-{
-}
+{}
 
 void st::gfx::SceneGraphNode::SetLeaf(st::unique<SceneGraphLeaf>&& leaf)
 { 

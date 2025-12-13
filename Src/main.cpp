@@ -7,6 +7,7 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/GltfImporter.h"
 #include "Gfx/DataUploader.h"
+#include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/SceneGraphLeaf.h"
@@ -88,18 +89,19 @@ int SDL_main(int argc, char* argv[])
 	// Create forward render pass
 	std::shared_ptr<st::gfx::ForwardRenderPass> fwdRenderPass{ new st::gfx::ForwardRenderPass };
 
-	st::unique<st::gfx::SceneGraph> sceneGraph;
+	st::unique<st::gfx::Scene> scene;
 
 	// Create UI render pass
 	std::shared_ptr<StructureUI> uiRenderPass{ new StructureUI{window} };
-	uiRenderPass->m_RequestLoadFile = [&deviceManager, &sceneGraph, &fwdRenderPass](const char* filename) {
+	uiRenderPass->m_RequestLoadFile = [&deviceManager, &scene, &fwdRenderPass](const char* filename) {
 		auto importResult = st::gfx::ImportGlTF(filename, deviceManager.get());
 		if (importResult)
 		{
-			sceneGraph = std::move(*importResult);
-			sceneGraph->Refresh();
-			fwdRenderPass->SetSceneGraph(sceneGraph.get_weak());
-			PrintSceneGraph(sceneGraph->GetRoot());
+			scene.reset(new st::gfx::Scene{ deviceManager.get() });
+			scene->SetSceneGraph(std::move(*importResult));
+
+			fwdRenderPass->SetScene(scene.get_weak());
+			PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
 		}
 		else
 		{
@@ -156,8 +158,8 @@ int SDL_main(int argc, char* argv[])
 		}
 
 		// Scene graph update
-		if (sceneGraph)
-			sceneGraph->Refresh();
+		if (scene)
+			scene->Update();
 
 		// Update FPS counter
 		{
@@ -185,7 +187,7 @@ int SDL_main(int argc, char* argv[])
 	renderView.reset();
 	uiRenderPass.reset();
 	fwdRenderPass.reset();
-	sceneGraph.reset();
+	scene.reset();
 
 	deviceManager->Shutdown();
 

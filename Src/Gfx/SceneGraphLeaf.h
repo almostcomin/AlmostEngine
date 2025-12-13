@@ -26,6 +26,8 @@ public:
 	virtual const st::math::aabox3f& GetBounds() const { return st::math::aabox3f::empty(); }
 	virtual SceneContentFlags GetContentFlags() const { return st::gfx::SceneContentFlags::None; }
 
+	st::weak<SceneGraphNode> GetNode() const { return m_Node; }
+
 private:
 
 	st::weak<SceneGraphNode> m_Node;

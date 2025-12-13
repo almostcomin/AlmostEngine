@@ -157,19 +157,12 @@ st::rapi::ShaderHandle st::rapi::dx12::GpuDevice::CreateShader(const ShaderDesc&
 
 st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc, ResourceState initialState)
 {
-	BufferDesc fixedDesc = desc;
-
-	uint64_t alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-	if (hasFlag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
-	{
-		fixedDesc.sizeBytes = AlignUp(fixedDesc.sizeBytes, (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-		alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-	}
+	auto storageReq = GetStorageRequirements(desc);
 
 	D3D12_RESOURCE_DESC d3d12Desc = {};
 	d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	d3d12Desc.Alignment = alignment;
-	d3d12Desc.Width = desc.sizeBytes;
+	d3d12Desc.Alignment = storageReq.alignment;
+	d3d12Desc.Width = storageReq.size;
 	d3d12Desc.Height = 1;
 	d3d12Desc.DepthOrArraySize = 1;
 	d3d12Desc.MipLevels = 1;
@@ -209,50 +202,7 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 
 st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDesc& desc, ResourceState initialState)
 {
-	const DxgiFormatMapping& formatMap = GetDxgiFormatMapping(desc.format);
-	const FormatInfo& formatInfo = GetFormatInfo(desc.format);
-
-	D3D12_RESOURCE_DESC d3d12Desc = {};
-	switch (desc.dimension)
-	{
-	case TextureDimension::Texture1D:
-	case TextureDimension::Texture1DArray:
-		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
-		d3d12Desc.DepthOrArraySize = desc.arraySize;
-		break;
-	case TextureDimension::Texture2D:
-	case TextureDimension::Texture2DArray:
-	case TextureDimension::TextureCube:
-	case TextureDimension::TextureCubeArray:
-	case TextureDimension::Texture2DMS:
-	case TextureDimension::Texture2DMSArray:
-		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		d3d12Desc.DepthOrArraySize = desc.arraySize;
-		break;
-	case TextureDimension::Texture3D:
-		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
-		d3d12Desc.DepthOrArraySize = desc.depth;
-		break;
-	default:
-		assert(!"Invalid Enumeration Value");
-	}
-	d3d12Desc.Alignment = 0; // D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT
-	d3d12Desc.Width = desc.width;
-	d3d12Desc.Height = desc.height;
-	d3d12Desc.MipLevels = desc.mipLevels;
-	d3d12Desc.Format = formatMap.resourceFormat;
-	d3d12Desc.SampleDesc.Count = desc.sampleCount;
-	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
-	if (!hasFlag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
-		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-	if(hasFlag(desc.shaderUsage, TextureShaderUsage::RenderTarget))
-		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	if(hasFlag(desc.shaderUsage, TextureShaderUsage::DepthStencil))
-		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	if (hasFlag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
-		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-	if (desc.isTiled)
-		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
+	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
 
 	D3D12_HEAP_PROPERTIES heapProps = {};
 	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -437,6 +387,57 @@ st::rapi::FenceHandle st::rapi::dx12::GpuDevice::CreateFence(uint64_t initialVal
 	d3d12Fence->SetName(ws_nmame.c_str());
 
 	return InsertNewResource<IFence>(new Fence{ d3d12Fence.Get(), debugName ? debugName : "{null}" });
+}
+
+st::rapi::StorageRequirements st::rapi::dx12::GpuDevice::GetStorageRequirements(const BufferDesc& desc)
+{
+	StorageRequirements ret = { 
+		.size = desc.sizeBytes, 
+		.alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT };
+
+	if (hasFlag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
+	{
+		ret.size = AlignUp(desc.sizeBytes, (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+	}
+
+	return ret;
+}
+
+st::rapi::StorageRequirements st::rapi::dx12::GpuDevice::GetStorageRequirements(const TextureDesc& desc)
+{
+	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);	
+	D3D12_RESOURCE_ALLOCATION_INFO allocInfo = m_D3d12Device->GetResourceAllocationInfo(0, 1, &d3d12Desc);	
+	return StorageRequirements{ .size = allocInfo.SizeInBytes, .alignment = allocInfo.Alignment };
+}
+
+st::rapi::StorageRequirements st::rapi::dx12::GpuDevice::GetCopyableRequirements(const BufferDesc& desc)
+{
+	return StorageRequirements{ .size = desc.sizeBytes, .alignment = GetCopyDataAlignment(CopyMethod::Buffer2Buffer) };
+}
+
+st::rapi::StorageRequirements st::rapi::dx12::GpuDevice::GetCopyableRequirements(const TextureDesc& desc)
+{
+	st::rapi::StorageRequirements ret = {};
+	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
+
+	m_D3d12Device->GetCopyableFootprints(&d3d12Desc, 0, d3d12Desc.MipLevels * d3d12Desc.DepthOrArraySize, 0, nullptr, nullptr, nullptr, &ret.size);
+	ret.alignment = GetCopyDataAlignment(CopyMethod::Buffer2Texture);
+
+	return ret;
+}
+
+size_t st::rapi::dx12::GpuDevice::GetCopyDataAlignment(CopyMethod method)
+{
+	switch (method)
+	{
+	case CopyMethod::Buffer2Buffer:
+		return 4;
+	case CopyMethod::Buffer2Texture:
+		return D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+	default:
+		assert(0);
+		return 1;
+	}
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE st::rapi::dx12::GpuDevice::GetRTVCPUDescriptorHandle(DescriptorIndex idx)
@@ -747,4 +748,55 @@ void st::rapi::dx12::GpuDevice::CreateBindlessRootSignature()
 		0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_BindlessRootSignature));
 
 	assert(SUCCEEDED(hr));
+}
+
+D3D12_RESOURCE_DESC st::rapi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& desc)
+{
+	const DxgiFormatMapping& formatMap = GetDxgiFormatMapping(desc.format);
+	const FormatInfo& formatInfo = GetFormatInfo(desc.format);
+
+	D3D12_RESOURCE_DESC d3d12Desc = {};
+
+	switch (desc.dimension)
+	{
+	case TextureDimension::Texture1D:
+	case TextureDimension::Texture1DArray:
+		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
+		d3d12Desc.DepthOrArraySize = desc.arraySize;
+		break;
+	case TextureDimension::Texture2D:
+	case TextureDimension::Texture2DArray:
+	case TextureDimension::TextureCube:
+	case TextureDimension::TextureCubeArray:
+	case TextureDimension::Texture2DMS:
+	case TextureDimension::Texture2DMSArray:
+		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		d3d12Desc.DepthOrArraySize = desc.arraySize;
+		break;
+	case TextureDimension::Texture3D:
+		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+		d3d12Desc.DepthOrArraySize = desc.depth;
+		break;
+	default:
+		assert(!"Invalid Enumeration Value");
+	}
+	d3d12Desc.Alignment = 0; // D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT
+	d3d12Desc.Width = desc.width;
+	d3d12Desc.Height = desc.height;
+	d3d12Desc.MipLevels = desc.mipLevels;
+	d3d12Desc.Format = formatMap.resourceFormat;
+	d3d12Desc.SampleDesc.Count = desc.sampleCount;
+	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
+	if (!hasFlag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+	if (hasFlag(desc.shaderUsage, TextureShaderUsage::RenderTarget))
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	if (hasFlag(desc.shaderUsage, TextureShaderUsage::DepthStencil))
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	if (hasFlag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	if (desc.isTiled)
+		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
+
+	return d3d12Desc;
 }

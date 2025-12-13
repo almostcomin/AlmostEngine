@@ -11,6 +11,8 @@
 #include "RenderAPI/CommandList.h"
 #include "RenderAPI/Fence.h"
 #include "Core/Signal.h"
+#include "Core/Util.h"
+#include <map>
 
 namespace st::rapi
 {
@@ -24,8 +26,43 @@ class DataUploader
 {
 public:
 
+	struct UploadTicket
+	{
+		friend class st::gfx::DataUploader;
+
+		UploadTicket(const UploadTicket&) = delete;
+		UploadTicket& operator=(const UploadTicket&) = delete;
+
+		UploadTicket(UploadTicket&&) = default;
+		UploadTicket& operator=(UploadTicket&&) = default;
+
+		void* GetPtr() { return ptr; }
+
+	private:
+
+		UploadTicket() = default;
+		UploadTicket(void* _ptr, uint64_t _start, size_t _size, uint64_t _idx)
+			: ptr(_ptr), start(_start), size(_size), idx(_idx) 
+		{};
+
+		void* ptr = nullptr;	// aligned ptr to mem
+		uint64_t start = 0;
+		size_t size = 0;
+		uint64_t idx = UINT64_MAX;
+	};
+
 	DataUploader(rapi::Device* device);
 	~DataUploader();
+
+	std::expected<UploadTicket, std::string> RequestUploadTicket(const rapi::BufferDesc& desc);
+	std::expected<UploadTicket, std::string> RequestUploadTicket(const rapi::TextureDesc& desc);
+	std::expected<UploadTicket, std::string> RequestUploadTicket(size_t size, size_t alignment);
+
+	std::expected<SignalListener, std::string> CommitUploadBufferTicket(UploadTicket&& ticket, rapi::BufferHandle dstBuffer,
+		rapi::ResourceState currentBufferState, rapi::ResourceState targetBufferState, size_t dstStart = 0, const char* opt_gpuMarker = nullptr);
+
+	std::expected<SignalListener, std::string> CommitUploadTextureTicket(UploadTicket&& ticket, rapi::TextureHandle dstTexture, 
+		rapi::ResourceState currentState, rapi::ResourceState targetState, const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a buffer object.
 	/// 
@@ -58,16 +95,14 @@ public:
 		const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentState, rapi::ResourceState targetState,
 		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
-	void RunGarbageCollector();
-
 private: /* types */
 
 private: /* methods */
 
 	rapi::CommandListHandle GetCommandList();
-	SignalListener FinishCommandList(rapi::CommandListHandle commandList);
+	SignalListener FinishCommandList(rapi::CommandListHandle commandList, UploadTicket&& ticket);
 
-	uint64_t RequestUploadBufferSpace(size_t size);
+	void OnCompletedTiket(UploadTicket&& ticket);
 
 	void AsyncUpdate();
 
@@ -77,19 +112,17 @@ private: /* */
 	uint64_t m_UploadBufferHead;
 	uint64_t m_UploadBufferTail;
 	std::mutex m_UploadBufferMutex;
-
-	struct UploadBufferCompletionEntry
-	{
-		uint64_t CompletedIdx;
-		uint64_t BufferPosition;
-	};
-	RingBuffer<UploadBufferCompletionEntry, 32> m_UploadBufferCompletion;
+	
+	uint64_t m_NextTicketIdx;
+	uint64_t m_CompletedTicketIdx;
+	std::map<uint64_t, UploadTicket> m_PendingTickets;
 
 	struct InFlightCommandListEntry
 	{
 		uint64_t CompletedIdx;
 		rapi::CommandListHandle CommandList;
 		SignalEmitter Signal;
+		UploadTicket Ticket;
 	};
 	RingBuffer<InFlightCommandListEntry, 256> m_InFlightCommandLists;
 	std::mutex m_InFlightCommandListsMutex;

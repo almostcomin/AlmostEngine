@@ -5,6 +5,8 @@
 #include "Core/Util.h"
 #include "Core/Memory.h"
 #include "Core/Math/aabox.h"
+#include "Core/Math.h"
+#include "Gfx/SceneContentFlags.h"
 
 namespace st::gfx
 {
@@ -26,7 +28,7 @@ public:
 		None = 0,
 		LocalTransform = 0x01,	// Local transoform has changed
 		Leaf = 0x02,			// Leaf has changed
-		Subgraph = 0x04,		// Subgraph has changed (local transoform, leaf attached i.e.)
+		Subgraph = 0x04,		// Subgraph has changed (local transform, leaf attached i.e.)
 
 		//All = (WorldTransform | SubgraphStructure);
 	};
@@ -51,10 +53,12 @@ public:
 	st::weak<SceneGraphLeaf> GetLeaf() const { return m_Leaf.get_weak(); }
 
 	const Transform& GetLocalTransform() const { return m_LocalTransform; }
-	const glm::mat4x4& GetWorldTransform() const { return m_WorldMatrix; }
+	const float4x4& GetWorldTransform() const { return m_WorldMatrix; }
 
 	bool HasBounds() const { return m_HasBounds; }
 	const st::math::aabox3f& GetBounds() { return m_WorldBounds; }
+
+	SceneContentFlags GetContentFlags() const { return m_ContentFlags; }
 
 	const std::string& GetName() const { return m_Name; }
 
@@ -70,15 +74,19 @@ private:
 	st::unique<SceneGraphLeaf> m_Leaf;
 
 	Transform m_LocalTransform;
-	glm::mat4x4 m_WorldMatrix;
+	float4x4 m_WorldMatrix;
 
 	bool m_HasBounds;
 	st::math::aabox3f m_WorldBounds;
+
+	SceneContentFlags m_ContentFlags; // This includes leaf content flags push children
 
 	DirtyFlags m_DirtyFlags;
 	std::string m_Name;
 };
 
+ENUM_CLASS_FLAG_OPERATORS(SceneGraphNode::DirtyFlags);
+/*
 inline SceneGraphNode::DirtyFlags operator | (SceneGraphNode::DirtyFlags a, SceneGraphNode::DirtyFlags b) { return SceneGraphNode::DirtyFlags(uint32_t(a) | uint32_t(b)); }
 inline SceneGraphNode::DirtyFlags operator & (SceneGraphNode::DirtyFlags a, SceneGraphNode::DirtyFlags b) { return SceneGraphNode::DirtyFlags(uint32_t(a) & uint32_t(b)); }
 inline SceneGraphNode::DirtyFlags operator ~ (SceneGraphNode::DirtyFlags a) { return SceneGraphNode::DirtyFlags(~uint32_t(a)); }
@@ -88,5 +96,5 @@ inline bool operator !(SceneGraphNode::DirtyFlags a) { return uint32_t(a) == 0; 
 inline bool operator ==(SceneGraphNode::DirtyFlags a, uint32_t b) { return uint32_t(a) == b; }
 inline bool operator !=(SceneGraphNode::DirtyFlags a, uint32_t b) { return uint32_t(a) != b; }
 inline bool any(SceneGraphNode::DirtyFlags a) { return a != 0; }
-
+*/
 } // namespace st::gfx

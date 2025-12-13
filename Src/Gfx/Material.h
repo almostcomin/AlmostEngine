@@ -18,7 +18,8 @@ public:
 	Material(const std::string& name = {}, const std::string& filename = {});
 	~Material();
 
-	void SetDiffuseTexture(rapi::TextureHandle textureHandle);
+	rapi::TextureHandle SetDiffuseTexture(rapi::TextureHandle textureHandle);
+	rapi::TextureHandle GetDiffuseTexture() const { return m_DiffuseTexture; }
 
 private:
 

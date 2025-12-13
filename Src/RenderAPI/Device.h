@@ -9,6 +9,7 @@
 #include "RenderAPI/Barriers.h"
 #include "RenderAPI/Shader.h"
 #include "RenderAPI/PipelineState.h"
+#include "RenderAPI/Common.h"
 
 namespace st::rapi
 {
@@ -24,6 +25,14 @@ namespace st::rapi
         virtual CommandListHandle CreateCommandList(const CommandListParams& params) = 0;
         virtual GraphicsPipelineStateHandle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo) = 0;
         virtual FenceHandle CreateFence(uint64_t initialVale = 0, const char* debugName = nullptr) = 0;
+
+        virtual StorageRequirements GetStorageRequirements(const BufferDesc& desc) = 0;
+        virtual StorageRequirements GetStorageRequirements(const TextureDesc& desc) = 0;
+        virtual StorageRequirements GetCopyableRequirements(const BufferDesc& desc) = 0;
+        virtual StorageRequirements GetCopyableRequirements(const TextureDesc& desc) = 0;
+
+        virtual size_t GetCopyDataAlignment(CopyMethod method) = 0;
+
 
         template<class T>
         void ReleaseImmediately(weak<T>& handle) {

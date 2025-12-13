@@ -26,6 +26,9 @@ st::gfx::DataUploader::DataUploader(rapi::Device* device) :
 	m_UploadBufferHead = 0;
 	m_UploadBufferTail = 0;
 
+	m_NextTicketIdx = 1;
+	m_CompletedTicketIdx = 0;
+
 	m_ProcessInFlightCommandsThread = std::thread([this] { this->AsyncUpdate(); });
 }
 
@@ -45,28 +48,71 @@ st::gfx::DataUploader::~DataUploader()
 	m_Device->ReleaseImmediately(m_UploadBuffer);
 }
 
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBufferData(
-	const st::WeakBlob& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState currentBufferState, st::rapi::ResourceState targetBufferState,
-	size_t dstStart, const char* opt_gpuMarker)
+std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(const rapi::BufferDesc& desc)
 {
-	st::rapi::BufferDesc desc = dstBuffer->GetDesc();
-	assert(dstStart + srcData.size() <= desc.sizeBytes);
+	auto storageReq = m_Device->GetStorageRequirements(desc);
+	return RequestUploadTicket(storageReq.size, storageReq.alignment);
+}
 
-	uint64_t uploadBufferOffset = RequestUploadBufferSpace(srcData.size());
-	if (uploadBufferOffset == c_FailedToReserveSpace)
+std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(const rapi::TextureDesc& desc)
+{
+	auto storageReq = m_Device->GetCopyableRequirements(desc);
+	return RequestUploadTicket(storageReq.size, storageReq.alignment);
+}
+
+std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(size_t size, size_t alignment)
+{
+	std::scoped_lock lock{ m_UploadBufferMutex };
+
+	auto head = m_UploadBufferHead;
+	auto tail = m_UploadBufferTail;
+	auto reqSize = size;
+	
+	bool found = false;
+	if (tail >= head)
 	{
-		// TODO: Can just happen that wwe are requestion too much uploads in single frame.
-		// So we have to wait the completion of some in-flight commands to free space for new
-		// TODO: Create a pending commands list that can be activated after space is freed (RunGarbageCollector)
-		return std::unexpected("Failed to reserve memory in upload buffer");
+		reqSize = size + AlignUp(tail, alignment) - tail;
+		// Check if there is enough space from the tail to the end
+		if (c_UploadBufferSize - tail >= reqSize)
+			found = true;
+		else
+		{
+			tail = 0; // Lets try with the tail at the begining
+			reqSize = size; // Since the buffer is aligned to 64kb and thats the max aligned we allow
+		}
 	}
-	void* uploadBufferMem = m_UploadBuffer->Map(uploadBufferOffset, srcData.size());
-	if (!uploadBufferMem)
+	if (!found)
 	{
-		return std::unexpected("Failed to map upload buffer");
-	}	
-	std::memcpy(uploadBufferMem, srcData.data(), srcData.size());
-	m_UploadBuffer->Unmap(uploadBufferOffset, srcData.size());
+		assert(head >= tail);
+		if (head - tail >= reqSize)
+		{
+			found = true;
+		}
+	}
+
+	if (found)
+	{
+		uint64_t retOffset = tail;
+		m_UploadBufferTail = tail + reqSize;
+
+		void* ptr = m_UploadBuffer->Map(retOffset + AlignUp(retOffset, alignment), size);
+		if (!ptr)
+		{
+			LOG_ERROR("Failed to map upload buffer");
+			return std::unexpected("Failed to map upload buffer");
+		}
+
+		return UploadTicket{ ptr, retOffset, reqSize, m_NextTicketIdx++ };
+	}
+
+	LOG_ERROR("Not enough space in upload buffer, requested: {}", size);
+	return std::unexpected("Not enough space in upload buffer");
+}
+
+std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadBufferTicket(UploadTicket&& ticket, rapi::BufferHandle dstBuffer,
+	rapi::ResourceState currentBufferState, rapi::ResourceState targetBufferState, size_t dstStart, const char* opt_gpuMarker)
+{
+	m_UploadBuffer->Unmap(ticket.start, ticket.size);
 
 	auto commandList = GetCommandList();
 
@@ -79,7 +125,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBuff
 			rapi::Barrier::Buffer(dstBuffer.get(), currentBufferState, rapi::ResourceState::COPY_DST));
 	}
 
-	commandList->WriteBuffer(dstBuffer.get(), dstStart, m_UploadBuffer.get(), uploadBufferOffset, srcData.size());
+	commandList->WriteBuffer(dstBuffer.get(), dstStart, m_UploadBuffer.get(), ticket.start, ticket.size);
 
 	if (targetBufferState != rapi::ResourceState::COPY_DST)
 	{
@@ -90,28 +136,13 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBuff
 	if (opt_gpuMarker)
 		commandList->EndMarker();
 
-	return FinishCommandList(commandList);
+	return FinishCommandList(commandList, std::move(ticket));
 }
 
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
-	const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, st::rapi::ResourceState currentState, st::rapi::ResourceState targetState,
-	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadTextureTicket(UploadTicket&& ticket, rapi::TextureHandle dstTexture,
+	rapi::ResourceState currentState, rapi::ResourceState targetState, const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
-	uint64_t uploadBufferOffset = RequestUploadBufferSpace(srcData.size());
-	if (uploadBufferOffset == c_FailedToReserveSpace)
-	{
-		// TODO: Can just happen that wwe are requestion too much uploads in single frame.
-		// So we have to wait the completion of some in-flight commands to free space for new
-		// TODO: Create a pending commands list that can be activated after space is freed (RunGarbageCollector)
-		return std::unexpected("Failed to reserve memory in upload buffer");
-	}
-	void* uploadBufferMem = m_UploadBuffer->Map(uploadBufferOffset, srcData.size());
-	if (!uploadBufferMem)
-	{
-		return std::unexpected("Failed to map upload buffer");
-	}
-	std::memcpy(uploadBufferMem, srcData.data(), srcData.size());
-	m_UploadBuffer->Unmap(uploadBufferOffset, srcData.size());
+	m_UploadBuffer->Unmap(ticket.start, ticket.size);
 
 	auto commandList = GetCommandList();
 
@@ -148,7 +179,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 		}
 	}
 
-	commandList->WriteTexture(dstTexture.get(), subresources, m_UploadBuffer.get(), uploadBufferOffset);
+	commandList->WriteTexture(dstTexture.get(), subresources, m_UploadBuffer.get(), ticket.start);
 
 	// Transition from copy_dest to target state
 	if (targetState != rapi::ResourceState::COPY_DST)
@@ -179,37 +210,47 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 	if (opt_gpuMarker)
 		commandList->EndMarker();
 
-	return FinishCommandList(commandList);
+	return FinishCommandList(commandList, std::move(ticket));
 }
 
-void st::gfx::DataUploader::RunGarbageCollector()
+std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBufferData(
+	const st::WeakBlob& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState currentBufferState, st::rapi::ResourceState targetBufferState,
+	size_t dstStart, const char* opt_gpuMarker)
 {
-	std::vector<st::SignalEmitter> toSignal;
-	uint64_t completedIdx = m_CommitFence->GetCompletedValue();
+	st::rapi::BufferDesc desc = dstBuffer->GetDesc();
+	assert(dstStart + srcData.size() <= desc.sizeBytes);
 
-	// Command list completed
-	{
-		while (!m_InFlightCommandLists.Empty() && m_InFlightCommandLists.Front().CompletedIdx <= completedIdx)
-		{
-			toSignal.push_back(std::move(m_InFlightCommandLists.Front().Signal));
-			m_InFlightCommandLists.Pop();
-		}
-	}
+	auto ticket = RequestUploadTicket(srcData.size(), m_Device->GetCopyDataAlignment(rapi::CopyMethod::Buffer2Buffer));
+	if (!ticket)
+		return std::unexpected(ticket.error());
 
-	// Return space to upload buffer
-	{
-		std::scoped_lock lock{ m_UploadBufferMutex };
-		while (!m_UploadBufferCompletion.Empty() && m_UploadBufferCompletion.Front().CompletedIdx <= completedIdx)
-		{
-			m_UploadBufferHead = m_UploadBufferCompletion.Front().BufferPosition;
-			m_UploadBufferCompletion.Pop();
-		}
-	}
+	std::memcpy(ticket->ptr, srcData.data(), srcData.size());
 
-	for (auto& signal : toSignal)
-	{
-		signal.Signal();
-	}
+	auto uploadResult = CommitUploadBufferTicket(std::move(*ticket), dstBuffer, currentBufferState, targetBufferState, dstStart, opt_gpuMarker);
+	if (!uploadResult)
+		return std::unexpected(uploadResult.error());
+
+	return *uploadResult;
+}
+
+std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
+	const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, st::rapi::ResourceState currentState, st::rapi::ResourceState targetState,
+	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+{
+	auto copyReq = m_Device->GetCopyableRequirements(dstTexture->GetDesc());
+	assert(copyReq.size == srcData.size());
+
+	auto ticket = RequestUploadTicket(srcData.size(), copyReq.alignment);
+	if (!ticket)
+		return std::unexpected(ticket.error());
+
+	std::memcpy(ticket->ptr, srcData.data(), srcData.size());
+
+	auto uploadResult = CommitUploadTextureTicket(std::move(*ticket), dstTexture, currentState, targetState, subresources, opt_gpuMarker);
+	if (!uploadResult)
+		return std::unexpected(uploadResult.error());
+
+	return *uploadResult;
 }
 
 st::rapi::CommandListHandle st::gfx::DataUploader::GetCommandList()
@@ -224,7 +265,7 @@ st::rapi::CommandListHandle st::gfx::DataUploader::GetCommandList()
 	return commandList;
 }
 
-st::SignalListener st::gfx::DataUploader::FinishCommandList(rapi::CommandListHandle commandList)
+st::SignalListener st::gfx::DataUploader::FinishCommandList(rapi::CommandListHandle commandList, UploadTicket&& ticket)
 {
 	commandList->Close();
 
@@ -235,7 +276,7 @@ st::SignalListener st::gfx::DataUploader::FinishCommandList(rapi::CommandListHan
 		m_Device->ExecuteCommandList(commandList.get(), rapi::QueueType::Graphics, m_CommitFence.get(), m_CommitCount);
 
 		m_InFlightCommandLists.Push(InFlightCommandListEntry{
-			m_CommitCount, commandList, {} });
+			m_CommitCount, commandList, {}, std::move(ticket) });
 
 		signal = m_InFlightCommandLists.Back().Signal.GetListener();
 		++m_CommitCount;
@@ -245,52 +286,25 @@ st::SignalListener st::gfx::DataUploader::FinishCommandList(rapi::CommandListHan
 	return signal;
 }
 
-uint64_t st::gfx::DataUploader::RequestUploadBufferSpace(size_t size)
+void st::gfx::DataUploader::OnCompletedTiket(UploadTicket&& ticket)
 {
 	std::scoped_lock lock{ m_UploadBufferMutex };
 
-	auto head = m_UploadBufferHead;
-	auto tail = m_UploadBufferTail;
-	bool found = false;
-	if (tail >= head)
+	if (ticket.idx == m_CompletedTicketIdx + 1)
 	{
-		// Check if there is enough space from the tail to the end
-		if (c_UploadBufferSize - tail >= size)
-			found = true;
-		else
-			tail = 0; // Lets try with the tail at the begining
-	}
-	if (!found)
-	{
-		assert(head >= tail);
-		if (head - tail >= size)
+		m_UploadBufferHead = ticket.start + ticket.size;
+		m_CompletedTicketIdx++;
+		while (!m_PendingTickets.empty() && m_PendingTickets.begin()->first == (m_CompletedTicketIdx + 1))
 		{
-			found = true;
+			m_UploadBufferHead = m_PendingTickets.begin()->second.start + m_PendingTickets.begin()->second.size;
+			m_CompletedTicketIdx++;
+			m_PendingTickets.erase(m_PendingTickets.begin());
 		}
 	}
-
-	if (found)
+	else
 	{
-		uint64_t retOffset = m_UploadBufferTail;
-		m_UploadBufferTail = tail + size;
-
-		// If there is no elements in the completion list or
-		// the last alement added is older than current commit idx
-		if (m_UploadBufferCompletion.Empty() || m_UploadBufferCompletion.Back().CompletedIdx < m_CommitCount)
-		{
-			m_UploadBufferCompletion.Push(UploadBufferCompletionEntry{ m_CommitCount, m_UploadBufferTail });
-		}
-		// else, we are uploading the same commit_idx, so just update the position
-		else
-		{
-			assert(m_UploadBufferCompletion.Back().CompletedIdx == m_CommitCount);
-			m_UploadBufferCompletion.Back().BufferPosition = m_UploadBufferTail;
-		}
-
-		return retOffset;
+		m_PendingTickets.emplace(ticket.idx, std::move(ticket));
 	}
-
-	return c_FailedToReserveSpace;
 }
 
 void st::gfx::DataUploader::AsyncUpdate()
@@ -306,44 +320,29 @@ void st::gfx::DataUploader::AsyncUpdate()
 
 		while (!m_InFlightCommandLists.Empty())
 		{
-			std::vector<SignalEmitter> toSignal;
-			std::vector<rapi::CommandListHandle> commandLists;
+			//std::vector<SignalEmitter> toSignal;
+			//std::vector<rapi::CommandListHandle> commandLists;
+
+			std::vector<InFlightCommandListEntry> completedOnes;
+			completedOnes.reserve(m_InFlightCommandLists.Size());
+
 			uint64_t completedIdx = m_CommitFence->GetCompletedValue();
 
 			while (!m_InFlightCommandLists.Empty() && m_InFlightCommandLists.Front().CompletedIdx <= completedIdx)
 			{
-				toSignal.push_back(std::move(m_InFlightCommandLists.Front().Signal));
-				commandLists.push_back(m_InFlightCommandLists.Front().CommandList);
-				m_InFlightCommandLists.Pop();
+				completedOnes.push_back(m_InFlightCommandLists.Pop().value());
 			}
 
 			lock.unlock();
 
-			for (auto& cmdList : commandLists)
+			for (auto& c : completedOnes)
 			{
-				m_Device->ReleaseImmediately(cmdList);
-			}
-
-			if (!toSignal.empty())
-			{
-				// Return space to upload buffer
-				{
-					std::scoped_lock lock{ m_UploadBufferMutex };
-					while (!m_UploadBufferCompletion.Empty() && m_UploadBufferCompletion.Front().CompletedIdx <= completedIdx)
-					{
-						m_UploadBufferHead = m_UploadBufferCompletion.Front().BufferPosition;
-						m_UploadBufferCompletion.Pop();
-					}
-				}
-
-				for (auto& signal : toSignal)
-				{
-					signal.Signal();
-				}
+				m_Device->ReleaseImmediately(c.CommandList); // no need to queue the release
+				OnCompletedTiket(std::move(c.Ticket));
+				c.Signal.Signal();
 			}
 
 			lock.lock();
-
 			std::this_thread::yield();
 		}
 
