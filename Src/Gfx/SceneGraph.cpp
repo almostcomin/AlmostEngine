@@ -131,7 +131,7 @@ st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(SceneGraphNode* pa
     }
 
     // Force update subgraph next
-    attachedChild->m_DirtyFlags |= (SceneGraphNode::DirtyFlags::LocalTransform | SceneGraphNode::DirtyFlags::Leaf);
+    attachedChild->m_DirtyFlags |= SceneGraphNode::DirtyFlags::All;
     attachedChild->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::Subgraph);
 
     return attachedChild;

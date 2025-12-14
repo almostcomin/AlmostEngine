@@ -62,57 +62,70 @@ std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUpl
 
 std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(size_t size, size_t alignment)
 {
-	std::scoped_lock lock{ m_UploadBufferMutex };
+	assert(alignment > 0);
 
+	std::scoped_lock lock{ m_UploadBufferMutex };
+	
 	auto head = m_UploadBufferHead;
 	auto tail = m_UploadBufferTail;
-	auto reqSize = size;
+	uint64_t startTail = UINT64_MAX;
+	auto sizeNeeded = size;
 	
 	bool found = false;
-	if (tail >= head)
+	// Case 1: tail >= head, try tail to end
+	if (tail >= tail)
 	{
-		reqSize = size + AlignUp(tail, alignment) - tail;
+		sizeNeeded = AlignUp(tail, alignment) - tail + size;
 		// Check if there is enough space from the tail to the end
-		if (c_UploadBufferSize - tail >= reqSize)
-			found = true;
+		if (tail + sizeNeeded <= c_UploadBufferSize)
+		{
+			startTail = tail;
+		}
 		else
 		{
-			tail = 0; // Lets try with the tail at the begining
-			reqSize = size; // Since the buffer is aligned to 64kb and thats the max aligned we allow
+			// Try wrap to beginning
+			auto tail = 0;
+			sizeNeeded = size; // Since 0 is aligned
+			if (sizeNeeded < head)
+			{
+				startTail = tail;
+			}
 		}
 	}
-	if (!found)
+	// Case 2: tail < head, try from tail to head
+	else
 	{
-		assert(head >= tail);
-		if (head - tail >= reqSize)
+		sizeNeeded = AlignUp(tail, alignment) - tail + size;
+		if (tail + sizeNeeded < head)
 		{
-			found = true;
+			startTail = tail;
 		}
 	}
 
-	if (found)
+	if (startTail == UINT64_MAX)
 	{
-		uint64_t retOffset = tail;
-		m_UploadBufferTail = tail + reqSize;
-
-		void* ptr = m_UploadBuffer->Map(retOffset + AlignUp(retOffset, alignment), size);
-		if (!ptr)
-		{
-			LOG_ERROR("Failed to map upload buffer");
-			return std::unexpected("Failed to map upload buffer");
-		}
-
-		return UploadTicket{ ptr, retOffset, reqSize, m_NextTicketIdx++ };
+		LOG_ERROR("Not enough space in upload buffer, requested: {}", size);
+		return std::unexpected("Not enough space in upload buffer");
 	}
 
-	LOG_ERROR("Not enough space in upload buffer, requested: {}", size);
-	return std::unexpected("Not enough space in upload buffer");
+
+	uint64_t alignedStart = AlignUp(startTail, alignment);
+	m_UploadBufferTail = startTail + sizeNeeded;
+
+	void* ptr = m_UploadBuffer->Map(alignedStart, size);
+	if (!ptr)
+	{
+		LOG_ERROR("Failed to map upload buffer");
+		return std::unexpected("Failed to map upload buffer");
+	}
+
+	return UploadTicket{ ptr, startTail, startTail + sizeNeeded, alignedStart, size, m_NextTicketIdx++ };
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadBufferTicket(UploadTicket&& ticket, rapi::BufferHandle dstBuffer,
 	rapi::ResourceState currentBufferState, rapi::ResourceState targetBufferState, size_t dstStart, const char* opt_gpuMarker)
 {
-	m_UploadBuffer->Unmap(ticket.start, ticket.size);
+	m_UploadBuffer->Unmap(ticket.aligned_start, ticket.size);
 
 	auto commandList = GetCommandList();
 
@@ -125,7 +138,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 			rapi::Barrier::Buffer(dstBuffer.get(), currentBufferState, rapi::ResourceState::COPY_DST));
 	}
 
-	commandList->WriteBuffer(dstBuffer.get(), dstStart, m_UploadBuffer.get(), ticket.start, ticket.size);
+	commandList->WriteBuffer(dstBuffer.get(), dstStart, m_UploadBuffer.get(), ticket.aligned_start, ticket.size);
 
 	if (targetBufferState != rapi::ResourceState::COPY_DST)
 	{
@@ -142,7 +155,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadTextureTicket(UploadTicket&& ticket, rapi::TextureHandle dstTexture,
 	rapi::ResourceState currentState, rapi::ResourceState targetState, const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
-	m_UploadBuffer->Unmap(ticket.start, ticket.size);
+	m_UploadBuffer->Unmap(ticket.aligned_start, ticket.size);
 
 	auto commandList = GetCommandList();
 
@@ -286,24 +299,33 @@ st::SignalListener st::gfx::DataUploader::FinishCommandList(rapi::CommandListHan
 	return signal;
 }
 
-void st::gfx::DataUploader::OnCompletedTiket(UploadTicket&& ticket)
+void st::gfx::DataUploader::InsertPendingTicket(UploadTicket&& ticket)
+{
+	auto it = std::lower_bound(m_PendingTickets.begin(), m_PendingTickets.end(), ticket.idx, [](const UploadTicket& a, uint64_t idx)
+		{
+			return a.idx < idx;
+		});
+	m_PendingTickets.insert(it, std::move(ticket));
+}
+
+void st::gfx::DataUploader::OnCompletedTicket(UploadTicket&& ticket)
 {
 	std::scoped_lock lock{ m_UploadBufferMutex };
 
 	if (ticket.idx == m_CompletedTicketIdx + 1)
 	{
-		m_UploadBufferHead = ticket.start + ticket.size;
+		m_UploadBufferHead = ticket.end;
 		m_CompletedTicketIdx++;
-		while (!m_PendingTickets.empty() && m_PendingTickets.begin()->first == (m_CompletedTicketIdx + 1))
+		while (!m_PendingTickets.empty() && m_PendingTickets.begin()->idx == (m_CompletedTicketIdx + 1))
 		{
-			m_UploadBufferHead = m_PendingTickets.begin()->second.start + m_PendingTickets.begin()->second.size;
-			m_CompletedTicketIdx++;
+			m_UploadBufferHead = m_PendingTickets.begin()->end;
 			m_PendingTickets.erase(m_PendingTickets.begin());
+			m_CompletedTicketIdx++;
 		}
 	}
 	else
 	{
-		m_PendingTickets.emplace(ticket.idx, std::move(ticket));
+		InsertPendingTicket(std::move(ticket));
 	}
 }
 
@@ -338,7 +360,7 @@ void st::gfx::DataUploader::AsyncUpdate()
 			for (auto& c : completedOnes)
 			{
 				m_Device->ReleaseImmediately(c.CommandList); // no need to queue the release
-				OnCompletedTiket(std::move(c.Ticket));
+				OnCompletedTicket(std::move(c.Ticket));
 				c.Signal.Signal();
 			}
 

@@ -41,14 +41,16 @@ public:
 	private:
 
 		UploadTicket() = default;
-		UploadTicket(void* _ptr, uint64_t _start, size_t _size, uint64_t _idx)
-			: ptr(_ptr), start(_start), size(_size), idx(_idx) 
+		UploadTicket(void* _ptr, uint64_t _start, uint64_t _end, uint64_t _alignedStart, size_t _size, uint64_t _idx)
+			: ptr(_ptr), start(_start), end(_end), aligned_start(_alignedStart), size(_size), idx(_idx) 
 		{};
 
 		void* ptr = nullptr;	// aligned ptr to mem
-		uint64_t start = 0;
-		size_t size = 0;
-		uint64_t idx = UINT64_MAX;
+		uint64_t start = 0;		// start position of the reservation
+		uint64_t end = 0;		// end position of the reservation, can be higher than the requested one due to alignment
+		uint64_t aligned_start;	// start position of the reservation, but aligned following the requirements
+		uint64_t size;			// size of the requested reservation
+		uint64_t idx = UINT64_MAX; // ticket index
 	};
 
 	DataUploader(rapi::Device* device);
@@ -102,7 +104,8 @@ private: /* methods */
 	rapi::CommandListHandle GetCommandList();
 	SignalListener FinishCommandList(rapi::CommandListHandle commandList, UploadTicket&& ticket);
 
-	void OnCompletedTiket(UploadTicket&& ticket);
+	void InsertPendingTicket(UploadTicket&& ticket);
+	void OnCompletedTicket(UploadTicket&& ticket);
 
 	void AsyncUpdate();
 
@@ -115,7 +118,7 @@ private: /* */
 	
 	uint64_t m_NextTicketIdx;
 	uint64_t m_CompletedTicketIdx;
-	std::map<uint64_t, UploadTicket> m_PendingTickets;
+	std::vector<UploadTicket> m_PendingTickets; // ordered
 
 	struct InFlightCommandListEntry
 	{

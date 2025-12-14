@@ -158,11 +158,13 @@ st::rapi::ShaderHandle st::rapi::dx12::GpuDevice::CreateShader(const ShaderDesc&
 st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc, ResourceState initialState)
 {
 	auto storageReq = GetStorageRequirements(desc);
+	BufferDesc fixedDesc = std::move(desc);
+	fixedDesc.sizeBytes = storageReq.size;
 
 	D3D12_RESOURCE_DESC d3d12Desc = {};
 	d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	d3d12Desc.Alignment = storageReq.alignment;
-	d3d12Desc.Width = storageReq.size;
+	d3d12Desc.Width = fixedDesc.sizeBytes;
 	d3d12Desc.Height = 1;
 	d3d12Desc.DepthOrArraySize = 1;
 	d3d12Desc.MipLevels = 1;
@@ -170,11 +172,11 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 	d3d12Desc.SampleDesc.Count = 1;
 	d3d12Desc.SampleDesc.Quality = 0;
 	d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	d3d12Desc.Flags = desc.allowUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+	d3d12Desc.Flags = fixedDesc.allowUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
 
 	// TODO: D3D12MA
 	D3D12_HEAP_PROPERTIES heapProps = {};
-	switch (desc.memoryAccess)
+	switch (fixedDesc.memoryAccess)
 	{
 	case MemoryAccess::Default:
 		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -194,10 +196,10 @@ st::rapi::BufferHandle st::rapi::dx12::GpuDevice::CreateBuffer(const BufferDesc&
 		&heapProps, D3D12_HEAP_FLAG_NONE, &d3d12Desc, MapResourceState(initialState), nullptr, IID_PPV_ARGS(&d3d12Buffer));
 	HR_RETURN_NULL(hr);
 
-	auto ws_nmame = ToWide(desc.debugName.c_str());
+	auto ws_nmame = ToWide(fixedDesc.debugName.c_str());
 	d3d12Buffer->SetName(ws_nmame.c_str());
 
-	return InsertNewResource<IBuffer>(new Buffer{ desc, d3d12Buffer.Get(), this });
+	return InsertNewResource<IBuffer>(new Buffer{ fixedDesc, d3d12Buffer.Get(), this });
 }
 
 st::rapi::TextureHandle st::rapi::dx12::GpuDevice::CreateTexture(const TextureDesc& desc, ResourceState initialState)

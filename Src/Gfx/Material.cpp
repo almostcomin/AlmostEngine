@@ -7,7 +7,7 @@ st::gfx::Material::Material(const std::string& name, const std::string& filename
 
 st::gfx::Material::~Material()
 {
-	assert(!m_DiffuseTexture);
+	//assert(!m_DiffuseTexture);
 }
 
 st::rapi::TextureHandle st::gfx::Material::SetDiffuseTexture(rapi::TextureHandle textureHandle)

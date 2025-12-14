@@ -474,7 +474,7 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
 };
 
 std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool sRGB, bool searchForDDS, LoadTexCache& loadCache,
-    int imageIndex, const cgltf_options& options)
+    int imageIndex, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait)
 {
     auto it = loadCache.imageCache.find(image);
     if (it != loadCache.imageCache.end())
@@ -489,6 +489,7 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool
         if (loadResult)
         {
             texture = loadResult->first;
+            out_handlesToWait.push_back(loadResult->second);
             // TODO: save handle to wait
         }
         else
@@ -502,7 +503,7 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool
         if (loadResult)
         {
             texture = loadResult->first;
-            // TODO: save handle to wait
+            out_handlesToWait.push_back(loadResult->second);
         }
         else
         {
@@ -515,7 +516,7 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool
 };
 
 std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, const cgltf_data* objects, bool sRGB,
-    LoadTexCache& loadCache, const cgltf_options& options)
+    LoadTexCache& loadCache, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait)
 {
     auto it = loadCache.texCache.find(texture);
     if (it != loadCache.texCache.end())
@@ -529,11 +530,11 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, cons
     cgltf_image const* ddsImage = extensions.ddsImage;
     if (ddsImage)
     {
-        loadedTexture = LoadImage(ddsImage, sRGB, false, loadCache, objects->images - ddsImage, options);
+        loadedTexture = LoadImage(ddsImage, sRGB, false, loadCache, objects->images - ddsImage, options, out_handlesToWait);
     }
     if (!loadedTexture && texture->image)
     {
-        loadedTexture = LoadImage(texture->image, sRGB, true, loadCache, objects->images - texture->image, options);
+        loadedTexture = LoadImage(texture->image, sRGB, true, loadCache, objects->images - texture->image, options, out_handlesToWait);
     }
 
     // If the texture swizzle extension is present, load the source images and transfer the swizzle data
@@ -546,14 +547,14 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, cons
 }
 
 std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> 
-GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options)
+GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait)
 {
     std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> matMap;
-    auto loadTex = [objects, &loadCache, &options](cgltf_texture* texture, bool sRGB) -> st::rapi::TextureHandle
+    auto loadTex = [objects, &loadCache, &options, &out_handlesToWait](cgltf_texture* texture, bool sRGB) -> st::rapi::TextureHandle
     {
         if (!texture)
             return {};
-        auto loadedTexture = LoadTexture(texture, objects, sRGB, loadCache, options);
+        auto loadedTexture = LoadTexture(texture, objects, sRGB, loadCache, options, out_handlesToWait);
         return loadedTexture->texture;
     };
 
@@ -1132,11 +1133,12 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
         return std::unexpected(ErrorToString(res));
     }
 
+    std::vector<st::SignalListener> handlesToWait;
+
     // Materials
-    auto matMap = GetMaterialsMap(objects, loadTexCache, options);
+    auto matMap = GetMaterialsMap(objects, loadTexCache, options, handlesToWait);
 
     // Meshes
-    std::vector<st::SignalListener> handlesToWait;
     auto loadMeshesResult = LoadMeshes(objects, matMap, path, device->GetDataUploader(), device->GetDevice(), handlesToWait);
     auto meshMap = *loadMeshesResult;
 
@@ -1268,7 +1270,7 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
     // Wait uploads
     for (const auto& signal : handlesToWait)
     {
-        //signal.Wait();
+        signal.Wait();
     }
 
     sceneGraph->SetRoot(std::move(rootNode));

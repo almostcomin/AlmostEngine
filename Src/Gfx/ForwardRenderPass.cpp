@@ -13,8 +13,7 @@
 #include "Interop/RenderResources.h"
 
 bool st::gfx::ForwardRenderPass::Render()
-{return true;
-
+{
 	if (!m_Scene)
 	{
 		LOG_WARNING("No scene set. Nothing to render");

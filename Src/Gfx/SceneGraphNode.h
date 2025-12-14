@@ -30,7 +30,7 @@ public:
 		Leaf = 0x02,			// Leaf has changed
 		Subgraph = 0x04,		// Subgraph has changed (local transform, leaf attached i.e.)
 
-		//All = (WorldTransform | SubgraphStructure);
+		All = (LocalTransform | Leaf | Subgraph)
 	};
 
 public:

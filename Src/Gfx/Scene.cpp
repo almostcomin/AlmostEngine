@@ -104,7 +104,8 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				meshDataPtr->vertexTexCoord0Stride = stride.TexCoord0;
 				meshDataPtr->vertexTexCoord1Stride = stride.TexCoord1;
 				meshDataPtr->vertexColorStride = stride.Color;
-				meshDataPtr->textureIndex = mesh->GetMaterial()->GetDiffuseTexture()->GetShaderViewIndex(rapi::TextureShaderView::ShaderResource);
+				meshDataPtr->textureIndex = mesh->GetMaterial()->GetDiffuseTexture() ?
+					mesh->GetMaterial()->GetDiffuseTexture()->GetShaderViewIndex(rapi::TextureShaderView::ShaderResource) : rapi::c_InvalidDescriptorIndex;
 			}
 			dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer, 
 				rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE);
