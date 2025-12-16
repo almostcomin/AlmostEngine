@@ -244,7 +244,8 @@ void st::rapi::dx12::CommandList::PushConstants(const void* data, size_t sizeByt
 	m_D3d12Commandlist->SetGraphicsRoot32BitConstants(0, sizeBytes / 4, data, offsetBytes / 4);
 }
 
-void st::rapi::dx12::CommandList::BeginRenderPass(rapi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags rpFlags)
+void st::rapi::dx12::CommandList::BeginRenderPass(rapi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, 
+	const RenderPassOp& dsvRenderPassOp, RenderPassFlags rpFlags)
 {
 	m_CurrentFB = st::checked_pointer_cast<rapi::IFramebuffer>(_fb->weak_from_this());
 
@@ -253,7 +254,7 @@ void st::rapi::dx12::CommandList::BeginRenderPass(rapi::IFramebuffer* _fb, const
 	D3D12_RENDER_PASS_RENDER_TARGET_DESC RTVs[c_MaxRenderTargets] = {};
 	for (int rtv_idx = 0; rtv_idx < fb->RTVs.size(); ++rtv_idx)
 	{
-		RTVs[rtv_idx].cpuDescriptor = m_Device->GetRTVCPUDescriptorHandle(fb->RTVs[rtv_idx]);
+		RTVs[rtv_idx].cpuDescriptor = m_Device->GetRenderTargetViewHeap()->GetCpuHandle(fb->RTVs[rtv_idx]);
 		RTVs[rtv_idx].BeginningAccess = GetRenderPassBeginningAccess(
 			rtvRenderPassOp[rtv_idx].loadOp, rtvRenderPassOp[rtv_idx].clearValue, fb->rtvTextures[rtv_idx]->GetDesc().format);
 		RTVs[rtv_idx].EndingAccess = GetRenderPassEngindAccess(rtvRenderPassOp[rtv_idx].storeOp);
@@ -262,7 +263,7 @@ void st::rapi::dx12::CommandList::BeginRenderPass(rapi::IFramebuffer* _fb, const
 	D3D12_RENDER_PASS_DEPTH_STENCIL_DESC DSV = {};
 	if (fb->DSV != c_InvalidDescriptorIndex)
 	{
-		DSV.cpuDescriptor = m_Device->GetRTVCPUDescriptorHandle(fb->DSV);
+		DSV.cpuDescriptor = m_Device->GetDepthStencilViewHeap()->GetCpuHandle(fb->DSV);
 		DSV.DepthBeginningAccess = GetRenderPassBeginningAccess(
 			dsvRenderPassOp.loadOp, dsvRenderPassOp.clearValue, fb->dsvTexture->GetDesc().format);
 		DSV.DepthEndingAccess = GetRenderPassEngindAccess(dsvRenderPassOp.storeOp);

@@ -47,8 +47,6 @@ namespace st::rapi::dx12
 
 		size_t GetCopyDataAlignment(CopyMethod method) override;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE GetRTVCPUDescriptorHandle(DescriptorIndex idx);
-
 		DescriptorHeap* GetDepthStencilViewHeap() { return &m_DepthStencilViewHeap; }
 		DescriptorHeap* GetRenderTargetViewHeap() { return &m_RenderTargetViewHeap; }
 		DescriptorHeap* GetShaderResourceViewHeap() { return &m_ShaderResourceViewHeap; }

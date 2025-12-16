@@ -27,6 +27,8 @@ public:
 	bool Render() override;
 	void OnBackbufferResize(const glm::ivec2& size) override {};
 
+	const char* GetDebugName() const override { return "ForwardRenderPass"; }
+
 private:
 
 	void OnAttached() override;

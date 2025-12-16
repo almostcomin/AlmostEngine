@@ -46,6 +46,8 @@ public:
 	bool OnMouseMove(float posX, float posY);
 	bool OnMouseButtonUpdate(MouseButton button, KeyAction action);
 
+	const char* GetDebugName() const override { return "ImGuiRenderPass"; }
+
 protected:
 
 private:

@@ -37,7 +37,8 @@ union ClearValue
 		uint32_t stencil;
 	} depthStencil;
 
-	static constexpr float4 Black = float4{ 0.f };
+	static constexpr ClearValue Black() { return ClearValue{ float4{ 0.f } }; }
+	static constexpr ClearValue Zero() { return ClearValue{ .depthStencil{ 0.f, 0u } }; }
 };
 
 struct RenderPassOp

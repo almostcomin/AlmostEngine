@@ -31,6 +31,13 @@ bool st::gfx::ForwardRenderPass::Render()
 	auto commandList = m_RenderView->GetCommandList();
 
 	commandList->BeginMarker("ForwardRenderPass");
+
+	commandList->BeginRenderPass(
+		m_FB.get(),
+		{ rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Black()} },
+		rapi::RenderPassOp{ rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Zero() },
+		rapi::RenderPassFlags::None);
+
 	commandList->SetPipelineState(m_PSO.get());
 
 	interop::ForwardRP fwData;
@@ -68,6 +75,8 @@ bool st::gfx::ForwardRenderPass::Render()
 
 	commandList->EndMarker();
 
+	commandList->EndRenderPass();
+
 	return true;
 }
 
@@ -88,8 +97,11 @@ void st::gfx::ForwardRenderPass::OnAttached()
 		.height = fbInfo.height,
 		.format = rapi::Format::SRGBA8_UNORM,
 		.shaderUsage = rapi::TextureShaderUsage::ShaderResource | rapi::TextureShaderUsage::RenderTarget,
-		.debugName = "ForwardRenderPass_RT"};
-	m_RenderTarget = device->CreateTexture(rtDesc, rapi::ResourceState::RENDERTARGET);
+		.debugName = "ForwardRenderPass_RT"};	
+
+	m_RenderView->CreateTexture(rtDesc, "ForwardRenderPass_RT");
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ForwardRenderPass_RT", rapi::ResourceState::RENDERTARGET, rapi::ResourceState::RENDERTARGET);
+	m_RenderTarget = m_RenderView->GetTexture("ForwardRenderPass_RT");
 
 	rapi::TextureDesc dsDesc{
 		.width = fbInfo.width,

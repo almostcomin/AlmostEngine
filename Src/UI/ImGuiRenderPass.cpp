@@ -25,6 +25,9 @@ void st::ui::ImGuiRenderPass::ReconcileInputState()
 void st::ui::ImGuiRenderPass::OnAttached()
 {
     Init();
+
+    m_RenderView->RequestTextureAccess(this, gfx::RenderView::AccessMode::Read, "ForwardRenderPass_RT", 
+        rapi::ResourceState::SHADER_RESOURCE, rapi::ResourceState::SHADER_RESOURCE);
 }
 
 void st::ui::ImGuiRenderPass::OnDetached()
@@ -120,7 +123,7 @@ bool st::ui::ImGuiRenderPass::Render()
 
     commandList->BeginRenderPass(
         frameBuffer.get(),
-        { rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Black} },
+        { rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Black()} },
         {},
         rapi::RenderPassFlags::None);
 

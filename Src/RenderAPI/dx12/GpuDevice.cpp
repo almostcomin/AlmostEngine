@@ -442,11 +442,6 @@ size_t st::rapi::dx12::GpuDevice::GetCopyDataAlignment(CopyMethod method)
 	}
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE st::rapi::dx12::GpuDevice::GetRTVCPUDescriptorHandle(DescriptorIndex idx)
-{
-	return m_RenderTargetViewHeap.GetCpuHandle(idx);
-}
-
 void st::rapi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value)
 {
 	if (!m_Queues[(int)type].queue)
