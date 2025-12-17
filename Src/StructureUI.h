@@ -1,9 +1,9 @@
 #pragma once
 
-#include "UI/ImGuiRenderPass.h"
+#include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include <functional>
 
-class StructureUI : public st::ui::ImGuiRenderPass
+class StructureUI : public st::gfx::ImGuiRenderStage
 {
 public:
 

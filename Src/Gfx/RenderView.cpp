@@ -1,5 +1,5 @@
 #include "Gfx/RenderView.h"
-#include "Gfx/RenderPass.h"
+#include "Gfx/RenderStage.h"
 #include "Gfx/DeviceManager.h"
 #include "RenderAPI/Device.h"
 #include "Core/Log.h"
@@ -36,15 +36,15 @@ void st::gfx::RenderView::SetOffscreenFrameBuffer(st::rapi::FramebufferHandle fr
 	m_OffscreenFramebuffer = frameBuffer;
 }
 
-void st::gfx::RenderView::SetRenderPasses(const std::vector<std::shared_ptr<RenderPass>>& renderPasses)
+void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages)
 {
 	CleanRenderPasses();
 
-	m_RenderPasses.reserve(renderPasses.size());
-	for (auto& rp : renderPasses)
-		m_RenderPasses.push_back(RenderPassDeps{ {}, rp });
+	m_RenderStages.reserve(renderStages.size());
+	for (auto& rp : renderStages)
+		m_RenderStages.push_back(RenderPassDeps{ {}, rp });
 
-	for (auto rp : m_RenderPasses)
+	for (auto rp : m_RenderStages)
 	{
 		rp.renderPass->Attach(this);
 	}
@@ -79,7 +79,7 @@ bool st::gfx::RenderView::CreateTexture(const rapi::TextureDesc& desc, const cha
 	return true;
 }
 
-bool st::gfx::RenderView::RequestTextureAccess(RenderPass* rp, AccessMode accessMode, const char* id, rapi::ResourceState inputState, rapi::ResourceState outputState)
+bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rapi::ResourceState inputState, rapi::ResourceState outputState)
 {
 	// Check that texture is create
 	auto texture_it = m_DeclaredTextures.find(id);
@@ -90,11 +90,11 @@ bool st::gfx::RenderView::RequestTextureAccess(RenderPass* rp, AccessMode access
 	}
 
 	// Find render pass deps
-	auto rp_it = std::find_if(m_RenderPasses.begin(), m_RenderPasses.end(), [rp](const RenderPassDeps& entry) -> bool
+	auto rp_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rp](const RenderPassDeps& entry) -> bool
 		{
 			return entry.renderPass.get() == rp;
 		});
-	if (rp_it == m_RenderPasses.end())
+	if (rp_it == m_RenderStages.end())
 	{
 		LOG_ERROR("Render pass with debug name {} not registered", rp->GetDebugName());
 		return false;
@@ -139,7 +139,7 @@ void st::gfx::RenderView::Render()
 			resourcesStates.emplace(entry.first, rapi::ResourceState::COMMON);
 		}
 
-		for (auto& renderPass : m_RenderPasses)
+		for (auto& renderPass : m_RenderStages)
 		{
 			std::string markerName = renderPass.renderPass->GetDebugName();
 			markerName.append(" - Entry barriers");
@@ -205,11 +205,11 @@ void st::gfx::RenderView::Refresh()
 
 void st::gfx::RenderView::CleanRenderPasses()
 {
-	for (auto rp : m_RenderPasses)
+	for (auto rp : m_RenderStages)
 	{
 		rp.renderPass->Detach();
 	}
-	m_RenderPasses.clear();
+	m_RenderStages.clear();
 
 	for (auto dt : m_DeclaredTextures)
 	{

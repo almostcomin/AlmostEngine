@@ -12,7 +12,7 @@
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/Camera.h"
-#include "Gfx/ForwardRenderPass.h"
+#include "Gfx/RenderStages/OpaqueRenderStage.h"
 #include "StructureUI.h"
 #include <thread>
 #include <sstream>
@@ -87,7 +87,7 @@ int SDL_main(int argc, char* argv[])
 	deviceManager->Init(initParams);
 
 	// Create forward render pass
-	std::shared_ptr<st::gfx::ForwardRenderPass> fwdRenderPass{ new st::gfx::ForwardRenderPass };
+	std::shared_ptr<st::gfx::OpaqueRenderStage> fwdRenderPass{ new st::gfx::OpaqueRenderStage };
 
 	st::unique<st::gfx::Scene> scene;
 
@@ -115,7 +115,7 @@ int SDL_main(int argc, char* argv[])
 
 	// Create RenderView
 	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get());
-	renderView->SetRenderPasses({ fwdRenderPass, uiRenderPass });
+	renderView->SetRenderStages({ fwdRenderPass, uiRenderPass });
 	renderView->SetCamera(camera);
 
 	// Main loop
@@ -137,17 +137,17 @@ int SDL_main(int argc, char* argv[])
 			case SDL_EVENT_MOUSE_BUTTON_UP:
 			{
 				bool validButton = true;
-				st::ui::MouseButton button;
+				st::gfx::MouseButton button;
 				switch (event.button.button)
 				{
-				case SDL_BUTTON_LEFT: button = st::ui::MouseButton::LEFT; break;
-				case SDL_BUTTON_MIDDLE: button = st::ui::MouseButton::MIDDLE; break;
-				case SDL_BUTTON_RIGHT: button = st::ui::MouseButton::RIGHT; break;
+				case SDL_BUTTON_LEFT: button = st::gfx::MouseButton::LEFT; break;
+				case SDL_BUTTON_MIDDLE: button = st::gfx::MouseButton::MIDDLE; break;
+				case SDL_BUTTON_RIGHT: button = st::gfx::MouseButton::RIGHT; break;
 				default: validButton = false;
 				}
 				if (validButton)
 				{
-					uiRenderPass->OnMouseButtonUpdate(button, event.button.down ? st::ui::KeyAction::PRESS : st::ui::KeyAction::RELEASE);
+					uiRenderPass->OnMouseButtonUpdate(button, event.button.down ? st::gfx::KeyAction::PRESS : st::gfx::KeyAction::RELEASE);
 				}				
 				break;
 			}

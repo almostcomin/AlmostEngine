@@ -9,7 +9,7 @@
 namespace st::gfx
 {
 	class Camera;
-	class RenderPass;
+	class RenderStage;
 	class DeviceManager;
 }
 
@@ -35,7 +35,7 @@ public:
 	// main onscreen framebuffer aka main framebuffer
 	void SetOffscreenFrameBuffer(st::rapi::FramebufferHandle frameBuffer);
 
-	void SetRenderPasses(const std::vector<std::shared_ptr<RenderPass>>& renderPasses);
+	void SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages);
 
 	std::shared_ptr<Camera> GetCamera() { return m_Camera; }
 	st::rapi::FramebufferHandle GetFramebuffer();
@@ -43,7 +43,7 @@ public:
 	st::rapi::CommandListHandle GetCommandList();
 
 	bool CreateTexture(const rapi::TextureDesc& desc, const char* id);
-	bool RequestTextureAccess(RenderPass* rp, AccessMode accessMode, const char* id, rapi::ResourceState inputState, rapi::ResourceState outputState);
+	bool RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rapi::ResourceState inputState, rapi::ResourceState outputState);
 	rapi::TextureHandle GetTexture(const char* id) const;
 
 	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }
@@ -73,7 +73,7 @@ private:
 	struct RenderPassDeps
 	{
 		std::vector<RenderPassTextureDep> textureDeps;
-		std::shared_ptr<RenderPass> renderPass;
+		std::shared_ptr<RenderStage> renderPass;
 	};
 
 	void Refresh();
@@ -84,7 +84,7 @@ private:
 
 	std::map<std::string, DeclaredTexture> m_DeclaredTextures;
 
-	std::vector<RenderPassDeps> m_RenderPasses;
+	std::vector<RenderPassDeps> m_RenderStages;
 
 	bool m_IsDirty;
 

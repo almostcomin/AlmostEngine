@@ -6,7 +6,7 @@
 #include "RenderAPI/PipelineState.h"
 #include "RenderAPI/Buffer.h"
 #include "RenderAPI/Framebuffer.h"
-#include "Gfx/RenderPass.h"
+#include "Gfx/RenderStage.h"
 
 namespace st::gfx
 {
@@ -16,18 +16,18 @@ namespace st::gfx
 namespace st::gfx
 {
 
-class ForwardRenderPass : public RenderPass
+class OpaqueRenderStage : public RenderStage
 {
 public:
 
-	ForwardRenderPass() = default;
+	OpaqueRenderStage() = default;
 
 	void SetScene(st::weak<Scene> scene) { m_Scene = scene; }
 
 	bool Render() override;
 	void OnBackbufferResize(const glm::ivec2& size) override {};
 
-	const char* GetDebugName() const override { return "ForwardRenderPass"; }
+	const char* GetDebugName() const override { return "OpaqueRenderStage"; }
 
 private:
 

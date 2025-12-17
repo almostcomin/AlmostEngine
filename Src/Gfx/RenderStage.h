@@ -12,7 +12,7 @@ namespace st::rapi
 
 namespace st::gfx
 {
-class RenderPass
+class RenderStage
 {
 	friend class RenderView;
 

@@ -1,4 +1,4 @@
-#include "Gfx/ForwardRenderPass.h"
+#include "Gfx/RenderStages/OpaqueRenderStage.h"
 #include "Core/Log.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
@@ -12,7 +12,7 @@
 #include "RenderAPI/Device.h"
 #include "Interop/RenderResources.h"
 
-bool st::gfx::ForwardRenderPass::Render()
+bool st::gfx::OpaqueRenderStage::Render()
 {
 	if (!m_Scene)
 	{
@@ -29,8 +29,6 @@ bool st::gfx::ForwardRenderPass::Render()
 
 	rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 	auto commandList = m_RenderView->GetCommandList();
-
-	commandList->BeginMarker("ForwardRenderPass");
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -73,14 +71,12 @@ bool st::gfx::ForwardRenderPass::Render()
 		}
 	} // while(walker)
 
-	commandList->EndMarker();
-
 	commandList->EndRenderPass();
 
 	return true;
 }
 
-void st::gfx::ForwardRenderPass::OnAttached()
+void st::gfx::OpaqueRenderStage::OnAttached()
 {
 	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 	rapi::Device* device = deviceManager->GetDevice();
@@ -160,7 +156,7 @@ void st::gfx::ForwardRenderPass::OnAttached()
 	}
 }
 
-void st::gfx::ForwardRenderPass::OnDetached()
+void st::gfx::OpaqueRenderStage::OnDetached()
 {
 	st::rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
@@ -174,7 +170,7 @@ void st::gfx::ForwardRenderPass::OnDetached()
 	device->ReleaseQueued(m_PS);
 }
 
-st::rapi::DescriptorIndex st::gfx::ForwardRenderPass::GetSceneDI()
+st::rapi::DescriptorIndex st::gfx::OpaqueRenderStage::GetSceneDI()
 {
 	auto camera = m_RenderView->GetCamera();
 	if (!camera)

@@ -1,7 +1,7 @@
-#include "Gfx/RenderPass.h"
+#include "Gfx/RenderStage.h"
 #include "Gfx/RenderView.h"
 
-void st::gfx::RenderPass::Attach(st::gfx::RenderView* renderView)
+void st::gfx::RenderStage::Attach(st::gfx::RenderView* renderView)
 {
 	assert(m_RenderView.expired() && "Trying to attach an already attached render pass");
 	m_RenderView = renderView->weak_from_this();
@@ -9,7 +9,7 @@ void st::gfx::RenderPass::Attach(st::gfx::RenderView* renderView)
 	OnAttached();
 }
 
-void st::gfx::RenderPass::Detach()
+void st::gfx::RenderStage::Detach()
 {
 	OnDetached();
 

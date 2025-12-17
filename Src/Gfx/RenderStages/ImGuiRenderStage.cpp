@@ -1,4 +1,4 @@
-#include "UI/ImGuiRenderPass.h"
+#include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Core/Log.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
@@ -8,7 +8,7 @@
 #include "RenderAPI/Device.h"
 #include <imgui/imgui.h>
 
-void st::ui::ImGuiRenderPass::ReconcileInputState()
+void st::gfx::ImGuiRenderStage::ReconcileInputState()
 {
     ImGuiIO& io = ImGui::GetIO();
 
@@ -22,7 +22,7 @@ void st::ui::ImGuiRenderPass::ReconcileInputState()
     }
 }
 
-void st::ui::ImGuiRenderPass::OnAttached()
+void st::gfx::ImGuiRenderStage::OnAttached()
 {
     Init();
 
@@ -30,12 +30,12 @@ void st::ui::ImGuiRenderPass::OnAttached()
         rapi::ResourceState::SHADER_RESOURCE, rapi::ResourceState::SHADER_RESOURCE);
 }
 
-void st::ui::ImGuiRenderPass::OnDetached()
+void st::gfx::ImGuiRenderStage::OnDetached()
 {
     Release();
 }
 
-void st::ui::ImGuiRenderPass::BeginFullScreenWindow()
+void st::gfx::ImGuiRenderStage::BeginFullScreenWindow()
 {
     ImGuiIO const& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(0.f, 0.f), ImGuiCond_Always);
@@ -48,13 +48,13 @@ void st::ui::ImGuiRenderPass::BeginFullScreenWindow()
     ImGui::Begin(" ", 0, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
 }
 
-void st::ui::ImGuiRenderPass::EndFullScreenWindow()
+void st::gfx::ImGuiRenderStage::EndFullScreenWindow()
 {
     ImGui::End();
     ImGui::PopStyleVar();
 }
 
-void st::ui::ImGuiRenderPass::DrawCenteredText(const char* text)
+void st::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
 {
     ImGuiIO const& io = ImGui::GetIO();
     ImVec2 textSize = ImGui::CalcTextSize(text);
@@ -66,19 +66,19 @@ void st::ui::ImGuiRenderPass::DrawCenteredText(const char* text)
     ImGui::TextUnformatted(text);
 }
 
-st::rapi::BufferHandle& st::ui::ImGuiRenderPass::GetCurrentVB()
+st::rapi::BufferHandle& st::gfx::ImGuiRenderStage::GetCurrentVB()
 {
     uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
     return m_VertexBuffer[currentFrameIdx % 3];
 }
 
-st::rapi::BufferHandle& st::ui::ImGuiRenderPass::GetCurrentIB()
+st::rapi::BufferHandle& st::gfx::ImGuiRenderStage::GetCurrentIB()
 {
     uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
     return m_IndexBuffer[currentFrameIdx % 3];
 }
 
-bool st::ui::ImGuiRenderPass::Render()
+bool st::gfx::ImGuiRenderStage::Render()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
     st::rapi::Device* device = deviceManager->GetDevice();
@@ -88,7 +88,6 @@ bool st::ui::ImGuiRenderPass::Render()
     io.DisplaySize = ImVec2(dim.x, dim.y);
 
     rapi::CommandListHandle commandList = m_RenderView->GetCommandList();
-    commandList->BeginMarker("ImGui");
 
     // Address any change in font data. Needs to be called before ImGui::NewFrame()
     if (!UpdateFontTexture())
@@ -171,17 +170,16 @@ bool st::ui::ImGuiRenderPass::Render()
     }
 
     commandList->EndRenderPass();
-    commandList->EndMarker();
     
     return true;
 }
 
-void st::ui::ImGuiRenderPass::OnBackbufferResize(const glm::ivec2& size)
+void st::gfx::ImGuiRenderStage::OnBackbufferResize(const glm::ivec2& size)
 {
     // no-op
 }
 
-bool st::ui::ImGuiRenderPass::OnMouseMove(float posX, float posY)
+bool st::gfx::ImGuiRenderStage::OnMouseMove(float posX, float posY)
 {
     ImGuiIO& io = ImGui::GetIO();
     io.MousePos.x = float(posX);
@@ -190,7 +188,7 @@ bool st::ui::ImGuiRenderPass::OnMouseMove(float posX, float posY)
     return io.WantCaptureMouse;
 }
 
-bool st::ui::ImGuiRenderPass::OnMouseButtonUpdate(MouseButton button, KeyAction action)
+bool st::gfx::ImGuiRenderStage::OnMouseButtonUpdate(MouseButton button, KeyAction action)
 {
     auto& io = ImGui::GetIO();
 
@@ -225,7 +223,7 @@ bool st::ui::ImGuiRenderPass::OnMouseButtonUpdate(MouseButton button, KeyAction 
     return io.WantCaptureMouse;
 }
 
-bool st::ui::ImGuiRenderPass::Init()
+bool st::gfx::ImGuiRenderStage::Init()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
     st::rapi::Device* device = deviceManager->GetDevice();
@@ -282,7 +280,7 @@ bool st::ui::ImGuiRenderPass::Init()
     return true;
 }
 
-void st::ui::ImGuiRenderPass::Release()
+void st::gfx::ImGuiRenderStage::Release()
 {
     auto* device = m_RenderView->GetDeviceManager()->GetDevice();
 
@@ -299,7 +297,7 @@ void st::ui::ImGuiRenderPass::Release()
     device->ReleaseQueued(m_PS);
 }
 
-bool st::ui::ImGuiRenderPass::UpdateFontTexture()
+bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
     auto* device = deviceManager->GetDevice();
@@ -346,7 +344,7 @@ bool st::ui::ImGuiRenderPass::UpdateFontTexture()
     return true;
 }
 
-bool st::ui::ImGuiRenderPass::UpdateGeometry()
+bool st::gfx::ImGuiRenderStage::UpdateGeometry()
 {
     rapi::BufferHandle& currentVB = GetCurrentVB();
     rapi::BufferHandle& currentIB = GetCurrentIB();
@@ -390,7 +388,7 @@ bool st::ui::ImGuiRenderPass::UpdateGeometry()
     return true;
 }
 
-bool st::ui::ImGuiRenderPass::ReallocateBuffer(rapi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
+bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rapi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 
@@ -418,7 +416,7 @@ bool st::ui::ImGuiRenderPass::ReallocateBuffer(rapi::BufferHandle& buffer, size_
     return true;
 }
 
-st::rapi::GraphicsPipelineStateHandle st::ui::ImGuiRenderPass::GetPSO(rapi::IFramebuffer* frameBuffer)
+st::rapi::GraphicsPipelineStateHandle st::gfx::ImGuiRenderStage::GetPSO(rapi::IFramebuffer* frameBuffer)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 

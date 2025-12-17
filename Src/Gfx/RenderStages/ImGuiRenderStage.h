@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Gfx/RenderPass.h"
+#include "Gfx/RenderStage.h"
 #include "RenderAPI/Buffer.h"
 #include "RenderAPI/PipelineState.h"
 #include "RenderAPI/CommandList.h"
@@ -16,7 +16,7 @@ namespace st::gfx
 	class ShaderFactory;
 }
 
-namespace st::ui
+namespace st::gfx
 {
 
 enum class MouseButton
@@ -33,7 +33,7 @@ enum class KeyAction
 	REPEAT
 };
 
-class ImGuiRenderPass : public st::gfx::RenderPass
+class ImGuiRenderStage : public RenderStage
 {
 public:
 
@@ -46,7 +46,7 @@ public:
 	bool OnMouseMove(float posX, float posY);
 	bool OnMouseButtonUpdate(MouseButton button, KeyAction action);
 
-	const char* GetDebugName() const override { return "ImGuiRenderPass"; }
+	const char* GetDebugName() const override { return "ImGuiRenderStage"; }
 
 protected:
 
