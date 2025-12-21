@@ -41,6 +41,7 @@
 *.dwo
 
 3rdParty/*
+!3rdParty/WinPixEventRuntime
 !3rdParty/Build/
 !3rdParty/Sources/
 !3rdParty/BuildAll.py

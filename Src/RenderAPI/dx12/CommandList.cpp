@@ -9,7 +9,7 @@
 #include "RenderAPI/dx12/Utils.h"
 #include "RenderAPI/Viewport.h"
 #include "Core/Util.h"
-#include <pix_win.h>
+#include <pix3.h>
 #include <cassert>
 #include <vector>
 #include "Core/Log.h"

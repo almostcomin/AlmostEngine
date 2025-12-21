@@ -18,9 +18,12 @@ float4 main(PS_INPUT input) : SV_Target
     
     interop::InstanceData instanceData = instancesBuffer[Constants.instanceIdx];
     interop::MeshData meshData = meshesBuffer[instanceData.meshIndex];
-            
-    Texture2D albedo = ResourceDescriptorHeap[meshData.textureDI];
-    
-    float4 out_col = albedo.Sample(linearWrapSampler, input.uv);
+
+    float4 out_col = float4(1.0, 1.0, 1.0, 1.0);
+    if (meshData.textureDI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D albedo = ResourceDescriptorHeap[meshData.textureDI];    
+        out_col = albedo.Sample(linearWrapSampler, input.uv);
+    }
     return out_col;
 }

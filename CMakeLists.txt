@@ -98,6 +98,11 @@ target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/dxc/i
 target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/dxc/lib/x64")
 target_link_libraries(Structure PRIVATE dxcompiler.lib)
 
+# PIX
+target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/WinPixEventRuntime/Include/WinPixEventRuntime")
+target_link_libraries(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/WinPixEventRuntime/bin/x64/WinPixEventRuntime.lib")
+
+# 
 add_custom_command(
     TARGET Structure POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -105,7 +110,10 @@ add_custom_command(
         $<TARGET_FILE_DIR:Structure>
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/3rdParty/dxc/bin/x64/dxil.dll"
-        $<TARGET_FILE_DIR:Structure>        
+        $<TARGET_FILE_DIR:Structure>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/3rdParty/WinPixEventRuntime/bin/x64/WinPixEventRuntime.dll"
+        $<TARGET_FILE_DIR:Structure>
 )
 
 target_link_libraries(Structure PRIVATE winmm imm32 version setupapi)

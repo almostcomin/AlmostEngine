@@ -4,8 +4,8 @@
 #include "RenderAPI/Device.h"
 #include "Core/Log.h"
 
-st::gfx::RenderView::RenderView(DeviceManager* deviceManager) :
-	m_IsDirty{ false }, m_DeviceManager{ deviceManager }
+st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
+	m_IsDirty{ false }, m_DebugName{ debugName }, m_DeviceManager { deviceManager }
 {
 	rapi::CommandListParams params{
 		.queueType = rapi::QueueType::Graphics
@@ -86,6 +86,8 @@ bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int heigh
 
 	rapi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rapi::ResourceState::RENDERTARGET);
 	m_DeclaredTextures.insert({ id, { texture, id, false } });
+
+	return true;
 }
 
 bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int height, rapi::Format format)
@@ -164,6 +166,7 @@ void st::gfx::RenderView::Render()
 	{
 		auto commandList = GetCommandList();
 		commandList->Open();
+		commandList->BeginMarker(m_DebugName.c_str());
 
 		// Back buffer is in COMMON state and need to be transitioned to RT
 		commandList->PushBarrier(rapi::Barrier().Texture(
@@ -228,6 +231,8 @@ void st::gfx::RenderView::Render()
 		// Back buffer to common so it can be presented
 		commandList->PushBarrier(rapi::Barrier().Texture(
 			frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::RENDERTARGET, rapi::ResourceState::PRESENT));
+
+		commandList->EndMarker();
 		commandList->Close();
 
 		m_DeviceManager->GetDevice()->ExecuteCommandList(commandList.get(), st::rapi::QueueType::Graphics);

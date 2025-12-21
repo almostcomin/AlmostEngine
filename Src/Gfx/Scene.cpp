@@ -66,13 +66,12 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			for (const auto* meshInstance : meshInstances)
 			{
 				instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
-				//instanceDataPtr->modelMatrix = float4x4(1.0f);
-				//instanceDataPtr->modelMatrix = float4x4{ 11.f, 12.f, 13.f, 14.f, 21.f, 22.f, 23.f, 24.f, 31.f, 32.f, 33.f, 34.f, 41.f, 42.f, 43.f, 44.f };
 				instanceDataPtr->inverseModelMatrix = float4x4{ -1.f };
 				instanceDataPtr->meshIndex = meshes.insert(meshInstance->GetMesh().get());
 				instanceDataPtr->_padding[0] = 1000;
 				instanceDataPtr->_padding[1] = 1001;
 				instanceDataPtr->_padding[2] = 1002;
+
 				instanceDataPtr++;
 			}
 			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer, 
@@ -113,6 +112,8 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				meshDataPtr->vertexColorStride = stride.Color;
 				meshDataPtr->textureDI = mesh->GetMaterial()->GetDiffuseTexture() ?
 					mesh->GetMaterial()->GetDiffuseTexture()->GetShaderViewIndex(rapi::TextureShaderView::ShaderResource) : rapi::c_InvalidDescriptorIndex;
+
+				meshDataPtr++;
 			}
 			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer,
 				rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE);

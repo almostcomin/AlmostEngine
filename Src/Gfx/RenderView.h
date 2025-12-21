@@ -28,7 +28,7 @@ public:
 
 	static constexpr int c_BBSize = 0;
 
-	RenderView(DeviceManager* deviceManager);
+	RenderView(DeviceManager* deviceManager, const char* debugName);
 	~RenderView();
 
 	void SetCamera(std::shared_ptr<Camera> camera);
@@ -94,6 +94,7 @@ private:
 
 	bool m_IsDirty;
 
+	std::string m_DebugName;
 	DeviceManager* m_DeviceManager;
 };
 

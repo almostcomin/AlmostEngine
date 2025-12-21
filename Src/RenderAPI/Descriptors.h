@@ -6,7 +6,7 @@ namespace st::rapi
 {
 
 using DescriptorIndex = uint32_t;
-constexpr DescriptorIndex c_InvalidDescriptorIndex = ~0u;
+constexpr DescriptorIndex c_InvalidDescriptorIndex = ~0u; // Same as INVALID_DESCRIPTOR_INDEX
 /*
 enum class DescriptorType : uint8_t
 {

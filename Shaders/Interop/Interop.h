@@ -7,6 +7,8 @@
 
 using uint = uint32_t;
 
+static constexpr uint INVALID_DESCRIPTOR_INDEX = 0xFFFFFFFFu;
+
 /*
 using int2 = st::int2;
 using int3 = st::int3;
@@ -30,6 +32,8 @@ static_assert(sizeof(float4x4) == 64);
 #define ConstantBufferStruct struct alignas(256)
 
 #else
+
+static const uint INVALID_DESCRIPTOR_INDEX = 0xFFFFFFFFu;
 
 #define ConstantBufferStruct struct
 

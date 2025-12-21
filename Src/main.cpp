@@ -120,16 +120,22 @@ int SDL_main(int argc, char* argv[])
 	camera->SetPosition({ 0.f, 0.f, -5.f });
 
 	// Create RenderView
-	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get());
+	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
 	renderView->SetRenderStages({ opaqueRS, compositeRS, uiRS });
 	renderView->SetCamera(camera);
 
 	// Main loop
 	bool running = true;
-	uint32_t nFrames = 0;
 	auto lastTime = std::chrono::steady_clock::now();
+	auto fpsLastTime = lastTime;
+	uint32_t fpsFrameCount = 0;
+	float2 cameraSpeed{ 0.f };
 	while (running) 
 	{
+		const auto currentTime = std::chrono::steady_clock::now();
+		const std::chrono::duration<float> elapsed = currentTime - lastTime;
+		const float elapsedMs = elapsed.count() * 1000.0f;
+
 		// Input
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) 
@@ -157,6 +163,21 @@ int SDL_main(int argc, char* argv[])
 				}				
 				break;
 			}
+			case SDL_EVENT_KEY_DOWN:
+				switch (event.key.key)
+				{
+				case SDLK_W: cameraSpeed.y = -1.f; break;
+				case SDLK_S: cameraSpeed.y = 1.f; break;
+				}
+				break;
+			case SDL_EVENT_KEY_UP:
+				switch (event.key.key)
+				{
+				case SDLK_W: cameraSpeed.y = 0.f; break;
+				case SDLK_S: cameraSpeed.y = 0.f; break;
+				}
+				break;
+
 			case SDL_EVENT_QUIT:
 				running = false;
 				break;
@@ -165,17 +186,22 @@ int SDL_main(int argc, char* argv[])
 
 		// Scene graph update
 		if (scene)
+		{
+			float3 camFwd = camera->GetForward();
+			float3 camPos = camera->GetPosition();
+			float3 newPos = camPos + camFwd * cameraSpeed.y * elapsedMs;
+			camera->SetPosition(newPos);
 			scene->Update();
+		}
 
 		// Update FPS counter
 		{
-			auto currentTime = std::chrono::steady_clock::now();
-			std::chrono::duration<float> elapsed = currentTime - lastTime;
-			if (elapsed.count() > 1.f)
+			std::chrono::duration<float> fpsElapsed = currentTime - fpsLastTime;
+			if (fpsElapsed.count() > 1.f)
 			{
-				uiRS->m_Data.FPS = nFrames / elapsed.count();
-				nFrames = 0;
-				lastTime = currentTime;
+				uiRS->m_Data.FPS = fpsFrameCount / fpsElapsed.count();
+				fpsFrameCount = 0;
+				fpsLastTime = currentTime;
 			}
 		}
 
@@ -184,8 +210,9 @@ int SDL_main(int argc, char* argv[])
 			renderView->Render();
 		});
 
+		fpsFrameCount++;
+		lastTime = currentTime;
 		std::this_thread::yield();
-		nFrames++;
 	}
 
 	// Clean up
