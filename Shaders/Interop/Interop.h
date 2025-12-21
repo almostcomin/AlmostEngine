@@ -21,6 +21,9 @@ using float4 = st::float4;
 using float3x3 = st::float3x3;
 using float4x4 = st::float4x4;
 */
+
+static_assert(sizeof(float4x4) == 64);
+
 #define column_major
 #define row_major
 

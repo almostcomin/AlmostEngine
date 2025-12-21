@@ -241,12 +241,18 @@ D3D12_RENDER_PASS_BEGINNING_ACCESS st::rapi::dx12::GetRenderPassBeginningAccess(
 	case st::rapi::RenderPassOp::LoadOp::Clear:
 		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
 		ret.Clear.ClearValue.Format = st::rapi::dx12::GetDxgiFormatMapping(format).resourceFormat;
-		ret.Clear.ClearValue.Color[0] = clearValue.color.x;
-		ret.Clear.ClearValue.Color[1] = clearValue.color.y;
-		ret.Clear.ClearValue.Color[2] = clearValue.color.z;
-		ret.Clear.ClearValue.Color[3] = clearValue.color.w;
-		ret.Clear.ClearValue.DepthStencil.Depth = clearValue.depthStencil.depth;
-		ret.Clear.ClearValue.DepthStencil.Stencil = clearValue.depthStencil.stencil;
+		if (IsDepthFormat(format))
+		{
+			ret.Clear.ClearValue.DepthStencil.Depth = clearValue.depthStencil.depth;
+			ret.Clear.ClearValue.DepthStencil.Stencil = clearValue.depthStencil.stencil;
+		}
+		else
+		{
+			ret.Clear.ClearValue.Color[0] = clearValue.color.x;
+			ret.Clear.ClearValue.Color[1] = clearValue.color.y;
+			ret.Clear.ClearValue.Color[2] = clearValue.color.z;
+			ret.Clear.ClearValue.Color[3] = clearValue.color.w;
+		}
 		break;
 	case st::rapi::RenderPassOp::LoadOp::Discard:
 		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;

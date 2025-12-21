@@ -116,6 +116,7 @@ public:
     st::gfx::ShaderFactory* GetShaderFactory() { return m_ShaderFactory.get(); }
     st::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
     st::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }
+    st::gfx::CommonResources* GetCommonResources() { return m_CommonResources.get(); }
 
     uint64_t GetFrameCount() const { return m_FrameCount; }
     uint32_t GetSwapchainBufferCount() const { return m_SwapChainFramebuffers.size(); }

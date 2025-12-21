@@ -38,17 +38,20 @@ bool st::gfx::OpaqueRenderStage::Render()
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	interop::ForwardRP fwData;
-	fwData.sceneDI = GetSceneDI();
-	fwData.instanceBufferDI = m_Scene->GetInstancesBufferDI();
-	fwData.meshesBufferDI = m_Scene->GetMeshesBufferDI();
+	commandList->SetViewport(rapi::ViewportState().AddViewportAndScissorRect({
+		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
+
+	interop::OpaqueStage shaderConstants;
+	shaderConstants.sceneDI = GetSceneDI();
+	shaderConstants.instanceBufferDI = m_Scene->GetInstancesBufferDI();
+	shaderConstants.meshesBufferDI = m_Scene->GetMeshesBufferDI();
 
 	const auto& frustum = camera->GetFrustum();
 	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
 	while(walker)
 	{
 		auto node = *walker;
-		if (node->HasBounds() && frustum.check(node->GetBounds()))
+		if (true/*node->HasBounds() && frustum.check(node->GetBounds())*/)
 		{
 			auto leaf = node->GetLeaf();
 			if (leaf && leaf->GetContentFlags() == SceneContentFlags::OpaqueMeshes)
@@ -57,9 +60,9 @@ bool st::gfx::OpaqueRenderStage::Render()
 				//if (frustum.check(worldBounds))
 				{
 					auto* meshInstance = st::checked_cast<st::gfx::MeshInstance*>(leaf.get());
-					fwData.instanceIdx = m_Scene->GetInstanceIndex(meshInstance);
+					shaderConstants.instanceIdx = m_Scene->GetInstanceIndex(meshInstance);
 
-					commandList->PushConstants(fwData);
+					commandList->PushConstants(shaderConstants);
 					commandList->Draw(meshInstance->GetMesh()->GetPrimitiveCount() * 3);
 				}
 			}
@@ -81,38 +84,33 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 	rapi::Device* device = deviceManager->GetDevice();
 
-	st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-	m_VS = shaderFactory->LoadShader("ForwardRP_vs.vso", rapi::ShaderType::Vertex);
-	m_PS = shaderFactory->LoadShader("ForwardRP_ps.vso", rapi::ShaderType::Pixel);
-
 	auto fbInfo = m_RenderView->GetFramebuffer()->GetFramebufferInfo();
 
 	// Create render targets
-	rapi::TextureDesc rtDesc{
-		.width = fbInfo.width,
-		.height = fbInfo.height,
-		.format = rapi::Format::SRGBA8_UNORM,
-		.shaderUsage = rapi::TextureShaderUsage::ShaderResource | rapi::TextureShaderUsage::RenderTarget,
-		.debugName = "ForwardRenderPass_RT"};	
+	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, rapi::Format::SRGBA8_UNORM);
+	m_RenderTarget = m_RenderView->GetTexture("SceneColor");
+	m_RenderView->CreateDepthTarget("SceneDepth", RenderView::c_BBSize, RenderView::c_BBSize, rapi::Format::D24S8);
+	m_DepthStencil = m_RenderView->GetTexture("SceneDepth");
 
-	m_RenderView->CreateTexture(rtDesc, "ForwardRenderPass_RT");
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ForwardRenderPass_RT", rapi::ResourceState::RENDERTARGET, rapi::ResourceState::RENDERTARGET);
-	m_RenderTarget = m_RenderView->GetTexture("ForwardRenderPass_RT");
-
-	rapi::TextureDesc dsDesc{
-		.width = fbInfo.width,
-		.height = fbInfo.height,
-		.format = rapi::Format::D24S8,
-		.shaderUsage = rapi::TextureShaderUsage::ShaderResource | rapi::TextureShaderUsage::DepthStencil,
-		.debugName = "ForwardRenderPass_DS" };
-	m_DepthStencil = device->CreateTexture(dsDesc, rapi::ResourceState::DEPTHSTENCIL);
+	// Request RT access
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", rapi::ResourceState::RENDERTARGET, rapi::ResourceState::RENDERTARGET);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneDepth", rapi::ResourceState::DEPTHSTENCIL, rapi::ResourceState::DEPTHSTENCIL);
 
 	// Create Framebuffer
-	auto fbDesc = rapi::FramebufferDesc()
-		.AddColorAttachment(m_RenderTarget.get())
-		.SetDepthAttachment(m_DepthStencil.get())
-		.SetDebugName("ForwardRenderPass_FB");
-	m_FB = device->CreateFramebuffer(fbDesc);
+	{
+		auto fbDesc = rapi::FramebufferDesc()
+			.AddColorAttachment(m_RenderTarget.get())
+			.SetDepthAttachment(m_DepthStencil.get())
+			.SetDebugName("OpaqueRenderStage");
+		m_FB = device->CreateFramebuffer(fbDesc);
+	}
+
+	// Load shaders
+	{
+		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		m_VS = shaderFactory->LoadShader("OpaqueStage_vs.vso", rapi::ShaderType::Vertex);
+		m_PS = shaderFactory->LoadShader("OpaqueStage_ps.vso", rapi::ShaderType::Pixel);
+	}
 
 	// Create PSO
 	{
@@ -132,7 +130,8 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 		{
 			.depthTestEnable = true,
 			.depthWriteEnable = true,
-			.depthFunc = rapi::ComparisonFunc::LessEqual,
+			//.depthFunc = rapi::ComparisonFunc::LessEqual,
+			.depthFunc = rapi::ComparisonFunc::Greater,
 			.stencilEnable = false
 		};
 
@@ -151,7 +150,8 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 				.PS = m_PS,
 				.blendState = blendState,
 				.depthStencilState = depthStencilState,
-				.rasterState = rasterState },
+				.rasterState = rasterState,
+				.debugName = "OpaqueRenderStage" },
 				m_FB->GetFramebufferInfo());
 	}
 }
@@ -162,7 +162,7 @@ void st::gfx::OpaqueRenderStage::OnDetached()
 
 	device->ReleaseQueued(m_SceneCB);
 
-	device->ReleaseQueued(m_RenderTarget);
+	device->ReleaseQueued(m_RenderTarget); // TODO: This should be release by the render view
 	device->ReleaseQueued(m_DepthStencil);
 
 	device->ReleaseQueued(m_PSO);

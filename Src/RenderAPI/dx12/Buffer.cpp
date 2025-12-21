@@ -113,9 +113,10 @@ void st::rapi::dx12::Buffer::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, s
     viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     viewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
+    // Structured buffer
     if (format == Format::UNKNOWN)
     {
-        if (m_Desc.stride != 0) // Structured buffer
+        if (m_Desc.stride != 0)
         {
             assert(IsAligned(offsetBytes, m_Desc.stride));
             viewDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -133,6 +134,7 @@ void st::rapi::dx12::Buffer::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, s
             viewDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
         }
     }
+    // Typed buffer
     else
     {
         uint32_t stride = GetFormatInfo(format).bytesPerBlock;

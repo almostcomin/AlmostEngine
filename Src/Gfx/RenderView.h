@@ -26,6 +26,8 @@ public:
 		Write
 	};
 
+	static constexpr int c_BBSize = 0;
+
 	RenderView(DeviceManager* deviceManager);
 	~RenderView();
 
@@ -42,8 +44,11 @@ public:
 	st::rapi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
 	st::rapi::CommandListHandle GetCommandList();
 
-	bool CreateTexture(const rapi::TextureDesc& desc, const char* id);
+	bool CreateColorTarget(const char* id, int width, int height, rapi::Format format);
+	bool CreateDepthTarget(const char* id, int width, int height, rapi::Format format);
+
 	bool RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rapi::ResourceState inputState, rapi::ResourceState outputState);
+
 	rapi::TextureHandle GetTexture(const char* id) const;
 
 	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }
@@ -60,6 +65,7 @@ private:
 	{
 		rapi::TextureHandle texture;
 		std::string id;
+		bool isDepthStencil;
 	};
 
 	struct RenderPassTextureDep

@@ -33,7 +33,7 @@ bool st::gfx::DeviceManager::Init(const DeviceParams& params)
 		m_ShaderFactory = std::make_unique<st::gfx::ShaderFactory>(m_Device.get());
 		m_DataUploader = std::make_unique<st::gfx::DataUploader>(m_Device.get());
 		m_TextureCache = std::make_unique<st::gfx::TextureCache>(m_Device.get(), m_DataUploader.get());
-		m_CommonResources = std::make_unique<st::gfx::CommonResources>(m_ShaderFactory.get());
+		m_CommonResources = std::make_unique<st::gfx::CommonResources>(m_ShaderFactory.get(), m_Device.get());
 	}
 	return ok;
 }

@@ -26,7 +26,7 @@ void st::gfx::ImGuiRenderStage::OnAttached()
 {
     Init();
 
-    m_RenderView->RequestTextureAccess(this, gfx::RenderView::AccessMode::Read, "ForwardRenderPass_RT", 
+    m_RenderView->RequestTextureAccess(this, gfx::RenderView::AccessMode::Read, "SceneColor", 
         rapi::ResourceState::SHADER_RESOURCE, rapi::ResourceState::SHADER_RESOURCE);
 }
 
@@ -122,13 +122,13 @@ bool st::gfx::ImGuiRenderStage::Render()
 
     commandList->BeginRenderPass(
         frameBuffer.get(),
-        { rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Black()} },
+        { rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Load, rapi::RenderPassOp::StoreOp::Store} },
         {},
         rapi::RenderPassFlags::None);
 
     commandList->SetPipelineState(GetPSO(frameBuffer.get()).get());
     
-    commandList->SetViewport(rapi::ViewportState().AddViewport({
+    commandList->SetViewport(rapi::ViewportState().AddViewportAndScissorRect({
         io.DisplaySize.x* io.DisplayFramebufferScale.x,
         io.DisplaySize.y* io.DisplayFramebufferScale.y }));
 
@@ -336,6 +336,8 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
     textureUploadBuffer->Unmap();
 
     m_RenderView->GetCommandList()->WriteTexture(m_FontTexture.get(), rapi::AllSubresources, textureUploadBuffer.get(), 0);
+    m_RenderView->GetCommandList()->PushBarrier(
+        rapi::Barrier::Texture(m_FontTexture.get(), rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE));
 
     device->ReleaseQueued(textureUploadBuffer);
 
@@ -401,7 +403,8 @@ bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rapi::BufferHandle& buffer, siz
         desc.allowUAV = false;
         if (indexBuffer)
         {
-            desc.format = rapi::Format::R16_UINT;
+            //desc.format = rapi::Format::R16_UINT;
+            desc.stride = 2;
         }
         else
         {

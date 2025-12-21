@@ -73,7 +73,7 @@ std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUpl
 	
 	bool found = false;
 	// Case 1: tail >= head, try tail to end
-	if (tail >= tail)
+	if (tail >= head)
 	{
 		sizeNeeded = AlignUp(tail, alignment) - tail + size;
 		// Check if there is enough space from the tail to the end

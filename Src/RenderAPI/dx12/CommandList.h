@@ -3,6 +3,7 @@
 #include "RenderAPI/CommandList.h"
 #include "RenderAPI/Texture.h"
 #include "RenderAPI/Framebuffer.h"
+#include "RenderAPI/PipelineState.h"
 #include "RenderAPI/dx12/d3d12_headers.h"
 #include "Core/ComPtr.h"
 
@@ -69,10 +70,10 @@ namespace st::rapi::dx12
 		
 		QueueType m_Type;
 
+		st::rapi::GraphicsPipelineStateHandle m_CurrentPSO;
 		st::rapi::FramebufferHandle m_CurrentFB;
 
 		std::string m_DebugName;
-
 		GpuDevice* m_Device;
 	};
 }

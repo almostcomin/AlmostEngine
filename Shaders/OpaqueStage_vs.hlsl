@@ -1,21 +1,8 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
+#include "Common.hlsli"
 
-float2 LoadVertexAttribute2(ByteAddressBuffer buffer, uint offset, uint stride)
-{
-    if (stride == 0xFFFFFFFF)
-        return float2(0, 0);
-    return asfloat(buffer.Load2(offset + stride));
-};
-
-float3 LoadVertexAttribute3(ByteAddressBuffer buffer, uint offset, uint stride)
-{
-    if (stride == 0xFFFFFFFF)
-        return float3(0, 0, 0);
-    return asfloat(buffer.Load3(offset + stride));
-};
-
-ConstantBuffer<interop::ForwardRP> CB : register(b0);
+ConstantBuffer<interop::OpaqueStage> Constants : register(b0);
 
 struct PS_INPUT
 {
@@ -27,15 +14,20 @@ struct PS_INPUT
 [RootSignature(BindlessRootSignature)]
 PS_INPUT main(uint vertexID : SV_VertexID)
 {
-    ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[CB.sceneDI];
-    StructuredBuffer<interop::InstanceData> instancesBuffer = ResourceDescriptorHeap[CB.instanceBufferDI];
-    StructuredBuffer<interop::MeshData> meshesBuffer = ResourceDescriptorHeap[CB.meshesBufferDI];
+    uint sceneDI = Constants.sceneDI;
+    uint instanceBufferDI = Constants.instanceBufferDI;
+    uint meshesBufferDI = Constants.meshesBufferDI;
+    uint instanceIdx = Constants.instanceIdx;
     
-    interop::InstanceData instanceData = instancesBuffer[CB.instanceIdx];
+    ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[sceneDI];
+    StructuredBuffer<interop::InstanceData> instancesBuffer = ResourceDescriptorHeap[instanceBufferDI];
+    StructuredBuffer<interop::MeshData> meshesBuffer = ResourceDescriptorHeap[meshesBufferDI];
+    
+    interop::InstanceData instanceData = instancesBuffer[instanceIdx];
     interop::MeshData meshData = meshesBuffer[instanceData.meshIndex];
             
-    StructuredBuffer<uint16_t> indexBuffer = ResourceDescriptorHeap[meshData.indexBuffer];
-    ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[meshData.vertexBuffer];
+    StructuredBuffer<uint16_t> indexBuffer = ResourceDescriptorHeap[meshData.indexBufferDI];
+    ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[meshData.vertexBufferDI];
     
     // Fetch vertex data
     uint baseIndex = indexBuffer[vertexID + meshData.indexOffset];
@@ -46,8 +38,10 @@ PS_INPUT main(uint vertexID : SV_VertexID)
     float2 uv0 = LoadVertexAttribute2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Stride);
         
     // Transform
-    float4 posWorld = mul(float4(pos, 1.0f), instanceData.modelMatrix);
-    float4 posClip = mul(posWorld, sceneData.viewProjectionMatrix);
+    float4x4 modelMatrix = instanceData.modelMatrix;
+    float4 posWorld = mul(float4(pos, 1.0f), modelMatrix);
+    float4x4 viewProjectionMatrix = sceneData.viewProjectionMatrix;
+    float4 posClip = mul(posWorld, viewProjectionMatrix);
     const float3x3 normalMatrix = (float3x3) transpose(instanceData.inverseModelMatrix);
     float3 normalWorld = normalize(mul(normal, normalMatrix));
         

@@ -26,6 +26,7 @@ namespace interop
         float4 radiusIntensity[MAX_LIGHTS];
 
         uint numberOfLights;
+        uint _padding[3];
     };
 
     struct InstanceData
@@ -33,13 +34,14 @@ namespace interop
         float4x4 modelMatrix;
         float4x4 inverseModelMatrix;
         uint meshIndex;
+        uint _padding[3];
     };
 
     struct MeshData
     {
-        uint indexBuffer;
+        uint indexBufferDI;
         uint indexOffset;
-        uint vertexBuffer;
+        uint vertexBufferDI;
         uint vertexBufferOffsetBytes;
         uint vertexStride;
         uint vertexPositionStride;
@@ -48,7 +50,7 @@ namespace interop
         uint vertexTexCoord0Stride;
         uint vertexTexCoord1Stride;
         uint vertexColorStride;
-        uint textureIndex;
+        uint textureDI;
     };
 
     struct Scene
@@ -60,12 +62,17 @@ namespace interop
         //float4x4 inverseViewMatrix;
     };
 
-    struct ForwardRP
+    struct OpaqueStage
     {
         uint sceneDI;
         uint instanceBufferDI;
         uint meshesBufferDI;
         uint instanceIdx;
+    };
+
+    struct BlitConstants
+    {
+        uint textureDI;
     };
 }
 

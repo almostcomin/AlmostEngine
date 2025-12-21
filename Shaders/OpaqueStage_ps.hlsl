@@ -1,7 +1,7 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 
-ConstantBuffer<interop::ForwardRP> CB : register(b0);
+ConstantBuffer<interop::OpaqueStage> Constants : register(b0);
 
 struct PS_INPUT
 {
@@ -13,13 +13,13 @@ struct PS_INPUT
 [RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {
-    StructuredBuffer<interop::InstanceData> instancesBuffer = ResourceDescriptorHeap[CB.instanceBufferDI];
-    StructuredBuffer<interop::MeshData> meshesBuffer = ResourceDescriptorHeap[CB.meshesBufferDI];
+    StructuredBuffer<interop::InstanceData> instancesBuffer = ResourceDescriptorHeap[Constants.instanceBufferDI];
+    StructuredBuffer<interop::MeshData> meshesBuffer = ResourceDescriptorHeap[Constants.meshesBufferDI];
     
-    interop::InstanceData instanceData = instancesBuffer[CB.instanceIdx];
+    interop::InstanceData instanceData = instancesBuffer[Constants.instanceIdx];
     interop::MeshData meshData = meshesBuffer[instanceData.meshIndex];
             
-    Texture2D albedo = ResourceDescriptorHeap[meshData.textureIndex];
+    Texture2D albedo = ResourceDescriptorHeap[meshData.textureDI];
     
     float4 out_col = albedo.Sample(linearWrapSampler, input.uv);
     return out_col;

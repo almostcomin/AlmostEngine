@@ -66,11 +66,18 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			for (const auto* meshInstance : meshInstances)
 			{
 				instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
+				//instanceDataPtr->modelMatrix = float4x4(1.0f);
+				//instanceDataPtr->modelMatrix = float4x4{ 11.f, 12.f, 13.f, 14.f, 21.f, 22.f, 23.f, 24.f, 31.f, 32.f, 33.f, 34.f, 41.f, 42.f, 43.f, 44.f };
+				instanceDataPtr->inverseModelMatrix = float4x4{ -1.f };
 				instanceDataPtr->meshIndex = meshes.insert(meshInstance->GetMesh().get());
+				instanceDataPtr->_padding[0] = 1000;
+				instanceDataPtr->_padding[1] = 1001;
+				instanceDataPtr->_padding[2] = 1002;
 				instanceDataPtr++;
 			}
-			dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer, 
+			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer, 
 				rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE);
+			uploadResult->Wait();
 		}
 
 		// Fill meshes buffer
@@ -92,9 +99,9 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			auto* meshDataPtr = (interop::MeshData*)uploadTicket->GetPtr();
 			for (const st::gfx::Mesh* mesh : meshes)
 			{
-				meshDataPtr->indexBuffer = mesh->GetIndexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
-				meshDataPtr->indexOffset = 0;
-				meshDataPtr->vertexBuffer = mesh->GetVertexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
+				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
+				meshDataPtr->indexOffset = 0; 
+				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
 				meshDataPtr->vertexBufferOffsetBytes = 0;
 				const auto& stride = mesh->GetVertexStride();
 				meshDataPtr->vertexStride = stride.Vertex;
@@ -104,11 +111,12 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				meshDataPtr->vertexTexCoord0Stride = stride.TexCoord0;
 				meshDataPtr->vertexTexCoord1Stride = stride.TexCoord1;
 				meshDataPtr->vertexColorStride = stride.Color;
-				meshDataPtr->textureIndex = mesh->GetMaterial()->GetDiffuseTexture() ?
+				meshDataPtr->textureDI = mesh->GetMaterial()->GetDiffuseTexture() ?
 					mesh->GetMaterial()->GetDiffuseTexture()->GetShaderViewIndex(rapi::TextureShaderView::ShaderResource) : rapi::c_InvalidDescriptorIndex;
 			}
-			dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer, 
+			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer,
 				rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE);
+			uploadResult->Wait();
 		}
 	}
 }

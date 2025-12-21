@@ -13,6 +13,7 @@
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/Camera.h"
 #include "Gfx/RenderStages/OpaqueRenderStage.h"
+#include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "StructureUI.h"
 #include <thread>
 #include <sstream>
@@ -82,25 +83,30 @@ int SDL_main(int argc, char* argv[])
 	st::gfx::DeviceManager::DeviceParams initParams{
 		.WindowHandle = window,
 		.DebugRuntime = true,
+		.GPUValidation = true,
 		.VSyncEnabled = false
 	};
 	deviceManager->Init(initParams);
 
-	// Create forward render pass
-	std::shared_ptr<st::gfx::OpaqueRenderStage> fwdRenderPass{ new st::gfx::OpaqueRenderStage };
-
+	// Our scene
 	st::unique<st::gfx::Scene> scene;
 
-	// Create UI render pass
-	std::shared_ptr<StructureUI> uiRenderPass{ new StructureUI{window} };
-	uiRenderPass->m_RequestLoadFile = [&deviceManager, &scene, &fwdRenderPass](const char* filename) {
+	// Create opaque render stage
+	std::shared_ptr<st::gfx::OpaqueRenderStage> opaqueRS{ new st::gfx::OpaqueRenderStage };
+
+	// Create composite render stage
+	std::shared_ptr<st::gfx::CompositeRenderStage> compositeRS{ new st::gfx::CompositeRenderStage };
+
+	// Create UI render stage
+	std::shared_ptr<StructureUI> uiRS{ new StructureUI{window} };
+	uiRS->m_RequestLoadFile = [&deviceManager, &scene, &opaqueRS](const char* filename) {
 		auto importResult = st::gfx::ImportGlTF(filename, deviceManager.get());
 		if (importResult)
 		{
 			scene.reset(new st::gfx::Scene{ deviceManager.get() });
 			scene->SetSceneGraph(std::move(*importResult));
 
-			fwdRenderPass->SetScene(scene.get_weak());
+			opaqueRS->SetScene(scene.get_weak());
 			PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
 		}
 		else
@@ -111,11 +117,11 @@ int SDL_main(int argc, char* argv[])
 
 	// Create camera
 	auto camera = std::make_shared<st::gfx::Camera>();
-	camera->SetPosition({ 0.f, 0.f, -100.f });
+	camera->SetPosition({ 0.f, 0.f, -5.f });
 
 	// Create RenderView
 	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get());
-	renderView->SetRenderStages({ fwdRenderPass, uiRenderPass });
+	renderView->SetRenderStages({ opaqueRS, compositeRS, uiRS });
 	renderView->SetCamera(camera);
 
 	// Main loop
@@ -131,7 +137,7 @@ int SDL_main(int argc, char* argv[])
 			switch (event.type)
 			{
 			case SDL_EVENT_MOUSE_MOTION:
-				uiRenderPass->OnMouseMove(event.motion.x, event.motion.y);
+				uiRS->OnMouseMove(event.motion.x, event.motion.y);
 				break;
 			case SDL_EVENT_MOUSE_BUTTON_DOWN:
 			case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -147,7 +153,7 @@ int SDL_main(int argc, char* argv[])
 				}
 				if (validButton)
 				{
-					uiRenderPass->OnMouseButtonUpdate(button, event.button.down ? st::gfx::KeyAction::PRESS : st::gfx::KeyAction::RELEASE);
+					uiRS->OnMouseButtonUpdate(button, event.button.down ? st::gfx::KeyAction::PRESS : st::gfx::KeyAction::RELEASE);
 				}				
 				break;
 			}
@@ -167,7 +173,7 @@ int SDL_main(int argc, char* argv[])
 			std::chrono::duration<float> elapsed = currentTime - lastTime;
 			if (elapsed.count() > 1.f)
 			{
-				uiRenderPass->m_Data.FPS = nFrames / elapsed.count();
+				uiRS->m_Data.FPS = nFrames / elapsed.count();
 				nFrames = 0;
 				lastTime = currentTime;
 			}
@@ -185,8 +191,9 @@ int SDL_main(int argc, char* argv[])
 	// Clean up
 	camera.reset();
 	renderView.reset();
-	uiRenderPass.reset();
-	fwdRenderPass.reset();
+	uiRS.reset();
+	compositeRS.reset();
+	opaqueRS.reset();
 	scene.reset();
 
 	deviceManager->Shutdown();

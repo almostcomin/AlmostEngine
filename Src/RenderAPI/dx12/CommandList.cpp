@@ -193,12 +193,17 @@ void st::rapi::dx12::CommandList::PushBarrier(const Barrier& barrier)
 
 void st::rapi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
 {
-	GraphicsPipelineState* impl = checked_cast<GraphicsPipelineState*>(pso);
+	if (!m_CurrentPSO || m_CurrentPSO.get() != pso)
+	{
+		GraphicsPipelineState* impl = checked_cast<GraphicsPipelineState*>(pso);
 
-	// TODO: Do not always set root signature
-	m_D3d12Commandlist->SetGraphicsRootSignature(impl->GetD3d12Desc().pRootSignature);
-	m_D3d12Commandlist->SetPipelineState(pso->GetNativeResource());
-	m_D3d12Commandlist->IASetPrimitiveTopology(GetPrimitiveTopology(impl->GetDesc().primTopo, impl->GetDesc().patchControlPoints));
+		// TODO: Do not always set root signature
+		m_D3d12Commandlist->SetGraphicsRootSignature(impl->GetD3d12Desc().pRootSignature);
+		m_D3d12Commandlist->SetPipelineState(pso->GetNativeResource());
+		m_D3d12Commandlist->IASetPrimitiveTopology(GetPrimitiveTopology(impl->GetDesc().primTopo, impl->GetDesc().patchControlPoints));
+
+		m_CurrentPSO = static_pointer_cast<IGraphicsPipelineState>(pso->weak_from_this());
+	}
 }
 
 void st::rapi::dx12::CommandList::SetViewport(const st::rapi::ViewportState& vp)

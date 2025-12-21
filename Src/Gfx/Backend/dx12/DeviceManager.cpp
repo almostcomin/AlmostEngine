@@ -323,7 +323,7 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
     // Special processing for sRGB swap chain formats.
     // DXGI will not create a swap chain with an sRGB format, but its contents will be interpreted as sRGB.
     // So we need to use a non-sRGB format here, but store the true sRGB format for later framebuffer creation.
-    switch (m_DeviceParams.SwapChainFormat)  // NOLINT(clang-diagnostic-switch-enum)
+    switch (m_DeviceParams.SwapChainFormat)
     {
     case st::rapi::Format::SRGBA8_UNORM:
         m_SwapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;

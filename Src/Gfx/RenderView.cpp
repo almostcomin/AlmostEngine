@@ -62,9 +62,9 @@ st::rapi::CommandListHandle st::gfx::RenderView::GetCommandList()
 	return m_CommandLists[m_DeviceManager->GetFrameModuleIndex()];
 }
 
-bool st::gfx::RenderView::CreateTexture(const rapi::TextureDesc& desc, const char* id)
+bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, rapi::Format format)
 {
-	// Check that texture has not been declared
+	// Check that texture has not been already created
 	auto it = m_DeclaredTextures.find(id);
 	if (it != m_DeclaredTextures.end())
 	{
@@ -72,11 +72,47 @@ bool st::gfx::RenderView::CreateTexture(const rapi::TextureDesc& desc, const cha
 		return false;
 	}
 
-	// Created in common state
-	rapi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rapi::ResourceState::COMMON);
-	m_DeclaredTextures.insert({ id, { texture, id } });
+	if (width == c_BBSize)
+		width = GetFramebuffer()->GetFramebufferInfo().width;
+	if (height == c_BBSize)
+		height = GetFramebuffer()->GetFramebufferInfo().height;
 
-	return true;
+	rapi::TextureDesc desc{
+		.width = (uint32_t)width,
+		.height = (uint32_t)height,
+		.format = format,
+		.shaderUsage = rapi::TextureShaderUsage::ShaderResource | rapi::TextureShaderUsage::RenderTarget,
+		.debugName = id };
+
+	rapi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rapi::ResourceState::RENDERTARGET);
+	m_DeclaredTextures.insert({ id, { texture, id, false } });
+}
+
+bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int height, rapi::Format format)
+{
+	// Check that texture has not been already created
+	auto it = m_DeclaredTextures.find(id);
+	if (it != m_DeclaredTextures.end())
+	{
+		LOG_ERROR("Texture with id {} already created", id);
+		return false;
+	}
+
+	if (width == c_BBSize)
+		width = GetFramebuffer()->GetFramebufferInfo().width;
+	if (height == c_BBSize)
+		height = GetFramebuffer()->GetFramebufferInfo().height;
+
+	rapi::TextureDesc desc{
+		.width = (uint32_t)width,
+		.height = (uint32_t)height,
+		.format = format,
+		.shaderUsage = rapi::TextureShaderUsage::ShaderResource | rapi::TextureShaderUsage::DepthStencil,
+		.debugName = id };
+
+	// Created in common state
+	rapi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rapi::ResourceState::DEPTHSTENCIL);
+	m_DeclaredTextures.insert({ id, { texture, id, true } });
 }
 
 bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rapi::ResourceState inputState, rapi::ResourceState outputState)
@@ -129,14 +165,16 @@ void st::gfx::RenderView::Render()
 		auto commandList = GetCommandList();
 		commandList->Open();
 
-		// Render targets always are in COMMON state and need to be transitioned to RT
+		// Back buffer is in COMMON state and need to be transitioned to RT
 		commandList->PushBarrier(rapi::Barrier().Texture(
-			frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::COMMON, rapi::ResourceState::RENDERTARGET));
+			frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::PRESENT, rapi::ResourceState::RENDERTARGET));
 
+		// Set initial states info
 		std::map<std::string, rapi::ResourceState> resourcesStates;
 		for (auto& entry : m_DeclaredTextures)
 		{
-			resourcesStates.emplace(entry.first, rapi::ResourceState::COMMON);
+			resourcesStates.emplace(entry.first, entry.second.isDepthStencil ? 
+				rapi::ResourceState::DEPTHSTENCIL : rapi::ResourceState::RENDERTARGET);
 		}
 
 		for (auto& renderPass : m_RenderStages)
@@ -175,19 +213,21 @@ void st::gfx::RenderView::Render()
 			}
 		}
 
-		// All the resources need to go back to common
-		for (auto& entry : resourcesStates)
+		// All the resources need to go back to it initial state
+		for (auto& tex : m_DeclaredTextures)
 		{
-			if (entry.second != rapi::ResourceState::COMMON)
+			rapi::ResourceState initialState = tex.second.isDepthStencil ? rapi::ResourceState::DEPTHSTENCIL : rapi::ResourceState::RENDERTARGET;
+			rapi::ResourceState currentState = resourcesStates.find(tex.first)->second;
+			if (initialState != currentState)
 			{
-				auto it = m_DeclaredTextures.find(entry.first);
-				commandList->PushBarrier(rapi::Barrier::Texture(it->second.texture.get(), entry.second, rapi::ResourceState::COMMON));
+				commandList->PushBarrier(rapi::Barrier::Texture(tex.second.texture.get(), currentState, initialState));
 			}
+			
 		}
 
-		// Render attachment to commoin to it can be presented
+		// Back buffer to common so it can be presented
 		commandList->PushBarrier(rapi::Barrier().Texture(
-			frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::RENDERTARGET, rapi::ResourceState::COMMON));
+			frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::RENDERTARGET, rapi::ResourceState::PRESENT));
 		commandList->Close();
 
 		m_DeviceManager->GetDevice()->ExecuteCommandList(commandList.get(), st::rapi::QueueType::Graphics);

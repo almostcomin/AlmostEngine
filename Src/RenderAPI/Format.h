@@ -108,5 +108,6 @@ struct FormatInfo
 };
 
 const FormatInfo& GetFormatInfo(Format format);
+bool IsDepthFormat(Format format);
 
 } // namespace st::rapi

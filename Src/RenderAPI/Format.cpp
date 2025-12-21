@@ -89,3 +89,17 @@ const st::rapi::FormatInfo& st::rapi::GetFormatInfo(Format format)
     assert(info.format == format);
     return info;
 }
+
+bool st::rapi::IsDepthFormat(Format format)
+{
+    switch (format)
+    {
+    case Format::D16:
+    case Format::D24S8:
+    case Format::D32:
+    case Format::D32S8:
+        return true;
+    default:
+        return false;
+    }
+}
