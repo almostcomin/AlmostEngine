@@ -22,3 +22,4 @@ using uint4 = glm::uvec4;
 using float3x3 = glm::fmat3x3;
 using float4x4 = glm::fmat4x4;
 
+constexpr float PI = glm::pi<float>();

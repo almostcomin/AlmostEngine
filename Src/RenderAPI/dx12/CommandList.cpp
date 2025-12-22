@@ -34,6 +34,7 @@ namespace
 
 void st::rapi::dx12::CommandList::Open()
 {
+	m_D3d12CommandAllocator->Reset();
 	m_D3d12Commandlist->Reset(m_D3d12CommandAllocator.Get(), nullptr);
 
 	ID3D12DescriptorHeap* heaps[] = {
@@ -41,11 +42,13 @@ void st::rapi::dx12::CommandList::Open()
 		m_Device->GetSamperHeap()->GetHeap()
 	};
 	m_D3d12Commandlist->SetDescriptorHeaps(std::size(heaps), heaps);
+	m_CurrentPSO = nullptr;
 }
 
 void st::rapi::dx12::CommandList::Close()
 {
-	m_D3d12Commandlist->Close();
+	[[maybe_unused]] HRESULT hr = m_D3d12Commandlist->Close();
+	assert(hr == S_OK);
 }
 
 void st::rapi::dx12::CommandList::WriteBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, size_t size)

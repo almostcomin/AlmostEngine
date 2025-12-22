@@ -46,7 +46,7 @@ st::gfx::CommonResources::~CommonResources()
 	assert(0); // TODO
 }
 
-st::rapi::GraphicsPipelineStateHandle st::gfx::CommonResources::GetBlitPSO(const rapi::FramebufferInfo& fbInfo)
+st::rapi::GraphicsPipelineStateHandle st::gfx::CommonResources::CreateBlitPSO(const rapi::FramebufferInfo& fbInfo)
 {
 	return m_Device->CreateGraphicsPipelineState(m_BlitPSODesc, fbInfo);		
 }

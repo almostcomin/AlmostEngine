@@ -38,7 +38,7 @@ void st::gfx::CompositeRenderStage::OnAttached()
 		rapi::ResourceState::SHADER_RESOURCE, rapi::ResourceState::SHADER_RESOURCE);
 	m_SceneColor = m_RenderView->GetTexture("SceneColor");
 
-	m_BlitPSO = m_RenderView->GetDeviceManager()->GetCommonResources()->GetBlitPSO(
+	m_BlitPSO = m_RenderView->GetDeviceManager()->GetCommonResources()->CreateBlitPSO(
 		m_RenderView->GetFramebuffer()->GetFramebufferInfo());
 }
 

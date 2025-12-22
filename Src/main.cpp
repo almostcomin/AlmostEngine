@@ -117,6 +117,9 @@ int SDL_main(int argc, char* argv[])
 
 	// Create camera
 	auto camera = std::make_shared<st::gfx::Camera>();
+	int windowWidth, windowHeight;
+	SDL_GetWindowSize(window, (int*)&windowWidth, (int*)&windowHeight);
+	camera->SetAspect((float)windowWidth / windowHeight);
 	camera->SetPosition({ 0.f, 0.f, -5.f });
 
 	// Create RenderView
@@ -130,6 +133,7 @@ int SDL_main(int argc, char* argv[])
 	auto fpsLastTime = lastTime;
 	uint32_t fpsFrameCount = 0;
 	float2 cameraSpeed{ 0.f };
+	bool mouseMiddlePressed = false;
 	while (running) 
 	{
 		const auto currentTime = std::chrono::steady_clock::now();
@@ -144,6 +148,23 @@ int SDL_main(int argc, char* argv[])
 			{
 			case SDL_EVENT_MOUSE_MOTION:
 				uiRS->OnMouseMove(event.motion.x, event.motion.y);
+				if (mouseMiddlePressed)
+				{
+					int windowWidth, windowHeight;
+					SDL_GetWindowSize(window, (int*)&windowWidth, (int*)&windowHeight);
+					{
+						float angleRad = event.motion.yrel * PI / windowHeight;
+						glm::quat q = glm::angleAxis(-angleRad, camera->GetRight());
+						float3 newFwd = q * camera->GetForward();
+						camera->SetForward(newFwd);
+					}
+					{
+						float angleRad = event.motion.xrel * PI / windowWidth;
+						glm::quat q = glm::angleAxis(angleRad, camera->GetUp());
+						float3 newFwd = q * camera->GetForward();
+						camera->SetForward(newFwd);
+					}
+				}
 				break;
 			case SDL_EVENT_MOUSE_BUTTON_DOWN:
 			case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -152,9 +173,16 @@ int SDL_main(int argc, char* argv[])
 				st::gfx::MouseButton button;
 				switch (event.button.button)
 				{
-				case SDL_BUTTON_LEFT: button = st::gfx::MouseButton::LEFT; break;
-				case SDL_BUTTON_MIDDLE: button = st::gfx::MouseButton::MIDDLE; break;
-				case SDL_BUTTON_RIGHT: button = st::gfx::MouseButton::RIGHT; break;
+				case SDL_BUTTON_LEFT: 
+					button = st::gfx::MouseButton::LEFT; 
+					break;
+				case SDL_BUTTON_MIDDLE: 
+					button = st::gfx::MouseButton::MIDDLE;
+					mouseMiddlePressed = event.button.down;
+					break;
+				case SDL_BUTTON_RIGHT: 
+					button = st::gfx::MouseButton::RIGHT; 
+					break;
 				default: validButton = false;
 				}
 				if (validButton)
@@ -166,15 +194,20 @@ int SDL_main(int argc, char* argv[])
 			case SDL_EVENT_KEY_DOWN:
 				switch (event.key.key)
 				{
-				case SDLK_W: cameraSpeed.y = -1.f; break;
-				case SDLK_S: cameraSpeed.y = 1.f; break;
+				case SDLK_W: cameraSpeed.y = 1.f; break;
+				case SDLK_S: cameraSpeed.y = -1.f; break;
+				case SDLK_A: cameraSpeed.x = -1.f; break;
+				case SDLK_D: cameraSpeed.x = 1.f; break;
 				}
 				break;
+
 			case SDL_EVENT_KEY_UP:
 				switch (event.key.key)
 				{
 				case SDLK_W: cameraSpeed.y = 0.f; break;
 				case SDLK_S: cameraSpeed.y = 0.f; break;
+				case SDLK_A: cameraSpeed.x = 0.f; break;
+				case SDLK_D: cameraSpeed.x = 0.f; break;
 				}
 				break;
 
@@ -187,10 +220,15 @@ int SDL_main(int argc, char* argv[])
 		// Scene graph update
 		if (scene)
 		{
-			float3 camFwd = camera->GetForward();
-			float3 camPos = camera->GetPosition();
-			float3 newPos = camPos + camFwd * cameraSpeed.y * elapsedMs;
+			const float3& camFwd = camera->GetForward();
+			const float3& camRight = camera->GetRight();
+
+			float3 newPos = camera->GetPosition();
+			newPos += camFwd * cameraSpeed.y * elapsedMs * 0.01f;
+			newPos += -camRight * cameraSpeed.x * elapsedMs * 0.01f;
+
 			camera->SetPosition(newPos);
+
 			scene->Update();
 		}
 

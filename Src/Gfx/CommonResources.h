@@ -24,7 +24,7 @@ public:
 	CommonResources(ShaderFactory* shaderFactory, rapi::Device* device);
 	~CommonResources();
 
-	rapi::GraphicsPipelineStateHandle GetBlitPSO(const rapi::FramebufferInfo& fbInfo);
+	rapi::GraphicsPipelineStateHandle CreateBlitPSO(const rapi::FramebufferInfo& fbInfo);
 
 private:
 

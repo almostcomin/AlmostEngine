@@ -16,7 +16,7 @@ bool st::gfx::OpaqueRenderStage::Render()
 {
 	if (!m_Scene)
 	{
-		LOG_WARNING("No scene set. Nothing to render");
+		//LOG_WARNING("No scene set. Nothing to render");
 		return false;
 	}
 
@@ -191,11 +191,11 @@ st::rapi::DescriptorIndex st::gfx::OpaqueRenderStage::GetSceneDI()
 			.stride = 0 };
 
 		m_SceneCB = device->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);
-		
-		interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
-		sceneData->viewProjectionMatrix = camera->GetViewProjectionMatrix();		
-		m_SceneCB->Unmap();
 	}
+		
+	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
+	sceneData->viewProjectionMatrix = camera->GetViewProjectionMatrix();		
+	m_SceneCB->Unmap();
 
 	return m_SceneCB->GetShaderViewIndex(rapi::BufferShaderView::ConstantBuffer);
 }
