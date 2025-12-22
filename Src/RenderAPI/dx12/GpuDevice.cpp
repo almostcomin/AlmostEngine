@@ -490,8 +490,9 @@ void st::rapi::dx12::GpuDevice::Shutdown()
 {
 	for(int i = 0; i < m_StaleResources.size(); ++i)
 	{
-		for (IResource* pres : m_StaleResources[i])
+		for(int j = 0; j < m_StaleResources[i].size(); ++j)
 		{
+			IResource* pres = m_StaleResources[i][j];
 			ReleaseResource(pres);
 			m_LivingResources.erase(pres);
 		}

@@ -36,13 +36,17 @@ namespace st::rapi
 
         template<class T>
         void ReleaseImmediately(weak<T>& handle) {
-            ReleaseImmediatelyInternal(handle.get());
-            handle.reset();
+            if (handle) {
+                ReleaseImmediatelyInternal(handle.get());
+                handle.reset();
+            }
         }
         template<class T>
         void ReleaseQueued(weak<T>& handle) {
-            ReleaseQueuedInternal(handle.get());
-            handle.reset();
+            if (handle) {
+                ReleaseQueuedInternal(handle.get());
+                handle.reset();
+            }
         }
 
         virtual void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal = nullptr, uint64_t value = 0) = 0;
@@ -59,11 +63,15 @@ namespace st::rapi
         virtual void ReleaseImmediatelyInternal(IResource* resource) = 0;
         virtual void ReleaseQueuedInternal(IResource* resource) = 0;
 
-        static void ResourceDeleter(IResource* p) {
+        inline static auto MakeIResourceUnique(IResource* r) {
+            return st::unique<IResource>{ r, [](void* p) { Device::ResourceDeleter(static_cast<IResource*>(p)); } };
+        }
+
+        inline static void ResourceDeleter(IResource* p) {
             delete p;
         }
 
-        void ReleaseResource(IResource* p) {
+        inline void ReleaseResource(IResource* p) {
             p->Release(this);
         }
 	};

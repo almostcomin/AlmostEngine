@@ -1,10 +1,18 @@
 #include "Gfx/Mesh.h"
+#include "RenderAPI/Device.h"
 
-st::gfx::Mesh::Mesh(const char* name, const char* sourceFilename) :
+st::gfx::Mesh::Mesh(rapi::Device* device, const char* name, const char* sourceFilename) :
+	m_Device{ device },
 	m_Name{ name ? name : "<null>" },
 	m_SourceFilename{ sourceFilename ? sourceFilename : "<null>" },
 	m_Bounds{ st::math::aabox3f::InitEmpty }
 {}
+
+st::gfx::Mesh::~Mesh()
+{
+	m_Device->ReleaseQueued(m_IndexBuffer);
+	m_Device->ReleaseQueued(m_VertexBuffer);
+}
 
 void st::gfx::Mesh::SetVertexBuffer(rapi::BufferHandle vertexBuffer, const VertexStride& stride)
 { 

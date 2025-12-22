@@ -42,6 +42,7 @@ void st::gfx::DeviceManager::Shutdown()
 {
 	m_Device->WaitForIdle();
 
+	m_CommonResources.reset();
 	m_TextureCache.reset();
 	m_DataUploader.reset();
 	m_ShaderFactory.reset();

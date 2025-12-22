@@ -14,6 +14,14 @@
 st::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceManager }
 {}
 
+st::gfx::Scene::~Scene()
+{
+	m_DeviceManager->GetDevice()->ReleaseQueued(m_MeshesBuffer);
+	m_DeviceManager->GetDevice()->ReleaseQueued(m_InstancesBuffer);
+
+	m_SceneGraph.reset();
+}
+
 void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 {
 	m_SceneGraph = std::move(graph);

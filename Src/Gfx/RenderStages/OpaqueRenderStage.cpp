@@ -160,10 +160,11 @@ void st::gfx::OpaqueRenderStage::OnDetached()
 {
 	st::rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
+	device->ReleaseQueued(m_FB);
 	device->ReleaseQueued(m_SceneCB);
 
-	device->ReleaseQueued(m_RenderTarget); // TODO: This should be release by the render view
-	device->ReleaseQueued(m_DepthStencil);
+	m_RenderTarget = nullptr;
+	m_DepthStencil = nullptr;
 
 	device->ReleaseQueued(m_PSO);
 	device->ReleaseQueued(m_VS);

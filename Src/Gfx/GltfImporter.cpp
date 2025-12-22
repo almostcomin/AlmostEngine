@@ -547,7 +547,8 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, cons
 }
 
 std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> 
-GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait)
+GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait, 
+    st::rapi::Device* device)
 {
     std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> matMap;
     auto loadTex = [objects, &loadCache, &options, &out_handlesToWait](cgltf_texture* texture, bool sRGB) -> st::rapi::TextureHandle
@@ -562,7 +563,7 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
     {
         const cgltf_material& srcMat = objects->materials[mat_idx];
         std::shared_ptr<st::gfx::Material> mat =
-            std::make_shared<st::gfx::Material>(srcMat.name, loadCache.path.string());
+            std::make_shared<st::gfx::Material>(device, srcMat.name, loadCache.path.string());
 
         if (srcMat.has_pbr_specular_glossiness)
         {
@@ -762,7 +763,8 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
     bufferDesc.shaderUsage = st::rapi::BufferShaderUsage::ShaderResource;
     bufferDesc.sizeBytes = indexData.size();
     bufferDesc.stride = idx32bits ? sizeof(int32_t) : sizeof(int16_t);
-    bufferDesc.debugName = "IndexBuffer";
+    bufferDesc.debugName = debugName;
+    bufferDesc.debugName.append(" - IndexBuffer");
 
     st::rapi::BufferHandle indexBuffer = device->CreateBuffer(bufferDesc, st::rapi::ResourceState::COPY_DST);
     auto uploadResult = dataUploader->UploadBufferData(
@@ -789,7 +791,8 @@ CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugNam
     bufferDesc.shaderUsage = st::rapi::BufferShaderUsage::ShaderResource;
     bufferDesc.sizeBytes = vertexData.size();
     bufferDesc.stride = vertexStride;
-    bufferDesc.debugName = "VertexBuffer";
+    bufferDesc.debugName = debugName;
+    bufferDesc.debugName.append(" - VertexBuffer");
 
     auto vertexBuffer = device->CreateBuffer(bufferDesc, st::rapi::ResourceState::COPY_DST);
     auto uploadResult = dataUploader->UploadBufferData(
@@ -948,7 +951,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             // TODO: joint_weights
 
             // Create mesh
-            auto mesh = std::make_shared<st::gfx::Mesh>(srcMesh.name, filename);
+            auto mesh = std::make_shared<st::gfx::Mesh>(device, srcMesh.name, filename);
             mesh->SetBounds(bounds);
 
             // Assign material
@@ -1137,7 +1140,7 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
     std::vector<st::SignalListener> handlesToWait;
 
     // Materials
-    auto matMap = GetMaterialsMap(objects, loadTexCache, options, handlesToWait);
+    auto matMap = GetMaterialsMap(objects, loadTexCache, options, handlesToWait, device->GetDevice());
 
     // Meshes
     auto loadMeshesResult = LoadMeshes(objects, matMap, path, device->GetDataUploader(), device->GetDevice(), handlesToWait);

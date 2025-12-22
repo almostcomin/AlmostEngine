@@ -43,7 +43,8 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 
 st::gfx::CommonResources::~CommonResources()
 {
-	assert(0); // TODO
+	m_Device->ReleaseImmediately(m_BlitVS);
+	m_Device->ReleaseImmediately(m_BlitPS);
 }
 
 st::rapi::GraphicsPipelineStateHandle st::gfx::CommonResources::CreateBlitPSO(const rapi::FramebufferInfo& fbInfo)

@@ -28,7 +28,8 @@ public:
 		uint32_t Color = UINT32_MAX;
 	};
 
-	Mesh(const char* name, const char* sourceFilename);
+	Mesh(rapi::Device* device, const char* name, const char* sourceFilename);
+	~Mesh();
 
 	const st::math::aabox3f& GetBounds() const { return m_Bounds; }
 
@@ -59,6 +60,8 @@ private:
 	VertexStride m_Stride;
 
 	std::shared_ptr<Material> m_Material;
+
+	rapi::Device* m_Device;
 };
 
 }

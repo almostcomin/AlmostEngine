@@ -20,6 +20,7 @@ namespace st::gfx
 	public:
 
 		Scene(DeviceManager* deviceManager);
+		~Scene();
 
 		void SetSceneGraph(unique<SceneGraph>&& graph);
 

@@ -3,6 +3,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/CommonResources.h"
 #include "Interop/RenderResources.h"
+#include "RenderAPI/Device.h"
 
 bool st::gfx::CompositeRenderStage::Render()
 {
@@ -44,5 +45,8 @@ void st::gfx::CompositeRenderStage::OnAttached()
 
 void st::gfx::CompositeRenderStage::OnDetached()
 {
-	assert(0); // TODO
+	st::rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+
+	device->ReleaseQueued(m_BlitPSO);
+	m_SceneColor = nullptr;
 }

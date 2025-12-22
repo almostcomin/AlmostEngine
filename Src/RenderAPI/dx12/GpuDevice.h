@@ -78,7 +78,7 @@ namespace st::rapi::dx12
 		st::weak<T> InsertNewResource(T* p)
 		{
 			std::scoped_lock lock{ m_LivingResourcesMutex };
-			auto insertResult = m_LivingResources.insert(std::move(st::unique<IResource>{ checked_cast<IResource*>(p), ResourceDeleter }));
+			auto insertResult = m_LivingResources.insert(std::move(MakeIResourceUnique(checked_cast<IResource*>(p))));
 			return st::static_pointer_cast<T>(insertResult.first->get_weak());
 		}
 

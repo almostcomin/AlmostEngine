@@ -128,16 +128,21 @@ class unique
     friend class unique;
 
 public:
-    unique() = default;
+
+    using Deleter = std::function<void(void*)>;
+
+    unique() :
+        obj{ nullptr, [](void* ptr) { delete static_cast<T*>(ptr); } },
+        flag{}
+    {}
 
     explicit unique(T* ptr) :
-        obj(ptr, [](T* ptr) { delete ptr; }),
-        flag(std::make_shared<int>(0))
+        obj{ ptr, [](void* ptr) { delete static_cast<T*>(ptr); } },
+        flag{ std::make_shared<int>(0) }
     {
         setup_weak_from_this();
     }
 
-    template<typename Deleter>
     explicit unique(T* ptr, Deleter&& del) :
         obj(ptr, std::forward<Deleter>(del)),
         flag(std::make_shared<int>(0))
@@ -147,7 +152,7 @@ public:
 
     template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
     explicit unique(U* ptr) :
-        obj(ptr, [](T* ptr) { delete ptr; }),
+        obj(ptr, [](void* ptr) { delete static_cast<T*>(ptr); }),
         flag(std::make_shared<int>(0))
     {
         setup_weak_from_this();
@@ -171,8 +176,8 @@ public:
 
     template<class U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
     unique(unique<U>&& other) :
-        obj(std::move(other.obj.release())),
-        flag(std::move(other.flag))
+        obj{ std::move(other.obj.release()), std::move(other.obj.get_deleter()) },
+        flag{ std::move(other.flag) }
     {}
 
     unique& operator=(unique&& other)
@@ -245,7 +250,7 @@ private:
         }
     }
 
-    std::unique_ptr<T, std::function<void(T*)>> obj;
+    std::unique_ptr<T, std::function<void(void*)>> obj;
     std::shared_ptr<void> flag;
 };
 
