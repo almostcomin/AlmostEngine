@@ -63,7 +63,7 @@ bool st::gfx::OpaqueRenderStage::Render()
 					shaderConstants.instanceIdx = m_Scene->GetInstanceIndex(meshInstance);
 
 					commandList->PushConstants(shaderConstants);
-					commandList->Draw(meshInstance->GetMesh()->GetPrimitiveCount() * 3);
+					commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
 				}
 			}
 			walker.Next();
@@ -130,7 +130,6 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 		{
 			.depthTestEnable = true,
 			.depthWriteEnable = true,
-			//.depthFunc = rapi::ComparisonFunc::LessEqual,
 			.depthFunc = rapi::ComparisonFunc::Greater,
 			.stencilEnable = false
 		};

@@ -34,7 +34,7 @@ PS_INPUT main(uint vertexID : SV_VertexID)
     uint vertexBufferOffset = meshData.vertexBufferOffsetBytes + (baseIndex * meshData.vertexStride);
     
     float3 pos = LoadVertexAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionStride);
-    float3 normal = LoadVertexAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexNormalStride);
+    //float3 normal = LoadVertexAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexNormalStride);
     float2 uv0 = LoadVertexAttribute2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Stride);
         
     // Transform
@@ -42,13 +42,13 @@ PS_INPUT main(uint vertexID : SV_VertexID)
     float4 posWorld = mul(float4(pos, 1.0f), modelMatrix);
     float4x4 viewProjectionMatrix = sceneData.viewProjectionMatrix;
     float4 posClip = mul(posWorld, viewProjectionMatrix);
-    const float3x3 normalMatrix = (float3x3) transpose(instanceData.inverseModelMatrix);
-    float3 normalWorld = normalize(mul(normal, normalMatrix));
+    //const float3x3 normalMatrix = (float3x3) transpose(instanceData.inverseModelMatrix);
+    //float3 normalWorld = normalize(mul(normal, normalMatrix));
         
     // Output
     PS_INPUT output;
     output.pos = posClip;
-    output.normal = normalWorld;
+    output.normal = float3(0.0, 0.0, 0.0);//normalWorld;
     output.uv = uv0;
     return output;
 }

@@ -1,10 +1,10 @@
 #include "Gfx/Material.h"
 #include "RenderAPI/Device.h"
 
-st::gfx::Material::Material(st::rapi::Device* device, const std::string& name, const std::string& filename) :
+st::gfx::Material::Material(st::rapi::Device* device, const char* name, const char* filename) :
 	m_Device{ device },
-	m_Name{ name },
-	m_SourceFileName{ filename }
+	m_Name{ name ? name : "<null>" },
+	m_SourceFileName{ filename ? filename : "<null>" }
 {}
 
 st::gfx::Material::~Material()

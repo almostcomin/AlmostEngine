@@ -14,6 +14,7 @@ public:
 
 	virtual bool HasBounds() const { return false; }
 	virtual SceneContentFlags GetContentFlags() const { return st::gfx::SceneContentFlags::Cameras; }
+	Type GetType() const override { return Type::Camera; }
 
 private:
 };

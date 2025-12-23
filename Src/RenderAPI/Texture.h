@@ -92,6 +92,8 @@ namespace st::rapi
 
         MipLevel GetLastMipLevel(const TextureDesc& desc) const;
         ArraySlice GetLastArraySlice(const TextureDesc& desc) const;
+        size_t GetNumMipLevels(const TextureDesc& desc) const;
+        size_t GetNumArraySlices(const TextureDesc& desc) const;
         void Resolve(const TextureDesc& desc);
         bool IsEntireTexture(const TextureDesc& desc) const;
 

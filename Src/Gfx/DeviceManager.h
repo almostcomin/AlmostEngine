@@ -130,7 +130,7 @@ protected:
 
     DeviceParams m_DeviceParams;
 
-    uint64_t m_FrameCount = 0;
+    uint64_t m_FrameCount = 1;
     std::vector<st::rapi::FramebufferHandle> m_SwapChainFramebuffers;
 
     uint32_t m_BackBufferWidth = 0;

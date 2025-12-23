@@ -15,7 +15,7 @@ class Material
 {
 public:
 
-	Material(rapi::Device* device, const std::string& name = {}, const std::string& filename = {});
+	Material(rapi::Device* device, const char* name = nullptr, const char* filename = nullptr);
 	~Material();
 
 	rapi::TextureHandle SetDiffuseTexture(rapi::TextureHandle textureHandle);

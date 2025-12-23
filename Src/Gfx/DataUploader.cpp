@@ -250,14 +250,38 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 	const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, st::rapi::ResourceState currentState, st::rapi::ResourceState targetState,
 	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
-	auto copyReq = m_Device->GetCopyableRequirements(dstTexture->GetDesc());
-	assert(copyReq.size == srcData.size());
+	const auto& texDesc = dstTexture->GetDesc();
+	rapi::FormatInfo formatInfo = GetFormatInfo(texDesc.format);
+	auto copyReq = m_Device->GetCopyableRequirements(texDesc);
+	assert(copyReq.size >= srcData.size());
 
 	auto ticket = RequestUploadTicket(srcData.size(), copyReq.alignment);
 	if (!ticket)
 		return std::unexpected(ticket.error());
 
-	std::memcpy(ticket->ptr, srcData.data(), srcData.size());
+	// Perform copy
+	size_t srcOffset = 0;
+	size_t dstOffset = 0;
+	for (auto arraySlice = subresources.baseArraySlice; arraySlice < subresources.GetNumArraySlices(texDesc); ++arraySlice)
+	{
+		for (auto mipLevel = subresources.baseMipLevel; mipLevel < subresources.GetNumMipLevels(texDesc); ++mipLevel)
+		{
+			size_t width = texDesc.width >> mipLevel / formatInfo.blockSize;
+			size_t srcRowSize = width * formatInfo.bytesPerBlock;
+
+			rapi::SubresourceCopyableRequirements req = m_Device->GetSubresourceCopyableRequirements(texDesc, mipLevel, arraySlice);
+			assert(srcRowSize == req.rowSizeBytes);
+			dstOffset = req.offset;
+			for (size_t row = 0; row < req.numRows; ++row)
+			{
+				std::memcpy((char*)ticket->ptr + dstOffset, srcData.data() + srcOffset, srcRowSize);
+				srcOffset += srcRowSize;
+				dstOffset += req.rowStride;
+			}
+		}
+	}
+
+	//std::memcpy(ticket->ptr, srcData.data(), srcData.size());
 
 	auto uploadResult = CommitUploadTextureTicket(std::move(*ticket), dstTexture, currentState, targetState, subresources, opt_gpuMarker);
 	if (!uploadResult)

@@ -24,6 +24,7 @@ public:
 	const st::math::aabox3f& GetBounds() const override;
 
 	SceneContentFlags GetContentFlags() const override { return SceneContentFlags::OpaqueMeshes; }
+	Type GetType() const override { return Type::MeshInstance; }
 
 	std::shared_ptr<st::gfx::Mesh> GetMesh() const { return m_Mesh; }
 

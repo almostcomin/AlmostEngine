@@ -114,11 +114,13 @@ bool st::gfx::dx12::DeviceManager::Present()
         presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
 
     HRESULT result = m_SwapChain->Present(m_DeviceParams.VSyncEnabled ? 1 : 0, presentFlags);
+    assert(SUCCEEDED(result));
 
+    ResetEvent(m_FrameFenceEvents[bufferIndex]);
     m_FrameFence->SetEventOnCompletion(m_FrameCount, m_FrameFenceEvents[bufferIndex]);
     m_GraphicsQueue->Signal(m_FrameFence.Get(), m_FrameCount);
-    m_FrameCount++;
 
+    m_FrameCount++;
     m_Device->NextFrame();
 
     return SUCCEEDED(result);
@@ -374,7 +376,7 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
 
     for (UINT bufferIndex = 0; bufferIndex < m_SwapChainDesc.BufferCount; bufferIndex++)
     {
-        m_FrameFenceEvents.push_back(CreateEvent(nullptr, false, true, nullptr));
+        m_FrameFenceEvents.push_back(CreateEvent(nullptr, true, true, nullptr));
     }
 
     return true;

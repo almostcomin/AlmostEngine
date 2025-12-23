@@ -30,6 +30,7 @@ namespace st::rapi
         virtual StorageRequirements GetStorageRequirements(const TextureDesc& desc) = 0;
         virtual StorageRequirements GetCopyableRequirements(const BufferDesc& desc) = 0;
         virtual StorageRequirements GetCopyableRequirements(const TextureDesc& desc) = 0;
+        virtual SubresourceCopyableRequirements GetSubresourceCopyableRequirements(const TextureDesc& desc, uint32_t mipLevel, uint32_t arraySlice) = 0;
 
         virtual size_t GetCopyDataAlignment(CopyMethod method) = 0;
 

@@ -43,7 +43,8 @@ namespace st::rapi::dx12
 		StorageRequirements GetStorageRequirements(const BufferDesc& desc) override;
 		StorageRequirements GetStorageRequirements(const TextureDesc& desc) override;
 		StorageRequirements GetCopyableRequirements(const BufferDesc& desc) override;
-		StorageRequirements GetCopyableRequirements(const TextureDesc& desc) override;
+		StorageRequirements GetCopyableRequirements(const TextureDesc& desc);
+		SubresourceCopyableRequirements GetSubresourceCopyableRequirements(const TextureDesc& desc, uint32_t mipLevel, uint32_t arraySlice) override;
 
 		size_t GetCopyDataAlignment(CopyMethod method) override;
 

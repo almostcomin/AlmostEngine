@@ -94,8 +94,8 @@ struct FormatInfo
 {
     Format format;
     const char* name;
-    uint8_t bytesPerBlock;
-    uint8_t blockSize;
+    uint8_t bytesPerBlock; // size of the pìxel or in block-compressed formats, the size of the block
+    uint8_t blockSize; // Tipically one, but in block-compressed formats can be 4 (for 4×4 blocks)
     FormatKind kind;
     bool hasRed : 1;
     bool hasGreen : 1;

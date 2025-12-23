@@ -428,6 +428,29 @@ st::rapi::StorageRequirements st::rapi::dx12::GpuDevice::GetCopyableRequirements
 	return ret;
 }
 
+st::rapi::SubresourceCopyableRequirements st::rapi::dx12::GpuDevice::GetSubresourceCopyableRequirements(const TextureDesc& desc, uint32_t mipLevel, uint32_t arraySlice)
+{
+	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
+
+	SubresourceCopyableRequirements copyReq = {};
+
+	auto subresidx = D3D12CalcSubresource(mipLevel, arraySlice, 0, desc.mipLevels, desc.arraySize);
+
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT subresInfo = {};
+	uint32_t numRows = 0;
+	uint64_t rowSizeBytes = 0;
+
+	m_D3d12Device->GetCopyableFootprints(
+		&d3d12Desc, subresidx, 1, 0, &subresInfo, &numRows, &rowSizeBytes, nullptr);
+
+	copyReq.offset = subresInfo.Offset;
+	copyReq.numRows = numRows;
+	copyReq.rowSizeBytes = rowSizeBytes;
+	copyReq.rowStride = subresInfo.Footprint.RowPitch;
+
+	return copyReq;
+}
+
 size_t st::rapi::dx12::GpuDevice::GetCopyDataAlignment(CopyMethod method)
 {
 	switch (method)

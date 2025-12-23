@@ -74,11 +74,8 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			for (const auto* meshInstance : meshInstances)
 			{
 				instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
-				instanceDataPtr->inverseModelMatrix = float4x4{ -1.f };
+				instanceDataPtr->inverseModelMatrix = glm::inverse(instanceDataPtr->modelMatrix);
 				instanceDataPtr->meshIndex = meshes.insert(meshInstance->GetMesh().get());
-				instanceDataPtr->_padding[0] = 1000;
-				instanceDataPtr->_padding[1] = 1001;
-				instanceDataPtr->_padding[2] = 1002;
 
 				instanceDataPtr++;
 			}
@@ -107,7 +104,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			for (const st::gfx::Mesh* mesh : meshes)
 			{
 				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
-				meshDataPtr->indexOffset = 0; 
+				meshDataPtr->indexOffset = 0;
 				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
 				meshDataPtr->vertexBufferOffsetBytes = 0;
 				const auto& stride = mesh->GetVertexStride();

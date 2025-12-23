@@ -562,8 +562,9 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
     for (size_t mat_idx = 0; mat_idx < objects->materials_count; mat_idx++)
     {
         const cgltf_material& srcMat = objects->materials[mat_idx];
+        std::string path = loadCache.path.generic_string();
         std::shared_ptr<st::gfx::Material> mat =
-            std::make_shared<st::gfx::Material>(device, srcMat.name, loadCache.path.string());
+            std::make_shared<st::gfx::Material>(device, (const char*)srcMat.name, path.c_str());
 
         if (srcMat.has_pbr_specular_glossiness)
         {
@@ -811,15 +812,27 @@ CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugNam
     }
 }
 
-std::expected<std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>>, std::string>
+std::expected<std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<st::gfx::Mesh>>>, std::string>
 LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>>& matMap, 
     const char* filename, st::gfx::DataUploader* dataUploader, st::rapi::Device* device, std::vector<st::SignalListener>& out_handlesToWait)
 {
-    std::unordered_map<const cgltf_mesh*, std::shared_ptr<st::gfx::Mesh>> meshMap;
+    std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<st::gfx::Mesh>>> meshMap;
 
     for (size_t mesh_idx = 0; mesh_idx < objects->meshes_count; mesh_idx++)
     {
         const cgltf_mesh& srcMesh = objects->meshes[mesh_idx];
+        std::string debugName;
+        if (srcMesh.name)
+        {
+            debugName = srcMesh.name;
+        }
+        else
+        {
+            std::filesystem::path path = filename;
+            debugName = path.stem().string();
+        }
+        debugName.append(".Mesh");
+
         for (size_t prim_idx = 0; prim_idx < srcMesh.primitives_count; prim_idx++)
         {
             const cgltf_primitive& prim = srcMesh.primitives[prim_idx];
@@ -951,7 +964,14 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             // TODO: joint_weights
 
             // Create mesh
-            auto mesh = std::make_shared<st::gfx::Mesh>(device, srcMesh.name, filename);
+            std::string meshName = debugName;
+            if (srcMesh.primitives_count > 0)
+            {
+                std::stringstream ss;
+                ss << debugName << "[" << prim_idx << "]";
+                meshName = ss.str();
+            }
+            auto mesh = std::make_shared<st::gfx::Mesh>(device, meshName.c_str(), filename);
             mesh->SetBounds(bounds);
 
             // Assign material
@@ -961,14 +981,14 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             }
             else
             {
-                LOG_WARNING("Geometry {} for mesh {} doesn't have a material.", prim_idx, srcMesh.name);
+                LOG_WARNING("Geometry {} for mesh {} doesn't have a material.", prim_idx, debugName.c_str());
             }
 
             // Index buffer
-            auto indexBufferResult = CreateIndexBuffer(std::move(indexData), idx32bits, srcMesh.name, dataUploader, device);
+            auto indexBufferResult = CreateIndexBuffer(std::move(indexData), idx32bits, debugName.c_str(), dataUploader, device);
             if (indexBufferResult)
             {
-                mesh->SetIndexBuffer(indexBufferResult->first);
+                mesh->SetIndexBuffer(indexBufferResult->first, st::rapi::PrimitiveTopology::TriangleList);
                 out_handlesToWait.push_back(indexBufferResult->second);
             }
 
@@ -1043,14 +1063,14 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             stride.Vertex = vertexOffset;
 
             // Create vertex buffer
-            auto vertexBufferResult = CreateVertexBuffer(std::move(vertexData), vertexStride, srcMesh.name, dataUploader, device);
+            auto vertexBufferResult = CreateVertexBuffer(std::move(vertexData), vertexStride, debugName.c_str(), dataUploader, device);
             if (vertexBufferResult)
             {
                 mesh->SetVertexBuffer(vertexBufferResult->first, stride);
                 out_handlesToWait.push_back(vertexBufferResult->second);
             }
 
-            meshMap[&srcMesh] = mesh;
+            meshMap[&srcMesh].push_back(mesh);
         }
     }
 
@@ -1215,10 +1235,28 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
         if (srcNode->mesh)
         {
             auto found = meshMap.find(srcNode->mesh);
-            if (found != meshMap.end())
+            if (found != meshMap.end() && !found->second.empty())
             {
-                auto leaf = st::make_unique_with_weak<st::gfx::MeshInstance>(found->second);
-                dstNode->SetLeaf(std::move(leaf));
+                if (found->second.size() == 1)
+                {
+                    auto leaf = st::make_unique_with_weak<st::gfx::MeshInstance>(found->second[0]);
+                    dstNode->SetLeaf(std::move(leaf));
+                }
+                else
+                {
+                    for (int meshIdx = 0; meshIdx < found->second.size(); ++meshIdx)
+                    {
+                        auto meshNode = st::make_unique_with_weak<SceneGraphNode>();
+                        std::stringstream ss;
+                        ss << dstNode->GetName() << "[" << meshIdx << "]";
+                        meshNode->SetName(ss.str().c_str());
+                        
+                        auto leaf = st::make_unique_with_weak<st::gfx::MeshInstance>(found->second[meshIdx]);
+                        meshNode->SetLeaf(std::move(leaf));
+
+                        sceneGraph->Attach(dstNode.get(), std::move(meshNode));
+                    }
+                }
             }
             else
             {

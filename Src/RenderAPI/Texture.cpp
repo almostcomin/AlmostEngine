@@ -24,10 +24,20 @@ st::rapi::ArraySlice st::rapi::TextureSubresourceSet::GetLastArraySlice(const Te
     }
 }
 
+size_t st::rapi::TextureSubresourceSet::GetNumMipLevels(const TextureDesc& desc) const
+{
+    return GetLastMipLevel(desc) - baseMipLevel + 1;
+}
+
+size_t st::rapi::TextureSubresourceSet::GetNumArraySlices(const TextureDesc& desc) const
+{
+    return GetLastArraySlice(desc) - baseArraySlice + 1;
+}
+
 void st::rapi::TextureSubresourceSet::Resolve(const TextureDesc& desc)
 {
-    numMipLevels = GetLastMipLevel(desc) - baseMipLevel + 1;
-    numArraySlices = GetLastArraySlice(desc) - baseArraySlice + 1;
+    numMipLevels = GetNumMipLevels(desc);
+    numArraySlices = GetNumArraySlices(desc);
 }
 
 bool st::rapi::TextureSubresourceSet::IsEntireTexture(const st::rapi::TextureDesc& desc) const

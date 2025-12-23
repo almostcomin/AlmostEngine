@@ -6,22 +6,10 @@
 #include "RenderAPI/BlendState.h"
 #include "RenderAPI/RasterizerState.h"
 #include "RenderAPI/DepthStencilState.h"
+#include "RenderAPI/Common.h"
 
 namespace st::rapi
 {
-
-enum class PrimitiveTopology
-{
-    PointList,
-    LineList,
-    LineStrip,
-    TriangleList,
-    TriangleStrip,
-    TriangleFan,
-    TriangleListWithAdjacency,
-    TriangleStripWithAdjacency,
-    PatchList
-};
 
 struct GraphicsPipelineStateDesc
 {
@@ -31,7 +19,6 @@ struct GraphicsPipelineStateDesc
     ShaderHandle GS;
     ShaderHandle PS;
 
-    //InputLayout inputLayout;
     BlendState blendState;
     DepthStencilState depthStencilState;
     RasterizerState rasterState;

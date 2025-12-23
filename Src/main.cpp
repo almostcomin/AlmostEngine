@@ -47,7 +47,17 @@ void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
 
         if (walker->GetLeaf())
         {
-            ss << " : LEAF ";
+			switch (walker->GetLeaf()->GetType())
+			{
+			case st::gfx::SceneGraphLeaf::Type::MeshInstance:
+				ss << " : MESH_INSTANCE ";
+				break;
+			case st::gfx::SceneGraphLeaf::Type::Camera:
+				ss << " : CAMERA ";
+				break;
+			default:
+				ss << " : UNKNOWN_LEAF ";
+			}
         }
 
 		if (!ss.str().empty())
@@ -98,22 +108,9 @@ int SDL_main(int argc, char* argv[])
 	std::shared_ptr<st::gfx::CompositeRenderStage> compositeRS{ new st::gfx::CompositeRenderStage };
 
 	// Create UI render stage
+	std::string requestLoadFile;
 	std::shared_ptr<StructureUI> uiRS{ new StructureUI{window} };
-	uiRS->m_RequestLoadFile = [&deviceManager, &scene, &opaqueRS](const char* filename) {
-		auto importResult = st::gfx::ImportGlTF(filename, deviceManager.get());
-		if (importResult)
-		{
-			scene.reset(new st::gfx::Scene{ deviceManager.get() });
-			scene->SetSceneGraph(std::move(*importResult));
-
-			opaqueRS->SetScene(scene.get_weak());
-			PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
-		}
-		else
-		{
-			LOG_ERROR("Error importing file '{}': {}", filename, importResult.error());
-		}
-	};
+	uiRS->m_RequestLoadFile = [&requestLoadFile](const char* filename) { requestLoadFile = filename; };
 
 	// Create camera
 	auto camera = std::make_shared<st::gfx::Camera>();
@@ -139,6 +136,24 @@ int SDL_main(int argc, char* argv[])
 		const auto currentTime = std::chrono::steady_clock::now();
 		const std::chrono::duration<float> elapsed = currentTime - lastTime;
 		const float elapsedMs = elapsed.count() * 1000.0f;
+
+		if (!requestLoadFile.empty())
+		{
+			auto importResult = st::gfx::ImportGlTF(requestLoadFile.c_str(), deviceManager.get());
+			if (importResult)
+			{
+				scene.reset(new st::gfx::Scene{ deviceManager.get() });
+				scene->SetSceneGraph(std::move(*importResult));
+
+				opaqueRS->SetScene(scene.get_weak());
+				PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
+			}
+			else
+			{
+				LOG_ERROR("Error importing file '{}': {}", requestLoadFile, importResult.error());
+			}
+			requestLoadFile.clear();
+		}
 
 		// Input
 		SDL_Event event;
