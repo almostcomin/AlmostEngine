@@ -164,7 +164,7 @@ void st::gfx::SceneGraph::Refresh()
                     // Update world transform
                     if (node->m_Parent)
                     {
-                        node->m_WorldMatrix = node->m_LocalTransform.GetMatrix() * node->m_Parent->m_WorldMatrix;
+                        node->m_WorldMatrix = node->m_Parent->m_WorldMatrix * node->m_LocalTransform.GetMatrix();
                     }
                     else
                     {

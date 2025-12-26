@@ -74,6 +74,18 @@ namespace interop
     {
         uint textureDI;
     };
+
+    struct DebugStage
+    {
+        uint sceneDI;
+        uint aaboxDI;
+    };
+
+    struct AABB
+    {
+        float3 min;
+        float3 max;
+    };
 }
 
 #endif // __SHADERS_INTEROP_RENDERRESOURCES_H__

@@ -37,8 +37,8 @@ union ClearValue
 		uint32_t stencil;
 	} depthStencil;
 
-	static constexpr ClearValue Black() { return ClearValue{ float4{ 0.f } }; }
-	static constexpr ClearValue Zero() { return ClearValue{ .depthStencil{ 0.f, 0u } }; }
+	static constexpr ClearValue ColorBlack() { return ClearValue{ float4{ 0.f } }; }
+	static constexpr ClearValue DepthZero() { return ClearValue{ .depthStencil{ 0.f, 0u } }; }
 };
 
 struct RenderPassOp
@@ -96,6 +96,7 @@ public:
 	virtual void EndRenderPass() = 0;
 
 	virtual void Draw(uint32_t vertexCount) = 0;
+	virtual void DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount) = 0;
 
 	virtual void Discard(IBuffer* buffer) = 0;
 	virtual void Discard(ITexture* texture, int mipLevel = -1, int arraySlice = -1) = 0;

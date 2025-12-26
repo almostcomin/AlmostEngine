@@ -4,6 +4,8 @@
 #include "Core/Memory.h"
 #include "RenderAPI/Framebuffer.h"
 #include "RenderAPI/CommandList.h"
+#include "RenderAPI/Buffer.h"
+#include "Gfx/Scene.h"
 #include <map>
 
 namespace st::gfx
@@ -31,6 +33,7 @@ public:
 	RenderView(DeviceManager* deviceManager, const char* debugName);
 	~RenderView();
 
+	void SetScene(st::weak<Scene> scene) { m_Scene = scene; }
 	void SetCamera(std::shared_ptr<Camera> camera);
 
 	// Sets render to an offscreen framebuffer. If not initialized or set to null, will render to 
@@ -39,10 +42,13 @@ public:
 
 	void SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages);
 
+	st::weak<Scene> GetScene() { return m_Scene; }
 	std::shared_ptr<Camera> GetCamera() { return m_Camera; }
 	st::rapi::FramebufferHandle GetFramebuffer();
 	st::rapi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
+	st::rapi::TextureHandle GetBackBuffer(int idx = 0);
 	st::rapi::CommandListHandle GetCommandList();
+	st::rapi::DescriptorIndex GetSceneBufferDI();
 
 	bool CreateColorTarget(const char* id, int width, int height, rapi::Format format);
 	bool CreateDepthTarget(const char* id, int width, int height, rapi::Format format);
@@ -58,6 +64,7 @@ public:
 private:
 
 	void CleanRenderPasses();
+	void UpdateSceneBuffer();
 
 private:
 
@@ -84,11 +91,15 @@ private:
 
 	void Refresh();
 
+	st::weak<Scene> m_Scene;
 	std::shared_ptr<Camera> m_Camera;
+
 	st::rapi::FramebufferHandle m_OffscreenFramebuffer;
 	std::vector<st::rapi::CommandListHandle> m_CommandLists;
 
 	std::map<std::string, DeclaredTexture> m_DeclaredTextures;
+
+	st::rapi::BufferHandle m_SceneCB;
 
 	std::vector<RenderPassDeps> m_RenderStages;
 

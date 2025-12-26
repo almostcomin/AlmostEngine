@@ -27,6 +27,7 @@ struct frustum3f
     frustum3f(const glm::mat4& viewProjMat)
     {
         // GLM is column-major: viewProjMat[col][row]
+        // Plane normals pointing inside the volume
         glm::vec4 row0 = glm::row(viewProjMat, 0);
         glm::vec4 row1 = glm::row(viewProjMat, 1);
         glm::vec4 row2 = glm::row(viewProjMat, 2);
@@ -55,11 +56,12 @@ struct frustum3f
         for (int i = 0; i < PLANE_COUNT; ++i)
         {
             glm::vec3 p{
-                planes[i].normal.x > 0.f ? b.min.x : b.max.x,
-                planes[i].normal.y > 0.f ? b.min.y : b.max.y,
-                planes[i].normal.z > 0.f ? b.min.z : b.max.z };
+                planes[i].normal.x >= 0.f ? b.max.x : b.min.x,
+                planes[i].normal.y >= 0.f ? b.max.y : b.min.y,
+                planes[i].normal.z >= 0.f ? b.max.z : b.min.z };
             
-            if (planes[i].distance(p) > 0.f)
+            auto d = planes[i].distance(p);
+            if (d < 0.f)
                 return false;
         }
         return true;

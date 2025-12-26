@@ -1215,18 +1215,18 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
 
         if (srcNode->has_matrix)
         {
-            dstNode->SetTransform(st::gfx::Transform{ glm::make_mat4(srcNode->matrix) }); // TODO check if transpose is needed (glm::transpose)
+            dstNode->SetLocalTransform(st::gfx::Transform{ glm::make_mat4(srcNode->matrix) }); // TODO check if transpose is needed (glm::transpose)
         }
         else
         {
             st::gfx::Transform t;
             if (srcNode->has_scale)
-                t.SetScale(*(glm::vec3*)srcNode->scale);
+                t.SetScale(glm::vec3{ srcNode->scale[0], srcNode->scale[1], srcNode->scale[2] });
             if (srcNode->has_rotation)
                 t.SetRotation(glm::quat{ srcNode->rotation[3], srcNode->rotation[0], srcNode->rotation[1], srcNode->rotation[2] });
             if (srcNode->translation)
-                t.SetTranslation(*(glm::vec3*)srcNode->translation);
-            dstNode->SetTransform(t);
+                t.SetTranslation(glm::vec3{ srcNode->translation[0], srcNode->translation[1], srcNode->translation[2] });
+            dstNode->SetLocalTransform(t);
         }
 
         if (srcNode->name)

@@ -14,7 +14,8 @@
 
 bool st::gfx::OpaqueRenderStage::Render()
 {
-	if (!m_Scene)
+	auto scene = m_RenderView->GetScene();
+	if (!scene)
 	{
 		//LOG_WARNING("No scene set. Nothing to render");
 		return false;
@@ -32,8 +33,8 @@ bool st::gfx::OpaqueRenderStage::Render()
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
-		{ rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Black()} },
-		rapi::RenderPassOp{ rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Zero() },
+		{ rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::ColorBlack()} },
+		rapi::RenderPassOp{ rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::DepthZero() },
 		rapi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());
@@ -42,29 +43,25 @@ bool st::gfx::OpaqueRenderStage::Render()
 		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
 
 	interop::OpaqueStage shaderConstants;
-	shaderConstants.sceneDI = GetSceneDI();
-	shaderConstants.instanceBufferDI = m_Scene->GetInstancesBufferDI();
-	shaderConstants.meshesBufferDI = m_Scene->GetMeshesBufferDI();
+	shaderConstants.sceneDI = m_RenderView->GetSceneBufferDI();
+	shaderConstants.instanceBufferDI = scene->GetInstancesBufferDI();
+	shaderConstants.meshesBufferDI = scene->GetMeshesBufferDI();
 
 	const auto& frustum = camera->GetFrustum();
-	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
+	st::gfx::SceneGraph::Walker walker{ *scene->GetSceneGraph() };
 	while(walker)
 	{
 		auto node = *walker;
-		if (true/*node->HasBounds() && frustum.check(node->GetBounds())*/)
+		if (hasFlag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && frustum.check(node->GetWorldBounds()))
 		{
 			auto leaf = node->GetLeaf();
-			if (leaf && leaf->GetContentFlags() == SceneContentFlags::OpaqueMeshes)
+			if (leaf)
 			{
-				const st::math::aabox3f worldBounds = leaf->GetBounds() * node->GetWorldTransform();
-				//if (frustum.check(worldBounds))
-				{
-					auto* meshInstance = st::checked_cast<st::gfx::MeshInstance*>(leaf.get());
-					shaderConstants.instanceIdx = m_Scene->GetInstanceIndex(meshInstance);
+				auto* meshInstance = st::checked_cast<st::gfx::MeshInstance*>(leaf.get());
+				shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
 
-					commandList->PushConstants(shaderConstants);
-					commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
-				}
+				commandList->PushConstants(shaderConstants);
+				commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
 			}
 			walker.Next();
 		}
@@ -130,7 +127,7 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 		{
 			.depthTestEnable = true,
 			.depthWriteEnable = true,
-			.depthFunc = rapi::ComparisonFunc::Greater,
+			.depthFunc = rapi::ComparisonFunc::GreaterEqual,
 			.stencilEnable = false
 		};
 
@@ -160,7 +157,6 @@ void st::gfx::OpaqueRenderStage::OnDetached()
 	st::rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(m_FB);
-	device->ReleaseQueued(m_SceneCB);
 
 	m_RenderTarget = nullptr;
 	m_DepthStencil = nullptr;
@@ -168,34 +164,4 @@ void st::gfx::OpaqueRenderStage::OnDetached()
 	device->ReleaseQueued(m_PSO);
 	device->ReleaseQueued(m_VS);
 	device->ReleaseQueued(m_PS);
-}
-
-st::rapi::DescriptorIndex st::gfx::OpaqueRenderStage::GetSceneDI()
-{
-	auto camera = m_RenderView->GetCamera();
-	if (!camera)
-	{
-		LOG_ERROR("Not camera defined");
-		return {};
-	}
-
-	if (!m_SceneCB)
-	{
-		rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
-
-		rapi::BufferDesc desc{
-			.memoryAccess = rapi::MemoryAccess::Upload,
-			.shaderUsage = rapi::BufferShaderUsage::ConstantBuffer,
-			.sizeBytes = sizeof(interop::Scene),
-			.allowUAV = false,
-			.stride = 0 };
-
-		m_SceneCB = device->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);
-	}
-		
-	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
-	sceneData->viewProjectionMatrix = camera->GetViewProjectionMatrix();		
-	m_SceneCB->Unmap();
-
-	return m_SceneCB->GetShaderViewIndex(rapi::BufferShaderView::ConstantBuffer);
 }

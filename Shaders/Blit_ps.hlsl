@@ -9,6 +9,7 @@ struct PS_INPUT
     float2 uv : TEXCOORD0;
 };
 
+[RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {
     Texture2D texture = ResourceDescriptorHeap[Constants.textureDI];

@@ -81,7 +81,7 @@ namespace
 		case st::rapi::ComparisonFunc::LessEqual: return D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		case st::rapi::ComparisonFunc::Greater: return D3D12_COMPARISON_FUNC_GREATER;
 		case st::rapi::ComparisonFunc::NotEqual: return D3D12_COMPARISON_FUNC_NOT_EQUAL;
-		case st::rapi::ComparisonFunc::GreaterOrEqual: return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+		case st::rapi::ComparisonFunc::GreaterEqual: return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 		case st::rapi::ComparisonFunc::Always: return D3D12_COMPARISON_FUNC_ALWAYS;
 		default:
 			assert(0);

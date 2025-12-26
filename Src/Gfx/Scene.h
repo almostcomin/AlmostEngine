@@ -31,7 +31,7 @@ namespace st::gfx
 
 		int GetInstanceIndex(const st::gfx::MeshInstance* pInstance);
 
-		weak<SceneGraph> GetSceneGraph() { return m_SceneGraph.get_weak(); }
+		weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
 
 	private:
 

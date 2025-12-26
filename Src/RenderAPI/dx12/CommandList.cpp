@@ -297,6 +297,11 @@ void st::rapi::dx12::CommandList::Draw(uint32_t vertexCount)
 	m_D3d12Commandlist->DrawInstanced(vertexCount, 1, 0, 0);
 }
 
+void st::rapi::dx12::CommandList::DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount)
+{
+	m_D3d12Commandlist->DrawInstanced(vertexCountPerInstance, instanceCount, 0, 0);
+}
+
 void st::rapi::dx12::CommandList::Discard(IBuffer* buffer)
 {
 	m_D3d12Commandlist->DiscardResource(buffer->GetNativeResource(), nullptr);

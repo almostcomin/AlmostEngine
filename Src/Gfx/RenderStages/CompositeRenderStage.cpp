@@ -12,7 +12,7 @@ bool st::gfx::CompositeRenderStage::Render()
 	auto fb = m_RenderView->GetFramebuffer();
 	commandList->BeginRenderPass(
 		fb.get(),
-		{ rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::Black()} },
+		{ rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::ColorBlack()} },
 		{},
 		rapi::RenderPassFlags::None);
 

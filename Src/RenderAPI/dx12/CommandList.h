@@ -48,6 +48,7 @@ namespace st::rapi::dx12
 		void EndRenderPass() override;
 
 		void Draw(uint32_t vertexCount) override;
+		void DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount) override;
 
 		void Discard(IBuffer* buffer) override;
 		void Discard(ITexture* texture, int mipLevel, int arraySlice) override;

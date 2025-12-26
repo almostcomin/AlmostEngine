@@ -14,6 +14,7 @@
 #include "Gfx/Camera.h"
 #include "Gfx/RenderStages/OpaqueRenderStage.h"
 #include "Gfx/RenderStages/CompositeRenderStage.h"
+#include "Gfx/RenderStages/DebugRenderStage.h"
 #include "StructureUI.h"
 #include <thread>
 #include <sstream>
@@ -40,7 +41,7 @@ void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
 
         if (walker->HasBounds())
         {
-            const auto& bbox = walker->GetBounds();
+            const auto& bbox = walker->GetWorldBounds();
             ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
                 << bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
         }
@@ -104,6 +105,9 @@ int SDL_main(int argc, char* argv[])
 	// Create opaque render stage
 	std::shared_ptr<st::gfx::OpaqueRenderStage> opaqueRS{ new st::gfx::OpaqueRenderStage };
 
+	// Create debug render stage
+	std::shared_ptr<st::gfx::DebugRenderStage> debugRS{ new st::gfx::DebugRenderStage };
+
 	// Create composite render stage
 	std::shared_ptr<st::gfx::CompositeRenderStage> compositeRS{ new st::gfx::CompositeRenderStage };
 
@@ -121,7 +125,7 @@ int SDL_main(int argc, char* argv[])
 
 	// Create RenderView
 	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
-	renderView->SetRenderStages({ opaqueRS, compositeRS, uiRS });
+	renderView->SetRenderStages({ opaqueRS, debugRS, compositeRS, uiRS});
 	renderView->SetCamera(camera);
 
 	// Main loop
@@ -145,7 +149,7 @@ int SDL_main(int argc, char* argv[])
 				scene.reset(new st::gfx::Scene{ deviceManager.get() });
 				scene->SetSceneGraph(std::move(*importResult));
 
-				opaqueRS->SetScene(scene.get_weak());
+				renderView->SetScene(scene.get_weak());
 				PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
 			}
 			else

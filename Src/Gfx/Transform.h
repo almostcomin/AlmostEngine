@@ -52,9 +52,10 @@ public:
 	{
 		if (m_Dirty)
 		{
-			m_Matrix = glm::scale(glm::identity<glm::mat4x4>(), m_Scale);
-			m_Matrix *= glm::mat4_cast(m_Rotation);
-			m_Matrix = glm::translate(m_Matrix, m_Translation);
+			m_Matrix =
+				glm::translate(glm::mat4(1.0f), m_Translation) *
+				glm::mat4_cast(m_Rotation) *
+				glm::scale(glm::mat4(1.0f), m_Scale);
 			m_Dirty = false;
 		}
 		return m_Matrix;

@@ -13,7 +13,7 @@ enum class ComparisonFunc : uint8_t
 	LessEqual,
 	Greater,
 	NotEqual,
-	GreaterOrEqual,
+	GreaterEqual,
 	Always
 };
 

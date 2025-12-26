@@ -89,8 +89,11 @@ class IFramebuffer : public IResource
 {
 public:
 
-	[[nodiscard]] virtual const FramebufferDesc& GetDesc() const = 0;
-	[[nodiscard]] virtual const FramebufferInfo& GetFramebufferInfo() const = 0;
+	virtual const FramebufferDesc& GetDesc() const = 0;
+	virtual const FramebufferInfo& GetFramebufferInfo() const = 0;
+
+    virtual TextureHandle GetBackBuffer(uint32_t idx) = 0;
+    virtual TextureHandle GetDepthStencil() = 0;
 };
 
 using FramebufferHandle = st::weak<IFramebuffer>;

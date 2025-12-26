@@ -1,8 +1,10 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderStage.h"
 #include "Gfx/DeviceManager.h"
+#include "Gfx/Camera.h"
 #include "RenderAPI/Device.h"
 #include "Core/Log.h"
+#include "Interop/RenderResources.h"
 
 st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	m_IsDirty{ false }, m_DebugName{ debugName }, m_DeviceManager { deviceManager }
@@ -19,6 +21,7 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 st::gfx::RenderView::~RenderView()
 {
 	CleanRenderPasses();
+	m_DeviceManager->GetDevice()->ReleaseQueued(m_SceneCB);
 
 	for (int i = 0; i < m_CommandLists.size(); ++i)
 	{
@@ -57,9 +60,19 @@ st::rapi::FramebufferHandle st::gfx::RenderView::GetFramebuffer()
 	return m_OffscreenFramebuffer ? m_OffscreenFramebuffer : m_DeviceManager->GetCurrentFramebuffer();
 }
 
+st::rapi::TextureHandle st::gfx::RenderView::GetBackBuffer(int idx)
+{
+	return GetFramebuffer()->GetBackBuffer(idx);
+}
+
 st::rapi::CommandListHandle st::gfx::RenderView::GetCommandList()
 {
 	return m_CommandLists[m_DeviceManager->GetFrameModuleIndex()];
+}
+
+st::rapi::DescriptorIndex st::gfx::RenderView::GetSceneBufferDI()
+{
+	return m_SceneCB ? m_SceneCB->GetShaderViewIndex(rapi::BufferShaderView::ConstantBuffer) : rapi::c_InvalidDescriptorIndex;
 }
 
 bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, rapi::Format format)
@@ -115,6 +128,8 @@ bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int heigh
 	// Created in common state
 	rapi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rapi::ResourceState::DEPTHSTENCIL);
 	m_DeclaredTextures.insert({ id, { texture, id, true } });
+
+	return true;
 }
 
 bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rapi::ResourceState inputState, rapi::ResourceState outputState)
@@ -160,6 +175,8 @@ void st::gfx::RenderView::Render()
 	{
 		Refresh();
 	}
+
+	UpdateSceneBuffer();
 
 	st::rapi::FramebufferHandle frameBuffer = GetFramebuffer();
 	if (frameBuffer)
@@ -261,4 +278,23 @@ void st::gfx::RenderView::CleanRenderPasses()
 		m_DeviceManager->GetDevice()->ReleaseQueued(dt.second.texture);
 	}
 	m_DeclaredTextures.clear();
+}
+
+void st::gfx::RenderView::UpdateSceneBuffer()
+{
+	if (!m_SceneCB)
+	{
+		rapi::BufferDesc desc{
+			.memoryAccess = rapi::MemoryAccess::Upload,
+			.shaderUsage = rapi::BufferShaderUsage::ConstantBuffer,
+			.sizeBytes = sizeof(interop::Scene),
+			.allowUAV = false,
+			.stride = 0 };
+
+		m_SceneCB = m_DeviceManager->GetDevice()->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);
+	}
+
+	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
+	sceneData->viewProjectionMatrix = m_Camera ? m_Camera->GetViewProjectionMatrix() : float4x4{ 1.f };
+	m_SceneCB->Unmap();
 }

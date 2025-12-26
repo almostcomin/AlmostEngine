@@ -38,7 +38,6 @@ public:
 	SceneGraphNode();
 	~SceneGraphNode();
 
-	void SetTransform(const Transform& t) { m_LocalTransform = t; }
 	void SetName(const char* name) { m_Name = name; }
 
 	void SetLeaf(st::unique<SceneGraphLeaf>&& leaf);
@@ -56,7 +55,7 @@ public:
 	const float4x4& GetWorldTransform() const { return m_WorldMatrix; }
 
 	bool HasBounds() const { return m_HasBounds; }
-	const st::math::aabox3f& GetBounds() { return m_WorldBounds; }
+	const st::math::aabox3f& GetWorldBounds() { return m_WorldBounds; }
 
 	SceneContentFlags GetContentFlags() const { return m_ContentFlags; }
 
