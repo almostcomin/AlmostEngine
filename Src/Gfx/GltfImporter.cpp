@@ -13,7 +13,7 @@
 #include <filesystem>
 #include "Core/File.h"
 #include "Gfx/DeviceManager.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 #include "Gfx/LoadedTexture.h"
 
 #define CGLTF_IMPLEMENTATION
@@ -548,10 +548,10 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, cons
 
 std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> 
 GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait, 
-    st::rapi::Device* device)
+    st::rhi::Device* device)
 {
     std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> matMap;
-    auto loadTex = [objects, &loadCache, &options, &out_handlesToWait](cgltf_texture* texture, bool sRGB) -> st::rapi::TextureHandle
+    auto loadTex = [objects, &loadCache, &options, &out_handlesToWait](cgltf_texture* texture, bool sRGB) -> st::rhi::TextureHandle
     {
         if (!texture)
             return {};
@@ -756,23 +756,23 @@ void CollectPrimitiveTexcoords(const cgltf_accessor& texcoords, std::vector<glm:
     }
 }
 
-std::expected<std::pair<st::rapi::BufferHandle, st::SignalListener>, std::string>
-CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, st::rapi::Device* device)
+std::expected<std::pair<st::rhi::BufferHandle, st::SignalListener>, std::string>
+CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, st::rhi::Device* device)
 {
-    st::rapi::BufferDesc bufferDesc;
-    bufferDesc.memoryAccess = st::rapi::MemoryAccess::Default;
-    bufferDesc.shaderUsage = st::rapi::BufferShaderUsage::ShaderResource;
+    st::rhi::BufferDesc bufferDesc;
+    bufferDesc.memoryAccess = st::rhi::MemoryAccess::Default;
+    bufferDesc.shaderUsage = st::rhi::BufferShaderUsage::ShaderResource;
     bufferDesc.sizeBytes = indexData.size();
     bufferDesc.stride = idx32bits ? sizeof(int32_t) : sizeof(int16_t);
     bufferDesc.debugName = debugName;
     bufferDesc.debugName.append(" - IndexBuffer");
 
-    st::rapi::BufferHandle indexBuffer = device->CreateBuffer(bufferDesc, st::rapi::ResourceState::COPY_DST);
+    st::rhi::BufferHandle indexBuffer = device->CreateBuffer(bufferDesc, st::rhi::ResourceState::COPY_DST);
     auto uploadResult = dataUploader->UploadBufferData(
         st::WeakBlob{ indexData },
         indexBuffer,
-        st::rapi::ResourceState::COPY_DST,
-        st::rapi::ResourceState::INDEX_BUFFER | st::rapi::ResourceState::SHADER_RESOURCE);
+        st::rhi::ResourceState::COPY_DST,
+        st::rhi::ResourceState::INDEX_BUFFER | st::rhi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
     {
@@ -784,23 +784,23 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
     }
 }
 
-std::expected<std::pair<st::rapi::BufferHandle, st::SignalListener>, std::string>
-CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugName, st::gfx::DataUploader* dataUploader, st::rapi::Device* device)
+std::expected<std::pair<st::rhi::BufferHandle, st::SignalListener>, std::string>
+CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugName, st::gfx::DataUploader* dataUploader, st::rhi::Device* device)
 {
-    st::rapi::BufferDesc bufferDesc;
-    bufferDesc.memoryAccess = st::rapi::MemoryAccess::Default;
-    bufferDesc.shaderUsage = st::rapi::BufferShaderUsage::ShaderResource;
+    st::rhi::BufferDesc bufferDesc;
+    bufferDesc.memoryAccess = st::rhi::MemoryAccess::Default;
+    bufferDesc.shaderUsage = st::rhi::BufferShaderUsage::ShaderResource;
     bufferDesc.sizeBytes = vertexData.size();
     bufferDesc.stride = vertexStride;
     bufferDesc.debugName = debugName;
     bufferDesc.debugName.append(" - VertexBuffer");
 
-    auto vertexBuffer = device->CreateBuffer(bufferDesc, st::rapi::ResourceState::COPY_DST);
+    auto vertexBuffer = device->CreateBuffer(bufferDesc, st::rhi::ResourceState::COPY_DST);
     auto uploadResult = dataUploader->UploadBufferData(
         st::WeakBlob{ vertexData },
         vertexBuffer,
-        st::rapi::ResourceState::COPY_DST,
-        st::rapi::ResourceState::SHADER_RESOURCE);
+        st::rhi::ResourceState::COPY_DST,
+        st::rhi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
     {
@@ -814,7 +814,7 @@ CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugNam
 
 std::expected<std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<st::gfx::Mesh>>>, std::string>
 LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>>& matMap, 
-    const char* filename, st::gfx::DataUploader* dataUploader, st::rapi::Device* device, std::vector<st::SignalListener>& out_handlesToWait)
+    const char* filename, st::gfx::DataUploader* dataUploader, st::rhi::Device* device, std::vector<st::SignalListener>& out_handlesToWait)
 {
     std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<st::gfx::Mesh>>> meshMap;
 
@@ -988,7 +988,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             auto indexBufferResult = CreateIndexBuffer(std::move(indexData), idx32bits, debugName.c_str(), dataUploader, device);
             if (indexBufferResult)
             {
-                mesh->SetIndexBuffer(indexBufferResult->first, st::rapi::PrimitiveTopology::TriangleList);
+                mesh->SetIndexBuffer(indexBufferResult->first, st::rhi::PrimitiveTopology::TriangleList);
                 out_handlesToWait.push_back(indexBufferResult->second);
             }
 

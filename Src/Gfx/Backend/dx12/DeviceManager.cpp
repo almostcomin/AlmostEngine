@@ -4,9 +4,9 @@
 #include <dxgidebug.h>
 #include <SDL3/SDL_video.h>
 #include "Core/Log.h"
-#include "RenderAPI/dx12/Device.h"
-#include "RenderAPI/dx12/DxgiFormat.h"
-#include "RenderAPI/Format.h"
+#include "RHI/dx12/Device.h"
+#include "RHI/dx12/DxgiFormat.h"
+#include "RHI/Format.h"
 
 using namespace Microsoft::WRL;
 
@@ -292,14 +292,14 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
         }
     }
 
-    st::rapi::dx12::DeviceDesc deviceDesc;
+    st::rhi::dx12::DeviceDesc deviceDesc;
 
     deviceDesc.pDevice = m_D3d12Device.Get();
     deviceDesc.pGraphicsCommandQueue = m_GraphicsQueue.Get();
     deviceDesc.pComputeCommandQueue = m_ComputeQueue.Get();
     deviceDesc.pCopyCommandQueue = m_CopyQueue.Get();
 
-    m_Device = st::rapi::dx12::CreateDevice(deviceDesc);
+    m_Device = st::rhi::dx12::CreateDevice(deviceDesc);
 
     return true;
 }
@@ -327,14 +327,14 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
     // So we need to use a non-sRGB format here, but store the true sRGB format for later framebuffer creation.
     switch (m_DeviceParams.SwapChainFormat)
     {
-    case st::rapi::Format::SRGBA8_UNORM:
+    case st::rhi::Format::SRGBA8_UNORM:
         m_SwapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         break;
-    case st::rapi::Format::SBGRA8_UNORM:
+    case st::rhi::Format::SBGRA8_UNORM:
         m_SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         break;
     default:        
-        m_SwapChainDesc.Format = st::rapi::dx12::GetDxgiFormatMapping(m_DeviceParams.SwapChainFormat).srvFormat;
+        m_SwapChainDesc.Format = st::rhi::dx12::GetDxgiFormatMapping(m_DeviceParams.SwapChainFormat).srvFormat;
         break;
     }
 
@@ -408,12 +408,12 @@ uint32_t st::gfx::dx12::DeviceManager::GetCurrentBackBufferIndex() const
     return m_SwapChain->GetCurrentBackBufferIndex();
 }
 
-st::rapi::ITexture* st::gfx::dx12::DeviceManager::GetCurrentBackBuffer()
+st::rhi::ITexture* st::gfx::dx12::DeviceManager::GetCurrentBackBuffer()
 {
     return m_SwapChainBuffers[m_SwapChain->GetCurrentBackBufferIndex()].get();
 }
 
-st::rapi::ITexture* st::gfx::dx12::DeviceManager::GetBackBuffer(uint32_t index)
+st::rhi::ITexture* st::gfx::dx12::DeviceManager::GetBackBuffer(uint32_t index)
 {
     return m_SwapChainBuffers[index].get();
 }
@@ -428,13 +428,13 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
         const HRESULT hr = m_SwapChain->GetBuffer(n, IID_PPV_ARGS(&nativeBuffer));
         HR_RETURN(hr);        
         
-        rapi::TextureDesc textureDesc;
+        rhi::TextureDesc textureDesc;
         textureDesc.width = m_SwapChainDesc.Width;
         textureDesc.height = m_SwapChainDesc.Height;
         textureDesc.sampleCount = m_DeviceParams.SwapChainSampleCount;
         textureDesc.sampleQuality = m_DeviceParams.SwapChainSampleQuality;
         textureDesc.format = m_DeviceParams.SwapChainFormat;
-        textureDesc.shaderUsage = rapi::TextureShaderUsage::RenderTarget;
+        textureDesc.shaderUsage = rhi::TextureShaderUsage::RenderTarget;
         textureDesc.debugName = "SwapChainBuffer";
 
         m_SwapChainBuffers[n] = m_Device->CreateHandleForNativeTexture(

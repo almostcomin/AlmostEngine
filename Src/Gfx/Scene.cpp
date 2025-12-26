@@ -6,7 +6,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/Material.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 #include "Core/unique_vector.h"
 #include <cassert>
@@ -57,16 +57,16 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 
 		// Fill instances buffer
 		{
-			rapi::BufferDesc desc{
-				.memoryAccess = rapi::MemoryAccess::Default,
-				.shaderUsage = rapi::BufferShaderUsage::ShaderResource,
+			rhi::BufferDesc desc{
+				.memoryAccess = rhi::MemoryAccess::Default,
+				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
 				.sizeBytes = meshInstances.size() * sizeof(interop::InstanceData),
 				.allowUAV = false,
-				.format = rapi::Format::UNKNOWN,
+				.format = rhi::Format::UNKNOWN,
 				.stride = sizeof(interop::InstanceData),
 				.debugName = "Scene InstancesBuffer" };
 
-			m_InstancesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rapi::ResourceState::COPY_DST);
+			m_InstancesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST);
 
 			auto* dataUploader = m_DeviceManager->GetDataUploader();
 			auto uploadTicket = dataUploader->RequestUploadTicket(desc);
@@ -80,32 +80,32 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				instanceDataPtr++;
 			}
 			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer, 
-				rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE);
+				rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
 			uploadResult->Wait();
 		}
 
 		// Fill meshes buffer
 		{
 			assert(!meshes.empty());
-			rapi::BufferDesc desc{
-				.memoryAccess = rapi::MemoryAccess::Default,
-				.shaderUsage = rapi::BufferShaderUsage::ShaderResource,
+			rhi::BufferDesc desc{
+				.memoryAccess = rhi::MemoryAccess::Default,
+				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
 				.sizeBytes = meshes.size() * sizeof(interop::MeshData),
 				.allowUAV = false,
-				.format = rapi::Format::UNKNOWN,
+				.format = rhi::Format::UNKNOWN,
 				.stride = sizeof(interop::MeshData),
 				.debugName = "Scene MeshesBuffer" };
 
-			m_MeshesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rapi::ResourceState::COPY_DST);
+			m_MeshesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST);
 
 			auto* dataUploader = m_DeviceManager->GetDataUploader();
 			auto uploadTicket = dataUploader->RequestUploadTicket(desc);
 			auto* meshDataPtr = (interop::MeshData*)uploadTicket->GetPtr();
 			for (const st::gfx::Mesh* mesh : meshes)
 			{
-				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
+				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
 				meshDataPtr->indexOffset = 0;
-				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
+				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
 				meshDataPtr->vertexBufferOffsetBytes = 0;
 				const auto& stride = mesh->GetVertexStride();
 				meshDataPtr->vertexStride = stride.Vertex;
@@ -116,12 +116,12 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				meshDataPtr->vertexTexCoord1Stride = stride.TexCoord1;
 				meshDataPtr->vertexColorStride = stride.Color;
 				meshDataPtr->textureDI = mesh->GetMaterial()->GetDiffuseTexture() ?
-					mesh->GetMaterial()->GetDiffuseTexture()->GetShaderViewIndex(rapi::TextureShaderView::ShaderResource) : rapi::c_InvalidDescriptorIndex;
+					mesh->GetMaterial()->GetDiffuseTexture()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 
 				meshDataPtr++;
 			}
 			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer,
-				rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE);
+				rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
 			uploadResult->Wait();
 		}
 	}
@@ -135,14 +135,14 @@ void st::gfx::Scene::Update()
 	}
 }
 
-st::rapi::DescriptorIndex st::gfx::Scene::GetInstancesBufferDI() const
+st::rhi::DescriptorIndex st::gfx::Scene::GetInstancesBufferDI() const
 {
-	return m_InstancesBuffer ? m_InstancesBuffer->GetShaderViewIndex(st::rapi::BufferShaderView::ShaderResource) : rapi::c_InvalidDescriptorIndex;
+	return m_InstancesBuffer ? m_InstancesBuffer->GetShaderViewIndex(st::rhi::BufferShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 }
 
-st::rapi::DescriptorIndex st::gfx::Scene::GetMeshesBufferDI() const
+st::rhi::DescriptorIndex st::gfx::Scene::GetMeshesBufferDI() const
 {
-	return m_MeshesBuffer ? m_MeshesBuffer->GetShaderViewIndex(st::rapi::BufferShaderView::ShaderResource) : rapi::c_InvalidDescriptorIndex;
+	return m_MeshesBuffer ? m_MeshesBuffer->GetShaderViewIndex(st::rhi::BufferShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 }
 
 int st::gfx::Scene::GetInstanceIndex(const st::gfx::MeshInstance* pInstance)

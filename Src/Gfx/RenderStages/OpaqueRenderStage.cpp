@@ -9,7 +9,7 @@
 #include "Gfx/Camera.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
 bool st::gfx::OpaqueRenderStage::Render()
@@ -28,18 +28,18 @@ bool st::gfx::OpaqueRenderStage::Render()
 		return false;
 	}
 
-	rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 	auto commandList = m_RenderView->GetCommandList();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
-		{ rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::ColorBlack()} },
-		rapi::RenderPassOp{ rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::DepthZero() },
-		rapi::RenderPassFlags::None);
+		{ rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack()} },
+		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
+		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	commandList->SetViewport(rapi::ViewportState().AddViewportAndScissorRect({
+	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
 		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
 
 	interop::OpaqueStage shaderConstants;
@@ -79,23 +79,23 @@ bool st::gfx::OpaqueRenderStage::Render()
 void st::gfx::OpaqueRenderStage::OnAttached()
 {
 	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-	rapi::Device* device = deviceManager->GetDevice();
+	rhi::Device* device = deviceManager->GetDevice();
 
 	auto fbInfo = m_RenderView->GetFramebuffer()->GetFramebufferInfo();
 
 	// Create render targets
-	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, rapi::Format::SRGBA8_UNORM);
+	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::SRGBA8_UNORM);
 	m_RenderTarget = m_RenderView->GetTexture("SceneColor");
-	m_RenderView->CreateDepthTarget("SceneDepth", RenderView::c_BBSize, RenderView::c_BBSize, rapi::Format::D24S8);
+	m_RenderView->CreateDepthTarget("SceneDepth", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::D24S8);
 	m_DepthStencil = m_RenderView->GetTexture("SceneDepth");
 
 	// Request RT access
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", rapi::ResourceState::RENDERTARGET, rapi::ResourceState::RENDERTARGET);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneDepth", rapi::ResourceState::DEPTHSTENCIL, rapi::ResourceState::DEPTHSTENCIL);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneDepth", rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 
 	// Create Framebuffer
 	{
-		auto fbDesc = rapi::FramebufferDesc()
+		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(m_RenderTarget.get())
 			.SetDepthAttachment(m_DepthStencil.get())
 			.SetDebugName("OpaqueRenderStage");
@@ -105,33 +105,33 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("OpaqueStage_vs.vso", rapi::ShaderType::Vertex);
-		m_PS = shaderFactory->LoadShader("OpaqueStage_ps.vso", rapi::ShaderType::Pixel);
+		m_VS = shaderFactory->LoadShader("OpaqueStage_vs.vso", rhi::ShaderType::Vertex);
+		m_PS = shaderFactory->LoadShader("OpaqueStage_ps.vso", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO
 	{
-		rapi::BlendState blendState;
-		blendState.renderTarget[0] = rapi::BlendState::RenderTargetBlendState
+		rhi::BlendState blendState;
+		blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
 		{
 			.blendEnable = false,
 		};
 
-		rapi::RasterizerState rasterState =
+		rhi::RasterizerState rasterState =
 		{
-			.fillMode = rapi::FillMode::Solid,
-			.cullMode = rapi::CullMode::Back
+			.fillMode = rhi::FillMode::Solid,
+			.cullMode = rhi::CullMode::Back
 		};
 
-		rapi::DepthStencilState depthStencilState =
+		rhi::DepthStencilState depthStencilState =
 		{
 			.depthTestEnable = true,
 			.depthWriteEnable = true,
-			.depthFunc = rapi::ComparisonFunc::GreaterEqual,
+			.depthFunc = rhi::ComparisonFunc::GreaterEqual,
 			.stencilEnable = false
 		};
 
-		auto PSODesc = rapi::GraphicsPipelineStateDesc
+		auto PSODesc = rhi::GraphicsPipelineStateDesc
 		{
 			.VS = m_VS,
 			.PS = m_PS,
@@ -141,7 +141,7 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 		};
 
 		m_PSO = device->CreateGraphicsPipelineState(
-			rapi::GraphicsPipelineStateDesc{
+			rhi::GraphicsPipelineStateDesc{
 				.VS = m_VS,
 				.PS = m_PS,
 				.blendState = blendState,
@@ -154,7 +154,7 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 
 void st::gfx::OpaqueRenderStage::OnDetached()
 {
-	st::rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(m_FB);
 

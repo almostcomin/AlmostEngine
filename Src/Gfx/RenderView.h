@@ -2,9 +2,9 @@
 #include <memory>
 #include "Core/Common.h"
 #include "Core/Memory.h"
-#include "RenderAPI/Framebuffer.h"
-#include "RenderAPI/CommandList.h"
-#include "RenderAPI/Buffer.h"
+#include "RHI/Framebuffer.h"
+#include "RHI/CommandList.h"
+#include "RHI/Buffer.h"
 #include "Gfx/Scene.h"
 #include <map>
 
@@ -38,24 +38,24 @@ public:
 
 	// Sets render to an offscreen framebuffer. If not initialized or set to null, will render to 
 	// main onscreen framebuffer aka main framebuffer
-	void SetOffscreenFrameBuffer(st::rapi::FramebufferHandle frameBuffer);
+	void SetOffscreenFrameBuffer(st::rhi::FramebufferHandle frameBuffer);
 
 	void SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages);
 
 	st::weak<Scene> GetScene() { return m_Scene; }
 	std::shared_ptr<Camera> GetCamera() { return m_Camera; }
-	st::rapi::FramebufferHandle GetFramebuffer();
-	st::rapi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
-	st::rapi::TextureHandle GetBackBuffer(int idx = 0);
-	st::rapi::CommandListHandle GetCommandList();
-	st::rapi::DescriptorIndex GetSceneBufferDI();
+	st::rhi::FramebufferHandle GetFramebuffer();
+	st::rhi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
+	st::rhi::TextureHandle GetBackBuffer(int idx = 0);
+	st::rhi::CommandListHandle GetCommandList();
+	st::rhi::DescriptorIndex GetSceneBufferDI();
 
-	bool CreateColorTarget(const char* id, int width, int height, rapi::Format format);
-	bool CreateDepthTarget(const char* id, int width, int height, rapi::Format format);
+	bool CreateColorTarget(const char* id, int width, int height, rhi::Format format);
+	bool CreateDepthTarget(const char* id, int width, int height, rhi::Format format);
 
-	bool RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rapi::ResourceState inputState, rapi::ResourceState outputState);
+	bool RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState);
 
-	rapi::TextureHandle GetTexture(const char* id) const;
+	rhi::TextureHandle GetTexture(const char* id) const;
 
 	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }
 
@@ -70,7 +70,7 @@ private:
 
 	struct DeclaredTexture
 	{
-		rapi::TextureHandle texture;
+		rhi::TextureHandle texture;
 		std::string id;
 		bool isDepthStencil;
 	};
@@ -79,8 +79,8 @@ private:
 	{
 		DeclaredTexture declTex;
 		AccessMode accessMode;
-		rapi::ResourceState inputState;
-		rapi::ResourceState outputState;
+		rhi::ResourceState inputState;
+		rhi::ResourceState outputState;
 	};
 
 	struct RenderPassDeps
@@ -94,12 +94,12 @@ private:
 	st::weak<Scene> m_Scene;
 	std::shared_ptr<Camera> m_Camera;
 
-	st::rapi::FramebufferHandle m_OffscreenFramebuffer;
-	std::vector<st::rapi::CommandListHandle> m_CommandLists;
+	st::rhi::FramebufferHandle m_OffscreenFramebuffer;
+	std::vector<st::rhi::CommandListHandle> m_CommandLists;
 
 	std::map<std::string, DeclaredTexture> m_DeclaredTextures;
 
-	st::rapi::BufferHandle m_SceneCB;
+	st::rhi::BufferHandle m_SceneCB;
 
 	std::vector<RenderPassDeps> m_RenderStages;
 

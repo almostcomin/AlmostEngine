@@ -5,7 +5,7 @@
 #include <dxgi.h>
 
 #include "Core/Math.h"
-#include "RenderAPI/Format.h"
+#include "RHI/Format.h"
 
 namespace st::gfx
 {
@@ -45,9 +45,9 @@ namespace st::gfx
         bool IsCurveDOTS() { return (flags & InstanceFlags_CurveDisjointOrthogonalTriangleStrips) != 0; }
     };
 
-	rapi::Format GetFormat(DXGI_FORMAT format);
+	rhi::Format GetFormat(DXGI_FORMAT format);
 
-	uint32_t BitsPerPixel(rapi::Format format);
+	uint32_t BitsPerPixel(rhi::Format format);
 
 //    nvrhi::VertexAttributeDesc GetVertexAttributeDesc(VertexAttribute attribute, const char* name, uint32_t bufferIndex);
 

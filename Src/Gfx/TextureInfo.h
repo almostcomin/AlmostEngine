@@ -1,8 +1,8 @@
 #pragma once
 
 #include <filesystem>
-#include "RenderAPI/Format.h"
-#include "RenderAPI/Texture.h"
+#include "RHI/Format.h"
+#include "RHI/Texture.h"
 
 namespace st::gfx
 {
@@ -26,13 +26,13 @@ struct TextureSubresourceInfo
 
 struct TextureInfo
 {
-    rapi::Format format = rapi::Format::UNKNOWN;
+    rhi::Format format = rhi::Format::UNKNOWN;
     uint32_t width = 1;
     uint32_t height = 1;
     uint32_t depth = 1;
     uint32_t arraySize = 1;
     uint32_t mipLevels = 1;
-    rapi::TextureDimension dimension = rapi::TextureDimension::Unknown;
+    rhi::TextureDimension dimension = rhi::TextureDimension::Unknown;
     std::string debugName;
 
     // dataLayout[ArraySlice][MipLevel]

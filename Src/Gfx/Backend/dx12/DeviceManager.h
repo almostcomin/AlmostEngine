@@ -1,8 +1,8 @@
 #pragma once
 #include "Gfx/DeviceManager.h"
 #include <dxgi1_5.h>
-#include "RenderAPI/dx12/d3d12_headers.h"
-#include "RenderAPI/Texture.h"
+#include "RHI/dx12/d3d12_headers.h"
+#include "RHI/Texture.h"
 #include "Core/ComPtr.h"
 
 namespace st::gfx::dx12
@@ -23,8 +23,8 @@ public:
 	glm::ivec2 GetWindowDimensions() const override;
 
 	uint32_t GetCurrentBackBufferIndex() const override;
-	st::rapi::ITexture* GetCurrentBackBuffer() override;
-	st::rapi::ITexture* GetBackBuffer(uint32_t index) override;
+	st::rhi::ITexture* GetCurrentBackBuffer() override;
+	st::rhi::ITexture* GetBackBuffer(uint32_t index) override;
 
 	void ReportLiveObjects() override;
 
@@ -53,7 +53,7 @@ private:
 	DXGI_SWAP_CHAIN_DESC1			m_SwapChainDesc;
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC	m_FullScreenDesc;
 	bool							m_TearingSupported;
-	std::vector<st::rapi::TextureHandle> m_SwapChainBuffers;
+	std::vector<st::rhi::TextureHandle> m_SwapChainBuffers;
 
 	ComPtr<ID3D12Fence>				m_FrameFence;
 	std::vector<HANDLE>				m_FrameFenceEvents;

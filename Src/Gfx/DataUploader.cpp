@@ -1,7 +1,7 @@
 #include "Gfx/DataUploader.h"
 #include "Core/Log.h"
 #include "Gfx/Util.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 #include "Core/Common.h"
 
 namespace
@@ -11,15 +11,15 @@ namespace
 }
 
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
-st::gfx::DataUploader::DataUploader(rapi::Device* device) : 
+st::gfx::DataUploader::DataUploader(rhi::Device* device) : 
 	m_CommitCount{ 1 }, m_Device { device }
 {
-	m_UploadBuffer = m_Device->CreateBuffer(rapi::BufferDesc{
-		.memoryAccess = rapi::MemoryAccess::Upload,
-		.shaderUsage = rapi::BufferShaderUsage::None,
+	m_UploadBuffer = m_Device->CreateBuffer(rhi::BufferDesc{
+		.memoryAccess = rhi::MemoryAccess::Upload,
+		.shaderUsage = rhi::BufferShaderUsage::None,
 		.sizeBytes = c_UploadBufferSize,
 		.debugName = "UploadBuffer"
-	}, rapi::ResourceState::COMMON);
+	}, rhi::ResourceState::COMMON);
 
 	m_CommitFence = m_Device->CreateFence(0, "DataUploader fence");
 
@@ -48,13 +48,13 @@ st::gfx::DataUploader::~DataUploader()
 	m_Device->ReleaseImmediately(m_UploadBuffer);
 }
 
-std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(const rapi::BufferDesc& desc)
+std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(const rhi::BufferDesc& desc)
 {
 	auto storageReq = m_Device->GetStorageRequirements(desc);
 	return RequestUploadTicket(storageReq.size, storageReq.alignment);
 }
 
-std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(const rapi::TextureDesc& desc)
+std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(const rhi::TextureDesc& desc)
 {
 	auto storageReq = m_Device->GetCopyableRequirements(desc);
 	return RequestUploadTicket(storageReq.size, storageReq.alignment);
@@ -122,8 +122,8 @@ std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUpl
 	return UploadTicket{ ptr, startTail, startTail + sizeNeeded, alignedStart, size, m_NextTicketIdx++ };
 }
 
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadBufferTicket(UploadTicket&& ticket, rapi::BufferHandle dstBuffer,
-	rapi::ResourceState currentBufferState, rapi::ResourceState targetBufferState, size_t dstStart, const char* opt_gpuMarker)
+std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadBufferTicket(UploadTicket&& ticket, rhi::BufferHandle dstBuffer,
+	rhi::ResourceState currentBufferState, rhi::ResourceState targetBufferState, size_t dstStart, const char* opt_gpuMarker)
 {
 	m_UploadBuffer->Unmap(ticket.aligned_start, ticket.size);
 
@@ -132,18 +132,18 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 	if (opt_gpuMarker)
 		commandList->BeginMarker(std::format("UploadBufferData [{}]", opt_gpuMarker).c_str());
 
-	if (currentBufferState != rapi::ResourceState::COPY_DST)
+	if (currentBufferState != rhi::ResourceState::COPY_DST)
 	{
 		commandList->PushBarrier(
-			rapi::Barrier::Buffer(dstBuffer.get(), currentBufferState, rapi::ResourceState::COPY_DST));
+			rhi::Barrier::Buffer(dstBuffer.get(), currentBufferState, rhi::ResourceState::COPY_DST));
 	}
 
 	commandList->WriteBuffer(dstBuffer.get(), dstStart, m_UploadBuffer.get(), ticket.aligned_start, ticket.size);
 
-	if (targetBufferState != rapi::ResourceState::COPY_DST)
+	if (targetBufferState != rhi::ResourceState::COPY_DST)
 	{
 		commandList->PushBarrier(
-			rapi::Barrier::Buffer(dstBuffer.get(), rapi::ResourceState::COPY_DST, targetBufferState));
+			rhi::Barrier::Buffer(dstBuffer.get(), rhi::ResourceState::COPY_DST, targetBufferState));
 	}
 
 	if (opt_gpuMarker)
@@ -152,8 +152,8 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 	return FinishCommandList(commandList, std::move(ticket));
 }
 
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadTextureTicket(UploadTicket&& ticket, rapi::TextureHandle dstTexture,
-	rapi::ResourceState currentState, rapi::ResourceState targetState, const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadTextureTicket(UploadTicket&& ticket, rhi::TextureHandle dstTexture,
+	rhi::ResourceState currentState, rhi::ResourceState targetState, const rhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
 	m_UploadBuffer->Unmap(ticket.aligned_start, ticket.size);
 
@@ -162,29 +162,29 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 	if (opt_gpuMarker)
 		commandList->BeginMarker(std::format("UploadTextureData [{}]", opt_gpuMarker).c_str());
 
-	const rapi::TextureDesc& desc = dstTexture->GetDesc();
+	const rhi::TextureDesc& desc = dstTexture->GetDesc();
 	uint32_t lastArraySlice = subresources.GetLastArraySlice(desc);
 	uint32_t lastMip = subresources.GetLastMipLevel(desc);
 
 	// Transition to copy_dest
-	if (currentState != rapi::ResourceState::COPY_DST)
+	if (currentState != rhi::ResourceState::COPY_DST)
 	{
 		if (subresources.IsEntireTexture(desc))
 		{
 			commandList->PushBarrier(
-				rapi::Barrier::Texture(dstTexture.get(), currentState, rapi::ResourceState::COPY_DST));
+				rhi::Barrier::Texture(dstTexture.get(), currentState, rhi::ResourceState::COPY_DST));
 		}
 		else
 		{
-			std::vector<rapi::Barrier> barriers;
+			std::vector<rhi::Barrier> barriers;
 			barriers.reserve(desc.mipLevels * desc.arraySize);
 
 			for (uint32_t arraySlice = subresources.baseArraySlice; arraySlice <= lastArraySlice; ++arraySlice)
 			{
 				for (int mip = subresources.baseMipLevel; mip <= lastMip; ++mip)
 				{
-					barriers.push_back(rapi::Barrier::Texture(
-						dstTexture.get(), currentState, rapi::ResourceState::COPY_DST, mip, arraySlice));
+					barriers.push_back(rhi::Barrier::Texture(
+						dstTexture.get(), currentState, rhi::ResourceState::COPY_DST, mip, arraySlice));
 				}
 			}
 
@@ -195,24 +195,24 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 	commandList->WriteTexture(dstTexture.get(), subresources, m_UploadBuffer.get(), ticket.start);
 
 	// Transition from copy_dest to target state
-	if (targetState != rapi::ResourceState::COPY_DST)
+	if (targetState != rhi::ResourceState::COPY_DST)
 	{
 		if (subresources.IsEntireTexture(desc))
 		{
 			commandList->PushBarrier(
-				rapi::Barrier::Texture(dstTexture.get(), rapi::ResourceState::COPY_DST, targetState));
+				rhi::Barrier::Texture(dstTexture.get(), rhi::ResourceState::COPY_DST, targetState));
 		}
 		else
 		{
-			std::vector<rapi::Barrier> barriers;
+			std::vector<rhi::Barrier> barriers;
 			barriers.reserve(desc.mipLevels * desc.arraySize);
 
 			for (uint32_t arraySlice = subresources.baseArraySlice; arraySlice <= lastArraySlice; ++arraySlice)
 			{
 				for (int mip = subresources.baseMipLevel; mip <= lastMip; ++mip)
 				{
-					barriers.push_back(rapi::Barrier::Texture(
-						dstTexture.get(), rapi::ResourceState::COPY_DST, targetState, mip, arraySlice));
+					barriers.push_back(rhi::Barrier::Texture(
+						dstTexture.get(), rhi::ResourceState::COPY_DST, targetState, mip, arraySlice));
 				}
 			}
 
@@ -227,13 +227,13 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBufferData(
-	const st::WeakBlob& srcData, st::rapi::BufferHandle dstBuffer, st::rapi::ResourceState currentBufferState, st::rapi::ResourceState targetBufferState,
+	const st::WeakBlob& srcData, st::rhi::BufferHandle dstBuffer, st::rhi::ResourceState currentBufferState, st::rhi::ResourceState targetBufferState,
 	size_t dstStart, const char* opt_gpuMarker)
 {
-	st::rapi::BufferDesc desc = dstBuffer->GetDesc();
+	st::rhi::BufferDesc desc = dstBuffer->GetDesc();
 	assert(dstStart + srcData.size() <= desc.sizeBytes);
 
-	auto ticket = RequestUploadTicket(srcData.size(), m_Device->GetCopyDataAlignment(rapi::CopyMethod::Buffer2Buffer));
+	auto ticket = RequestUploadTicket(srcData.size(), m_Device->GetCopyDataAlignment(rhi::CopyMethod::Buffer2Buffer));
 	if (!ticket)
 		return std::unexpected(ticket.error());
 
@@ -247,11 +247,11 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBuff
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
-	const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, st::rapi::ResourceState currentState, st::rapi::ResourceState targetState,
-	const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+	const st::WeakBlob& srcData, rhi::TextureHandle dstTexture, st::rhi::ResourceState currentState, st::rhi::ResourceState targetState,
+	const rhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
 {
 	const auto& texDesc = dstTexture->GetDesc();
-	rapi::FormatInfo formatInfo = GetFormatInfo(texDesc.format);
+	rhi::FormatInfo formatInfo = GetFormatInfo(texDesc.format);
 	auto copyReq = m_Device->GetCopyableRequirements(texDesc);
 	assert(copyReq.size >= srcData.size());
 
@@ -269,7 +269,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 			size_t width = texDesc.width >> mipLevel / formatInfo.blockSize;
 			size_t srcRowSize = width * formatInfo.bytesPerBlock;
 
-			rapi::SubresourceCopyableRequirements req = m_Device->GetSubresourceCopyableRequirements(texDesc, mipLevel, arraySlice);
+			rhi::SubresourceCopyableRequirements req = m_Device->GetSubresourceCopyableRequirements(texDesc, mipLevel, arraySlice);
 			assert(srcRowSize == req.rowSizeBytes);
 			dstOffset = req.offset;
 			for (size_t row = 0; row < req.numRows; ++row)
@@ -290,10 +290,10 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 	return *uploadResult;
 }
 
-st::rapi::CommandListHandle st::gfx::DataUploader::GetCommandList()
+st::rhi::CommandListHandle st::gfx::DataUploader::GetCommandList()
 {
-	rapi::CommandListParams params{
-		.queueType = rapi::QueueType::Graphics,
+	rhi::CommandListParams params{
+		.queueType = rhi::QueueType::Graphics,
 		.debugName = "DataUploader CommandList"
 	};
 	auto commandList = m_Device->CreateCommandList(params);
@@ -302,7 +302,7 @@ st::rapi::CommandListHandle st::gfx::DataUploader::GetCommandList()
 	return commandList;
 }
 
-st::SignalListener st::gfx::DataUploader::FinishCommandList(rapi::CommandListHandle commandList, UploadTicket&& ticket)
+st::SignalListener st::gfx::DataUploader::FinishCommandList(rhi::CommandListHandle commandList, UploadTicket&& ticket)
 {
 	commandList->Close();
 
@@ -310,7 +310,7 @@ st::SignalListener st::gfx::DataUploader::FinishCommandList(rapi::CommandListHan
 	{
 		std::lock_guard lock{ m_InFlightCommandListsMutex };
 
-		m_Device->ExecuteCommandList(commandList.get(), rapi::QueueType::Graphics, m_CommitFence.get(), m_CommitCount);
+		m_Device->ExecuteCommandList(commandList.get(), rhi::QueueType::Graphics, m_CommitFence.get(), m_CommitCount);
 
 		m_InFlightCommandLists.Push(InFlightCommandListEntry{
 			m_CommitCount, commandList, {}, std::move(ticket) });
@@ -367,7 +367,7 @@ void st::gfx::DataUploader::AsyncUpdate()
 		while (!m_InFlightCommandLists.Empty())
 		{
 			//std::vector<SignalEmitter> toSignal;
-			//std::vector<rapi::CommandListHandle> commandLists;
+			//std::vector<rhi::CommandListHandle> commandLists;
 
 			std::vector<InFlightCommandListEntry> completedOnes;
 			completedOnes.reserve(m_InFlightCommandLists.Size());

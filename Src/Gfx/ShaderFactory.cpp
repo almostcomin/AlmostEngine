@@ -1,14 +1,14 @@
 #include "Gfx/ShaderFactory.h"
 #include "Core/Log.h"
 #include "Core/File.h"
-#include "RenderAPI/Device.h"
-#include "RenderAPI/ShaderCompiler.h"
+#include "RHI/Device.h"
+#include "RHI/ShaderCompiler.h"
 
-st::gfx::ShaderFactory::ShaderFactory(st::rapi::Device* device) : m_Device(device)
+st::gfx::ShaderFactory::ShaderFactory(st::rhi::Device* device) : m_Device(device)
 {
 }
 
-st::rapi::ShaderHandle st::gfx::ShaderFactory::LoadShader(const char* filename, st::rapi::ShaderType shaderType)
+st::rhi::ShaderHandle st::gfx::ShaderFactory::LoadShader(const char* filename, st::rhi::ShaderType shaderType)
 {
 	st::WeakBlob cachedBytecode;
 
@@ -42,7 +42,7 @@ st::rapi::ShaderHandle st::gfx::ShaderFactory::LoadShader(const char* filename, 
 				assert(readResult);
 				st::Blob pdbData;
 				std::wstring pdbName;
-				byteCode = st::rapi::ShaderCompiler::Compile(shaderType, st::WeakBlob{ *readResult }, SHADERS_SRC_FOLDER, "main", true);
+				byteCode = st::rhi::ShaderCompiler::Compile(shaderType, st::WeakBlob{ *readResult }, SHADERS_SRC_FOLDER, "main", true);
 				if (byteCode)
 				{
 					LOG_INFO("Shader '{}' compiled OK", shaderSourcePath.string());
@@ -73,7 +73,7 @@ st::rapi::ShaderHandle st::gfx::ShaderFactory::LoadShader(const char* filename, 
 
 	if (cachedBytecode)
 	{
-		rapi::ShaderDesc shaderDesc{
+		rhi::ShaderDesc shaderDesc{
 			.Type = shaderType,
 			.DebugName = filename,
 			.EntryPoint = "main"

@@ -2,7 +2,7 @@
 
 #include "Core/Memory.h"
 #include "Core/Common.h"
-#include "RenderAPI/Buffer.h"
+#include "RHI/Buffer.h"
 #include <map>
 
 namespace st::gfx
@@ -26,8 +26,8 @@ namespace st::gfx
 
 		void Update();
 
-		rapi::DescriptorIndex GetInstancesBufferDI() const;
-		rapi::DescriptorIndex GetMeshesBufferDI() const;
+		rhi::DescriptorIndex GetInstancesBufferDI() const;
+		rhi::DescriptorIndex GetMeshesBufferDI() const;
 
 		int GetInstanceIndex(const st::gfx::MeshInstance* pInstance);
 
@@ -39,8 +39,8 @@ namespace st::gfx
 		
 		std::map<const st::gfx::MeshInstance*, size_t> m_InstanceIndices;
 
-		rapi::BufferHandle m_InstancesBuffer;
-		rapi::BufferHandle m_MeshesBuffer;
+		rhi::BufferHandle m_InstancesBuffer;
+		rhi::BufferHandle m_MeshesBuffer;
 
 		DeviceManager* m_DeviceManager;
 	};

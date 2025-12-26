@@ -3,9 +3,9 @@
 #include "Core/Math/glm_config.h"
 #include "Core/Memory.h"
 #include <string>
-#include "RenderAPI/ResourceState.h"
+#include "RHI/ResourceState.h"
 
-namespace st::rapi
+namespace st::rhi
 {
 	class IFramebuffer;
 };
@@ -19,8 +19,8 @@ class RenderStage
 	struct TextureDeclaration
 	{
 		std::string id;
-		rapi::ResourceState inputState;
-		rapi::ResourceState outputState;
+		rhi::ResourceState inputState;
+		rhi::ResourceState outputState;
 	};
 
 public:

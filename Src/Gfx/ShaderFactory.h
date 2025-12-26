@@ -2,9 +2,9 @@
 
 #include <unordered_map>
 #include "Core/Blob.h"
-#include "RenderAPI/Shader.h"
+#include "RHI/Shader.h"
 
-namespace st::rapi
+namespace st::rhi
 {
 	class Device;
 }
@@ -16,14 +16,14 @@ class ShaderFactory
 {
 public:
 
-	ShaderFactory(st::rapi::Device* device);
+	ShaderFactory(st::rhi::Device* device);
 
-	st::rapi::ShaderHandle LoadShader(const char* filename, rapi::ShaderType shaderType);
+	st::rhi::ShaderHandle LoadShader(const char* filename, rhi::ShaderType shaderType);
 
 private:
 
 	std::unordered_map<std::string, st::Blob> m_BytecodeCache;
-	rapi::Device* m_Device;
+	rhi::Device* m_Device;
 };
 
 }

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
-#include "RenderAPI/Buffer.h"
-#include "RenderAPI/PipelineState.h"
-#include "RenderAPI/CommandList.h"
+#include "RHI/Buffer.h"
+#include "RHI/PipelineState.h"
+#include "RHI/CommandList.h"
 #include <imgui/imgui.h>
 #include <unordered_map>
 #include <array>
@@ -58,8 +58,8 @@ private:
 	bool UpdateFontTexture();
 	bool UpdateGeometry();
 
-	bool ReallocateBuffer(rapi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
-	rapi::GraphicsPipelineStateHandle GetPSO(rapi::IFramebuffer* frameBuffer);
+	bool ReallocateBuffer(rhi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
+	rhi::GraphicsPipelineStateHandle GetPSO(rhi::IFramebuffer* frameBuffer);
 
 	void ReconcileInputState();
 
@@ -71,24 +71,24 @@ protected:
 	void BeginFullScreenWindow();
 	void EndFullScreenWindow();
 	void DrawCenteredText(const char* text);
-	rapi::BufferHandle& GetCurrentVB();
-	rapi::BufferHandle& GetCurrentIB();
+	rhi::BufferHandle& GetCurrentVB();
+	rhi::BufferHandle& GetCurrentIB();
 
 private:
 
 	std::array<KeyAction, 5> m_CachedMouseButtons;
 
-	rapi::ShaderHandle m_VS;
-	rapi::ShaderHandle m_PS;
+	rhi::ShaderHandle m_VS;
+	rhi::ShaderHandle m_PS;
 
-	rapi::GraphicsPipelineStateDesc m_BasePSODesc;
+	rhi::GraphicsPipelineStateDesc m_BasePSODesc;
 
-	rapi::TextureHandle m_FontTexture;
+	rhi::TextureHandle m_FontTexture;
 
-	rapi::BufferHandle m_VertexBuffer[3];
-	rapi::BufferHandle m_IndexBuffer[3];
+	rhi::BufferHandle m_VertexBuffer[3];
+	rhi::BufferHandle m_IndexBuffer[3];
 
-	rapi::GraphicsPipelineStateHandle m_PSO;
+	rhi::GraphicsPipelineStateHandle m_PSO;
 };
 
 }

@@ -5,16 +5,16 @@
 #include <queue>
 #include "Core/Blob.h"
 #include "Core/RingBuffer.h"
-#include "RenderAPI/Buffer.h"
-#include "RenderAPI/Texture.h"
-#include "RenderAPI/ResourceState.h"
-#include "RenderAPI/CommandList.h"
-#include "RenderAPI/Fence.h"
+#include "RHI/Buffer.h"
+#include "RHI/Texture.h"
+#include "RHI/ResourceState.h"
+#include "RHI/CommandList.h"
+#include "RHI/Fence.h"
 #include "Core/Signal.h"
 #include "Core/Common.h"
 #include <map>
 
-namespace st::rapi
+namespace st::rhi
 {
 	class Device;
 }
@@ -53,18 +53,18 @@ public:
 		uint64_t idx = UINT64_MAX; // ticket index
 	};
 
-	DataUploader(rapi::Device* device);
+	DataUploader(rhi::Device* device);
 	~DataUploader();
 
-	std::expected<UploadTicket, std::string> RequestUploadTicket(const rapi::BufferDesc& desc);
-	std::expected<UploadTicket, std::string> RequestUploadTicket(const rapi::TextureDesc& desc);
+	std::expected<UploadTicket, std::string> RequestUploadTicket(const rhi::BufferDesc& desc);
+	std::expected<UploadTicket, std::string> RequestUploadTicket(const rhi::TextureDesc& desc);
 	std::expected<UploadTicket, std::string> RequestUploadTicket(size_t size, size_t alignment);
 
-	std::expected<SignalListener, std::string> CommitUploadBufferTicket(UploadTicket&& ticket, rapi::BufferHandle dstBuffer,
-		rapi::ResourceState currentBufferState, rapi::ResourceState targetBufferState, size_t dstStart = 0, const char* opt_gpuMarker = nullptr);
+	std::expected<SignalListener, std::string> CommitUploadBufferTicket(UploadTicket&& ticket, rhi::BufferHandle dstBuffer,
+		rhi::ResourceState currentBufferState, rhi::ResourceState targetBufferState, size_t dstStart = 0, const char* opt_gpuMarker = nullptr);
 
-	std::expected<SignalListener, std::string> CommitUploadTextureTicket(UploadTicket&& ticket, rapi::TextureHandle dstTexture, 
-		rapi::ResourceState currentState, rapi::ResourceState targetState, const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
+	std::expected<SignalListener, std::string> CommitUploadTextureTicket(UploadTicket&& ticket, rhi::TextureHandle dstTexture, 
+		rhi::ResourceState currentState, rhi::ResourceState targetState, const rhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a buffer object.
 	/// 
@@ -79,7 +79,7 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadBufferData(
-		const st::WeakBlob& srcData, rapi::BufferHandle dstBuffer, rapi::ResourceState currentBufferState, rapi::ResourceState targetBufferState,
+		const st::WeakBlob& srcData, rhi::BufferHandle dstBuffer, rhi::ResourceState currentBufferState, rhi::ResourceState targetBufferState,
 		size_t dstStart = 0, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a texture object.
@@ -94,15 +94,15 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadTextureData(
-		const st::WeakBlob& srcData, rapi::TextureHandle dstTexture, rapi::ResourceState currentState, rapi::ResourceState targetState,
-		const rapi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
+		const st::WeakBlob& srcData, rhi::TextureHandle dstTexture, rhi::ResourceState currentState, rhi::ResourceState targetState,
+		const rhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
 
 private: /* types */
 
 private: /* methods */
 
-	rapi::CommandListHandle GetCommandList();
-	SignalListener FinishCommandList(rapi::CommandListHandle commandList, UploadTicket&& ticket);
+	rhi::CommandListHandle GetCommandList();
+	SignalListener FinishCommandList(rhi::CommandListHandle commandList, UploadTicket&& ticket);
 
 	void InsertPendingTicket(UploadTicket&& ticket);
 	void OnCompletedTicket(UploadTicket&& ticket);
@@ -111,7 +111,7 @@ private: /* methods */
 
 private: /* */
 	
-	rapi::BufferHandle m_UploadBuffer;
+	rhi::BufferHandle m_UploadBuffer;
 	uint64_t m_UploadBufferHead;
 	uint64_t m_UploadBufferTail;
 	std::mutex m_UploadBufferMutex;
@@ -123,7 +123,7 @@ private: /* */
 	struct InFlightCommandListEntry
 	{
 		uint64_t CompletedIdx;
-		rapi::CommandListHandle CommandList;
+		rhi::CommandListHandle CommandList;
 		SignalEmitter Signal;
 		UploadTicket Ticket;
 	};
@@ -131,13 +131,13 @@ private: /* */
 	std::mutex m_InFlightCommandListsMutex;
 
 	uint64_t m_CommitCount;
-	rapi::FenceHandle m_CommitFence;
+	rhi::FenceHandle m_CommitFence;
 
 	std::thread m_ProcessInFlightCommandsThread;
 	std::condition_variable m_InFlightCommandListsCV;
 	std::atomic<bool> m_AsyncShutdown;
 
-	st::rapi::Device* m_Device;
+	st::rhi::Device* m_Device;
 };
 
 }

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
-#include "RenderAPI/Texture.h"
-#include "RenderAPI/PipelineState.h"
+#include "RHI/Texture.h"
+#include "RHI/PipelineState.h"
 
 namespace st::gfx
 {
@@ -20,8 +20,8 @@ public:
 
 private:
 
-	rapi::TextureHandle m_SceneColor;
-	rapi::GraphicsPipelineStateHandle m_BlitPSO;
+	rhi::TextureHandle m_SceneColor;
+	rhi::GraphicsPipelineStateHandle m_BlitPSO;
 
 	void OnAttached() override;
 	void OnDetached() override;

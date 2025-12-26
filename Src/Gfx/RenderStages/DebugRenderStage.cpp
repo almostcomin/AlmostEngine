@@ -2,7 +2,7 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
 #include "Interop/RenderResources.h"
@@ -17,13 +17,13 @@ bool st::gfx::DebugRenderStage::Render()
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
-		{ rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Load, rapi::RenderPassOp::StoreOp::Store} },
-		rapi::RenderPassOp{ rapi::RenderPassOp::LoadOp::Load, rapi::RenderPassOp::StoreOp::Store },
-		rapi::RenderPassFlags::None);
+		{ rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store} },
+		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store },
+		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	commandList->SetViewport(rapi::ViewportState().AddViewportAndScissorRect({
+	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
 		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
 	
 	auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene.get(), commandList);
@@ -45,11 +45,11 @@ void st::gfx::DebugRenderStage::OnAttached()
 	// Create Framebuffer
 	{
 		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor",
-			rapi::ResourceState::RENDERTARGET, rapi::ResourceState::RENDERTARGET);
+			rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth",
-			rapi::ResourceState::DEPTHSTENCIL, rapi::ResourceState::DEPTHSTENCIL);
+			rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 
-		auto fbDesc = rapi::FramebufferDesc()
+		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(m_RenderView->GetTexture("SceneColor").get())
 			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth").get())
 			.SetDebugName("DebugRenderStage");
@@ -59,23 +59,23 @@ void st::gfx::DebugRenderStage::OnAttached()
 	// Load shaders
 	{
 		m_VS = m_RenderView->GetDeviceManager()->GetShaderFactory()->LoadShader(
-			"AABOX_vs", rapi::ShaderType::Vertex);
+			"AABOX_vs", rhi::ShaderType::Vertex);
 		m_PS = m_RenderView->GetDeviceManager()->GetShaderFactory()->LoadShader(
-			"AABOX_ps", rapi::ShaderType::Pixel);
+			"AABOX_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO
 	{
-		rapi::GraphicsPipelineStateDesc desc{
+		rhi::GraphicsPipelineStateDesc desc{
 			.VS = m_VS,
 			.PS = m_PS,
 			.blendState {},
 			.depthStencilState = {
 				.depthTestEnable = true,
 				.depthWriteEnable = true,
-				.depthFunc = rapi::ComparisonFunc::Greater },
+				.depthFunc = rhi::ComparisonFunc::Greater },
 			.rasterState = {},
-			.primTopo = rapi::PrimitiveTopology::LineList,
+			.primTopo = rhi::PrimitiveTopology::LineList,
 			.debugName = "DebugRenderStage"
 		};
 
@@ -89,13 +89,13 @@ void st::gfx::DebugRenderStage::OnDetached()
 	assert(0);
 }
 
-std::pair<st::rapi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, rapi::CommandListHandle commandList)
+std::pair<st::rhi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList)
 {
-	rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 	// Check the number of aabox we need
 	if (!scene)
-		return { rapi::c_InvalidDescriptorIndex, 0 };
+		return { rhi::c_InvalidDescriptorIndex, 0 };
 
 	// Collect all bboxes
 	std::vector<st::math::aabox3f> aabboxes;
@@ -115,7 +115,7 @@ std::pair<st::rapi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBO
 	}
 
 	if (aabboxes.empty())
-		return { rapi::c_InvalidDescriptorIndex, 0 };
+		return { rhi::c_InvalidDescriptorIndex, 0 };
 
 	if (!m_AABBOXBuffer || (m_AABBOXBuffer->GetDesc().sizeBytes < (aabboxes.size() * sizeof(interop::AABB))))
 	{
@@ -125,18 +125,18 @@ std::pair<st::rapi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBO
 		}
 
 		m_AABBOXBuffer = device->CreateBuffer(
-			rapi::BufferDesc{
-				.memoryAccess = rapi::MemoryAccess::Upload,
-				.shaderUsage = rapi::BufferShaderUsage::ShaderResource,
+			rhi::BufferDesc{
+				.memoryAccess = rhi::MemoryAccess::Upload,
+				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
 				.sizeBytes = aabboxes.size() * sizeof(interop::AABB),
 				.stride = sizeof(interop::AABB),
 				.debugName = "AABBOX buffer" },
-			rapi::ResourceState::SHADER_RESOURCE);
+			rhi::ResourceState::SHADER_RESOURCE);
 	}
 
 	void *ptr = m_AABBOXBuffer->Map();
 	std::memcpy(ptr, aabboxes.data(), aabboxes.size() * sizeof(interop::AABB));
 	m_AABBOXBuffer->Unmap();
 
-	return { m_AABBOXBuffer->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource), aabboxes.size() };
+	return { m_AABBOXBuffer->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource), aabboxes.size() };
 }

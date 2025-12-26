@@ -2,15 +2,15 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/Camera.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 #include "Core/Log.h"
 #include "Interop/RenderResources.h"
 
 st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	m_IsDirty{ false }, m_DebugName{ debugName }, m_DeviceManager { deviceManager }
 {
-	rapi::CommandListParams params{
-		.queueType = rapi::QueueType::Graphics
+	rhi::CommandListParams params{
+		.queueType = rhi::QueueType::Graphics
 	};
 	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
 	{
@@ -34,7 +34,7 @@ void st::gfx::RenderView::SetCamera(std::shared_ptr<st::gfx::Camera> camera)
 	m_Camera = camera;
 }
 
-void st::gfx::RenderView::SetOffscreenFrameBuffer(st::rapi::FramebufferHandle frameBuffer)
+void st::gfx::RenderView::SetOffscreenFrameBuffer(st::rhi::FramebufferHandle frameBuffer)
 {
 	m_OffscreenFramebuffer = frameBuffer;
 }
@@ -55,27 +55,27 @@ void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<Rend
 	m_IsDirty = true;
 }
 
-st::rapi::FramebufferHandle st::gfx::RenderView::GetFramebuffer()
+st::rhi::FramebufferHandle st::gfx::RenderView::GetFramebuffer()
 {
 	return m_OffscreenFramebuffer ? m_OffscreenFramebuffer : m_DeviceManager->GetCurrentFramebuffer();
 }
 
-st::rapi::TextureHandle st::gfx::RenderView::GetBackBuffer(int idx)
+st::rhi::TextureHandle st::gfx::RenderView::GetBackBuffer(int idx)
 {
 	return GetFramebuffer()->GetBackBuffer(idx);
 }
 
-st::rapi::CommandListHandle st::gfx::RenderView::GetCommandList()
+st::rhi::CommandListHandle st::gfx::RenderView::GetCommandList()
 {
 	return m_CommandLists[m_DeviceManager->GetFrameModuleIndex()];
 }
 
-st::rapi::DescriptorIndex st::gfx::RenderView::GetSceneBufferDI()
+st::rhi::DescriptorIndex st::gfx::RenderView::GetSceneBufferDI()
 {
-	return m_SceneCB ? m_SceneCB->GetShaderViewIndex(rapi::BufferShaderView::ConstantBuffer) : rapi::c_InvalidDescriptorIndex;
+	return m_SceneCB ? m_SceneCB->GetShaderViewIndex(rhi::BufferShaderView::ConstantBuffer) : rhi::c_InvalidDescriptorIndex;
 }
 
-bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, rapi::Format format)
+bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, rhi::Format format)
 {
 	// Check that texture has not been already created
 	auto it = m_DeclaredTextures.find(id);
@@ -90,20 +90,20 @@ bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int heigh
 	if (height == c_BBSize)
 		height = GetFramebuffer()->GetFramebufferInfo().height;
 
-	rapi::TextureDesc desc{
+	rhi::TextureDesc desc{
 		.width = (uint32_t)width,
 		.height = (uint32_t)height,
 		.format = format,
-		.shaderUsage = rapi::TextureShaderUsage::ShaderResource | rapi::TextureShaderUsage::RenderTarget,
+		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::RenderTarget,
 		.debugName = id };
 
-	rapi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rapi::ResourceState::RENDERTARGET);
+	rhi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::RENDERTARGET);
 	m_DeclaredTextures.insert({ id, { texture, id, false } });
 
 	return true;
 }
 
-bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int height, rapi::Format format)
+bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int height, rhi::Format format)
 {
 	// Check that texture has not been already created
 	auto it = m_DeclaredTextures.find(id);
@@ -118,21 +118,21 @@ bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int heigh
 	if (height == c_BBSize)
 		height = GetFramebuffer()->GetFramebufferInfo().height;
 
-	rapi::TextureDesc desc{
+	rhi::TextureDesc desc{
 		.width = (uint32_t)width,
 		.height = (uint32_t)height,
 		.format = format,
-		.shaderUsage = rapi::TextureShaderUsage::ShaderResource | rapi::TextureShaderUsage::DepthStencil,
+		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::DepthStencil,
 		.debugName = id };
 
 	// Created in common state
-	rapi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rapi::ResourceState::DEPTHSTENCIL);
+	rhi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::DEPTHSTENCIL);
 	m_DeclaredTextures.insert({ id, { texture, id, true } });
 
 	return true;
 }
 
-bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rapi::ResourceState inputState, rapi::ResourceState outputState)
+bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState)
 {
 	// Check that texture is create
 	auto texture_it = m_DeclaredTextures.find(id);
@@ -158,7 +158,7 @@ bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode acces
 	return true;
 }
 
-st::rapi::TextureHandle st::gfx::RenderView::GetTexture(const char* id) const
+st::rhi::TextureHandle st::gfx::RenderView::GetTexture(const char* id) const
 {
 	auto texture_it = m_DeclaredTextures.find(id);
 	if (texture_it == m_DeclaredTextures.end())
@@ -178,7 +178,7 @@ void st::gfx::RenderView::Render()
 
 	UpdateSceneBuffer();
 
-	st::rapi::FramebufferHandle frameBuffer = GetFramebuffer();
+	st::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
 	if (frameBuffer)
 	{
 		auto commandList = GetCommandList();
@@ -186,15 +186,15 @@ void st::gfx::RenderView::Render()
 		commandList->BeginMarker(m_DebugName.c_str());
 
 		// Back buffer is in COMMON state and need to be transitioned to RT
-		commandList->PushBarrier(rapi::Barrier().Texture(
-			frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::PRESENT, rapi::ResourceState::RENDERTARGET));
+		commandList->PushBarrier(rhi::Barrier().Texture(
+			frameBuffer->GetDesc().ColorAttachments[0].texture, rhi::ResourceState::PRESENT, rhi::ResourceState::RENDERTARGET));
 
 		// Set initial states info
-		std::map<std::string, rapi::ResourceState> resourcesStates;
+		std::map<std::string, rhi::ResourceState> resourcesStates;
 		for (auto& entry : m_DeclaredTextures)
 		{
 			resourcesStates.emplace(entry.first, entry.second.isDepthStencil ? 
-				rapi::ResourceState::DEPTHSTENCIL : rapi::ResourceState::RENDERTARGET);
+				rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET);
 		}
 
 		for (auto& renderPass : m_RenderStages)
@@ -209,7 +209,7 @@ void st::gfx::RenderView::Render()
 				assert(state_it != resourcesStates.end());
 				if (state_it->second != dep.inputState)
 				{
-					commandList->PushBarrier(rapi::Barrier::Texture(
+					commandList->PushBarrier(rhi::Barrier::Texture(
 						dep.declTex.texture.get(), state_it->second, dep.inputState));
 					state_it->second = dep.inputState;
 				}
@@ -236,23 +236,23 @@ void st::gfx::RenderView::Render()
 		// All the resources need to go back to it initial state
 		for (auto& tex : m_DeclaredTextures)
 		{
-			rapi::ResourceState initialState = tex.second.isDepthStencil ? rapi::ResourceState::DEPTHSTENCIL : rapi::ResourceState::RENDERTARGET;
-			rapi::ResourceState currentState = resourcesStates.find(tex.first)->second;
+			rhi::ResourceState initialState = tex.second.isDepthStencil ? rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET;
+			rhi::ResourceState currentState = resourcesStates.find(tex.first)->second;
 			if (initialState != currentState)
 			{
-				commandList->PushBarrier(rapi::Barrier::Texture(tex.second.texture.get(), currentState, initialState));
+				commandList->PushBarrier(rhi::Barrier::Texture(tex.second.texture.get(), currentState, initialState));
 			}
 			
 		}
 
 		// Back buffer to common so it can be presented
-		commandList->PushBarrier(rapi::Barrier().Texture(
-			frameBuffer->GetDesc().ColorAttachments[0].texture, rapi::ResourceState::RENDERTARGET, rapi::ResourceState::PRESENT));
+		commandList->PushBarrier(rhi::Barrier().Texture(
+			frameBuffer->GetDesc().ColorAttachments[0].texture, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::PRESENT));
 
 		commandList->EndMarker();
 		commandList->Close();
 
-		m_DeviceManager->GetDevice()->ExecuteCommandList(commandList.get(), st::rapi::QueueType::Graphics);
+		m_DeviceManager->GetDevice()->ExecuteCommandList(commandList.get(), st::rhi::QueueType::Graphics);
 	}
 	else
 	{
@@ -284,14 +284,14 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 {
 	if (!m_SceneCB)
 	{
-		rapi::BufferDesc desc{
-			.memoryAccess = rapi::MemoryAccess::Upload,
-			.shaderUsage = rapi::BufferShaderUsage::ConstantBuffer,
+		rhi::BufferDesc desc{
+			.memoryAccess = rhi::MemoryAccess::Upload,
+			.shaderUsage = rhi::BufferShaderUsage::ConstantBuffer,
 			.sizeBytes = sizeof(interop::Scene),
 			.allowUAV = false,
 			.stride = 0 };
 
-		m_SceneCB = m_DeviceManager->GetDevice()->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);
+		m_SceneCB = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE);
 	}
 
 	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();

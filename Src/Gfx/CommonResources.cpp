@@ -1,35 +1,35 @@
 #include "Gfx/CommonResources.h"
 #include "Gfx/ShaderFactory.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 
-st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory, st::rapi::Device* device) :
+st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory, st::rhi::Device* device) :
 	m_ShaderFactory(shaderFactory), m_Device(device)
 {
-	m_BlitVS = m_ShaderFactory->LoadShader("Blit_vs", rapi::ShaderType::Vertex);
-	m_BlitPS = m_ShaderFactory->LoadShader("Blit_ps", rapi::ShaderType::Pixel);
+	m_BlitVS = m_ShaderFactory->LoadShader("Blit_vs", rhi::ShaderType::Vertex);
+	m_BlitPS = m_ShaderFactory->LoadShader("Blit_ps", rhi::ShaderType::Pixel);
 
 	// Create blit PSO
 	{
-		rapi::BlendState blendState;
-		blendState.renderTarget[0] = rapi::BlendState::RenderTargetBlendState
+		rhi::BlendState blendState;
+		blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
 		{
 			.blendEnable = false,
 		};
 
-		rapi::RasterizerState rasterState =
+		rhi::RasterizerState rasterState =
 		{
-			.fillMode = rapi::FillMode::Solid,
-			.cullMode = rapi::CullMode::None
+			.fillMode = rhi::FillMode::Solid,
+			.cullMode = rhi::CullMode::None
 		};
 
-		rapi::DepthStencilState depthStencilState =
+		rhi::DepthStencilState depthStencilState =
 		{
 			.depthTestEnable = false,
 			.depthWriteEnable = false,
 			.stencilEnable = false
 		};
 
-		m_BlitPSODesc = rapi::GraphicsPipelineStateDesc
+		m_BlitPSODesc = rhi::GraphicsPipelineStateDesc
 		{
 			.VS = m_BlitVS,
 			.PS = m_BlitPS,
@@ -47,7 +47,7 @@ st::gfx::CommonResources::~CommonResources()
 	m_Device->ReleaseImmediately(m_BlitPS);
 }
 
-st::rapi::GraphicsPipelineStateHandle st::gfx::CommonResources::CreateBlitPSO(const rapi::FramebufferInfo& fbInfo)
+st::rhi::GraphicsPipelineStateHandle st::gfx::CommonResources::CreateBlitPSO(const rhi::FramebufferInfo& fbInfo)
 {
 	return m_Device->CreateGraphicsPipelineState(m_BlitPSODesc, fbInfo);		
 }

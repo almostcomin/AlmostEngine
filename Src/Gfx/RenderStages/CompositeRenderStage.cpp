@@ -3,7 +3,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/CommonResources.h"
 #include "Interop/RenderResources.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 
 bool st::gfx::CompositeRenderStage::Render()
 {
@@ -12,17 +12,17 @@ bool st::gfx::CompositeRenderStage::Render()
 	auto fb = m_RenderView->GetFramebuffer();
 	commandList->BeginRenderPass(
 		fb.get(),
-		{ rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Clear, rapi::RenderPassOp::StoreOp::Store, rapi::ClearValue::ColorBlack()} },
+		{ rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack()} },
 		{},
-		rapi::RenderPassFlags::None);
+		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_BlitPSO.get());
 
-	commandList->SetViewport(rapi::ViewportState().AddViewportAndScissorRect({
+	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
 		(float)fb->GetFramebufferInfo().width, (float)fb->GetFramebufferInfo().height }));
 
 	interop::BlitConstants shaderConstants;
-	shaderConstants.textureDI = m_SceneColor->GetShaderViewIndex(rapi::TextureShaderView::ShaderResource);
+	shaderConstants.textureDI = m_SceneColor->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 
 	commandList->PushConstants(shaderConstants);
 
@@ -36,7 +36,7 @@ bool st::gfx::CompositeRenderStage::Render()
 void st::gfx::CompositeRenderStage::OnAttached()
 {
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", 
-		rapi::ResourceState::SHADER_RESOURCE, rapi::ResourceState::SHADER_RESOURCE);
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	m_SceneColor = m_RenderView->GetTexture("SceneColor");
 
 	m_BlitPSO = m_RenderView->GetDeviceManager()->GetCommonResources()->CreateBlitPSO(
@@ -45,7 +45,7 @@ void st::gfx::CompositeRenderStage::OnAttached()
 
 void st::gfx::CompositeRenderStage::OnDetached()
 {
-	st::rapi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(m_BlitPSO);
 	m_SceneColor = nullptr;

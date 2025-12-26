@@ -18,7 +18,7 @@ public:
 		Ready
 	};
 
-	rapi::TextureHandle texture;
+	rhi::TextureHandle texture;
 	std::string id;
 	State state = State::Unloaded;
 

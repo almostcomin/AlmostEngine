@@ -6,7 +6,7 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/TextureCache.h"
 #include "Gfx/CommonResources.h"
-#include "RenderApi/Device.h"
+#include "RHI/Device.h"
 
 st::gfx::DeviceManager::~DeviceManager()
 {}
@@ -59,7 +59,7 @@ void st::gfx::DeviceManager::Update()
 	m_TextureCache->Update();
 }
 
-st::rapi::FramebufferHandle st::gfx::DeviceManager::GetCurrentFramebuffer()
+st::rhi::FramebufferHandle st::gfx::DeviceManager::GetCurrentFramebuffer()
 {
 	return m_SwapChainFramebuffers[GetCurrentBackBufferIndex()];
 }
@@ -96,7 +96,7 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 		m_SwapChainFramebuffers.resize(backBufferCount);
 		for (uint32_t index = 0; index < backBufferCount; index++)
 		{
-			m_SwapChainFramebuffers[index] = m_Device->CreateFramebuffer(st::rapi::FramebufferDesc()
+			m_SwapChainFramebuffers[index] = m_Device->CreateFramebuffer(st::rhi::FramebufferDesc()
 				.AddColorAttachment(GetBackBuffer(index))
 				.SetDebugName(std::format("Swapchain FrameBuffer[{}]", index)));
 		}

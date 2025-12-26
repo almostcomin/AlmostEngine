@@ -5,7 +5,7 @@
 #include "Gfx/RenderView.h"
 #include "Interop/ImGUI_CB.h"
 #include "Gfx/DataUploader.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 #include <imgui/imgui.h>
 
 void st::gfx::ImGuiRenderStage::ReconcileInputState()
@@ -27,7 +27,7 @@ void st::gfx::ImGuiRenderStage::OnAttached()
     Init();
 
     m_RenderView->RequestTextureAccess(this, gfx::RenderView::AccessMode::Read, "SceneColor", 
-        rapi::ResourceState::SHADER_RESOURCE, rapi::ResourceState::SHADER_RESOURCE);
+        rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 }
 
 void st::gfx::ImGuiRenderStage::OnDetached()
@@ -66,13 +66,13 @@ void st::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
     ImGui::TextUnformatted(text);
 }
 
-st::rapi::BufferHandle& st::gfx::ImGuiRenderStage::GetCurrentVB()
+st::rhi::BufferHandle& st::gfx::ImGuiRenderStage::GetCurrentVB()
 {
     uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
     return m_VertexBuffer[currentFrameIdx % 3];
 }
 
-st::rapi::BufferHandle& st::gfx::ImGuiRenderStage::GetCurrentIB()
+st::rhi::BufferHandle& st::gfx::ImGuiRenderStage::GetCurrentIB()
 {
     uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
     return m_IndexBuffer[currentFrameIdx % 3];
@@ -81,13 +81,13 @@ st::rapi::BufferHandle& st::gfx::ImGuiRenderStage::GetCurrentIB()
 bool st::gfx::ImGuiRenderStage::Render()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-    st::rapi::Device* device = deviceManager->GetDevice();
+    st::rhi::Device* device = deviceManager->GetDevice();
 	auto& io = ImGui::GetIO();
 
     glm::ivec2 dim = deviceManager->GetWindowDimensions();
     io.DisplaySize = ImVec2(dim.x, dim.y);
 
-    rapi::CommandListHandle commandList = m_RenderView->GetCommandList();
+    rhi::CommandListHandle commandList = m_RenderView->GetCommandList();
 
     // Address any change in font data. Needs to be called before ImGui::NewFrame()
     if (!UpdateFontTexture())
@@ -118,17 +118,17 @@ bool st::gfx::ImGuiRenderStage::Render()
 
     float2 invDisplaySize = { 1.f / io.DisplaySize.x, 1.f / io.DisplaySize.y };
 
-    rapi::FramebufferHandle frameBuffer = m_RenderView->GetFramebuffer();
+    rhi::FramebufferHandle frameBuffer = m_RenderView->GetFramebuffer();
 
     commandList->BeginRenderPass(
         frameBuffer.get(),
-        { rapi::RenderPassOp{rapi::RenderPassOp::LoadOp::Load, rapi::RenderPassOp::StoreOp::Store} },
+        { rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store} },
         {},
-        rapi::RenderPassFlags::None);
+        rhi::RenderPassFlags::None);
 
     commandList->SetPipelineState(GetPSO(frameBuffer.get()).get());
     
-    commandList->SetViewport(rapi::ViewportState().AddViewportAndScissorRect({
+    commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
         io.DisplaySize.x* io.DisplayFramebufferScale.x,
         io.DisplaySize.y* io.DisplayFramebufferScale.y }));
 
@@ -147,18 +147,18 @@ bool st::gfx::ImGuiRenderStage::Render()
             }
             else
             {
-                commandList->SetViewport(rapi::ViewportState().AddViewport({
+                commandList->SetViewport(rhi::ViewportState().AddViewport({
                     io.DisplaySize.x * io.DisplayFramebufferScale.x,
                     io.DisplaySize.y * io.DisplayFramebufferScale.y }).AddScissorRect({
                     int2 { pCmd->ClipRect.x, pCmd->ClipRect.y }, int2{pCmd->ClipRect.z, pCmd->ClipRect.w} }));
 
                 interop::ImGUI_CB cb = {};
                 cb.invDisplaySize = invDisplaySize;
-                cb.indexBuffer = GetCurrentIB()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
+                cb.indexBuffer = GetCurrentIB()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
                 cb.indexOffset = idxOffset;
-                cb.vertexBuffer = GetCurrentVB()->GetShaderViewIndex(rapi::BufferShaderView::ShaderResource);
+                cb.vertexBuffer = GetCurrentVB()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
                 cb.vertexBufferOffset = vtxOffset;
-                cb.textureIndex = m_FontTexture->GetShaderViewIndex(rapi::TextureShaderView::ShaderResource);
+                cb.textureIndex = m_FontTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 
                 commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0);
                 
@@ -226,11 +226,11 @@ bool st::gfx::ImGuiRenderStage::OnMouseButtonUpdate(MouseButton button, KeyActio
 bool st::gfx::ImGuiRenderStage::Init()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-    st::rapi::Device* device = deviceManager->GetDevice();
+    st::rhi::Device* device = deviceManager->GetDevice();
     st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 
-    m_VS = shaderFactory->LoadShader("imgui_bindless_vs.vso", rapi::ShaderType::Vertex);
-    m_PS = shaderFactory->LoadShader("imgui_bindless_ps.pso", rapi::ShaderType::Pixel);
+    m_VS = shaderFactory->LoadShader("imgui_bindless_vs.vso", rhi::ShaderType::Vertex);
+    m_PS = shaderFactory->LoadShader("imgui_bindless_ps.pso", rhi::ShaderType::Pixel);
     if (!m_VS || !m_PS)
     {
         LOG_ERROR("Failed to create ImGui shaders");
@@ -239,33 +239,33 @@ bool st::gfx::ImGuiRenderStage::Init()
 
     // Create PSO
     {
-        rapi::BlendState blendState;
-        blendState.renderTarget[0] = rapi::BlendState::RenderTargetBlendState
+        rhi::BlendState blendState;
+        blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
         {
             .blendEnable = true,
-            .srcBlend = rapi::BlendFactor::SrcAlpha,
-            .destBlend = rapi::BlendFactor::InvSrcAlpha,
-            .srcBlendAlpha = rapi::BlendFactor::InvSrcAlpha,
-            .destBlendAlpha = rapi::BlendFactor::Zero
+            .srcBlend = rhi::BlendFactor::SrcAlpha,
+            .destBlend = rhi::BlendFactor::InvSrcAlpha,
+            .srcBlendAlpha = rhi::BlendFactor::InvSrcAlpha,
+            .destBlendAlpha = rhi::BlendFactor::Zero
         };
 
-        rapi::RasterizerState rasterState =
+        rhi::RasterizerState rasterState =
         {
-            .fillMode = rapi::FillMode::Solid,
-            .cullMode = rapi::CullMode::None,
+            .fillMode = rhi::FillMode::Solid,
+            .cullMode = rhi::CullMode::None,
             .depthClipEnable = true,
             .scissorEnable = true
         };
 
-        rapi::DepthStencilState depthStencilState =
+        rhi::DepthStencilState depthStencilState =
         {
             .depthTestEnable = false,
             .depthWriteEnable = true,
-            .depthFunc = rapi::ComparisonFunc::Always,
+            .depthFunc = rhi::ComparisonFunc::Always,
             .stencilEnable = false
         };
 
-        m_BasePSODesc = rapi::GraphicsPipelineStateDesc
+        m_BasePSODesc = rhi::GraphicsPipelineStateDesc
         {
             .VS = m_VS,
             .PS = m_PS,
@@ -315,29 +315,29 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
     if (!pixels)
         return false;
 
-    rapi::TextureDesc textureDesc;
+    rhi::TextureDesc textureDesc;
     textureDesc.width = width;
     textureDesc.height = height;
-    textureDesc.format = rapi::Format::RGBA8_UNORM;
+    textureDesc.format = rhi::Format::RGBA8_UNORM;
     textureDesc.debugName = "ImGuiFontTexture";
-    textureDesc.shaderUsage = rapi::TextureShaderUsage::ShaderResource;
-    m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rapi::ResourceState::COPY_DST);
+    textureDesc.shaderUsage = rhi::TextureShaderUsage::ShaderResource;
+    m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rhi::ResourceState::COPY_DST);
     if (!m_FontTexture)
         return false;
     
-    rapi::BufferHandle textureUploadBuffer = device->CreateBuffer(rapi::BufferDesc{
-        .memoryAccess = rapi::MemoryAccess::Upload,
-        .shaderUsage = rapi::BufferShaderUsage::None,
+    rhi::BufferHandle textureUploadBuffer = device->CreateBuffer(rhi::BufferDesc{
+        .memoryAccess = rhi::MemoryAccess::Upload,
+        .shaderUsage = rhi::BufferShaderUsage::None,
         .sizeBytes = (size_t)width * height * 4,
-        .debugName = "ImGui TextureUploadBuffer" }, rapi::ResourceState::COMMON);
+        .debugName = "ImGui TextureUploadBuffer" }, rhi::ResourceState::COMMON);
     
     void* uploadData = textureUploadBuffer->Map();
     std::memcpy(uploadData, pixels, width * height * 4);
     textureUploadBuffer->Unmap();
 
-    m_RenderView->GetCommandList()->WriteTexture(m_FontTexture.get(), rapi::AllSubresources, textureUploadBuffer.get(), 0);
+    m_RenderView->GetCommandList()->WriteTexture(m_FontTexture.get(), rhi::AllSubresources, textureUploadBuffer.get(), 0);
     m_RenderView->GetCommandList()->PushBarrier(
-        rapi::Barrier::Texture(m_FontTexture.get(), rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE));
+        rhi::Barrier::Texture(m_FontTexture.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 
     device->ReleaseQueued(textureUploadBuffer);
 
@@ -348,8 +348,8 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
 
 bool st::gfx::ImGuiRenderStage::UpdateGeometry()
 {
-    rapi::BufferHandle& currentVB = GetCurrentVB();
-    rapi::BufferHandle& currentIB = GetCurrentIB();
+    rhi::BufferHandle& currentVB = GetCurrentVB();
+    rhi::BufferHandle& currentIB = GetCurrentIB();
 
     const ImDrawData* drawData = ImGui::GetDrawData();
 
@@ -390,20 +390,20 @@ bool st::gfx::ImGuiRenderStage::UpdateGeometry()
     return true;
 }
 
-bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rapi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
+bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 
     if (buffer == nullptr || size_t(buffer->GetDesc().sizeBytes) < requiredSize)
     {
-        rapi::BufferDesc desc;
-        desc.memoryAccess = rapi::MemoryAccess::Upload;
-        desc.shaderUsage = rapi::BufferShaderUsage::ShaderResource;
+        rhi::BufferDesc desc;
+        desc.memoryAccess = rhi::MemoryAccess::Upload;
+        desc.shaderUsage = rhi::BufferShaderUsage::ShaderResource;
         desc.sizeBytes = uint32_t(reallocateSize);
         desc.allowUAV = false;
         if (indexBuffer)
         {
-            //desc.format = rapi::Format::R16_UINT;
+            //desc.format = rhi::Format::R16_UINT;
             desc.stride = 2;
         }
         else
@@ -412,14 +412,14 @@ bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rapi::BufferHandle& buffer, siz
         }
         desc.debugName = indexBuffer ? "ImGui index buffer" : "ImGui vertex buffer";
 
-        buffer = deviceManager->GetDevice()->CreateBuffer(desc, rapi::ResourceState::SHADER_RESOURCE);
+        buffer = deviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE);
         if (!buffer)
             return false;
     }
     return true;
 }
 
-st::rapi::GraphicsPipelineStateHandle st::gfx::ImGuiRenderStage::GetPSO(rapi::IFramebuffer* frameBuffer)
+st::rhi::GraphicsPipelineStateHandle st::gfx::ImGuiRenderStage::GetPSO(rhi::IFramebuffer* frameBuffer)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 

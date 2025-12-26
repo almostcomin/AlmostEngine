@@ -5,15 +5,15 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/LoadedTexture.h"
-#include "RenderAPI/Device.h"
+#include "RHI/Device.h"
 #include <filesystem>
 
 namespace
 {
 
-st::rapi::TextureDesc TexInfoToTexDesc(const st::gfx::TextureInfo& texInfo)
+st::rhi::TextureDesc TexInfoToTexDesc(const st::gfx::TextureInfo& texInfo)
 {
-    return st::rapi::TextureDesc {
+    return st::rhi::TextureDesc {
         .width = texInfo.width,
         .height = texInfo.height,
         .depth = texInfo.depth,
@@ -23,20 +23,20 @@ st::rapi::TextureDesc TexInfoToTexDesc(const st::gfx::TextureInfo& texInfo)
         .sampleQuality = 0,
         .format = texInfo.format,
         .dimension = texInfo.dimension,
-        .shaderUsage = st::rapi::TextureShaderUsage::ShaderResource,
+        .shaderUsage = st::rhi::TextureShaderUsage::ShaderResource,
         .debugName = texInfo.debugName
     };
 }
 
-st::rapi::TextureHandle CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, st::rapi::Device* device)
+st::rhi::TextureHandle CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, st::rhi::Device* device)
 {
-    st::rapi::TextureDesc desc = TexInfoToTexDesc(texInfo);
-    return device->CreateTexture(desc, st::rapi::ResourceState::COPY_DST);
+    st::rhi::TextureDesc desc = TexInfoToTexDesc(texInfo);
+    return device->CreateTexture(desc, st::rhi::ResourceState::COPY_DST);
 }
 
 } // anonymous namespace
 
-st::gfx::TextureCache::TextureCache(rapi::Device* device, st::gfx::DataUploader* dataUploader) :
+st::gfx::TextureCache::TextureCache(rhi::Device* device, st::gfx::DataUploader* dataUploader) :
     m_Device{ device }, m_DataUploader{ dataUploader }
 {}
 
@@ -155,14 +155,14 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
 
     TextureInfo& texInfo = loadResult->first;
     texInfo.debugName = id;
-    rapi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_Device);
+    rhi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_Device);
     if (!texture)
     {
         return std::unexpected(std::format("Failed creating texture {}.", id));
     }
 
     auto uploadResult = m_DataUploader->UploadTextureData(
-        WeakBlob{ loadResult->second }, texture, rapi::ResourceState::COPY_DST, rapi::ResourceState::SHADER_RESOURCE, rapi::AllSubresources, texInfo.debugName.c_str());
+        WeakBlob{ loadResult->second }, texture, rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE, rhi::AllSubresources, texInfo.debugName.c_str());
     if (!uploadResult)
     {
         return std::unexpected(std::move(uploadResult.error()));

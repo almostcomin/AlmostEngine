@@ -1,11 +1,11 @@
 #pragma once
 
 #include "Core/Memory.h"
-#include "RenderAPI/CommandList.h"
-#include "RenderAPI/Shader.h"
-#include "RenderAPI/PipelineState.h"
-#include "RenderAPI/Buffer.h"
-#include "RenderAPI/Framebuffer.h"
+#include "RHI/CommandList.h"
+#include "RHI/Shader.h"
+#include "RHI/PipelineState.h"
+#include "RHI/Buffer.h"
+#include "RHI/Framebuffer.h"
 #include "Gfx/RenderStage.h"
 
 namespace st::gfx
@@ -34,13 +34,13 @@ private:
 
 private:
 
-	st::rapi::ShaderHandle m_VS;
-	st::rapi::ShaderHandle m_PS;
-	st::rapi::GraphicsPipelineStateHandle m_PSO;
+	st::rhi::ShaderHandle m_VS;
+	st::rhi::ShaderHandle m_PS;
+	st::rhi::GraphicsPipelineStateHandle m_PSO;
 
-	st::rapi::TextureHandle m_RenderTarget;
-	st::rapi::TextureHandle m_DepthStencil;
-	st::rapi::FramebufferHandle m_FB;
+	st::rhi::TextureHandle m_RenderTarget;
+	st::rhi::TextureHandle m_DepthStencil;
+	st::rhi::FramebufferHandle m_FB;
 };
 
 } // namespace st::gfx

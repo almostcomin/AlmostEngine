@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
-#include "RenderAPI/PipelineState.h"
-#include "RenderAPI/Buffer.h"
-#include "RenderAPI/CommandList.h"
-#include "RenderAPI/FrameBuffer.h"
+#include "RHI/PipelineState.h"
+#include "RHI/Buffer.h"
+#include "RHI/CommandList.h"
+#include "RHI/FrameBuffer.h"
 
 namespace st::gfx
 {
@@ -30,13 +30,13 @@ private:
 	void OnAttached() override;
 	void OnDetached() override;
 
-	std::pair<rapi::DescriptorIndex, size_t> GetAABBOXBuffer(const Scene* scene, rapi::CommandListHandle commandList);
+	std::pair<rhi::DescriptorIndex, size_t> GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList);
 
-	rapi::GraphicsPipelineStateHandle m_PSO;
-	rapi::ShaderHandle m_VS;
-	rapi::ShaderHandle m_PS;
-	rapi::BufferHandle m_AABBOXBuffer;
-	rapi::FramebufferHandle m_FB;
+	rhi::GraphicsPipelineStateHandle m_PSO;
+	rhi::ShaderHandle m_VS;
+	rhi::ShaderHandle m_PS;
+	rhi::BufferHandle m_AABBOXBuffer;
+	rhi::FramebufferHandle m_FB;
 };
 
 } // namespace st::gfx

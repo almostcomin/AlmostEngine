@@ -1,9 +1,9 @@
 #pragma once
 
-#include "RenderAPI/Shader.h"
-#include "RenderAPI/PipelineState.h"
+#include "RHI/Shader.h"
+#include "RHI/PipelineState.h"
 
-namespace st::rapi
+namespace st::rhi
 {
 	class Device;
 	struct FramebufferInfo;
@@ -21,19 +21,19 @@ class CommonResources
 {
 public:
 
-	CommonResources(ShaderFactory* shaderFactory, rapi::Device* device);
+	CommonResources(ShaderFactory* shaderFactory, rhi::Device* device);
 	~CommonResources();
 
-	rapi::GraphicsPipelineStateHandle CreateBlitPSO(const rapi::FramebufferInfo& fbInfo);
+	rhi::GraphicsPipelineStateHandle CreateBlitPSO(const rhi::FramebufferInfo& fbInfo);
 
 private:
 
 	ShaderFactory* m_ShaderFactory;
-	rapi::Device* m_Device;
+	rhi::Device* m_Device;
 
-	rapi::ShaderHandle m_BlitVS;
-	rapi::ShaderHandle m_BlitPS;
-	rapi::GraphicsPipelineStateDesc m_BlitPSODesc;
+	rhi::ShaderHandle m_BlitVS;
+	rhi::ShaderHandle m_BlitPS;
+	rhi::GraphicsPipelineStateDesc m_BlitPSODesc;
 
 };
 

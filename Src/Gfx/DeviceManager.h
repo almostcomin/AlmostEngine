@@ -4,8 +4,8 @@
 #include <memory>
 #include "Core/Math/glm_config.h"
 #include "Core/Common.h"
-#include "RenderAPI/Format.h"
-#include "RenderAPI/FrameBuffer.h"
+#include "RHI/Format.h"
+#include "RHI/FrameBuffer.h"
 
 struct SDL_Window;
 
@@ -17,7 +17,7 @@ namespace st::gfx
     class CommonResources;
 }
 
-namespace st::rapi
+namespace st::rhi
 {
     class Device;
     class ITexture;
@@ -72,7 +72,7 @@ public:
         int SwapChainSampleCount = 1;
         int SwapChainSampleQuality = 0;
         int SwapChainBufferCount = 3;
-        st::rapi::Format SwapChainFormat = st::rapi::Format::SRGBA8_UNORM;
+        st::rhi::Format SwapChainFormat = st::rhi::Format::SRGBA8_UNORM;
 
         uint32_t RefreshRate = 0;           // 0 forces the native display's refresh rate
 
@@ -99,11 +99,11 @@ public:
 
     virtual glm::ivec2 GetWindowDimensions() const = 0;
     
-    st::rapi::FramebufferHandle GetCurrentFramebuffer();
+    st::rhi::FramebufferHandle GetCurrentFramebuffer();
 
     virtual uint32_t GetCurrentBackBufferIndex() const = 0;
-    virtual st::rapi::ITexture* GetCurrentBackBuffer() = 0;
-    virtual st::rapi::ITexture* GetBackBuffer(uint32_t index) = 0;
+    virtual st::rhi::ITexture* GetCurrentBackBuffer() = 0;
+    virtual st::rhi::ITexture* GetBackBuffer(uint32_t index) = 0;
     
     bool IsWindowVisible() const { return m_WindowVisible; }
 
@@ -122,7 +122,7 @@ public:
     uint32_t GetSwapchainBufferCount() const { return m_SwapChainFramebuffers.size(); }
     uint32_t GetFrameModuleIndex() const;
 
-    st::rapi::Device* GetDevice() { return m_Device.get(); }
+    st::rhi::Device* GetDevice() { return m_Device.get(); }
 
 protected:
 
@@ -131,13 +131,13 @@ protected:
     DeviceParams m_DeviceParams;
 
     uint64_t m_FrameCount = 1;
-    std::vector<st::rapi::FramebufferHandle> m_SwapChainFramebuffers;
+    std::vector<st::rhi::FramebufferHandle> m_SwapChainFramebuffers;
 
     uint32_t m_BackBufferWidth = 0;
     uint32_t m_BackBufferHeight = 0;
     bool m_WindowVisible = true;
 
-    std::unique_ptr<st::rapi::Device> m_Device;
+    std::unique_ptr<st::rhi::Device> m_Device;
 
 private:
 

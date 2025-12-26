@@ -9,7 +9,7 @@
 #include "Core/Common.h"
 #include "Core/Signal.h"
 
-namespace st::rapi
+namespace st::rhi
 {
 	class Device;
 }
@@ -29,7 +29,7 @@ public:
 
 	using LoadResult = std::expected<std::pair<std::shared_ptr<LoadedTexture>, st::SignalListener>, std::string>;
 
-	TextureCache(rapi::Device* device, st::gfx::DataUploader* dataUploader);
+	TextureCache(rhi::Device* device, st::gfx::DataUploader* dataUploader);
 
 	std::shared_ptr<LoadedTexture> Get(const std::string& id);
 
@@ -61,7 +61,7 @@ private:
 	std::mutex m_InFlightMapMutex;
 	std::mutex m_StaleMapMutex;
 
-	rapi::Device* m_Device;
+	rhi::Device* m_Device;
 	DataUploader* m_DataUploader;
 };
 
