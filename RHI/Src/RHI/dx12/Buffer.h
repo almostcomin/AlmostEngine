@@ -3,7 +3,6 @@
 #include "RHI/dx12/d3d12_headers.h"
 #include "RHI/Buffer.h"
 #include "Core/ComPtr.h"
-#include <array>
 
 namespace st::rhi::dx12
 {

@@ -7,18 +7,6 @@ namespace st::rhi
 
 using DescriptorIndex = uint32_t;
 constexpr DescriptorIndex c_InvalidDescriptorIndex = ~0u; // Same as INVALID_DESCRIPTOR_INDEX
-/*
-enum class DescriptorType : uint8_t
-{
-	CBV,
-	SRV,
-	UAV,
-	RTV,
-	DSV,
-
-	_Size
-};
-*/
 
 enum class TextureShaderView
 {

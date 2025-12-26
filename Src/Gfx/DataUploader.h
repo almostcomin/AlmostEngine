@@ -8,11 +8,9 @@
 #include "RHI/Buffer.h"
 #include "RHI/Texture.h"
 #include "RHI/ResourceState.h"
-#include "RHI/CommandList.h"
-#include "RHI/Fence.h"
 #include "Core/Signal.h"
 #include "Core/Common.h"
-#include <map>
+#include "RHI/TypeForwards.h"
 
 namespace st::rhi
 {

@@ -1,5 +1,5 @@
+#include "RHI/RHI_PCH.h"
 #include "RHI/Format.h"
-#include <cassert>
 
 namespace st::rhi
 {

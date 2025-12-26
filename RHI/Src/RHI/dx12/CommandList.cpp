@@ -3,7 +3,7 @@
 #include "RHI/dx12/Texture.h"
 #include "RHI/dx12/ResourceState.h"
 #include "RHI/dx12/PipelineState.h"
-#include "RHI/dx12/DxgiFormat.h"
+#include "RHI/dx12/DxgiFormatMapping.h"
 #include "RHI/dx12/FrameBuffer.h"
 #include "RHI/dx12/GPUDevice.h"
 #include "RHI/dx12/Utils.h"

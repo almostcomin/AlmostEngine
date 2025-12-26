@@ -1,4 +1,4 @@
-#include "CorePCH.h"
+#include "Core/CorePCH.h"
 #include "Core/Common.h"
 
 std::string_view st::GetFilenameFromPath(const std::string_view& path)

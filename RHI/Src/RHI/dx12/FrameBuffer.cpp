@@ -1,3 +1,4 @@
+#include "RHI/RHI_PCH.h"
 #include "RHI/dx12/FrameBuffer.h"
 #include "RHI/dx12/GpuDevice.h"
 

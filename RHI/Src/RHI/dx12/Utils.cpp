@@ -1,5 +1,5 @@
 #include "RHI/dx12/Utils.h"
-#include "RHI/dx12/DxgiFormat.h"
+#include "RHI/dx12/DxgiFormatMapping.h"
 #include <cassert>
 
 namespace

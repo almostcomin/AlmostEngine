@@ -1,10 +1,7 @@
+#include "RHI/RHI_PCH.h"
 #include "RHI/ShaderCompiler.h"
-#include <filesystem>
-#include "Core/Log.h"
-#include <string>
-#include "Core/ComPtr.h"
 #include "RHI/dx12/d3d12_headers.h"
-#include "dxcapi.h"
+#include <dxcapi.h>
 
 #define CHECK(expr) { HRESULT hr = expr; if(FAILED(hr)) { LOG_ERROR("Failed " #expr ", hr = '{}'", hr); return {}; }}
 

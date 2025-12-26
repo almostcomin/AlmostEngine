@@ -20,7 +20,7 @@
 * DEALINGS IN THE SOFTWARE.
 */
 
-#include "DxgiFormat.h"
+#include "RHI/dx12/DxgiFormatMapping.h"
 #include <cassert>
 
 using namespace st::rhi;

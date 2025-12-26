@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 
 project(Structure)
 
-include(FetchContent)
-include(dxc.cmake)
-
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo" CACHE STRING "" FORCE)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -25,6 +22,7 @@ foreach(shader ${SHADER_FILES})
 endforeach()
 
 add_subdirectory(Core)
+add_subdirectory(RHI)
 add_executable(Structure WIN32 ${SRC_FILES} ${SHADER_FILES})
 
 if(MSVC)
@@ -55,7 +53,7 @@ target_include_directories(Structure PRIVATE
     "${CMAKE_SOURCE_DIR}/3rdParty/Sources/cgltf"
 )
 
-target_link_libraries(Structure PRIVATE Core)
+target_link_libraries(Structure PRIVATE Core RHI)
 
 # CGLTF
 set(CGLTF_HEADERS 
@@ -79,25 +77,10 @@ target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/Direc
 target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/DirectXTex/$<CONFIG>/lib")
 target_link_libraries(Structure PRIVATE DirectXTex)
 
-# DirectX-Headers
-target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/DirectX-Headers/$<CONFIG>/include")
-target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/DirectX-Headers/$<CONFIG>/lib")
-target_link_libraries(Structure PRIVATE DirectX-Guids.lib)
-
 # stb
 target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/stb/include")
 
-# dxc
-GetDXC()
-target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/dxc/inc")
-target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/dxc/lib/x64")
-target_link_libraries(Structure PRIVATE dxcompiler.lib)
-
-# PIX
-target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/WinPixEventRuntime/Include/WinPixEventRuntime")
-target_link_libraries(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/WinPixEventRuntime/bin/x64/WinPixEventRuntime.lib")
-
-# 
+# Copy bins
 add_custom_command(
     TARGET Structure POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

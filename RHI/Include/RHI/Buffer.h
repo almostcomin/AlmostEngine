@@ -1,11 +1,9 @@
 #pragma once
 
 #include "RHI/Resource.h"
-#include <string>
 #include "RHI/Format.h"
-#include "RHI/Constants.h"
 #include "RHI/Descriptors.h"
-#include "Core/Memory.h"
+#include "RHI/Common.h"
 
 namespace st::rhi
 {

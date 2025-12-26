@@ -6,7 +6,7 @@
 #include "RHI/dx12/CommandList.h"
 #include "RHI/dx12/Fence.h"
 #include "RHI/dx12/Shader.h"
-#include "RHI/dx12/DxgiFormat.h"
+#include "RHI/dx12/DxgiFormatMapping.h"
 #include "RHI/dx12/ResourceState.h"
 #include "RHI/dx12/PipelineState.h"
 #include "RHI/dx12/Utils.h"

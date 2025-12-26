@@ -23,7 +23,7 @@ target_include_directories(Core PUBLIC
 )
 
 target_precompile_headers(Core PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/Src/CorePCH.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Include/Core/CorePCH.h"
 )
 
 target_compile_features(Core PUBLIC cxx_std_23)

@@ -5,7 +5,7 @@
 #include <SDL3/SDL_video.h>
 #include "Core/Log.h"
 #include "RHI/dx12/Device.h"
-#include "RHI/dx12/DxgiFormat.h"
+#include "RHI/dx12/DxgiFormatMapping.h"
 #include "RHI/Format.h"
 
 using namespace Microsoft::WRL;

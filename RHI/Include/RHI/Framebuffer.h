@@ -1,11 +1,8 @@
 #pragma once
 
 #include "RHI/Texture.h"
-#include "RHI/Constants.h"
 #include "RHI/Viewport.h"
-#include "RHI/Resource.h"
-#include "Core/static_vector.h"
-#include "Core/Memory.h"
+#include "RHI/Common.h"
 
 namespace st::rhi
 {
@@ -62,7 +59,7 @@ struct FramebufferInfo
     FramebufferInfo() = default;
     FramebufferInfo(const FramebufferDesc& desc);
 
-    [[nodiscard]] Viewport GetViewport(float minZ = 0.f, float maxZ = 1.f) const
+    Viewport GetViewport(float minZ = 0.f, float maxZ = 1.f) const
     {
         return Viewport(0.f, float(width), 0.f, float(height), minZ, maxZ);
     }

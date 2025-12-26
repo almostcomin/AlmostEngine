@@ -1,10 +1,9 @@
+#include "RHI/RHI_PCH.h"
 #include "RHI/dx12/Buffer.h"
 #include "RHI/dx12/GpuDevice.h"
-#include "RHI/dx12/DxgiFormat.h"
+#include "RHI/dx12/DxgiFormatMapping.h"
 #include "Core/Log.h"
 #include "Core/Common.h"
-#include <cassert>
-#include <algorithm>
 
 st::rhi::dx12::Buffer::Buffer(const st::rhi::BufferDesc& desc, ID3D12Resource* buffer, st::rhi::dx12::GpuDevice* device) :
     m_Desc{ desc }, 

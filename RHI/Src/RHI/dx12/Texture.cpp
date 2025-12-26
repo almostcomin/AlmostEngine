@@ -1,5 +1,6 @@
+#include "RHI/RHI_PCH.h"
 #include "RHI/dx12/Texture.h"
-#include "RHI/dx12/DxgiFormat.h"
+#include "RHI/dx12/DxgiFormatMapping.h"
 #include "RHI/dx12/GpuDevice.h"
 
 st::rhi::dx12::Texture::Texture(const st::rhi::TextureDesc& desc, ComPtr<ID3D12Resource> resource, GpuDevice* device)
