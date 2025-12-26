@@ -11,7 +11,7 @@
 #include "RenderAPI/CommandList.h"
 #include "RenderAPI/Fence.h"
 #include "Core/Signal.h"
-#include "Core/Util.h"
+#include "Core/Common.h"
 #include <map>
 
 namespace st::rapi

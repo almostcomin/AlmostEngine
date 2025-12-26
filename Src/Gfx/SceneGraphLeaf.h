@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Util.h"
+#include "Core/Common.h"
 #include "Core/Memory.h"
 #include "Core/Math/aabox.h"
 #include "Gfx/SceneContentFlags.h"

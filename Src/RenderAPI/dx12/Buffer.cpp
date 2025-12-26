@@ -2,7 +2,7 @@
 #include "RenderAPI/dx12/GpuDevice.h"
 #include "RenderAPI/dx12/DxgiFormat.h"
 #include "Core/Log.h"
-#include "Core/Util.h"
+#include "Core/Common.h"
 #include <cassert>
 #include <algorithm>
 

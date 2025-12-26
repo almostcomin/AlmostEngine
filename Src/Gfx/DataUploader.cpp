@@ -2,7 +2,7 @@
 #include "Core/Log.h"
 #include "Gfx/Util.h"
 #include "RenderAPI/Device.h"
-#include "Core/Util.h"
+#include "Core/Common.h"
 
 namespace
 {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "Core/Util.h"
+#include "Core/Common.h"
 #include "Core/Memory.h"
 
 namespace st::rapi

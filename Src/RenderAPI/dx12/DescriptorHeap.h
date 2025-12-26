@@ -5,7 +5,7 @@
 #include <vector>
 #include <mutex>
 #include "Core/ComPtr.h"
-#include "Core/Util.h"
+#include "Core/Common.h"
 #include "RenderAPI/Descriptors.h"
 
 namespace st::rapi::dx12

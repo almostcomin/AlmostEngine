@@ -10,7 +10,7 @@
 #include "RenderAPI/dx12/ResourceState.h"
 #include "RenderAPI/dx12/PipelineState.h"
 #include "RenderAPI/dx12/Utils.h"
-#include "Core/Util.h"
+#include "Core/Common.h"
 #include "Core/Log.h"
 #include <array>
 

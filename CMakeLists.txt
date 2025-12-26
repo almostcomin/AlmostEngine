@@ -24,6 +24,7 @@ foreach(shader ${SHADER_FILES})
     set_source_files_properties(${shader} PROPERTIES HEADER_FILE_ONLY TRUE)
 endforeach()
 
+add_subdirectory(Core)
 add_executable(Structure WIN32 ${SRC_FILES} ${SHADER_FILES})
 
 if(MSVC)
@@ -54,13 +55,7 @@ target_include_directories(Structure PRIVATE
     "${CMAKE_SOURCE_DIR}/3rdParty/Sources/cgltf"
 )
 
-# GLM
-file(GLOB_RECURSE GLM_HEADERS
-    "${CMAKE_SOURCE_DIR}/3rdParty/Sources/glm/glm/*.hpp"
-    "${CMAKE_SOURCE_DIR}/3rdParty/Sourcesglm/glm/*.inl"
-)
-source_group("Src/Core/glm" FILES ${GLM_HEADERS})
-target_sources(Structure PRIVATE ${GLM_HEADERS})
+target_link_libraries(Structure PRIVATE Core)
 
 # CGLTF
 set(CGLTF_HEADERS 

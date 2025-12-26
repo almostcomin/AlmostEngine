@@ -1,10 +1,5 @@
+#include "CorePCH.h"
 #include "Core/Log.h"
-#include <mutex>
-#include <unordered_set>
-
-#if _WIN32
-#include <Windows.h>
-#endif
 
 namespace st::log
 {

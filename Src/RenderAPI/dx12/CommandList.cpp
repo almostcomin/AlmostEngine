@@ -8,7 +8,7 @@
 #include "RenderAPI/dx12/GPUDevice.h"
 #include "RenderAPI/dx12/Utils.h"
 #include "RenderAPI/Viewport.h"
-#include "Core/Util.h"
+#include "Core/Common.h"
 #include <pix3.h>
 #include <cassert>
 #include <vector>

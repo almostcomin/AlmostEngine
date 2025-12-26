@@ -1,5 +1,5 @@
+#include "CorePCH.h"
 #include "Core/File.h"
-#include <format>
 
 st::fs::File::File(const std::string& path, OpenMode mode)
 {

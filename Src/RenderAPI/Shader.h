@@ -2,7 +2,7 @@
 
 #include "RenderAPI/Resource.h"
 #include <string>
-#include "Core/Util.h"
+#include "Core/Common.h"
 #include "Core/Blob.h"
 
 namespace st::rapi
