@@ -1,5 +1,6 @@
+#include "RHI/RHI_PCH.h"
+#include "RHI/DxgiFormatMapping.h"
 #include "RHI/dx12/Utils.h"
-#include "RHI/dx12/DxgiFormatMapping.h"
 #include <cassert>
 
 namespace
@@ -240,7 +241,7 @@ D3D12_RENDER_PASS_BEGINNING_ACCESS st::rhi::dx12::GetRenderPassBeginningAccess(s
 		break;
 	case st::rhi::RenderPassOp::LoadOp::Clear:
 		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
-		ret.Clear.ClearValue.Format = st::rhi::dx12::GetDxgiFormatMapping(format).resourceFormat;
+		ret.Clear.ClearValue.Format = st::rhi::GetDxgiFormatMapping(format).resourceFormat;
 		if (IsDepthFormat(format))
 		{
 			ret.Clear.ClearValue.DepthStencil.Depth = clearValue.depthStencil.depth;

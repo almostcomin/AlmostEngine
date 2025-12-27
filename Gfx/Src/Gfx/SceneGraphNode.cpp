@@ -1,4 +1,4 @@
-#include "SceneGraphNode.h"
+#include "Gfx/SceneGraphNode.h"
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/SceneGraph.h"
 

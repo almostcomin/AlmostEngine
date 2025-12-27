@@ -23,6 +23,8 @@ endforeach()
 
 add_subdirectory(Core)
 add_subdirectory(RHI)
+add_subdirectory(Gfx)
+
 add_executable(Structure WIN32 ${SRC_FILES} ${SHADER_FILES})
 
 if(MSVC)
@@ -48,37 +50,9 @@ set_target_properties(Structure PROPERTIES
 
 target_include_directories(Structure PRIVATE
     "${CMAKE_SOURCE_DIR}/Src"
-    "${CMAKE_SOURCE_DIR}/Shaders"
-    "${CMAKE_SOURCE_DIR}/3rdParty/Sources/glm"
-    "${CMAKE_SOURCE_DIR}/3rdParty/Sources/cgltf"
 )
 
-target_link_libraries(Structure PRIVATE Core RHI)
-
-# CGLTF
-set(CGLTF_HEADERS 
-    "${CMAKE_SOURCE_DIR}/3rdParty/Sources/cgltf/cgltf.h"
-)
-source_group("Src/Gfx/cgltf" FILES ${CGLTF_HEADERS})
-target_sources(Structure PRIVATE ${CGLTF_HEADERS})
-
-# SDL3
-target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/SDL/$<CONFIG>/include")
-target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/SDL/$<CONFIG>/lib")
-target_link_libraries(Structure PRIVATE SDL3-static)
-
-# ImGUI
-target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/imgui/$<CONFIG>/include")
-target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/imgui/$<CONFIG>/lib")
-target_link_libraries(Structure PRIVATE imgui)
-
-# DirectXTex
-target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/DirectXTex/$<CONFIG>/include")
-target_link_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/DirectXTex/$<CONFIG>/lib")
-target_link_libraries(Structure PRIVATE DirectXTex)
-
-# stb
-target_include_directories(Structure PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/stb/include")
+target_link_libraries(Structure PRIVATE Core RHI Gfx)
 
 # Copy bins
 add_custom_command(

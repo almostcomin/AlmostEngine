@@ -23,9 +23,9 @@ class PerspectiveCamera : public SceneCamera
 {
 public:
 
-	PerspectiveCamera& SetNear(float near) { m_zNear = near; return *this; }
+	PerspectiveCamera& SetNear(float _near) { m_zNear = _near; return *this; }
 	//! Negative to reset / not specified.
-	PerspectiveCamera& SetFar(float far);
+	PerspectiveCamera& SetFar(float _far);
 	PerspectiveCamera& SetVerticalFOV(float fov) { m_VerticalFOV = fov; return *this; }
 	//! Negative to reset / not specified.
 	PerspectiveCamera& SetAspect(float aspect);
@@ -42,8 +42,8 @@ class OrthographicCamera : public SceneCamera
 {
 public:
 
-	OrthographicCamera& SetNear(float near) { m_zNear = near; return *this; }
-	OrthographicCamera& SetFar(float far) { m_zFar = far; return *this; }
+	OrthographicCamera& SetNear(float _near) { m_zNear = _near; return *this; }
+	OrthographicCamera& SetFar(float _far) { m_zFar = _far; return *this; }
 	OrthographicCamera& SetXMag(float xMag) { m_xMag = xMag; return *this; }
 	OrthographicCamera& SetYMag(float yMag) { m_yMag = yMag; return *this; }
 

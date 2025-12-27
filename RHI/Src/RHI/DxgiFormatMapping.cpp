@@ -20,12 +20,9 @@
 * DEALINGS IN THE SOFTWARE.
 */
 
-#include "RHI/dx12/DxgiFormatMapping.h"
-#include <cassert>
+#include "RHI/DxgiFormatMapping.h"
 
-using namespace st::rhi;
-
-namespace st::rhi::dx12
+namespace st::rhi
 {
     // Format mapping table. The rows must be in the exactly same order as Format enum members are defined.
     static const DxgiFormatMapping c_FormatMappings[] = {

@@ -1,12 +1,8 @@
-
 #include "Gfx/Backend/dx12/DeviceManager.h"
-
-#include <dxgidebug.h>
-#include <SDL3/SDL_video.h>
-#include "Core/Log.h"
 #include "RHI/dx12/Device.h"
-#include "RHI/dx12/DxgiFormatMapping.h"
+#include "RHI/DxgiFormatMapping.h"
 #include "RHI/Format.h"
+#include <SDL3/SDL_video.h>
 
 using namespace Microsoft::WRL;
 
@@ -334,7 +330,7 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
         m_SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         break;
     default:        
-        m_SwapChainDesc.Format = st::rhi::dx12::GetDxgiFormatMapping(m_DeviceParams.SwapChainFormat).srvFormat;
+        m_SwapChainDesc.Format = st::rhi::GetDxgiFormatMapping(m_DeviceParams.SwapChainFormat).srvFormat;
         break;
     }
 

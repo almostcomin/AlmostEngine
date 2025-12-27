@@ -1,18 +1,15 @@
+#include "RHI/RHI_PCH.h"
+#include "RHI/DxgiFormatMapping.h"
+#include "RHI/Viewport.h"
 #include "RHI/dx12/CommandList.h"
 #include "RHI/dx12/Buffer.h"
 #include "RHI/dx12/Texture.h"
 #include "RHI/dx12/ResourceState.h"
 #include "RHI/dx12/PipelineState.h"
-#include "RHI/dx12/DxgiFormatMapping.h"
 #include "RHI/dx12/FrameBuffer.h"
 #include "RHI/dx12/GPUDevice.h"
 #include "RHI/dx12/Utils.h"
-#include "RHI/Viewport.h"
-#include "Core/Common.h"
 #include <pix3.h>
-#include <cassert>
-#include <vector>
-#include "Core/Log.h"
 
 namespace
 {

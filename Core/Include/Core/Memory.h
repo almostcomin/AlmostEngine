@@ -1,8 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <functional>
-#include <cassert>
 
 namespace st
 {

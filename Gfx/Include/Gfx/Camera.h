@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/Math/frustum.h"
-#include "Core/Math.h"
 
 namespace st::gfx
 {

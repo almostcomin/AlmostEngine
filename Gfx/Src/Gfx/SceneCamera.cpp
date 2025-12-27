@@ -1,9 +1,9 @@
 #include "Gfx/SceneCamera.h"
 
-st::gfx::PerspectiveCamera& st::gfx::PerspectiveCamera::SetFar(float far)
+st::gfx::PerspectiveCamera& st::gfx::PerspectiveCamera::SetFar(float _far)
 { 
-	if (far > 0.f)
-		m_zFar = far;
+	if (_far > 0.f)
+		m_zFar = _far;
 	else
 		m_zFar.reset();
 	

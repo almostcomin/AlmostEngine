@@ -1,8 +1,6 @@
 #include "Gfx/DataUploader.h"
-#include "Core/Log.h"
 #include "Gfx/Util.h"
 #include "RHI/Device.h"
-#include "Core/Common.h"
 
 namespace
 {

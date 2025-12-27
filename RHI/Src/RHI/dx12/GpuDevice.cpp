@@ -1,3 +1,6 @@
+#include "RHI/RHI_PCH.h"
+
+#include "RHI/DxgiFormatMapping.h"
 #include "RHI/dx12/GpuDevice.h"
 #include "RHI/dx12/DescriptorHeap.h"
 #include "RHI/dx12/Buffer.h"
@@ -6,13 +9,9 @@
 #include "RHI/dx12/CommandList.h"
 #include "RHI/dx12/Fence.h"
 #include "RHI/dx12/Shader.h"
-#include "RHI/dx12/DxgiFormatMapping.h"
 #include "RHI/dx12/ResourceState.h"
 #include "RHI/dx12/PipelineState.h"
 #include "RHI/dx12/Utils.h"
-#include "Core/Common.h"
-#include "Core/Log.h"
-#include <array>
 
 #define HR_RETURN_NULL(hr)			\
 	do {							\
@@ -38,7 +37,7 @@ namespace
 
 	D3D12_CLEAR_VALUE ConvertTextureClearValue(const st::rhi::TextureDesc& d)
 	{
-		const auto& formatMapping = st::rhi::dx12::GetDxgiFormatMapping(d.format);
+		const auto& formatMapping = st::rhi::GetDxgiFormatMapping(d.format);
 		const auto& formatInfo = st::rhi::GetFormatInfo(d.format);
 		D3D12_CLEAR_VALUE clearValue = {};
 		clearValue.Format = formatMapping.rtvFormat;

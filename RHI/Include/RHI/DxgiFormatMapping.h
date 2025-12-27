@@ -22,10 +22,9 @@
 
 #pragma once
 
-#include <dxgi.h>
 #include "RHI/Format.h"
 
-namespace st::rhi::dx12
+namespace st::rhi
 {
     struct DxgiFormatMapping
     {

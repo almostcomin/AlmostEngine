@@ -2,6 +2,7 @@
 #include "RHI/ShaderCompiler.h"
 #include "RHI/dx12/d3d12_headers.h"
 #include <dxcapi.h>
+#include "Core/ComPtr.h"
 
 #define CHECK(expr) { HRESULT hr = expr; if(FAILED(hr)) { LOG_ERROR("Failed " #expr ", hr = '{}'", hr); return {}; }}
 

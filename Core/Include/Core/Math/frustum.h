@@ -9,14 +9,14 @@ namespace st::math
 // six planes, normals pointing outside of the volume
 struct frustum3f
 {
-    enum plane
+    enum
     {
-        near = 0,
-        far,
-        left,
-        right,
-        top,
-        bottom,
+        near_plane = 0,
+        far_plane,
+        left_plane,
+        right_plane,
+        top_plane,
+        bottom_plane,
         PLANE_COUNT
     };
 
@@ -33,12 +33,12 @@ struct frustum3f
         glm::vec4 row2 = glm::row(viewProjMat, 2);
         glm::vec4 row3 = glm::row(viewProjMat, 3);
 
-        planes[near] = st::math::plane3f{ row3 + row2 };
-        planes[far] = st::math::plane3f{ row3 - row2 };
-        planes[left] = st::math::plane3f{ row3 + row0 };
-        planes[right] = st::math::plane3f{ row3 - row0 };
-        planes[top] = st::math::plane3f{ row3 - row1 };
-        planes[bottom] = st::math::plane3f{ row3 + row1 };
+        planes[near_plane] = st::math::plane3f{ row3 + row2 };
+        planes[far_plane] = st::math::plane3f{ row3 - row2 };
+        planes[left_plane] = st::math::plane3f{ row3 + row0 };
+        planes[right_plane] = st::math::plane3f{ row3 - row0 };
+        planes[top_plane] = st::math::plane3f{ row3 - row1 };
+        planes[bottom_plane] = st::math::plane3f{ row3 + row1 };
     }
 
     bool check(const glm::vec3& p) const
