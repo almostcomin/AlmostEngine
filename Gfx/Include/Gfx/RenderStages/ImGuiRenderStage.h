@@ -58,7 +58,7 @@ private:
 	bool UpdateFontTexture();
 	bool UpdateGeometry();
 
-	bool ReallocateBuffer(rhi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
+	bool ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
 	rhi::GraphicsPipelineStateHandle GetPSO(rhi::IFramebuffer* frameBuffer);
 
 	void ReconcileInputState();
@@ -71,24 +71,24 @@ protected:
 	void BeginFullScreenWindow();
 	void EndFullScreenWindow();
 	void DrawCenteredText(const char* text);
-	rhi::BufferHandle& GetCurrentVB();
-	rhi::BufferHandle& GetCurrentIB();
+	rhi::BufferOwner& GetCurrentVB();
+	rhi::BufferOwner& GetCurrentIB();
 
 private:
 
 	std::array<KeyAction, 5> m_CachedMouseButtons;
 
-	rhi::ShaderHandle m_VS;
-	rhi::ShaderHandle m_PS;
+	rhi::ShaderOwner m_VS;
+	rhi::ShaderOwner m_PS;
 
 	rhi::GraphicsPipelineStateDesc m_BasePSODesc;
 
-	rhi::TextureHandle m_FontTexture;
+	rhi::TextureOwner m_FontTexture;
 
-	rhi::BufferHandle m_VertexBuffer[3];
-	rhi::BufferHandle m_IndexBuffer[3];
+	rhi::BufferOwner m_VertexBuffer[3];
+	rhi::BufferOwner m_IndexBuffer[3];
 
-	rhi::GraphicsPipelineStateHandle m_PSO;
+	rhi::GraphicsPipelineStateOwner m_PSO;
 };
 
 }

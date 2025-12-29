@@ -7,8 +7,9 @@ namespace st::rhi
 	class IFence : public IResource
 	{
 	public:
-
 		virtual uint64_t GetCompletedValue() = 0;
+	protected:
+		IFence(Device* device, const std::string& debugName) : IResource(device, debugName) {};
 	};
 
 	using FenceHandle = st::weak<IFence>;

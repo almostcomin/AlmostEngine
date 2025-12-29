@@ -149,12 +149,12 @@ st::rhi::dx12::GpuDevice::~GpuDevice()
 	}
 }
 
-st::rhi::ShaderHandle st::rhi::dx12::GpuDevice::CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode)
+st::rhi::ShaderOwner st::rhi::dx12::GpuDevice::CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode, const std::string& debugName)
 {
-	return InsertNewResource<IShader>(new Shader{desc, bytecode});
+	return InsertNewResource<IShader>(new Shader{desc, bytecode, this, debugName});
 }
 
-st::rhi::BufferHandle st::rhi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc, ResourceState initialState)
+st::rhi::BufferOwner st::rhi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc, ResourceState initialState, const std::string& debugName)
 {
 	auto storageReq = GetStorageRequirements(desc);
 	BufferDesc fixedDesc = std::move(desc);
@@ -195,13 +195,13 @@ st::rhi::BufferHandle st::rhi::dx12::GpuDevice::CreateBuffer(const BufferDesc& d
 		&heapProps, D3D12_HEAP_FLAG_NONE, &d3d12Desc, MapResourceState(initialState), nullptr, IID_PPV_ARGS(&d3d12Buffer));
 	HR_RETURN_NULL(hr);
 
-	auto ws_nmame = ToWide(fixedDesc.debugName.c_str());
+	auto ws_nmame = ToWide(debugName.c_str());
 	d3d12Buffer->SetName(ws_nmame.c_str());
 
-	return InsertNewResource<IBuffer>(new Buffer{ fixedDesc, d3d12Buffer.Get(), this });
+	return InsertNewResource<IBuffer>(new Buffer{ fixedDesc, d3d12Buffer.Get(), this, debugName });
 }
 
-st::rhi::TextureHandle st::rhi::dx12::GpuDevice::CreateTexture(const TextureDesc& desc, ResourceState initialState)
+st::rhi::TextureOwner st::rhi::dx12::GpuDevice::CreateTexture(const TextureDesc& desc, ResourceState initialState, const std::string& debugName)
 {
 	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
 
@@ -226,13 +226,13 @@ st::rhi::TextureHandle st::rhi::dx12::GpuDevice::CreateTexture(const TextureDesc
 		IID_PPV_ARGS(&d3d12Texture));
 	HR_RETURN_NULL(hr);
 
-	auto ws_nmame = ToWide(desc.debugName.c_str());
+	auto ws_nmame = ToWide(debugName.c_str());
 	d3d12Texture->SetName(ws_nmame.c_str());
 
-	return InsertNewResource<ITexture>(new Texture{ desc, d3d12Texture, this });
+	return InsertNewResource<ITexture>(new Texture{ desc, d3d12Texture, this, debugName });
 }
 
-st::rhi::TextureHandle st::rhi::dx12::GpuDevice::CreateHandleForNativeTexture(void* obj, const TextureDesc& desc)
+st::rhi::TextureOwner st::rhi::dx12::GpuDevice::CreateHandleForNativeTexture(void* obj, const TextureDesc& desc, const std::string& debugName)
 {
 	if (obj == nullptr)
 	{
@@ -241,15 +241,15 @@ st::rhi::TextureHandle st::rhi::dx12::GpuDevice::CreateHandleForNativeTexture(vo
 
 	ID3D12Resource* d3d12Resource = static_cast<ID3D12Resource*>(obj);
 
-	auto ws_nmame = ToWide(desc.debugName.c_str());
+	auto ws_nmame = ToWide(debugName.c_str());
 	d3d12Resource->SetName(ws_nmame.c_str());
 
-	return InsertNewResource<ITexture>(new Texture{ desc, d3d12Resource, this });
+	return InsertNewResource<ITexture>(new Texture{ desc, d3d12Resource, this, debugName });
 }
 
-st::rhi::FramebufferHandle st::rhi::dx12::GpuDevice::CreateFramebuffer(const FramebufferDesc& desc)
+st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const FramebufferDesc& desc, const std::string& debugName)
 {
-	auto* fb = new Framebuffer;
+	auto* fb = new Framebuffer{ this, debugName };
 	fb->desc = desc;
 	fb->framebufferInfo = FramebufferInfo{ desc };
 
@@ -305,7 +305,7 @@ st::rhi::FramebufferHandle st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fra
 	return InsertNewResource<IFramebuffer>(fb);
 }
 
-st::rhi::CommandListHandle st::rhi::dx12::GpuDevice::CreateCommandList(const CommandListParams& params)
+st::rhi::CommandListOwner st::rhi::dx12::GpuDevice::CreateCommandList(const CommandListParams& params, const std::string& debugName)
 {
 	if (!m_Queues[(int)params.queueType].queue)
 	{
@@ -337,15 +337,16 @@ st::rhi::CommandListHandle st::rhi::dx12::GpuDevice::CreateCommandList(const Com
 	hr = m_D3d12Device->CreateCommandList(0, d3dCommandListType, d3d12CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&d3d12CommandList));
 	HR_RETURN_NULL(hr);
 
-	auto ws_nmame = ToWide(params.debugName.c_str());
+	auto ws_nmame = ToWide(debugName.c_str());
 	d3d12CommandList->SetName(ws_nmame.c_str());
 
 	d3d12CommandList->Close(); // Start closed
 
-	return InsertNewResource<ICommandList>(new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType, this, params.debugName });
+	return InsertNewResource<ICommandList>(new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType, this, debugName });
 }
 
-st::rhi::GraphicsPipelineStateHandle st::rhi::dx12::GpuDevice::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo)
+st::rhi::GraphicsPipelineStateOwner st::rhi::dx12::GpuDevice::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, 
+	const FramebufferInfo& fbInfo, const std::string& debugName)
 {
 	// TODO: cache
 
@@ -372,22 +373,22 @@ st::rhi::GraphicsPipelineStateHandle st::rhi::dx12::GpuDevice::CreateGraphicsPip
 	HRESULT hr = m_D3d12Device->CreateGraphicsPipelineState(&d3d12Desc, IID_PPV_ARGS(&d3d12PSO));
 	HR_RETURN_NULL(hr);
 
-	auto ws_nmame = ToWide(desc.debugName.c_str());
+	auto ws_nmame = ToWide(debugName.c_str());
 	d3d12PSO->SetName(ws_nmame.c_str());
 
-	return InsertNewResource<IGraphicsPipelineState>(new GraphicsPipelineState{ d3d12PSO, d3d12Desc, desc });
+	return InsertNewResource<IGraphicsPipelineState>(new GraphicsPipelineState{ d3d12PSO, d3d12Desc, desc, this, debugName });
 }
 
-st::rhi::FenceHandle st::rhi::dx12::GpuDevice::CreateFence(uint64_t initialVale, const char* debugName)
+st::rhi::FenceOwner st::rhi::dx12::GpuDevice::CreateFence(uint64_t initialVale, const std::string& debugName)
 {
 	ComPtr<ID3D12Fence> d3d12Fence;
 	HRESULT hr = m_D3d12Device->CreateFence(initialVale, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3d12Fence));
 	HR_RETURN_NULL(hr);
 
-	auto ws_nmame = ToWide(debugName);
+	auto ws_nmame = ToWide(debugName.c_str());
 	d3d12Fence->SetName(ws_nmame.c_str());
 
-	return InsertNewResource<IFence>(new Fence{ d3d12Fence.Get(), debugName ? debugName : "{null}" });
+	return InsertNewResource<IFence>(new Fence{ d3d12Fence.Get(), this, debugName });
 }
 
 st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetStorageRequirements(const BufferDesc& desc)
@@ -525,8 +526,8 @@ void st::rhi::dx12::GpuDevice::Shutdown()
 		for (auto& res : m_LivingResources)
 		{
 			LOG_ERROR("Resource addr [0x{:08x}] of type {}, debug name '{}' not released!", 
-				(uintptr_t)res.get(), ResourceTypeToString(res->GetResourceType()), res->GetDebugName());
-			ReleaseResource(res.get());
+				(uintptr_t)res, ResourceTypeToString(res->GetResourceType()), res->GetDebugName());
+			ReleaseResource(res);
 		}
 		m_LivingResources.clear();
 	}

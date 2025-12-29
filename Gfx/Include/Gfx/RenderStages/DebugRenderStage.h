@@ -32,11 +32,11 @@ private:
 
 	std::pair<rhi::DescriptorIndex, size_t> GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList);
 
-	rhi::GraphicsPipelineStateHandle m_PSO;
-	rhi::ShaderHandle m_VS;
-	rhi::ShaderHandle m_PS;
-	rhi::BufferHandle m_AABBOXBuffer;
-	rhi::FramebufferHandle m_FB;
+	rhi::GraphicsPipelineStateOwner m_PSO;
+	rhi::ShaderOwner m_VS;
+	rhi::ShaderOwner m_PS;
+	rhi::BufferOwner m_AABBOXBuffer;
+	rhi::FramebufferOwner m_FB;
 };
 
 } // namespace st::gfx

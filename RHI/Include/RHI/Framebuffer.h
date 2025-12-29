@@ -3,6 +3,7 @@
 #include "RHI/Texture.h"
 #include "RHI/Viewport.h"
 #include "RHI/Common.h"
+#include "RHI/TypeForwards.h"
 
 namespace st::rhi
 {
@@ -91,8 +92,10 @@ public:
 
     virtual TextureHandle GetBackBuffer(uint32_t idx) = 0;
     virtual TextureHandle GetDepthStencil() = 0;
-};
 
-using FramebufferHandle = st::weak<IFramebuffer>;
+protected:
+
+    IFramebuffer(Device* device, const std::string& debugName) : IResource{ device, debugName } {};
+};
 
 } // namespace st::rhi

@@ -18,7 +18,7 @@ public:
 
 	ShaderFactory(st::rhi::Device* device);
 
-	st::rhi::ShaderHandle LoadShader(const char* filename, rhi::ShaderType shaderType);
+	st::rhi::ShaderOwner LoadShader(const char* filename, rhi::ShaderType shaderType);
 
 private:
 

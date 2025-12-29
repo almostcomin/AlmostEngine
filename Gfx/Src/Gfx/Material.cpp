@@ -9,12 +9,14 @@ st::gfx::Material::Material(st::rhi::Device* device, const char* name, const cha
 
 st::gfx::Material::~Material()
 {
-	m_Device->ReleaseQueued(m_DiffuseTexture);
 }
 
-st::rhi::TextureHandle st::gfx::Material::SetDiffuseTexture(rhi::TextureHandle textureHandle)
+void st::gfx::Material::SetDiffuseTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle)
 {
-	auto ret = m_DiffuseTexture;
 	m_DiffuseTexture = textureHandle;
-	return ret;
+}
+
+st::rhi::TextureHandle st::gfx::Material::GetDiffuseTexture() const 
+{
+	return m_DiffuseTexture ? m_DiffuseTexture->texture.get_weak() : nullptr;
 }

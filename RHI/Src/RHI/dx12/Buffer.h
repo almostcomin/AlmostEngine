@@ -6,13 +6,11 @@
 
 namespace st::rhi::dx12
 {
-	class GpuDevice;
-
 	class Buffer : public st::rhi::IBuffer
 	{
 	public:
 
-		Buffer(const BufferDesc& desc, ID3D12Resource* buffer, GpuDevice* device);
+		Buffer(const BufferDesc& desc, ID3D12Resource* buffer, Device* device, const std::string& debugName);
 		~Buffer() override;
 
 		const BufferDesc& GetDesc() const override { return m_Desc; }
@@ -23,14 +21,12 @@ namespace st::rhi::dx12
 
 		DescriptorIndex GetShaderViewIndex(BufferShaderView type) override;
 
-		void CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device);
-		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device);
-		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device);
+		void CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, size_t sizeBytes);
+		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);
+		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);
 
 		ResourceType GetResourceType() const override { return ResourceType::Buffer; }
 		NativeResource GetNativeResource() override { return m_Resource.Get(); }
-
-		const std::string& GetDebugName() override { return m_Desc.debugName; }
 
 	protected:
 

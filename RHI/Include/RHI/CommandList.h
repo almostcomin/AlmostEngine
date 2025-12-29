@@ -25,7 +25,6 @@ enum class QueueType : uint8_t
 struct CommandListParams
 {
 	QueueType queueType = QueueType::Graphics;
-	std::string debugName = "{null}";
 };
 
 union ClearValue
@@ -105,6 +104,10 @@ public:
 	virtual void EndMarker() = 0;
 
 	virtual QueueType GetType() const = 0;
+
+protected:
+	
+	ICommandList(Device* device, const std::string& debugName) : IResource{ device, debugName } {};
 };
 
 using CommandListHandle = st::weak<ICommandList>;

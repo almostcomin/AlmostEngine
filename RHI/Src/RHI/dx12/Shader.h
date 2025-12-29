@@ -9,13 +9,12 @@ class Shader : public IShader
 {
 public:
 
-	Shader(const ShaderDesc& desc, const WeakBlob& bytecode) : m_Desc{ desc }, m_Bytecode{ bytecode }
+	Shader(const ShaderDesc& desc, const WeakBlob& bytecode, Device* device, const std::string& debugName) :
+		IShader{ device, debugName }, m_Desc { desc }, m_Bytecode{ bytecode }
 	{}
 
 	const ShaderDesc& GetDesc() const override { return m_Desc; }
 	const WeakBlob& GetBytecode() const override { return m_Bytecode; }
-
-	const std::string& GetDebugName() override { return m_Desc.DebugName; }
 
 	void Release(Device* device) override {}
 

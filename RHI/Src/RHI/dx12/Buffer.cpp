@@ -3,7 +3,8 @@
 #include "RHI/dx12/Buffer.h"
 #include "RHI/dx12/GpuDevice.h"
 
-st::rhi::dx12::Buffer::Buffer(const st::rhi::BufferDesc& desc, ID3D12Resource* buffer, st::rhi::dx12::GpuDevice* device) :
+st::rhi::dx12::Buffer::Buffer(const BufferDesc& desc, ID3D12Resource* buffer, Device* device, const std::string& debugName) :
+    IBuffer{ device, debugName },
     m_Desc{ desc }, 
     m_mapAddr{ nullptr },
     m_ShaderViews{ c_InvalidDescriptorIndex, c_InvalidDescriptorIndex, c_InvalidDescriptorIndex },
@@ -15,26 +16,27 @@ st::rhi::dx12::Buffer::Buffer(const st::rhi::BufferDesc& desc, ID3D12Resource* b
         m_Resource->Map(0, nullptr, (void**)&m_mapAddr);
     }
     
+    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(device);
     if (hasFlag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
     {
-        auto descriptorHeap = device->GetShaderResourceViewHeap();
+        auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)BufferShaderView::ConstantBuffer] = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)BufferShaderView::ConstantBuffer]);
-        CreateCBV(descriptorHandle, 0, m_Desc.sizeBytes, device);
+        CreateCBV(descriptorHandle, 0, m_Desc.sizeBytes);
     }
     if (hasFlag(desc.shaderUsage, BufferShaderUsage::ShaderResource))
     {
-        auto descriptorHeap = device->GetShaderResourceViewHeap();
+        auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)BufferShaderView::ShaderResource] = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)BufferShaderView::ShaderResource]);
-        CreateSRV(descriptorHandle, m_Desc.format, 0, m_Desc.sizeBytes, device);
+        CreateSRV(descriptorHandle, m_Desc.format, 0, m_Desc.sizeBytes);
     }
     if (hasFlag(desc.shaderUsage, BufferShaderUsage::UnorderedAccess))
     {
-        auto descriptorHeap = device->GetShaderResourceViewHeap();
+        auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)BufferShaderView::UnorderedAccess] = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)BufferShaderView::UnorderedAccess]);
-        CreateUAV(descriptorHandle, m_Desc.format, 0, m_Desc.sizeBytes, device);
+        CreateUAV(descriptorHandle, m_Desc.format, 0, m_Desc.sizeBytes);
     }
 }
 
@@ -74,7 +76,7 @@ void* st::rhi::dx12::Buffer::Map(uint64_t bufferStart, [[maybe_unused]] size_t s
 #endif
     if (!m_mapAddr)
     {
-        LOG_ERROR("Trying to map a un-mappable buffer, name '{}'", m_Desc.debugName);
+        LOG_ERROR("Trying to map a un-mappable buffer, name '{}'", GetDebugName());
         return nullptr;
     }
 
@@ -91,7 +93,7 @@ st::rhi::DescriptorIndex st::rhi::dx12::Buffer::GetShaderViewIndex(BufferShaderV
     return m_ShaderViews[(int)type];
 }
 
-void st::rhi::dx12::Buffer::CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device)
+void st::rhi::dx12::Buffer::CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, size_t sizeBytes)
 {
     assert(IsAligned(offsetBytes, (uint32_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
     assert(IsAligned(sizeBytes, (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
@@ -100,11 +102,12 @@ void st::rhi::dx12::Buffer::CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, ui
     desc.BufferLocation = m_Resource->GetGPUVirtualAddress() + offsetBytes;
     desc.SizeInBytes = sizeBytes;
 
-    device->GetNativeDevice()->CreateConstantBufferView(
+    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+    gpuDevice->GetNativeDevice()->CreateConstantBufferView(
         &desc, descriptor);
 }
 
-void st::rhi::dx12::Buffer::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device)
+void st::rhi::dx12::Buffer::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = {};
     viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
@@ -141,11 +144,12 @@ void st::rhi::dx12::Buffer::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st
         viewDesc.Buffer.NumElements = std::min(sizeBytes, m_Desc.sizeBytes) / stride;
     }
 
-    device->GetNativeDevice()->CreateShaderResourceView(
+    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+    gpuDevice->GetNativeDevice()->CreateShaderResourceView(
         m_Resource.Get(), &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::Buffer::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes, GpuDevice* device)
+void st::rhi::dx12::Buffer::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes)
 {
     D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
     viewDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -176,6 +180,7 @@ void st::rhi::dx12::Buffer::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st
         viewDesc.Buffer.NumElements = std::min(sizeBytes, m_Desc.sizeBytes) / stride;
     }
 
-    device->GetNativeDevice()->CreateUnorderedAccessView(
+    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+    gpuDevice->GetNativeDevice()->CreateUnorderedAccessView(
         m_Resource.Get(), nullptr, &viewDesc, descriptor);
 }

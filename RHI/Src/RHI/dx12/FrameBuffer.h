@@ -30,9 +30,9 @@ public:
 
     ResourceType GetResourceType() const override { return ResourceType::Framebuffer; }
 
-    std::string& GetDebugName() override { return desc.DebugName; }
-
 protected:
+
+    Framebuffer(Device* device, const std::string& debugName) : IFramebuffer{ device, debugName } {};
 
     void Release(Device* device) override;
 };

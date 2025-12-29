@@ -21,7 +21,7 @@ public:
 private:
 
 	rhi::TextureHandle m_SceneColor;
-	rhi::GraphicsPipelineStateHandle m_BlitPSO;
+	rhi::GraphicsPipelineStateOwner m_BlitPSO;
 
 	void OnAttached() override;
 	void OnDetached() override;

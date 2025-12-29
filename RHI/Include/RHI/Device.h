@@ -13,18 +13,22 @@
 
 namespace st::rhi
 {
+    class IResource;
+
 	class Device
 	{
+        friend class IResource;
+
     public:
 
-        virtual ShaderHandle CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode) = 0;
-        virtual BufferHandle CreateBuffer(const BufferDesc& desc, ResourceState initialState) = 0;
-        virtual TextureHandle CreateTexture(const TextureDesc& desc, ResourceState initialState) = 0;
-        virtual TextureHandle CreateHandleForNativeTexture(void* obj, const TextureDesc& desc) = 0;
-        virtual FramebufferHandle CreateFramebuffer(const FramebufferDesc& desc) = 0;
-        virtual CommandListHandle CreateCommandList(const CommandListParams& params) = 0;
-        virtual GraphicsPipelineStateHandle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo) = 0;
-        virtual FenceHandle CreateFence(uint64_t initialVale = 0, const char* debugName = nullptr) = 0;
+        virtual ShaderOwner CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode, const std::string& debugName) = 0;
+        virtual BufferOwner CreateBuffer(const BufferDesc& desc, ResourceState initialState, const std::string& debugName) = 0;
+        virtual TextureOwner CreateTexture(const TextureDesc& desc, ResourceState initialState, const std::string& debugName) = 0;
+        virtual TextureOwner CreateHandleForNativeTexture(void* obj, const TextureDesc& desc, const std::string& debugName) = 0;
+        virtual FramebufferOwner CreateFramebuffer(const FramebufferDesc& desc, const std::string& debugName) = 0;
+        virtual CommandListOwner CreateCommandList(const CommandListParams& params, const std::string& debugName) = 0;
+        virtual GraphicsPipelineStateOwner CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo, const std::string& debugName) = 0;
+        virtual FenceOwner CreateFence(uint64_t initialVale = 0, const std::string& debugName = nullptr) = 0;
 
         virtual StorageRequirements GetStorageRequirements(const BufferDesc& desc) = 0;
         virtual StorageRequirements GetStorageRequirements(const TextureDesc& desc) = 0;
@@ -36,18 +40,14 @@ namespace st::rhi
 
 
         template<class T>
-        void ReleaseImmediately(weak<T>& handle) {
-            if (handle) {
-                ReleaseImmediatelyInternal(handle.get());
-                handle.reset();
-            }
+        void ReleaseImmediately(unique<T>& handle) {
+            if (handle)
+                ReleaseImmediatelyInternal(handle.release());
         }
         template<class T>
-        void ReleaseQueued(weak<T>& handle) {
-            if (handle) {
-                ReleaseQueuedInternal(handle.get());
-                handle.reset();
-            }
+        void ReleaseQueued(unique<T>& handle) {
+            if (handle)
+                ReleaseQueuedInternal(handle.release());
         }
 
         virtual void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal = nullptr, uint64_t value = 0) = 0;
@@ -64,8 +64,8 @@ namespace st::rhi
         virtual void ReleaseImmediatelyInternal(IResource* resource) = 0;
         virtual void ReleaseQueuedInternal(IResource* resource) = 0;
 
-        inline static auto MakeIResourceUnique(IResource* r) {
-            return st::unique<IResource>{ r, [](void* p) { Device::ResourceDeleter(static_cast<IResource*>(p)); } };
+        inline static st::unique<IResource> MakeIResourceUnique(IResource* r) {
+            return st::unique<IResource>{ r, [](void* p) { static_cast<IResource*>(p)->m_Device->ReleaseQueuedInternal(static_cast<IResource*>(p)); }};
         }
 
         inline static void ResourceDeleter(IResource* p) {

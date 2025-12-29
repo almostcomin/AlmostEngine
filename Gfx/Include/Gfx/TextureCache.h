@@ -30,6 +30,7 @@ public:
 	using LoadResult = std::expected<std::pair<std::shared_ptr<LoadedTexture>, st::SignalListener>, std::string>;
 
 	TextureCache(rhi::Device* device, st::gfx::DataUploader* dataUploader);
+	~TextureCache();
 
 	std::shared_ptr<LoadedTexture> Get(const std::string& id);
 
@@ -43,6 +44,8 @@ private:
 	LoadResult LoadInternal(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB);
 
 	std::shared_ptr<LoadedTexture> CreateHandle();
+
+	void RemoveStaleTextures();
 
 private:
 

@@ -24,15 +24,15 @@ public:
 	CommonResources(ShaderFactory* shaderFactory, rhi::Device* device);
 	~CommonResources();
 
-	rhi::GraphicsPipelineStateHandle CreateBlitPSO(const rhi::FramebufferInfo& fbInfo);
+	rhi::GraphicsPipelineStateOwner CreateBlitPSO(const rhi::FramebufferInfo& fbInfo);
 
 private:
 
 	ShaderFactory* m_ShaderFactory;
 	rhi::Device* m_Device;
 
-	rhi::ShaderHandle m_BlitVS;
-	rhi::ShaderHandle m_BlitPS;
+	rhi::ShaderOwner m_BlitVS;
+	rhi::ShaderOwner m_BlitPS;
 	rhi::GraphicsPipelineStateDesc m_BlitPSODesc;
 
 };

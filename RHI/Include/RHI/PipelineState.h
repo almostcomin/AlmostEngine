@@ -6,7 +6,7 @@
 #include "RHI/BlendState.h"
 #include "RHI/RasterizerState.h"
 #include "RHI/DepthStencilState.h"
-#include "RHI/Common.h"
+#include "RHI/TypeForwards.h"
 
 namespace st::rhi
 {
@@ -25,17 +25,14 @@ struct GraphicsPipelineStateDesc
 
     PrimitiveTopology primTopo = PrimitiveTopology::TriangleList;
     uint32_t patchControlPoints = 0;
-
-    std::string debugName = "{null}";
 };
 
 class IGraphicsPipelineState : public IResource
 {
 public:
-
     virtual const GraphicsPipelineStateDesc& GetDesc() const = 0;
+protected:
+    IGraphicsPipelineState(Device* device, const std::string& debugName) : IResource{ device, debugName } {};
 };
-
-using GraphicsPipelineStateHandle = st::weak<IGraphicsPipelineState>;
 
 } // namespace st::rhi

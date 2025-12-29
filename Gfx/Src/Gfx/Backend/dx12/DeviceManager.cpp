@@ -431,10 +431,12 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
         textureDesc.sampleQuality = m_DeviceParams.SwapChainSampleQuality;
         textureDesc.format = m_DeviceParams.SwapChainFormat;
         textureDesc.shaderUsage = rhi::TextureShaderUsage::RenderTarget;
-        textureDesc.debugName = "SwapChainBuffer";
+
+        std::stringstream ss;
+        ss << "SwapChainBackBuffer[" << n << "]";
 
         m_SwapChainBuffers[n] = m_Device->CreateHandleForNativeTexture(
-            nativeBuffer.Get(), textureDesc);
+            nativeBuffer.Get(), textureDesc, ss.str());
     }
 
     return true;

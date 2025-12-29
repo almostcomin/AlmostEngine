@@ -48,7 +48,9 @@ void st::gfx::DeviceManager::Shutdown()
 	m_ShaderFactory.reset();
 
 	for (auto& fb : m_SwapChainFramebuffers)
+	{
 		m_Device->ReleaseQueued(fb);
+	}
 	m_SwapChainFramebuffers.clear();
 
 	InternalShutdown();
@@ -61,7 +63,7 @@ void st::gfx::DeviceManager::Update()
 
 st::rhi::FramebufferHandle st::gfx::DeviceManager::GetCurrentFramebuffer()
 {
-	return m_SwapChainFramebuffers[GetCurrentBackBufferIndex()];
+	return m_SwapChainFramebuffers[GetCurrentBackBufferIndex()].get_weak();
 }
 
 bool st::gfx::DeviceManager::UpdateWindowSize()
@@ -84,7 +86,9 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 	if (int(m_BackBufferWidth) != width || int(m_BackBufferHeight) != height)
 	{
 		for (auto& fb : m_SwapChainFramebuffers)
+		{
 			m_Device->ReleaseQueued(fb);
+		}
 		m_SwapChainFramebuffers.clear();
 
 		m_BackBufferWidth = width;
@@ -97,8 +101,7 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 		for (uint32_t index = 0; index < backBufferCount; index++)
 		{
 			m_SwapChainFramebuffers[index] = m_Device->CreateFramebuffer(st::rhi::FramebufferDesc()
-				.AddColorAttachment(GetBackBuffer(index))
-				.SetDebugName(std::format("Swapchain FrameBuffer[{}]", index)));
+				.AddColorAttachment(GetBackBuffer(index)), std::format("Swapchain FrameBuffer[{}]", index));
 		}
 
 		return true;

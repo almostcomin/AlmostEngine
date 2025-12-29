@@ -63,10 +63,9 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				.sizeBytes = meshInstances.size() * sizeof(interop::InstanceData),
 				.allowUAV = false,
 				.format = rhi::Format::UNKNOWN,
-				.stride = sizeof(interop::InstanceData),
-				.debugName = "Scene InstancesBuffer" };
+				.stride = sizeof(interop::InstanceData) };
 
-			m_InstancesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST);
+			m_InstancesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene InstancesBuffer");
 
 			auto* dataUploader = m_DeviceManager->GetDataUploader();
 			auto uploadTicket = dataUploader->RequestUploadTicket(desc);
@@ -79,7 +78,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 
 				instanceDataPtr++;
 			}
-			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer, 
+			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer.get_weak(),
 				rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
 			uploadResult->Wait();
 		}
@@ -93,10 +92,9 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				.sizeBytes = meshes.size() * sizeof(interop::MeshData),
 				.allowUAV = false,
 				.format = rhi::Format::UNKNOWN,
-				.stride = sizeof(interop::MeshData),
-				.debugName = "Scene MeshesBuffer" };
+				.stride = sizeof(interop::MeshData) };
 
-			m_MeshesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST);
+			m_MeshesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene MeshesBuffer");
 
 			auto* dataUploader = m_DeviceManager->GetDataUploader();
 			auto uploadTicket = dataUploader->RequestUploadTicket(desc);
@@ -120,7 +118,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 
 				meshDataPtr++;
 			}
-			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer,
+			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer.get_weak(),
 				rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
 			uploadResult->Wait();
 		}

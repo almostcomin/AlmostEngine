@@ -16,8 +16,6 @@ struct BufferDesc
     bool allowUAV = false;
     Format format = Format::UNKNOWN; // For typed views
     uint32_t stride = 0; // set stride for structured buffer
-
-    std::string debugName = "{null}";
 };
 
 class IBuffer : public IResource
@@ -30,13 +28,9 @@ public:
     virtual void Unmap(uint64_t bufferStart = 0, size_t size = 0) = 0;
 
     virtual DescriptorIndex GetShaderViewIndex(BufferShaderView type) = 0;
-
 protected:
 
-    IBuffer() = default;
-    ~IBuffer() override = default;
+    IBuffer(Device* device, const std::string& debugName) : IResource{ device, debugName } {};
 };
-
-using BufferHandle = st::weak<IBuffer>;
 
 } // namespace st::rhi

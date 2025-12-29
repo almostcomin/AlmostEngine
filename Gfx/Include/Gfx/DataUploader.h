@@ -99,8 +99,8 @@ private: /* types */
 
 private: /* methods */
 
-	rhi::CommandListHandle GetCommandList();
-	SignalListener FinishCommandList(rhi::CommandListHandle commandList, UploadTicket&& ticket);
+	rhi::CommandListOwner GetCommandList();
+	SignalListener FinishCommandList(rhi::CommandListOwner&& commandList, UploadTicket&& ticket);
 
 	void InsertPendingTicket(UploadTicket&& ticket);
 	void OnCompletedTicket(UploadTicket&& ticket);
@@ -109,7 +109,7 @@ private: /* methods */
 
 private: /* */
 	
-	rhi::BufferHandle m_UploadBuffer;
+	rhi::BufferOwner m_UploadBuffer;
 	uint64_t m_UploadBufferHead;
 	uint64_t m_UploadBufferTail;
 	std::mutex m_UploadBufferMutex;
@@ -121,7 +121,7 @@ private: /* */
 	struct InFlightCommandListEntry
 	{
 		uint64_t CompletedIdx;
-		rhi::CommandListHandle CommandList;
+		rhi::CommandListOwner CommandList;
 		SignalEmitter Signal;
 		UploadTicket Ticket;
 	};
@@ -129,7 +129,7 @@ private: /* */
 	std::mutex m_InFlightCommandListsMutex;
 
 	uint64_t m_CommitCount;
-	rhi::FenceHandle m_CommitFence;
+	rhi::FenceOwner m_CommitFence;
 
 	std::thread m_ProcessInFlightCommandsThread;
 	std::condition_variable m_InFlightCommandListsCV;

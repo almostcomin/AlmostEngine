@@ -31,23 +31,20 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 
 		m_BlitPSODesc = rhi::GraphicsPipelineStateDesc
 		{
-			.VS = m_BlitVS,
-			.PS = m_BlitPS,
+			.VS = m_BlitVS.get_weak(),
+			.PS = m_BlitPS.get_weak(),
 			.blendState = blendState,
 			.depthStencilState = depthStencilState,
 			.rasterState = rasterState,
-			.debugName = "BlitPSO"
 		};
 	}
 }
 
 st::gfx::CommonResources::~CommonResources()
 {
-	m_Device->ReleaseImmediately(m_BlitVS);
-	m_Device->ReleaseImmediately(m_BlitPS);
 }
 
-st::rhi::GraphicsPipelineStateHandle st::gfx::CommonResources::CreateBlitPSO(const rhi::FramebufferInfo& fbInfo)
+st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateBlitPSO(const rhi::FramebufferInfo& fbInfo)
 {
-	return m_Device->CreateGraphicsPipelineState(m_BlitPSODesc, fbInfo);		
+	return m_Device->CreateGraphicsPipelineState(m_BlitPSODesc, fbInfo, "BlitPSO");
 }

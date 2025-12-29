@@ -97,9 +97,8 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 	{
 		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(m_RenderTarget.get())
-			.SetDepthAttachment(m_DepthStencil.get())
-			.SetDebugName("OpaqueRenderStage");
-		m_FB = device->CreateFramebuffer(fbDesc);
+			.SetDepthAttachment(m_DepthStencil.get());
+		m_FB = device->CreateFramebuffer(fbDesc, "OpaqueRenderStage");
 	}
 
 	// Load shaders
@@ -133,22 +132,14 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 
 		auto PSODesc = rhi::GraphicsPipelineStateDesc
 		{
-			.VS = m_VS,
-			.PS = m_PS,
+			.VS = m_VS.get_weak(),
+			.PS = m_PS.get_weak(),
 			.blendState = blendState,
 			.depthStencilState = depthStencilState,
 			.rasterState = rasterState
 		};
 
-		m_PSO = device->CreateGraphicsPipelineState(
-			rhi::GraphicsPipelineStateDesc{
-				.VS = m_VS,
-				.PS = m_PS,
-				.blendState = blendState,
-				.depthStencilState = depthStencilState,
-				.rasterState = rasterState,
-				.debugName = "OpaqueRenderStage" },
-				m_FB->GetFramebufferInfo());
+		m_PSO = device->CreateGraphicsPipelineState(PSODesc, m_FB->GetFramebufferInfo(), "OpaqueRenderStage");
 	}
 }
 
@@ -162,6 +153,4 @@ void st::gfx::OpaqueRenderStage::OnDetached()
 	m_DepthStencil = nullptr;
 
 	device->ReleaseQueued(m_PSO);
-	device->ReleaseQueued(m_VS);
-	device->ReleaseQueued(m_PS);
 }

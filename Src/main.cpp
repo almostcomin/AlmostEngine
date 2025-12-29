@@ -278,6 +278,7 @@ int SDL_main(int argc, char* argv[])
 	uiRS.reset();
 	compositeRS.reset();
 	opaqueRS.reset();
+	debugRS.reset();
 	scene.reset();
 
 	deviceManager->Shutdown();

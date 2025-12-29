@@ -39,8 +39,8 @@ namespace st::gfx
 		
 		std::map<const st::gfx::MeshInstance*, size_t> m_InstanceIndices;
 
-		rhi::BufferHandle m_InstancesBuffer;
-		rhi::BufferHandle m_MeshesBuffer;
+		rhi::BufferOwner m_InstancesBuffer;
+		rhi::BufferOwner m_MeshesBuffer;
 
 		DeviceManager* m_DeviceManager;
 	};

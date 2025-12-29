@@ -1,7 +1,11 @@
 #pragma once
 
-#include <string>
-#include "RHI/Texture.h"
+#include "Gfx/LoadedTexture.h"
+
+namespace st::rhi
+{
+	class Device;
+}
 
 namespace st::gfx
 {
@@ -18,12 +22,12 @@ public:
 	Material(rhi::Device* device, const char* name = nullptr, const char* filename = nullptr);
 	~Material();
 
-	rhi::TextureHandle SetDiffuseTexture(rhi::TextureHandle textureHandle);
-	rhi::TextureHandle GetDiffuseTexture() const { return m_DiffuseTexture; }
+	void SetDiffuseTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle);
+	rhi::TextureHandle GetDiffuseTexture() const;
 
 private:
 
-	rhi::TextureHandle m_DiffuseTexture;
+	std::shared_ptr<st::gfx::LoadedTexture> m_DiffuseTexture;
 
 	std::string m_Name;
 	std::string m_SourceFileName; // where this material originated from, e.g. GLTF file name

@@ -31,14 +31,14 @@ namespace st::rhi::dx12
 		GpuDevice(const DeviceDesc& desc);
 		~GpuDevice();
 
-		ShaderHandle CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode) override;
-		BufferHandle CreateBuffer(const BufferDesc& desc, ResourceState initialState) override;
-		TextureHandle CreateTexture(const TextureDesc& desc, ResourceState initialState) override;
-		TextureHandle CreateHandleForNativeTexture(void* obj, const TextureDesc& desc) override;
-		FramebufferHandle CreateFramebuffer(const FramebufferDesc& desc) override;
-		CommandListHandle CreateCommandList(const CommandListParams& params) override;
-		GraphicsPipelineStateHandle CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo) override;
-		FenceHandle CreateFence(uint64_t initialVale, const char* debugName) override;
+		ShaderOwner CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode, const std::string& debugName) override;
+		BufferOwner CreateBuffer(const BufferDesc& desc, ResourceState initialState, const std::string& debugName) override;
+		TextureOwner CreateTexture(const TextureDesc& desc, ResourceState initialState, const std::string& debugName) override;
+		TextureOwner CreateHandleForNativeTexture(void* obj, const TextureDesc& desc, const std::string& debugName) override;
+		FramebufferOwner CreateFramebuffer(const FramebufferDesc& desc, const std::string& debugName) override;
+		CommandListOwner CreateCommandList(const CommandListParams& params, const std::string& debugName) override;
+		GraphicsPipelineStateOwner CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo, const std::string& debugName) override;
+		FenceOwner CreateFence(uint64_t initialVale, const std::string& debugName) override;
 
 		StorageRequirements GetStorageRequirements(const BufferDesc& desc) override;
 		StorageRequirements GetStorageRequirements(const TextureDesc& desc) override;
@@ -76,11 +76,14 @@ namespace st::rhi::dx12
 		D3D12_RESOURCE_DESC BuildD3d12Desc(const TextureDesc& desc);
 
 		template<class T>
-		st::weak<T> InsertNewResource(T* p)
+		st::unique<T> InsertNewResource(T* p)
 		{
+			static_assert(std::is_base_of_v<IResource, T>);
+
 			std::scoped_lock lock{ m_LivingResourcesMutex };
-			auto insertResult = m_LivingResources.insert(std::move(MakeIResourceUnique(checked_cast<IResource*>(p))));
-			return st::static_pointer_cast<T>(insertResult.first->get_weak());
+			st::unique<IResource> handle = MakeIResourceUnique(p);
+			auto insertResult = m_LivingResources.insert(handle.get());
+			return st::adopt_unique<T>(std::move(handle));
 		}
 
 	private:
@@ -115,7 +118,7 @@ namespace st::rhi::dx12
 		ComPtr<ID3D12RootSignature> m_BindlessRootSignature;
 
 		std::mutex m_LivingResourcesMutex;
-		std::unordered_set<st::unique<IResource>, ResourcePtrHash, ResourcePtrEqual> m_LivingResources;
+		std::unordered_set<IResource*/*, ResourcePtrHash, ResourcePtrEqual*/> m_LivingResources;
 
 		std::mutex m_StaleResourcesMutex;
 		std::vector<std::vector<IResource*>> m_StaleResources;

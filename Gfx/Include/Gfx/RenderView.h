@@ -70,14 +70,14 @@ private:
 
 	struct DeclaredTexture
 	{
-		rhi::TextureHandle texture;
+		rhi::TextureOwner texture;
 		std::string id;
 		bool isDepthStencil;
 	};
 
 	struct RenderPassTextureDep
 	{
-		DeclaredTexture declTex;
+		DeclaredTexture* declTex;
 		AccessMode accessMode;
 		rhi::ResourceState inputState;
 		rhi::ResourceState outputState;
@@ -95,11 +95,11 @@ private:
 	std::shared_ptr<Camera> m_Camera;
 
 	st::rhi::FramebufferHandle m_OffscreenFramebuffer;
-	std::vector<st::rhi::CommandListHandle> m_CommandLists;
+	std::vector<st::rhi::CommandListOwner> m_CommandLists;
 
-	std::map<std::string, DeclaredTexture> m_DeclaredTextures;
+	std::map<std::string, std::unique_ptr<DeclaredTexture>> m_DeclaredTextures;
 
-	st::rhi::BufferHandle m_SceneCB;
+	st::rhi::BufferOwner m_SceneCB;
 
 	std::vector<RenderPassDeps> m_RenderStages;
 

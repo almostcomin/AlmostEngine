@@ -50,8 +50,6 @@ namespace st::rhi
         float4 clearValue;
         bool useClearValue = false;
 
-        std::string debugName = "{null}";
-
         constexpr TextureDesc& setWidth(uint32_t value) { width = value; return *this; }
         constexpr TextureDesc& setHeight(uint32_t value) { height = value; return *this; }
         constexpr TextureDesc& setDepth(uint32_t value) { depth = value; return *this; }
@@ -61,7 +59,6 @@ namespace st::rhi
         constexpr TextureDesc& setSampleQuality(uint32_t value) { sampleQuality = value; return *this; }
         constexpr TextureDesc& setFormat(Format value) { format = value; return *this; }
         constexpr TextureDesc& setDimension(TextureDimension value) { dimension = value; return *this; }
-        TextureDesc& setDebugName(const std::string& value) { debugName = value; return *this; }
         constexpr TextureDesc& setShaderUsage(TextureShaderUsage value) { shaderUsage = value; return *this; }
         constexpr TextureDesc& setIsTypeless(bool value) { isTypeless = value; return *this; }
         constexpr TextureDesc& setIsVirtual(bool value) { isVirtual = value; return *this; }
@@ -118,9 +115,10 @@ namespace st::rhi
     public:
 
 		virtual const TextureDesc& GetDesc() const = 0;
-
         virtual DescriptorIndex GetShaderViewIndex(TextureShaderView type) = 0;
-	};
 
-	using TextureHandle = st::weak<ITexture>;
+    protected:
+
+        ITexture(Device* device, const std::string& debugName) : IResource(device, debugName) {};
+	};
 }

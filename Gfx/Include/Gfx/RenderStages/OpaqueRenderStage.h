@@ -34,13 +34,13 @@ private:
 
 private:
 
-	st::rhi::ShaderHandle m_VS;
-	st::rhi::ShaderHandle m_PS;
-	st::rhi::GraphicsPipelineStateHandle m_PSO;
+	st::rhi::ShaderOwner m_VS;
+	st::rhi::ShaderOwner m_PS;
+	st::rhi::GraphicsPipelineStateOwner m_PSO;
 
 	st::rhi::TextureHandle m_RenderTarget;
 	st::rhi::TextureHandle m_DepthStencil;
-	st::rhi::FramebufferHandle m_FB;
+	st::rhi::FramebufferOwner m_FB;
 };
 
 } // namespace st::gfx

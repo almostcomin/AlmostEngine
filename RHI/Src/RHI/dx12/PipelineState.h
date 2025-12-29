@@ -11,7 +11,9 @@ namespace st::rhi::dx12
 	{
 	public:
 
-		GraphicsPipelineState(ComPtr<ID3D12PipelineState> pso, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& d3d12Desc, const GraphicsPipelineStateDesc& desc) :
+		GraphicsPipelineState(ComPtr<ID3D12PipelineState> pso, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& d3d12Desc, const GraphicsPipelineStateDesc& desc,
+							  Device* device, const std::string& debugName) :
+			IGraphicsPipelineState{ device, debugName },
 			m_PSO{ pso },
 			m_D3d12Desc{ d3d12Desc },
 			m_Desc{ desc }
@@ -22,7 +24,6 @@ namespace st::rhi::dx12
 
 		ResourceType GetResourceType() const override { return ResourceType::GraphicsPipelineState; }
 		NativeResource GetNativeResource() override { return m_PSO.Get(); }
-		const std::string& GetDebugName() override { return m_Desc.debugName; }
 
 	private:
 

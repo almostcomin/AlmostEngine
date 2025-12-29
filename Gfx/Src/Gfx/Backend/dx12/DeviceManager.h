@@ -53,7 +53,7 @@ private:
 	DXGI_SWAP_CHAIN_DESC1			m_SwapChainDesc;
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC	m_FullScreenDesc;
 	bool							m_TearingSupported;
-	std::vector<st::rhi::TextureHandle> m_SwapChainBuffers;
+	std::vector<st::rhi::TextureOwner> m_SwapChainBuffers;
 
 	ComPtr<ID3D12Fence>				m_FrameFence;
 	std::vector<HANDLE>				m_FrameFenceEvents;

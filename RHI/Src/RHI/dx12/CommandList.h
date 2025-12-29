@@ -9,20 +9,17 @@
 
 namespace st::rhi::dx12
 {
-	class GpuDevice;
-
 	class CommandList : public ICommandList
 	{
 	public:
 
 		using NativeCommandListType = ID3D12GraphicsCommandList4;
 
-		CommandList(NativeCommandListType* d3d12CommandList, ID3D12CommandAllocator* commandAllocator, QueueType type, GpuDevice* device, std::string debugName) :
+		CommandList(NativeCommandListType* d3d12CommandList, ID3D12CommandAllocator* commandAllocator, QueueType type, Device* device, const std::string& debugName) :
+			ICommandList(device, debugName),
 			m_D3d12Commandlist{ d3d12CommandList },
 			m_D3d12CommandAllocator{ commandAllocator },
-			m_Type{ type },
-			m_Device{ device },
-			m_DebugName{ debugName }
+			m_Type{ type }
 		{}
 
 		void Open() override;
@@ -60,7 +57,6 @@ namespace st::rhi::dx12
 
 		ResourceType GetResourceType() const override { return ResourceType::CommandList; }
 		NativeResource GetNativeResource() override { return m_D3d12Commandlist.Get(); }
-		const std::string& GetDebugName() override { return m_DebugName; }
 
 	private:
 
@@ -73,8 +69,5 @@ namespace st::rhi::dx12
 
 		st::rhi::GraphicsPipelineStateHandle m_CurrentPSO;
 		st::rhi::FramebufferHandle m_CurrentFB;
-
-		std::string m_DebugName;
-		GpuDevice* m_Device;
 	};
 }

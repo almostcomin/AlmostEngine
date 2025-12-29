@@ -9,7 +9,7 @@ namespace st::rhi::dx12
 	{
 	public:
 
-		Fence(ID3D12Fence* fence, const char* debugName) : m_D3d12Fence{ fence }, m_DebugName{ debugName }
+		Fence(ID3D12Fence* fence, Device* device, const std::string& debugName) : IFence(device, debugName), m_D3d12Fence{ fence }
 		{}
 
 		uint64_t GetCompletedValue() override { return m_D3d12Fence->GetCompletedValue(); }
@@ -20,9 +20,7 @@ namespace st::rhi::dx12
 	private:
 
 		void Release(Device* device) override { m_D3d12Fence.Reset(); }
-		const std::string& GetDebugName() override { return m_DebugName; }
 
 		ComPtr<ID3D12Fence> m_D3d12Fence;
-		std::string m_DebugName;
 	};
 }

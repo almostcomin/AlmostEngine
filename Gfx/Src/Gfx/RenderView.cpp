@@ -14,7 +14,7 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 	};
 	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
 	{
-		m_CommandLists.push_back(m_DeviceManager->GetDevice()->CreateCommandList(params));
+		m_CommandLists.push_back(m_DeviceManager->GetDevice()->CreateCommandList(params, m_DebugName));
 	}
 }
 
@@ -67,7 +67,7 @@ st::rhi::TextureHandle st::gfx::RenderView::GetBackBuffer(int idx)
 
 st::rhi::CommandListHandle st::gfx::RenderView::GetCommandList()
 {
-	return m_CommandLists[m_DeviceManager->GetFrameModuleIndex()];
+	return m_CommandLists[m_DeviceManager->GetFrameModuleIndex()].get_weak();
 }
 
 st::rhi::DescriptorIndex st::gfx::RenderView::GetSceneBufferDI()
@@ -94,11 +94,10 @@ bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int heigh
 		.width = (uint32_t)width,
 		.height = (uint32_t)height,
 		.format = format,
-		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::RenderTarget,
-		.debugName = id };
+		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::RenderTarget };
 
-	rhi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::RENDERTARGET);
-	m_DeclaredTextures.insert({ id, { texture, id, false } });
+	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, id);
+	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, false) });
 
 	return true;
 }
@@ -122,12 +121,11 @@ bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int heigh
 		.width = (uint32_t)width,
 		.height = (uint32_t)height,
 		.format = format,
-		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::DepthStencil,
-		.debugName = id };
+		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::DepthStencil };
 
 	// Created in common state
-	rhi::TextureHandle texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::DEPTHSTENCIL);
-	m_DeclaredTextures.insert({ id, { texture, id, true } });
+	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::DEPTHSTENCIL, id);
+	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, true) });
 
 	return true;
 }
@@ -153,7 +151,7 @@ bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode acces
 		return false;
 	}
 
-	rp_it->textureDeps.emplace_back(texture_it->second, accessMode, inputState, outputState);
+	rp_it->textureDeps.emplace_back(texture_it->second.get(), accessMode, inputState, outputState);
 
 	return true;
 }
@@ -166,7 +164,7 @@ st::rhi::TextureHandle st::gfx::RenderView::GetTexture(const char* id) const
 		LOG_ERROR("Texture with id {} not created", id);
 		return nullptr;
 	}
-	return texture_it->second.texture;
+	return texture_it->second->texture.get_weak();
 }
 
 void st::gfx::RenderView::Render()
@@ -193,7 +191,7 @@ void st::gfx::RenderView::Render()
 		std::map<std::string, rhi::ResourceState> resourcesStates;
 		for (auto& entry : m_DeclaredTextures)
 		{
-			resourcesStates.emplace(entry.first, entry.second.isDepthStencil ? 
+			resourcesStates.emplace(entry.first, entry.second->isDepthStencil ? 
 				rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET);
 		}
 
@@ -205,12 +203,12 @@ void st::gfx::RenderView::Render()
 
 			for (const auto& dep : renderPass.textureDeps)
 			{
-				auto state_it = resourcesStates.find(dep.declTex.id);
+				auto state_it = resourcesStates.find(dep.declTex->id);
 				assert(state_it != resourcesStates.end());
 				if (state_it->second != dep.inputState)
 				{
 					commandList->PushBarrier(rhi::Barrier::Texture(
-						dep.declTex.texture.get(), state_it->second, dep.inputState));
+						dep.declTex->texture.get(), state_it->second, dep.inputState));
 					state_it->second = dep.inputState;
 				}
 			}
@@ -224,7 +222,7 @@ void st::gfx::RenderView::Render()
 			// Update the resource states with the state left by the stages
 			for (const auto& dep : renderPass.textureDeps)
 			{
-				auto state_it = resourcesStates.find(dep.declTex.id);
+				auto state_it = resourcesStates.find(dep.declTex->id);
 				assert(state_it != resourcesStates.end());
 				if (state_it->second != dep.outputState)
 				{
@@ -236,11 +234,11 @@ void st::gfx::RenderView::Render()
 		// All the resources need to go back to it initial state
 		for (auto& tex : m_DeclaredTextures)
 		{
-			rhi::ResourceState initialState = tex.second.isDepthStencil ? rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET;
+			rhi::ResourceState initialState = tex.second->isDepthStencil ? rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET;
 			rhi::ResourceState currentState = resourcesStates.find(tex.first)->second;
 			if (initialState != currentState)
 			{
-				commandList->PushBarrier(rhi::Barrier::Texture(tex.second.texture.get(), currentState, initialState));
+				commandList->PushBarrier(rhi::Barrier::Texture(tex.second->texture.get(), currentState, initialState));
 			}
 			
 		}
@@ -273,9 +271,9 @@ void st::gfx::RenderView::CleanRenderPasses()
 	}
 	m_RenderStages.clear();
 
-	for (auto dt : m_DeclaredTextures)
+	for (auto& dt : m_DeclaredTextures)
 	{
-		m_DeviceManager->GetDevice()->ReleaseQueued(dt.second.texture);
+		m_DeviceManager->GetDevice()->ReleaseQueued(dt.second->texture);
 	}
 	m_DeclaredTextures.clear();
 }
@@ -291,7 +289,7 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 			.allowUAV = false,
 			.stride = 0 };
 
-		m_SceneCB = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE);
+		m_SceneCB = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, "Scene CB");
 	}
 
 	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();

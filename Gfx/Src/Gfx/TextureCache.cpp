@@ -23,15 +23,14 @@ st::rhi::TextureDesc TexInfoToTexDesc(const st::gfx::TextureInfo& texInfo)
         .sampleQuality = 0,
         .format = texInfo.format,
         .dimension = texInfo.dimension,
-        .shaderUsage = st::rhi::TextureShaderUsage::ShaderResource,
-        .debugName = texInfo.debugName
+        .shaderUsage = st::rhi::TextureShaderUsage::ShaderResource
     };
 }
 
-st::rhi::TextureHandle CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, st::rhi::Device* device)
+st::rhi::TextureOwner CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, st::rhi::Device* device)
 {
     st::rhi::TextureDesc desc = TexInfoToTexDesc(texInfo);
-    return device->CreateTexture(desc, st::rhi::ResourceState::COPY_DST);
+    return device->CreateTexture(desc, st::rhi::ResourceState::COPY_DST, texInfo.debugName);
 }
 
 } // anonymous namespace
@@ -39,6 +38,14 @@ st::rhi::TextureHandle CreateTextureFromTexInfo(const st::gfx::TextureInfo& texI
 st::gfx::TextureCache::TextureCache(rhi::Device* device, st::gfx::DataUploader* dataUploader) :
     m_Device{ device }, m_DataUploader{ dataUploader }
 {}
+
+st::gfx::TextureCache::~TextureCache()
+{
+    RemoveStaleTextures();
+    assert(m_Textures.empty());
+    assert(m_StaleTextures.empty());
+    assert(m_InFlightTextures.empty());
+}
 
 std::shared_ptr<st::gfx::LoadedTexture> st::gfx::TextureCache::Get(const std::string& id)
 {
@@ -121,20 +128,7 @@ void st::gfx::TextureCache::Update()
         }
     }
 
-    // Check stale textures
-    {
-        std::scoped_lock lockStale{ m_StaleMapMutex };
-        std::scoped_lock lockMaps{ m_MapMutex };
-
-        for (const std::string& path : m_StaleTextures)
-        {
-            // Should exists in textures map
-            auto tex_it = m_Textures.find(path);
-            assert(tex_it != m_Textures.end());
-            m_Textures.erase(tex_it);
-        }
-        m_StaleTextures.clear();
-    }
+    RemoveStaleTextures();
 }
 
 st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB)
@@ -155,14 +149,14 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
 
     TextureInfo& texInfo = loadResult->first;
     texInfo.debugName = id;
-    rhi::TextureHandle texture = CreateTextureFromTexInfo(texInfo, m_Device);
+    rhi::TextureOwner texture = CreateTextureFromTexInfo(texInfo, m_Device);
     if (!texture)
     {
         return std::unexpected(std::format("Failed creating texture {}.", id));
     }
 
     auto uploadResult = m_DataUploader->UploadTextureData(
-        WeakBlob{ loadResult->second }, texture, rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE, rhi::AllSubresources, texInfo.debugName.c_str());
+        WeakBlob{ loadResult->second }, texture.get_weak(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE, rhi::AllSubresources, texInfo.debugName.c_str());
     if (!uploadResult)
     {
         return std::unexpected(std::move(uploadResult.error()));
@@ -170,7 +164,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
 
     std::shared_ptr<LoadedTexture> handle;
     handle = CreateHandle();
-    handle->texture = texture;
+    handle->texture = std::move(texture);
     handle->id = id;
     handle->state = LoadedTexture::Loading;
 
@@ -194,5 +188,21 @@ std::shared_ptr<st::gfx::LoadedTexture> st::gfx::TextureCache::CreateHandle()
     return std::shared_ptr<LoadedTexture>{ new LoadedTexture, [this](LoadedTexture* h) {
         std::scoped_lock lock{ m_StaleMapMutex };
         m_StaleTextures.push_back(std::move(h->id));
+        delete h;
     } };
+}
+
+void st::gfx::TextureCache::RemoveStaleTextures()
+{
+    std::scoped_lock lockStale{ m_StaleMapMutex };
+    std::scoped_lock lockMaps{ m_MapMutex };
+
+    for (const std::string& path : m_StaleTextures)
+    {
+        // Should exists in textures map
+        auto tex_it = m_Textures.find(path);
+        assert(tex_it != m_Textures.end());
+        m_Textures.erase(tex_it);
+    }
+    m_StaleTextures.clear();
 }

@@ -15,15 +15,15 @@ st::gfx::Mesh::~Mesh()
 	m_Device->ReleaseQueued(m_VertexBuffer);
 }
 
-void st::gfx::Mesh::SetIndexBuffer(rhi::BufferHandle indexBuffer, rhi::PrimitiveTopology topo)
+void st::gfx::Mesh::SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo)
 {
-	m_IndexBuffer = indexBuffer;
+	m_IndexBuffer = std::move(indexBuffer);
 	m_PrimitiveTopo = topo;
 }
 
-void st::gfx::Mesh::SetVertexBuffer(rhi::BufferHandle vertexBuffer, const VertexStride& stride)
+void st::gfx::Mesh::SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexStride& stride)
 { 
-	m_VertexBuffer = vertexBuffer; 
+	m_VertexBuffer = std::move(vertexBuffer);
 	m_VertexStride = stride;
 }
 

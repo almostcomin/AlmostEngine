@@ -125,11 +125,19 @@ class unique
     template <typename U>
     friend class unique;
 
+    template<class T, class U>
+    friend st::unique<T> adopt_unique(st::unique<U>&& r) noexcept;
+
 public:
 
     using Deleter = std::function<void(void*)>;
 
     unique() :
+        obj{ nullptr, [](void* ptr) { delete static_cast<T*>(ptr); } },
+        flag{}
+    {}
+
+    unique(std::nullptr_t) :
         obj{ nullptr, [](void* ptr) { delete static_cast<T*>(ptr); } },
         flag{}
     {}
@@ -232,7 +240,11 @@ public:
         flag = std::make_shared<int>(0);
     }
 
-    weak<T> get_weak() const { return weak<T>{obj.get(), flag}; }
+    weak<T> get_weak() const 
+    { 
+        weak<T> ret{ obj.get(), flag };
+        return ret;
+    }
 
 private:
 
@@ -262,7 +274,7 @@ unique<T> make_unique_with_weak(Args&&... args)
 template<class T, class U>
 st::weak<T> static_pointer_cast(const st::weak<U>& r) noexcept
 {
-    static_assert(!std::is_same<T, U>::value, "Redundant checked_pointer_cast");
+    static_assert(!std::is_same<T, U>::value, "Redundant static_pointer_cast");
     auto* p = static_cast<T*>(r.get());
     return st::weak<T>{ p, r.flag };
 }
@@ -292,6 +304,21 @@ st::weak<T> checked_pointer_cast(const st::weak<U>& r) noexcept
 #else
     return static_pointer_cast<T>(u);
 #endif
+}
+
+template<class T, class U>
+st::unique<T> adopt_unique(st::unique<U>&& r) noexcept
+{
+    static_assert(std::is_base_of_v<U, T> || std::is_base_of_v<T, U>,
+        "adopt_unique requires related types");
+
+    st::unique<T> ret;
+    ret.obj = decltype(ret.obj)(
+        static_cast<T*>(r.obj.release()),
+        std::move(r.obj.get_deleter()));
+    ret.flag = std::move(r.flag);
+
+    return ret;
 }
 
 } // namespace st

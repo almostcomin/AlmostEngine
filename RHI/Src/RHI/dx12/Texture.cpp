@@ -3,22 +3,23 @@
 #include "RHI/dx12/Texture.h"
 #include "RHI/dx12/GpuDevice.h"
 
-st::rhi::dx12::Texture::Texture(const st::rhi::TextureDesc& desc, ComPtr<ID3D12Resource> resource, GpuDevice* device)
-	: m_Desc{ desc }
+st::rhi::dx12::Texture::Texture(const st::rhi::TextureDesc& desc, ComPtr<ID3D12Resource> resource, Device* device, const std::string& debugName)
+    : ITexture{ device, debugName }
+    , m_Desc{ desc }
 	, m_D3d12Resource{ resource }
     , m_ShaderViews{ c_InvalidDescriptorIndex, c_InvalidDescriptorIndex, c_InvalidDescriptorIndex, c_InvalidDescriptorIndex }
-    , m_Device{ device }
 {
+    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(device);
     if (hasFlag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
     {
-        auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
+        auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)TextureShaderView::ShaderResource] = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)TextureShaderView::ShaderResource]);
         CreateSRV(descriptorHandle, desc.format, desc.dimension, AllSubresources);
     }
     if (hasFlag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
     {
-        auto descriptorHeap = m_Device->GetShaderResourceViewHeap();
+        auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)TextureShaderView::UnorderedAcces] = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)TextureShaderView::UnorderedAcces]);
         CreateUAV(descriptorHandle, desc.format, desc.dimension, AllSubresources);
@@ -35,7 +36,7 @@ st::rhi::DescriptorIndex st::rhi::dx12::Texture::GetShaderViewIndex(TextureShade
     return m_ShaderViews[(int)type];
 }
 
-void st::rhi::dx12::Texture::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources) const
+void st::rhi::dx12::Texture::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources)
 {
     subresources.Resolve(m_Desc);
 
@@ -108,10 +109,11 @@ void st::rhi::dx12::Texture::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, F
         return;
     }
 
-    m_Device->GetNativeDevice()->CreateShaderResourceView(m_D3d12Resource.Get(), &viewDesc, descriptor);
+    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+    gpuDevice->GetNativeDevice()->CreateShaderResourceView(m_D3d12Resource.Get(), &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::Texture::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources) const
+void st::rhi::dx12::Texture::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources)
 {
     subresources.Resolve(m_Desc);
 
@@ -163,10 +165,11 @@ void st::rhi::dx12::Texture::CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, F
         return;
     }
 
-    m_Device->GetNativeDevice()->CreateUnorderedAccessView(m_D3d12Resource.Get(), nullptr, &viewDesc, descriptor);
+    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+    gpuDevice->GetNativeDevice()->CreateUnorderedAccessView(m_D3d12Resource.Get(), nullptr, &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::Texture::CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources) const
+void st::rhi::dx12::Texture::CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources)
 {
     subresources.Resolve(m_Desc);
 
@@ -218,10 +221,11 @@ void st::rhi::dx12::Texture::CreateRTV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, F
         return;
     }
 
-    m_Device->GetNativeDevice()->CreateRenderTargetView(m_D3d12Resource.Get(), &viewDesc, descriptor);
+    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+    gpuDevice->GetNativeDevice()->CreateRenderTargetView(m_D3d12Resource.Get(), &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::Texture::CreateDSV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly) const
+void st::rhi::dx12::Texture::CreateDSV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly)
 {
     subresources.Resolve(m_Desc);
 
@@ -278,7 +282,8 @@ void st::rhi::dx12::Texture::CreateDSV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, T
         return;
     }
 
-    m_Device->GetNativeDevice()->CreateDepthStencilView(m_D3d12Resource.Get(), &viewDesc, descriptor);
+    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+    gpuDevice->GetNativeDevice()->CreateDepthStencilView(m_D3d12Resource.Get(), &viewDesc, descriptor);
 }
 
 void st::rhi::dx12::Texture::Release(Device* device)

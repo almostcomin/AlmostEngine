@@ -66,13 +66,13 @@ void st::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
     ImGui::TextUnformatted(text);
 }
 
-st::rhi::BufferHandle& st::gfx::ImGuiRenderStage::GetCurrentVB()
+st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentVB()
 {
     uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
     return m_VertexBuffer[currentFrameIdx % 3];
 }
 
-st::rhi::BufferHandle& st::gfx::ImGuiRenderStage::GetCurrentIB()
+st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentIB()
 {
     uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
     return m_IndexBuffer[currentFrameIdx % 3];
@@ -267,8 +267,8 @@ bool st::gfx::ImGuiRenderStage::Init()
 
         m_BasePSODesc = rhi::GraphicsPipelineStateDesc
         {
-            .VS = m_VS,
-            .PS = m_PS,
+            .VS = m_VS.get_weak(),
+            .PS = m_PS.get_weak(),
             .blendState = blendState,
             .depthStencilState = depthStencilState,
             .rasterState = rasterState
@@ -293,8 +293,6 @@ void st::gfx::ImGuiRenderStage::Release()
         device->ReleaseQueued(m_VertexBuffer[i]);
         device->ReleaseQueued(m_IndexBuffer[i]);
     }
-    device->ReleaseQueued(m_VS);
-    device->ReleaseQueued(m_PS);
 }
 
 bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
@@ -319,17 +317,16 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
     textureDesc.width = width;
     textureDesc.height = height;
     textureDesc.format = rhi::Format::RGBA8_UNORM;
-    textureDesc.debugName = "ImGuiFontTexture";
     textureDesc.shaderUsage = rhi::TextureShaderUsage::ShaderResource;
-    m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rhi::ResourceState::COPY_DST);
+    m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rhi::ResourceState::COPY_DST, "ImGuiFontTexture");
     if (!m_FontTexture)
         return false;
     
-    rhi::BufferHandle textureUploadBuffer = device->CreateBuffer(rhi::BufferDesc{
+    rhi::BufferOwner textureUploadBuffer = device->CreateBuffer(rhi::BufferDesc{
         .memoryAccess = rhi::MemoryAccess::Upload,
         .shaderUsage = rhi::BufferShaderUsage::None,
-        .sizeBytes = (size_t)width * height * 4,
-        .debugName = "ImGui TextureUploadBuffer" }, rhi::ResourceState::COMMON);
+        .sizeBytes = (size_t)width * height * 4 }, 
+        rhi::ResourceState::COMMON, "ImGui TextureUploadBuffer");
     
     void* uploadData = textureUploadBuffer->Map();
     std::memcpy(uploadData, pixels, width * height * 4);
@@ -339,8 +336,6 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
     m_RenderView->GetCommandList()->PushBarrier(
         rhi::Barrier::Texture(m_FontTexture.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 
-    device->ReleaseQueued(textureUploadBuffer);
-
     io.Fonts->TexRef = m_FontTexture.get();
 
     return true;
@@ -348,8 +343,8 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
 
 bool st::gfx::ImGuiRenderStage::UpdateGeometry()
 {
-    rhi::BufferHandle& currentVB = GetCurrentVB();
-    rhi::BufferHandle& currentIB = GetCurrentIB();
+    rhi::BufferOwner& currentVB = GetCurrentVB();
+    rhi::BufferOwner& currentIB = GetCurrentIB();
 
     const ImDrawData* drawData = ImGui::GetDrawData();
 
@@ -390,11 +385,11 @@ bool st::gfx::ImGuiRenderStage::UpdateGeometry()
     return true;
 }
 
-bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferHandle& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
+bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 
-    if (buffer == nullptr || size_t(buffer->GetDesc().sizeBytes) < requiredSize)
+    if (!buffer || size_t(buffer->GetDesc().sizeBytes) < requiredSize)
     {
         rhi::BufferDesc desc;
         desc.memoryAccess = rhi::MemoryAccess::Upload;
@@ -410,9 +405,9 @@ bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferHandle& buffer, size
         {
             desc.stride = sizeof(ImDrawVert);
         }
-        desc.debugName = indexBuffer ? "ImGui index buffer" : "ImGui vertex buffer";
 
-        buffer = deviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE);
+        buffer = deviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, 
+            indexBuffer ? "ImGui index buffer" : "ImGui vertex buffer");
         if (!buffer)
             return false;
     }
@@ -425,8 +420,8 @@ st::rhi::GraphicsPipelineStateHandle st::gfx::ImGuiRenderStage::GetPSO(rhi::IFra
 
     if (!m_PSO)
     {
-        m_PSO = deviceManager->GetDevice()->CreateGraphicsPipelineState(m_BasePSODesc, frameBuffer->GetFramebufferInfo());
+        m_PSO = deviceManager->GetDevice()->CreateGraphicsPipelineState(m_BasePSODesc, frameBuffer->GetFramebufferInfo(), "ImGui PSO");
         assert(m_PSO);
     }
-    return m_PSO;
+    return m_PSO.get_weak();
 }

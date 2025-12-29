@@ -8,7 +8,7 @@ st::gfx::ShaderFactory::ShaderFactory(st::rhi::Device* device) : m_Device(device
 {
 }
 
-st::rhi::ShaderHandle st::gfx::ShaderFactory::LoadShader(const char* filename, st::rhi::ShaderType shaderType)
+st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const char* filename, st::rhi::ShaderType shaderType)
 {
 	st::WeakBlob cachedBytecode;
 
@@ -79,7 +79,7 @@ st::rhi::ShaderHandle st::gfx::ShaderFactory::LoadShader(const char* filename, s
 			.EntryPoint = "main"
 		};
 
-		return m_Device->CreateShader(shaderDesc, cachedBytecode);
+		return m_Device->CreateShader(shaderDesc, cachedBytecode, filename);
 	}
 	else
 	{

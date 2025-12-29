@@ -131,7 +131,7 @@ protected:
     DeviceParams m_DeviceParams;
 
     uint64_t m_FrameCount = 1;
-    std::vector<st::rhi::FramebufferHandle> m_SwapChainFramebuffers;
+    std::vector<st::rhi::FramebufferOwner> m_SwapChainFramebuffers;
 
     uint32_t m_BackBufferWidth = 0;
     uint32_t m_BackBufferHeight = 0;

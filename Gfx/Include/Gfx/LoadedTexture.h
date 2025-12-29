@@ -18,13 +18,17 @@ public:
 		Ready
 	};
 
-	rhi::TextureHandle texture;
+	rhi::TextureOwner texture;
 	std::string id;
 	State state = State::Unloaded;
 
 private:
 
 	LoadedTexture() = default;
+	~LoadedTexture()
+	{
+		texture.reset();
+	}
 };
 
 } // namespace st::gfx

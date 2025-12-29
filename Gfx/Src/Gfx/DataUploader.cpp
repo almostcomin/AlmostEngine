@@ -15,9 +15,8 @@ st::gfx::DataUploader::DataUploader(rhi::Device* device) :
 	m_UploadBuffer = m_Device->CreateBuffer(rhi::BufferDesc{
 		.memoryAccess = rhi::MemoryAccess::Upload,
 		.shaderUsage = rhi::BufferShaderUsage::None,
-		.sizeBytes = c_UploadBufferSize,
-		.debugName = "UploadBuffer"
-	}, rhi::ResourceState::COMMON);
+		.sizeBytes = c_UploadBufferSize
+	}, rhi::ResourceState::COMMON, "UploadBuffer");
 
 	m_CommitFence = m_Device->CreateFence(0, "DataUploader fence");
 
@@ -147,7 +146,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 	if (opt_gpuMarker)
 		commandList->EndMarker();
 
-	return FinishCommandList(commandList, std::move(ticket));
+	return FinishCommandList(std::move(commandList), std::move(ticket));
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadTextureTicket(UploadTicket&& ticket, rhi::TextureHandle dstTexture,
@@ -221,7 +220,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 	if (opt_gpuMarker)
 		commandList->EndMarker();
 
-	return FinishCommandList(commandList, std::move(ticket));
+	return FinishCommandList(std::move(commandList), std::move(ticket));
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBufferData(
@@ -288,19 +287,18 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 	return *uploadResult;
 }
 
-st::rhi::CommandListHandle st::gfx::DataUploader::GetCommandList()
+st::rhi::CommandListOwner st::gfx::DataUploader::GetCommandList()
 {
 	rhi::CommandListParams params{
-		.queueType = rhi::QueueType::Graphics,
-		.debugName = "DataUploader CommandList"
+		.queueType = rhi::QueueType::Graphics
 	};
-	auto commandList = m_Device->CreateCommandList(params);
+	auto commandList = m_Device->CreateCommandList(params, "DataUploader CommandList");
 	commandList->Open();
 
 	return commandList;
 }
 
-st::SignalListener st::gfx::DataUploader::FinishCommandList(rhi::CommandListHandle commandList, UploadTicket&& ticket)
+st::SignalListener st::gfx::DataUploader::FinishCommandList(rhi::CommandListOwner&& commandList, UploadTicket&& ticket)
 {
 	commandList->Close();
 
@@ -311,7 +309,7 @@ st::SignalListener st::gfx::DataUploader::FinishCommandList(rhi::CommandListHand
 		m_Device->ExecuteCommandList(commandList.get(), rhi::QueueType::Graphics, m_CommitFence.get(), m_CommitCount);
 
 		m_InFlightCommandLists.Push(InFlightCommandListEntry{
-			m_CommitCount, commandList, {}, std::move(ticket) });
+			m_CommitCount, std::move(commandList), {}, std::move(ticket) });
 
 		signal = m_InFlightCommandLists.Back().Signal.GetListener();
 		++m_CommitCount;
@@ -364,9 +362,6 @@ void st::gfx::DataUploader::AsyncUpdate()
 
 		while (!m_InFlightCommandLists.Empty())
 		{
-			//std::vector<SignalEmitter> toSignal;
-			//std::vector<rhi::CommandListHandle> commandLists;
-
 			std::vector<InFlightCommandListEntry> completedOnes;
 			completedOnes.reserve(m_InFlightCommandLists.Size());
 

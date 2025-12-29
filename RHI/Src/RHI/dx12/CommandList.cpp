@@ -34,9 +34,10 @@ void st::rhi::dx12::CommandList::Open()
 	m_D3d12CommandAllocator->Reset();
 	m_D3d12Commandlist->Reset(m_D3d12CommandAllocator.Get(), nullptr);
 
+	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
 	ID3D12DescriptorHeap* heaps[] = {
-		m_Device->GetShaderResourceViewHeap()->GetHeap(),
-		m_Device->GetSamperHeap()->GetHeap()
+		gpuDevice->GetShaderResourceViewHeap()->GetHeap(),
+		gpuDevice->GetSamperHeap()->GetHeap()
 	};
 	m_D3d12Commandlist->SetDescriptorHeaps(std::size(heaps), heaps);
 	m_CurrentPSO = nullptr;
@@ -87,8 +88,9 @@ void st::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::T
 			src.PlacedFootprint.Footprint.Height = desc.height >> mip;
 			src.PlacedFootprint.Footprint.Depth = desc.depth;
 
+			GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
 			uint64_t totalBytes = 0;
-			m_Device->GetNativeDevice()->GetCopyableFootprints(
+			gpuDevice->GetNativeDevice()->GetCopyableFootprints(
 				&d3d12Desc,
 				D3D12CalcSubresource(mip, arraySlice, 0, desc.mipLevels, desc.arraySize),
 				1,
@@ -252,14 +254,15 @@ void st::rhi::dx12::CommandList::PushConstants(const void* data, size_t sizeByte
 void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, 
 	const RenderPassOp& dsvRenderPassOp, RenderPassFlags rpFlags)
 {
+	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+	
 	m_CurrentFB = st::checked_pointer_cast<rhi::IFramebuffer>(_fb->weak_from_this());
-
 	Framebuffer* fb = checked_cast<Framebuffer*>(_fb);
 
 	D3D12_RENDER_PASS_RENDER_TARGET_DESC RTVs[c_MaxRenderTargets] = {};
 	for (int rtv_idx = 0; rtv_idx < fb->RTVs.size(); ++rtv_idx)
 	{
-		RTVs[rtv_idx].cpuDescriptor = m_Device->GetRenderTargetViewHeap()->GetCpuHandle(fb->RTVs[rtv_idx]);
+		RTVs[rtv_idx].cpuDescriptor = gpuDevice->GetRenderTargetViewHeap()->GetCpuHandle(fb->RTVs[rtv_idx]);
 		RTVs[rtv_idx].BeginningAccess = GetRenderPassBeginningAccess(
 			rtvRenderPassOp[rtv_idx].loadOp, rtvRenderPassOp[rtv_idx].clearValue, fb->rtvTextures[rtv_idx]->GetDesc().format);
 		RTVs[rtv_idx].EndingAccess = GetRenderPassEngindAccess(rtvRenderPassOp[rtv_idx].storeOp);
@@ -268,7 +271,7 @@ void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const s
 	D3D12_RENDER_PASS_DEPTH_STENCIL_DESC DSV = {};
 	if (fb->DSV != c_InvalidDescriptorIndex)
 	{
-		DSV.cpuDescriptor = m_Device->GetDepthStencilViewHeap()->GetCpuHandle(fb->DSV);
+		DSV.cpuDescriptor = gpuDevice->GetDepthStencilViewHeap()->GetCpuHandle(fb->DSV);
 		DSV.DepthBeginningAccess = GetRenderPassBeginningAccess(
 			dsvRenderPassOp.loadOp, dsvRenderPassOp.clearValue, fb->dsvTexture->GetDesc().format);
 		DSV.DepthEndingAccess = GetRenderPassEngindAccess(dsvRenderPassOp.storeOp);

@@ -51,9 +51,8 @@ void st::gfx::DebugRenderStage::OnAttached()
 
 		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(m_RenderView->GetTexture("SceneColor").get())
-			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth").get())
-			.SetDebugName("DebugRenderStage");
-		m_FB = m_RenderView->GetDeviceManager()->GetDevice()->CreateFramebuffer(fbDesc);
+			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth").get());
+		m_FB = m_RenderView->GetDeviceManager()->GetDevice()->CreateFramebuffer(fbDesc, "DebugRenderStage");
 	}
 
 	// Load shaders
@@ -67,26 +66,24 @@ void st::gfx::DebugRenderStage::OnAttached()
 	// Create PSO
 	{
 		rhi::GraphicsPipelineStateDesc desc{
-			.VS = m_VS,
-			.PS = m_PS,
+			.VS = m_VS.get_weak(),
+			.PS = m_PS.get_weak(),
 			.blendState {},
 			.depthStencilState = {
 				.depthTestEnable = true,
 				.depthWriteEnable = true,
 				.depthFunc = rhi::ComparisonFunc::Greater },
 			.rasterState = {},
-			.primTopo = rhi::PrimitiveTopology::LineList,
-			.debugName = "DebugRenderStage"
+			.primTopo = rhi::PrimitiveTopology::LineList
 		};
 
 		m_PSO = m_RenderView->GetDeviceManager()->GetDevice()->CreateGraphicsPipelineState(
-			desc, m_FB->GetFramebufferInfo());
+			desc, m_FB->GetFramebufferInfo(), "DebugRenderStage");
 	}
 }
 
 void st::gfx::DebugRenderStage::OnDetached()
 {
-	assert(0);
 }
 
 std::pair<st::rhi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList)
@@ -129,9 +126,9 @@ std::pair<st::rhi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBOX
 				.memoryAccess = rhi::MemoryAccess::Upload,
 				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
 				.sizeBytes = aabboxes.size() * sizeof(interop::AABB),
-				.stride = sizeof(interop::AABB),
-				.debugName = "AABBOX buffer" },
-			rhi::ResourceState::SHADER_RESOURCE);
+				.stride = sizeof(interop::AABB) },
+			rhi::ResourceState::SHADER_RESOURCE,
+			"AABBOX buffer");
 	}
 
 	void *ptr = m_AABBOXBuffer->Map();

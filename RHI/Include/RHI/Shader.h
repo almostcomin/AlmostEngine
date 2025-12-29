@@ -54,7 +54,9 @@ namespace st::rhi
 		virtual const WeakBlob& GetBytecode() const = 0;
 
         ResourceType GetResourceType() const override { return ResourceType::Shader; }
-	};
 
-	using ShaderHandle = st::weak<IShader>;
+    protected:
+
+        IShader(Device* device, const std::string& debugName) : IResource{ device, debugName } {};
+	};
 }

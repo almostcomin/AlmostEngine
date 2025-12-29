@@ -26,6 +26,7 @@ namespace st::rhi
 		switch (type)
 		{
 		case ResourceType::Buffer: return "Buffer";
+		case ResourceType::Texture: return "Texture";
 		case ResourceType::Framebuffer: return "Framebuffer";
 		case ResourceType::Fence: return "Fence";
 		case ResourceType::CommandList: return "CommandList";
@@ -63,16 +64,21 @@ namespace st::rhi
 		// Does *not* AddRef the returned interface.
 		virtual NativeResource GetNativeResource() { assert(0); return nullptr; }
 
-		virtual const std::string& GetDebugName() = 0;
+		virtual void Release(Device* device) = 0;
+
+		const std::string& GetDebugName() const { return m_DebugName; }
+		const Device* GetDevice() const { return m_Device; }
+		Device* GetDevice() { return m_Device; }
 
 	protected:
 
-		IResource() = default;
-		virtual ~IResource() = default;
+		IResource(Device*, const std::string& debugName);
+		virtual ~IResource();
 
 	private:
 
-		virtual void Release(Device* device) = 0;
+		std::string m_DebugName;
+		Device* m_Device;
 	};
 
 	struct ResourcePtrHash 
