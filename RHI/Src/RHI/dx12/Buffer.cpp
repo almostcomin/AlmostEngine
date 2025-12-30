@@ -17,21 +17,21 @@ st::rhi::dx12::Buffer::Buffer(const BufferDesc& desc, ID3D12Resource* buffer, De
     }
     
     GpuDevice* gpuDevice = checked_cast<GpuDevice*>(device);
-    if (hasFlag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
+    if (has_flag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
     {
         auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)BufferShaderView::ConstantBuffer] = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)BufferShaderView::ConstantBuffer]);
         CreateCBV(descriptorHandle, 0, m_Desc.sizeBytes);
     }
-    if (hasFlag(desc.shaderUsage, BufferShaderUsage::ShaderResource))
+    if (has_flag(desc.shaderUsage, BufferShaderUsage::ShaderResource))
     {
         auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)BufferShaderView::ShaderResource] = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)BufferShaderView::ShaderResource]);
         CreateSRV(descriptorHandle, m_Desc.format, 0, m_Desc.sizeBytes);
     }
-    if (hasFlag(desc.shaderUsage, BufferShaderUsage::UnorderedAccess))
+    if (has_flag(desc.shaderUsage, BufferShaderUsage::UnorderedAccess))
     {
         auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)BufferShaderView::UnorderedAccess] = descriptorHeap->AllocateDescriptor();

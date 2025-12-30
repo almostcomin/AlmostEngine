@@ -397,7 +397,7 @@ st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetStorageRequirements(co
 		.size = desc.sizeBytes, 
 		.alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT };
 
-	if (hasFlag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
+	if (has_flag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
 	{
 		ret.size = AlignUp(desc.sizeBytes, (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 	}
@@ -808,13 +808,13 @@ D3D12_RESOURCE_DESC st::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& 
 	d3d12Desc.Format = formatMap.resourceFormat;
 	d3d12Desc.SampleDesc.Count = desc.sampleCount;
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
-	if (!hasFlag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
+	if (!has_flag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-	if (hasFlag(desc.shaderUsage, TextureShaderUsage::RenderTarget))
+	if (has_flag(desc.shaderUsage, TextureShaderUsage::RenderTarget))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	if (hasFlag(desc.shaderUsage, TextureShaderUsage::DepthStencil))
+	if (has_flag(desc.shaderUsage, TextureShaderUsage::DepthStencil))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	if (hasFlag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
+	if (has_flag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	if (desc.isTiled)
 		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;

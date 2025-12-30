@@ -40,4 +40,29 @@ enum class PrimitiveTopology
     PatchList
 };
 
+inline constexpr uint32_t GetPrimitiveCount(uint32_t indexCount, PrimitiveTopology topo)
+{
+    switch (topo)
+    {
+    case PrimitiveTopology::PointList:
+        return indexCount;
+    case PrimitiveTopology::LineList:
+        return indexCount / 2;
+    case PrimitiveTopology::LineStrip:
+        return indexCount - 1;
+    case PrimitiveTopology::TriangleList:
+        return indexCount / 3;
+    case PrimitiveTopology::TriangleStrip:
+        return indexCount - 2;
+    case PrimitiveTopology::TriangleFan:
+        return indexCount - 2;
+    case PrimitiveTopology::TriangleListWithAdjacency:
+    case PrimitiveTopology::TriangleStripWithAdjacency:
+    case PrimitiveTopology::PatchList:
+    default:
+        assert(0);
+        return 0;
+    }
+}
+
 };

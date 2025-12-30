@@ -52,7 +52,7 @@ bool st::gfx::OpaqueRenderStage::Render()
 	while(walker)
 	{
 		auto node = *walker;
-		if (hasFlag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && frustum.check(node->GetWorldBounds()))
+		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && frustum.check(node->GetWorldBounds()))
 		{
 			auto leaf = node->GetLeaf();
 			if (leaf)

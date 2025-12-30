@@ -7,6 +7,7 @@
 namespace st
 {
 
+// Inherit from this to avoid copy/move
 struct noncopyable_nonmovable 
 {
 protected:
@@ -22,7 +23,7 @@ protected:
 std::string_view GetFilenameFromPath(const std::string_view& path);
 std::string_view GetExtensionFromPath(const std::string_view& path);
 
-// Based on 128 bits number
+// a 128 bits number stringyfied
 std::string MakeUniqueStringId();
 
 template<typename T>
@@ -77,6 +78,7 @@ T checked_cast(U u)
 #endif
 }
 
+// Add some operators to enums flags
 #define ENUM_CLASS_FLAG_OPERATORS(T) \
     inline T operator | (const T& a, const T& b) { return T(uint32_t(a) | uint32_t(b)); } \
     inline T operator & (const T& a, const T& b) { return T(uint32_t(a) & uint32_t(b)); } \
@@ -89,12 +91,15 @@ T checked_cast(U u)
     inline bool any(T a) { return uint32_t(a) != 0; }
 
 template<typename T>
-constexpr bool hasFlag(T lhs, T rhs)
+constexpr bool has_flag(T lhs, T rhs)
 {
     return (lhs & rhs) == rhs;
 }
 
+// String conversion
 std::wstring ToWide(const char* utf8);
 std::string ToUtf8(const wchar_t* wide);
+
+
 
 } // namespace st

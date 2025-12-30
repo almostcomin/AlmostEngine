@@ -25,24 +25,24 @@ public:
 	{}
 
 	// Init from an affine matrix. Warning: m must be in column-major order
-	Transform(const glm::mat4x4& m) :
+	explicit Transform(const glm::mat4x4& m) :
 		m_Scale{ GetScale(m) },
 		m_Rotation{ GetRotation(m) },
 		m_Translation{ GetTranslation(m) },
 		m_Dirty{ true }
 	{}
 
-	const glm::vec3 GetScale() const 
+	const glm::vec3& GetScale() const 
 	{
 		return m_Scale;
 	}
 
-	const glm::quat GetRotation() const 
+	const glm::quat& GetRotation() const 
 	{
 		return m_Rotation;
 	}
 
-	const glm::vec3 GetTranslation() const 
+	const glm::vec3& GetTranslation() const 
 	{
 		return m_Translation;
 	}

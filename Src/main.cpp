@@ -113,8 +113,12 @@ int SDL_main(int argc, char* argv[])
 
 	// Create UI render stage
 	std::string requestLoadFile;
+	bool requestClose = false;
+	bool requestQuit = false;
 	std::shared_ptr<StructureUI> uiRS{ new StructureUI{window} };
 	uiRS->m_RequestLoadFile = [&requestLoadFile](const char* filename) { requestLoadFile = filename; };
+	uiRS->m_RequestClose = [&requestClose] { requestClose = true; };
+	uiRS->m_RequestQuit = [&requestQuit] { requestQuit = true; };
 
 	// Create camera
 	auto camera = std::make_shared<st::gfx::Camera>();
@@ -129,13 +133,13 @@ int SDL_main(int argc, char* argv[])
 	renderView->SetCamera(camera);
 
 	// Main loop
-	bool running = true;
+
 	auto lastTime = std::chrono::steady_clock::now();
 	auto fpsLastTime = lastTime;
 	uint32_t fpsFrameCount = 0;
 	float2 cameraSpeed{ 0.f };
 	bool mouseMiddlePressed = false;
-	while (running) 
+	while (!requestQuit)
 	{
 		const auto currentTime = std::chrono::steady_clock::now();
 		const std::chrono::duration<float> elapsed = currentTime - lastTime;
@@ -157,6 +161,14 @@ int SDL_main(int argc, char* argv[])
 				LOG_ERROR("Error importing file '{}': {}", requestLoadFile, importResult.error());
 			}
 			requestLoadFile.clear();
+		}
+		if (requestClose)
+		{
+			if (scene)
+			{
+				scene.reset();
+			}
+			requestClose = false;
 		}
 
 		// Input
@@ -231,7 +243,7 @@ int SDL_main(int argc, char* argv[])
 				break;
 
 			case SDL_EVENT_QUIT:
-				running = false;
+				requestQuit = true;
 				break;
 			}
 		}

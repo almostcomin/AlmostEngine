@@ -278,7 +278,7 @@ void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const s
 	}
 
 	D3D12_RENDER_PASS_FLAGS flags = D3D12_RENDER_PASS_FLAG_NONE;
-	if (hasFlag(rpFlags, RenderPassFlags::AllowUAVWrites))
+	if (has_flag(rpFlags, RenderPassFlags::AllowUAVWrites))
 	{
 		flags |= D3D12_RENDER_PASS_FLAG_ALLOW_UAV_WRITES;
 	}

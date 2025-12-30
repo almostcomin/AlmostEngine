@@ -10,14 +10,14 @@ st::rhi::dx12::Texture::Texture(const st::rhi::TextureDesc& desc, ComPtr<ID3D12R
     , m_ShaderViews{ c_InvalidDescriptorIndex, c_InvalidDescriptorIndex, c_InvalidDescriptorIndex, c_InvalidDescriptorIndex }
 {
     GpuDevice* gpuDevice = checked_cast<GpuDevice*>(device);
-    if (hasFlag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
+    if (has_flag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
     {
         auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)TextureShaderView::ShaderResource] = descriptorHeap->AllocateDescriptor();
         const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)TextureShaderView::ShaderResource]);
         CreateSRV(descriptorHandle, desc.format, desc.dimension, AllSubresources);
     }
-    if (hasFlag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
+    if (has_flag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
     {
         auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
         m_ShaderViews[(int)TextureShaderView::UnorderedAcces] = descriptorHeap->AllocateDescriptor();

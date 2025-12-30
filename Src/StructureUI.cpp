@@ -1,9 +1,58 @@
 #include "StructureUI.h"
+#include "Gfx/RenderView.h"
+#include "Gfx/SceneGraph.h"
+#include "Gfx/SceneGraphLeaf.h"
+#include "Gfx/MeshInstance.h"
+#include "Gfx/Mesh.h"
 #include <format>
 #include <Windows.h>
 #include <SDL3/SDL.h>
 
-StructureUI::StructureUI(SDL_Window* window) : m_Window(window) {}
+namespace
+{
+void PropertyRowText(const char* label, const char* value)
+{
+    ImGui::TableNextRow();
+    // Label
+    ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(label);
+    // Value (fake input)
+    ImGui::TableNextColumn();
+    ImGui::PushID(label);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
+    ImGui::BeginDisabled();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputText("##value", (char*)value, strlen(value), ImGuiInputTextFlags_ReadOnly);
+    ImGui::EndDisabled();
+    ImGui::PopStyleColor();
+    ImGui::PopID();
+}
+
+void PropertyRowInt(const char* label, int value)
+{
+    ImGui::TableNextRow();
+    // Label
+    ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(label);
+    // Value
+    ImGui::TableNextColumn();
+    ImGui::PushID(label);
+    ImGui::BeginDisabled();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
+    ImGui::EndDisabled();
+    ImGui::PopID();
+}
+
+} // anonymous namespace
+
+StructureUI::StructureUI(SDL_Window* window) : 
+    m_Window{ window },
+    m_ShowSceneWindow{ false },
+    m_SelectedNode{ nullptr }
+{}
 
 void StructureUI::BuildUI()
 {
@@ -11,9 +60,12 @@ void StructureUI::BuildUI()
         return;
 
     ImGuiIO const& io = ImGui::GetIO();
-
     BeginFullScreenWindow();
-    DrawCenteredText("Hello world!");
+
+    if (!m_RenderView->GetScene())
+    {
+        DrawCenteredText("Click File->Open to open a scene file");
+    }
 
     // Show FPS
     {
@@ -28,6 +80,9 @@ void StructureUI::BuildUI()
     EndFullScreenWindow();
 
     BuildMainMenu();
+
+    if(m_ShowSceneWindow)
+        BuildSceneWindow(&m_ShowSceneWindow);
 }
 
 void StructureUI::BuildMainMenu()
@@ -49,12 +104,21 @@ void StructureUI::BuildMainMenu()
             if (ImGui::MenuItem("Paste", "CTRL+V")) {}
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("View"))
+        {
+            if (ImGui::MenuItem("Scene", NULL, m_ShowSceneWindow))
+            {
+                m_ShowSceneWindow = !m_ShowSceneWindow;
+            }
+            ImGui::EndMenu();
+        }
         ImGui::EndMainMenuBar();
     }
 }
 
 void StructureUI::BuildMenuFile()
 {
+#if 0
     if (ImGui::MenuItem("New")) {}
     if (ImGui::MenuItem("Open", "Ctrl+O")) 
     {
@@ -124,6 +188,241 @@ void StructureUI::BuildMenuFile()
     if (ImGui::MenuItem("Checked", NULL, true)) {}
     ImGui::Separator();
     if (ImGui::MenuItem("Quit", "Alt+F4")) {}
+#else
+
+    if (ImGui::MenuItem("Open", "Ctrl+O"))
+    {
+        std::string filename = OpenFileNativeDialog({}, { { "GlTF", "*.gltf" } });
+        if (!filename.empty() && m_RequestLoadFile)
+        {
+            m_RequestLoadFile(filename.c_str());
+        }
+    }
+    if (ImGui::MenuItem("Close"))
+    {
+        if (m_RequestClose)
+            m_RequestClose();
+    }
+
+    ImGui::Separator();
+    if (ImGui::MenuItem("Quit", "Alt+F4")) 
+    {
+        if (m_RequestQuit)
+            m_RequestQuit();
+    }
+#endif
+}
+
+void StructureUI::BuildSceneWindow(bool* p_open)
+{
+    auto scene = m_RenderView->GetScene();
+    ImGui::SetNextWindowSize(ImVec2(430, 800), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Dear ImGui Demo", p_open, ImGuiWindowFlags_None) || !scene || !scene->GetSceneGraph() || !scene->GetSceneGraph()->GetRoot())
+    {
+        ImGui::End();
+        return;
+    }
+    if (!m_SelectedNode)
+        m_SelectedNode = scene->GetSceneGraph()->GetRoot().get();
+
+    ImGuiTextFilter Filter;
+    if (ImGui::BeginChild("##tree", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders | ImGuiChildFlags_NavFlattened))
+    {
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::SetNextItemShortcut(ImGuiMod_Ctrl | ImGuiKey_F, ImGuiInputFlags_Tooltip);
+        ImGui::PushItemFlag(ImGuiItemFlags_NoNavDefaultFocus, true);
+        if (ImGui::InputTextWithHint("##Filter", "incl,-excl", Filter.InputBuf, std::size(Filter.InputBuf), ImGuiInputTextFlags_EscapeClearsAll))
+            Filter.Build();
+        ImGui::PopItemFlag();
+
+        // Left side
+        if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
+        {
+            uint32_t pushid_count = 0;
+            st::gfx::SceneGraph::Walker walker(*scene->GetSceneGraph());
+            while (walker)
+            {
+                const auto* node = (*walker).get();
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::PushID((const void*)node);
+                ++pushid_count;
+                ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
+                tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
+                tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
+                tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
+                tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
+                tree_flags |= ImGuiTreeNodeFlags_DefaultOpen;
+                if (node == m_SelectedNode)
+                    tree_flags |= ImGuiTreeNodeFlags_Selected;
+                if (node->GetChildrenCount() == 0)
+                    tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+                //if (node->DataMyBool == false)
+                //    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+                bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", node->GetName().c_str());
+                //if (node->DataMyBool == false)
+                //    ImGui::PopStyleColor();
+                if (ImGui::IsItemFocused())
+                    m_SelectedNode = node;
+
+                int depth = 0;
+                if (node_open)
+                    depth = walker.Next();
+                else
+                    // plus one because TreeNodeEx returned false, was not pushed, therefore we want to avoid pop
+                    depth = walker.NextSibling() + 1;
+                while (depth < 1)
+                {
+                    ImGui::TreePop();
+                    ImGui::PopID();
+                    ++depth;
+                }
+                // Make an additional PopID here in case the node was no open because it was nor done in the depth 'while'
+                if (!node_open)
+                    ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
+        ImGui::EndChild();
+
+        // Right side
+        ImGui::SameLine();
+        ImGui::BeginGroup(); // Lock X position
+        if (auto* node = m_SelectedNode)
+        {
+            ImGui::Text("%s", node->GetName().c_str());
+            ImGui::Separator();
+
+            ImGui::SeparatorText("Local transform");
+            {
+                const st::gfx::Transform& localTransform = node->GetLocalTransform();
+                ImGui::Text("Position");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputFloat3("##localTrans", (float*)&(localTransform.GetTranslation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                ImGui::Text("Rotation");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputFloat4("##localRot", (float*)&(localTransform.GetRotation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                ImGui::Text("Scale");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputFloat3("##localScale", (float*)&(localTransform.GetScale()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+            }
+            
+            ImGui::SeparatorText("World transform");
+            {
+                const st::gfx::Transform worldTransform{ node->GetWorldTransform() };
+                ImGui::Text("Position");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputFloat3("##worldTrans", (float*)&(worldTransform.GetTranslation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                ImGui::Text("Rotation");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputFloat4("##worldRot", (float*)&(worldTransform.GetRotation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                ImGui::Text("Scale");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputFloat3("##worldScale", (float*)&(worldTransform.GetScale()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+            }
+
+            if (node->HasBounds())
+            {
+                ImGui::SeparatorText("Bounds");
+                {
+                    const st::math::aabox3f& bbox = node->GetWorldBounds();
+                    ImGui::Text("Min");
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputFloat3("##bboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                    ImGui::Text("Max");
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputFloat3("##bboxMax", (float*)&(bbox.max), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                }
+            }
+
+            ImGui::SeparatorText("ContentFlags");
+            {
+                const st::gfx::SceneContentFlags flags = node->GetContentFlags();
+                ImGui::BeginTable("##flags", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+                ImGui::TableSetupColumn("cb0", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+                ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+                ImGui::TableSetupColumn("cb1", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+                ImGui::TableSetupColumn("txt1", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+
+                auto flagCell = [](const char* label, bool value)
+                {
+                    ImGui::PushID((const void*)label);
+                    ImGui::BeginDisabled();
+                    ImGui::TableNextColumn();
+                    ImGui::Checkbox("##cb", &value);
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(label);
+                    ImGui::EndDisabled();
+                    ImGui::PopID();
+                };
+
+                // First row
+                ImGui::TableNextRow();
+                flagCell("OpaqueMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::OpaqueMeshes));
+                flagCell("Lights", st::has_flag(flags, st::gfx::SceneContentFlags::Lights));
+
+                // Second row
+                ImGui::TableNextRow();
+                flagCell("AlphaTestedMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::AlphaTestedMeshes));
+                flagCell("Cameras", st::has_flag(flags, st::gfx::SceneContentFlags::Cameras));
+
+                // Third row
+                ImGui::TableNextRow();
+                flagCell("BlendedMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::BlendedMeshes));
+                flagCell("Animations", st::has_flag(flags, st::gfx::SceneContentFlags::Animations));
+                
+                ImGui::EndTable();
+            }
+
+            const auto* leaf = node->GetLeaf() ? node->GetLeaf().get() : nullptr;
+            if (leaf)
+            {
+                switch (leaf->GetType())
+                {
+                case st::gfx::SceneGraphLeaf::Type::MeshInstance:
+                    BuildMeshInstanceLeaf(st::checked_cast<const st::gfx::MeshInstance*>(leaf));
+                    break;
+                case st::gfx::SceneGraphLeaf::Type::Camera:
+                    assert(0);
+                    break;
+                default:
+                    assert(0);
+                }
+            }
+
+        }
+        ImGui::EndGroup();
+    }
+    ImGui::End();
+}
+
+void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
+{
+    ImGui::SeparatorText("Mesh Instance");
+    const auto& mesh = leaf->GetMesh();
+    const st::rhi::PrimitiveTopology topo = mesh->GetPrimitiveTopology();
+
+    ImGui::BeginTable("MeshProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 140.0f);
+    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+    const char* topoStr = nullptr;
+    switch (topo)
+    {
+    case st::rhi::PrimitiveTopology::PointList:
+        PropertyRowText("Primitive type", "PointList");
+        break;
+    case st::rhi::PrimitiveTopology::TriangleList:
+        PropertyRowText("Primitive type", "TriangleList");
+        break;
+    default:
+        assert(0);
+    }
+    
+    int primCount = st::rhi::GetPrimitiveCount(mesh->GetIndexCount(), topo);
+    PropertyRowInt("Primitive count", primCount);
+
+    ImGui::EndTable();
 }
 
 std::string StructureUI::OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters)
