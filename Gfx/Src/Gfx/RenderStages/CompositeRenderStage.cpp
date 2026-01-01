@@ -50,3 +50,11 @@ void st::gfx::CompositeRenderStage::OnDetached()
 	device->ReleaseQueued(m_BlitPSO);
 	m_SceneColor = nullptr;
 }
+
+void st::gfx::CompositeRenderStage::OnBackbufferResize()
+{
+	m_SceneColor = m_RenderView->GetTexture("SceneColor");
+
+	m_BlitPSO = m_RenderView->GetDeviceManager()->GetCommonResources()->CreateBlitPSO(
+		m_RenderView->GetFramebuffer()->GetFramebufferInfo());
+}

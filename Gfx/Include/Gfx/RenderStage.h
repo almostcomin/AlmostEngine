@@ -4,6 +4,7 @@
 #include "Core/Memory.h"
 #include <string>
 #include "RHI/ResourceState.h"
+#include "Core/Math.h"
 
 namespace st::rhi
 {
@@ -25,11 +26,6 @@ class RenderStage
 
 public:
 
-	virtual bool Render() = 0;
-	virtual void OnBackbufferResize(const glm::ivec2& size) = 0;
-
-	virtual void OnSceneChanged() {};
-
 	virtual const char* GetDebugName() const = 0;
 
 protected:
@@ -38,10 +34,13 @@ protected:
 
 private:
 
-	void Attach(RenderView* renderView);
-	void Detach();
-
+	virtual bool Render() = 0;
 	virtual void OnAttached() {};
 	virtual void OnDetached() {};
+	virtual void OnBackbufferResize() {};
+	virtual void OnSceneChanged() {};
+
+	void Attach(RenderView* renderView);
+	void Detach();
 };
 }

@@ -22,20 +22,20 @@ public:
 
 	OpaqueRenderStage() = default;
 
-	bool Render() override;
-	void OnBackbufferResize(const glm::ivec2& size) override {};
-
 	const char* GetDebugName() const override { return "OpaqueRenderStage"; }
 
 private:
 
+	bool Render() override;
 	void OnAttached() override;
 	void OnDetached() override;
+	void OnBackbufferResize() override;
 
 private:
 
 	st::rhi::ShaderOwner m_VS;
 	st::rhi::ShaderOwner m_PS;
+	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	st::rhi::GraphicsPipelineStateOwner m_PSO;
 
 	st::rhi::TextureHandle m_RenderTarget;

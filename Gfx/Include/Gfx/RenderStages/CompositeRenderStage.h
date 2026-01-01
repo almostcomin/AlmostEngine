@@ -13,9 +13,6 @@ public:
 
 	CompositeRenderStage() = default;
 
-	bool Render() override;
-	void OnBackbufferResize(const glm::ivec2& size) override {};
-
 	const char* GetDebugName() const override { return "CompositeRenderStage"; }
 
 private:
@@ -23,8 +20,10 @@ private:
 	rhi::TextureHandle m_SceneColor;
 	rhi::GraphicsPipelineStateOwner m_BlitPSO;
 
+	bool Render() override;
 	void OnAttached() override;
 	void OnDetached() override;
+	void OnBackbufferResize() override;
 
 private:
 };

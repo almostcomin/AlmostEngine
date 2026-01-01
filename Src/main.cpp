@@ -292,6 +292,14 @@ int SDL_main(int argc, char* argv[])
 			}
 		}
 
+		if (deviceManager->UpdateWindowSize())
+		{
+			SDL_GetWindowSize(window, (int*)&windowWidth, (int*)&windowHeight);
+			camera->SetAspect((float)windowWidth / windowHeight);
+
+			renderView->OnWindowSizeChanged();
+		}
+
 		deviceManager->Render([&renderView]()
 		{
 			renderView->Render();

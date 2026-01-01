@@ -20,15 +20,14 @@ public:
 
 	DebugRenderStage() = default;
 
-	bool Render() override;
-	void OnBackbufferResize(const glm::ivec2& size) override {};
-
 	const char* GetDebugName() const override { return "DebugRenderStage"; }
 
 private:
 
+	bool Render() override;
 	void OnAttached() override;
 	void OnDetached() override;
+	void OnBackbufferResize() override;
 
 	std::pair<rhi::DescriptorIndex, size_t> GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList);
 

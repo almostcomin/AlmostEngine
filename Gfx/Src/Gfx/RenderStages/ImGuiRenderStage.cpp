@@ -26,8 +26,8 @@ void st::gfx::ImGuiRenderStage::OnAttached()
 {
     Init();
 
-    m_RenderView->RequestTextureAccess(this, gfx::RenderView::AccessMode::Read, "SceneColor", 
-        rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+    //m_RenderView->RequestTextureAccess(this, gfx::RenderView::AccessMode::Read, "SceneColor", 
+    //    rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 }
 
 void st::gfx::ImGuiRenderStage::OnDetached()
@@ -174,7 +174,7 @@ bool st::gfx::ImGuiRenderStage::Render()
     return true;
 }
 
-void st::gfx::ImGuiRenderStage::OnBackbufferResize(const glm::ivec2& size)
+void st::gfx::ImGuiRenderStage::OnBackbufferResize()
 {
     // no-op
 }

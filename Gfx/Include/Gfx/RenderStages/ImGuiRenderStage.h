@@ -39,10 +39,6 @@ public:
 
 	virtual void BuildUI() = 0;
 
-	bool Render() override;
-
-	void OnBackbufferResize(const glm::ivec2& size) override;
-
 	bool OnMouseMove(float posX, float posY);
 	bool OnMouseButtonUpdate(MouseButton button, KeyAction action);
 
@@ -51,6 +47,11 @@ public:
 protected:
 
 private:
+
+	bool Render() override;
+	void OnAttached() override;
+	void OnDetached() override;
+	void OnBackbufferResize() override;
 
 	bool Init();
 	void Release();
@@ -62,9 +63,6 @@ private:
 	rhi::GraphicsPipelineStateHandle GetPSO(rhi::IFramebuffer* frameBuffer);
 
 	void ReconcileInputState();
-
-	void OnAttached() override;
-	void OnDetached() override;
 
 protected:
 

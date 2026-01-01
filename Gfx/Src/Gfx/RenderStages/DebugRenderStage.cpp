@@ -84,6 +84,40 @@ void st::gfx::DebugRenderStage::OnAttached()
 
 void st::gfx::DebugRenderStage::OnDetached()
 {
+	m_PSO.reset();
+	m_VS.reset();
+	m_PS.reset();
+	m_AABBOXBuffer.reset();
+	m_FB.reset();
+}
+
+void st::gfx::DebugRenderStage::OnBackbufferResize()
+{
+	// Re-create fb
+	{
+		auto fbDesc = rhi::FramebufferDesc()
+			.AddColorAttachment(m_RenderView->GetTexture("SceneColor").get())
+			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth").get());
+		m_FB = m_RenderView->GetDeviceManager()->GetDevice()->CreateFramebuffer(fbDesc, "DebugRenderStage");
+	}
+
+	// Re-create PSO
+	{
+		rhi::GraphicsPipelineStateDesc desc{
+			.VS = m_VS.get_weak(),
+			.PS = m_PS.get_weak(),
+			.blendState {},
+			.depthStencilState = {
+				.depthTestEnable = true,
+				.depthWriteEnable = true,
+				.depthFunc = rhi::ComparisonFunc::Greater },
+			.rasterState = {},
+			.primTopo = rhi::PrimitiveTopology::LineList
+		};
+
+		m_PSO = m_RenderView->GetDeviceManager()->GetDevice()->CreateGraphicsPipelineState(
+			desc, m_FB->GetFramebufferInfo(), "DebugRenderStage");
+	}
 }
 
 std::pair<st::rhi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList)

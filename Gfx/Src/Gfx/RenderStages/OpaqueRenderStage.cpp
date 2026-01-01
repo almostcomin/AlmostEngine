@@ -81,8 +81,6 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
-	auto fbInfo = m_RenderView->GetFramebuffer()->GetFramebufferInfo();
-
 	// Create render targets
 	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::SRGBA8_UNORM);
 	m_RenderTarget = m_RenderView->GetTexture("SceneColor");
@@ -130,7 +128,7 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 			.stencilEnable = false
 		};
 
-		auto PSODesc = rhi::GraphicsPipelineStateDesc
+		m_PSODesc = rhi::GraphicsPipelineStateDesc
 		{
 			.VS = m_VS.get_weak(),
 			.PS = m_PS.get_weak(),
@@ -139,7 +137,7 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_PSO = device->CreateGraphicsPipelineState(PSODesc, m_FB->GetFramebufferInfo(), "OpaqueRenderStage");
+		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "OpaqueRenderStage");
 	}
 }
 
@@ -153,4 +151,23 @@ void st::gfx::OpaqueRenderStage::OnDetached()
 	m_DepthStencil = nullptr;
 
 	device->ReleaseQueued(m_PSO);
+}
+
+void st::gfx::OpaqueRenderStage::OnBackbufferResize()
+{
+	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+
+	m_RenderTarget = m_RenderView->GetTexture("SceneColor");
+	m_DepthStencil = m_RenderView->GetTexture("SceneDepth");
+
+	// Re-create Framebuffer
+	{
+		auto fbDesc = rhi::FramebufferDesc()
+			.AddColorAttachment(m_RenderTarget.get())
+			.SetDepthAttachment(m_DepthStencil.get());
+		m_FB = device->CreateFramebuffer(fbDesc, "OpaqueRenderStage");
+	}
+
+	// Re-create PSO
+	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "OpaqueRenderStage");
 }

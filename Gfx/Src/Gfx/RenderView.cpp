@@ -6,6 +6,21 @@
 #include "Core/Log.h"
 #include "Interop/RenderResources.h"
 
+namespace
+{
+
+int GetActualSize(int desired, int ref)
+{
+	if (desired > 0)
+	{
+		return desired;
+	}
+
+	return ref / (-desired + 1);
+}
+
+} // anonymous namespace
+
 st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	m_IsDirty{ false }, m_DebugName{ debugName }, m_DeviceManager { deviceManager }
 {
@@ -20,7 +35,7 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 
 st::gfx::RenderView::~RenderView()
 {
-	CleanRenderPasses();
+	ClearRenderStages();
 	m_DeviceManager->GetDevice()->ReleaseQueued(m_SceneCB);
 
 	for (int i = 0; i < m_CommandLists.size(); ++i)
@@ -34,7 +49,7 @@ void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
 	m_Scene = scene;
 	for (auto rp : m_RenderStages)
 	{
-		rp.renderPass->OnSceneChanged();
+		rp.renderStage->OnSceneChanged();
 	}
 }
 
@@ -50,15 +65,15 @@ void st::gfx::RenderView::SetOffscreenFrameBuffer(st::rhi::FramebufferHandle fra
 
 void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages)
 {
-	CleanRenderPasses();
+	ClearRenderStages();
 
 	m_RenderStages.reserve(renderStages.size());
 	for (auto& rp : renderStages)
-		m_RenderStages.push_back(RenderPassDeps{ {}, rp });
+		m_RenderStages.push_back(RenderStageDeps{ {}, rp });
 
 	for (auto rp : m_RenderStages)
 	{
-		rp.renderPass->Attach(this);
+		rp.renderStage->Attach(this);
 	}
 
 	m_IsDirty = true;
@@ -94,19 +109,14 @@ bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int heigh
 		return false;
 	}
 
-	if (width == c_BBSize)
-		width = GetFramebuffer()->GetFramebufferInfo().width;
-	if (height == c_BBSize)
-		height = GetFramebuffer()->GetFramebufferInfo().height;
-
 	rhi::TextureDesc desc{
-		.width = (uint32_t)width,
-		.height = (uint32_t)height,
+		.width = (uint32_t)GetActualSize(width, GetFramebuffer()->GetFramebufferInfo().width),
+		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
 		.format = format,
 		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::RenderTarget };
 
 	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, id);
-	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, false) });
+	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, false, width, height) });
 
 	return true;
 }
@@ -121,20 +131,15 @@ bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int heigh
 		return false;
 	}
 
-	if (width == c_BBSize)
-		width = GetFramebuffer()->GetFramebufferInfo().width;
-	if (height == c_BBSize)
-		height = GetFramebuffer()->GetFramebufferInfo().height;
-
 	rhi::TextureDesc desc{
-		.width = (uint32_t)width,
-		.height = (uint32_t)height,
+		.width = (uint32_t)GetActualSize(width, GetFramebuffer()->GetFramebufferInfo().width),
+		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
 		.format = format,
 		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::DepthStencil };
 
 	// Created in common state
 	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::DEPTHSTENCIL, id);
-	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, true) });
+	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, true, width, height) });
 
 	return true;
 }
@@ -150,9 +155,9 @@ bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode acces
 	}
 
 	// Find render pass deps
-	auto rp_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rp](const RenderPassDeps& entry) -> bool
+	auto rp_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rp](const RenderStageDeps& entry) -> bool
 		{
-			return entry.renderPass.get() == rp;
+			return entry.renderStage.get() == rp;
 		});
 	if (rp_it == m_RenderStages.end())
 	{
@@ -174,6 +179,40 @@ st::rhi::TextureHandle st::gfx::RenderView::GetTexture(const char* id) const
 		return nullptr;
 	}
 	return texture_it->second->texture.get_weak();
+}
+
+void st::gfx::RenderView::OnWindowSizeChanged()
+{
+	// 
+	// Actually we are only interested in this if we are rendering to the swap chain BB
+	if (!m_OffscreenFramebuffer)
+	{
+		const auto newSize = m_DeviceManager->GetWindowDimensions();
+		// Update all the textures whose size is dependant on BB size
+		for (auto& it : m_DeclaredTextures)
+		{
+			auto& declTex = it.second;
+			if (declTex->originalWidth <= 0 || declTex->originalHeight <= 0)
+			{
+				rhi::TextureDesc newDesc = declTex->texture->GetDesc();
+				newDesc.width = GetActualSize(declTex->originalWidth, newSize.x);
+				newDesc.height = GetActualSize(declTex->originalWidth, newSize.y);
+				
+				// Lets queue the release just in case, but should not be neccessary because we are waiting for the GPU
+				// At least in the case of swapchan BB.
+				m_DeviceManager->GetDevice()->ReleaseQueued(declTex->texture);
+				declTex->texture = m_DeviceManager->GetDevice()->CreateTexture(newDesc, 
+					declTex->isDepthStencil ? rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET, declTex->id);
+			}
+		}
+
+		// Inform render stages
+		for (auto rs : m_RenderStages)
+		{
+			rs.renderStage->OnBackbufferResize();
+		}
+	}
+	// TODO: Check if we are resized (or changed) the offscreen BB
 }
 
 void st::gfx::RenderView::Render()
@@ -204,13 +243,13 @@ void st::gfx::RenderView::Render()
 				rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET);
 		}
 
-		for (auto& renderPass : m_RenderStages)
+		for (auto& renderStage : m_RenderStages)
 		{
-			std::string markerName = renderPass.renderPass->GetDebugName();
+			std::string markerName = renderStage.renderStage->GetDebugName();
 			markerName.append(" - Entry barriers");
 			commandList->BeginMarker(markerName.c_str());
 
-			for (const auto& dep : renderPass.textureDeps)
+			for (const auto& dep : renderStage.textureDeps)
 			{
 				auto state_it = resourcesStates.find(dep.declTex->id);
 				assert(state_it != resourcesStates.end());
@@ -224,12 +263,12 @@ void st::gfx::RenderView::Render()
 
 			commandList->EndMarker();
 
-			commandList->BeginMarker(renderPass.renderPass->GetDebugName());
-			renderPass.renderPass->Render();
+			commandList->BeginMarker(renderStage.renderStage->GetDebugName());
+			renderStage.renderStage->Render();
 			commandList->EndMarker();
 
 			// Update the resource states with the state left by the stages
-			for (const auto& dep : renderPass.textureDeps)
+			for (const auto& dep : renderStage.textureDeps)
 			{
 				auto state_it = resourcesStates.find(dep.declTex->id);
 				assert(state_it != resourcesStates.end());
@@ -272,11 +311,11 @@ void st::gfx::RenderView::Refresh()
 	m_IsDirty = false;
 }
 
-void st::gfx::RenderView::CleanRenderPasses()
+void st::gfx::RenderView::ClearRenderStages()
 {
 	for (auto rp : m_RenderStages)
 	{
-		rp.renderPass->Detach();
+		rp.renderStage->Detach();
 	}
 	m_RenderStages.clear();
 

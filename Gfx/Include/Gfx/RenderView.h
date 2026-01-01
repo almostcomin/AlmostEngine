@@ -29,6 +29,7 @@ public:
 	};
 
 	static constexpr int c_BBSize = 0;
+	static constexpr int c_HalfBBSize = -1;
 
 	RenderView(DeviceManager* deviceManager, const char* debugName);
 	~RenderView();
@@ -54,16 +55,17 @@ public:
 	bool CreateDepthTarget(const char* id, int width, int height, rhi::Format format);
 
 	bool RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState);
-
 	rhi::TextureHandle GetTexture(const char* id) const;
 
 	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }
+
+	void OnWindowSizeChanged();
 
 	void Render();
 
 private:
 
-	void CleanRenderPasses();
+	void ClearRenderStages();
 	void UpdateSceneBuffer();
 
 private:
@@ -73,9 +75,11 @@ private:
 		rhi::TextureOwner texture;
 		std::string id;
 		bool isDepthStencil;
+		int originalWidth;
+		int originalHeight;
 	};
 
-	struct RenderPassTextureDep
+	struct RenderStageTextureDep
 	{
 		DeclaredTexture* declTex;
 		AccessMode accessMode;
@@ -83,10 +87,10 @@ private:
 		rhi::ResourceState outputState;
 	};
 
-	struct RenderPassDeps
+	struct RenderStageDeps
 	{
-		std::vector<RenderPassTextureDep> textureDeps;
-		std::shared_ptr<RenderStage> renderPass;
+		std::vector<RenderStageTextureDep> textureDeps;
+		std::shared_ptr<RenderStage> renderStage;
 	};
 
 	void Refresh();
@@ -101,7 +105,7 @@ private:
 
 	st::rhi::BufferOwner m_SceneCB;
 
-	std::vector<RenderPassDeps> m_RenderStages;
+	std::vector<RenderStageDeps> m_RenderStages;
 
 	bool m_IsDirty;
 
