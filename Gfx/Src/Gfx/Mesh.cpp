@@ -21,10 +21,10 @@ void st::gfx::Mesh::SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::Primitiv
 	m_PrimitiveTopo = topo;
 }
 
-void st::gfx::Mesh::SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexStride& stride)
+void st::gfx::Mesh::SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexFormat& fmt)
 { 
 	m_VertexBuffer = std::move(vertexBuffer);
-	m_VertexStride = stride;
+	m_VertexFormat = fmt;
 }
 
 void st::gfx::Mesh::SetMaterial(std::shared_ptr<Material> mat)

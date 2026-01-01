@@ -105,16 +105,16 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				meshDataPtr->indexOffset = 0;
 				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
 				meshDataPtr->vertexBufferOffsetBytes = 0;
-				const auto& stride = mesh->GetVertexStride();
-				meshDataPtr->vertexStride = stride.Vertex;
-				meshDataPtr->vertexPositionStride = stride.Position;
-				meshDataPtr->vertexNormalStride = stride.Normal;
-				meshDataPtr->vertexTangetStride = stride.Tangent;
-				meshDataPtr->vertexTexCoord0Stride = stride.TexCoord0;
-				meshDataPtr->vertexTexCoord1Stride = stride.TexCoord1;
-				meshDataPtr->vertexColorStride = stride.Color;
-				meshDataPtr->textureDI = mesh->GetMaterial()->GetDiffuseTexture() ?
-					mesh->GetMaterial()->GetDiffuseTexture()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
+				const auto& vertexFormat = mesh->GetVertexFormat();
+				meshDataPtr->vertexStride = vertexFormat.VertexStride;
+				meshDataPtr->vertexPositionOffset = vertexFormat.PositionOffset;
+				meshDataPtr->vertexNormalOffset = vertexFormat.NormalOffset;
+				meshDataPtr->vertexTangetOffset = vertexFormat.TangentOffset;
+				meshDataPtr->vertexTexCoord0Offset = vertexFormat.TexCoord0Offset;
+				meshDataPtr->vertexTexCoord1Offset = vertexFormat.TexCoord1Offset;
+				meshDataPtr->vertexColorOffset = vertexFormat.ColorOffset;
+				meshDataPtr->textureDI = mesh->GetMaterial()->GetDiffuseTextureHandle() ?
+					mesh->GetMaterial()->GetDiffuseTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 
 				meshDataPtr++;
 			}

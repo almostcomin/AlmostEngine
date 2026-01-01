@@ -44,12 +44,12 @@ namespace interop
         uint vertexBufferDI;
         uint vertexBufferOffsetBytes;
         uint vertexStride;
-        uint vertexPositionStride;
-        uint vertexNormalStride;
-        uint vertexTangetStride;
-        uint vertexTexCoord0Stride;
-        uint vertexTexCoord1Stride;
-        uint vertexColorStride;
+        uint vertexPositionOffset;
+        uint vertexNormalOffset;
+        uint vertexTangetOffset;
+        uint vertexTexCoord0Offset;
+        uint vertexTexCoord1Offset;
+        uint vertexColorOffset;
         uint textureDI;
     };
 

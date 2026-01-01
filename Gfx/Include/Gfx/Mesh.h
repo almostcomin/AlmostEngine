@@ -18,15 +18,15 @@ class Mesh
 {
 public:
 
-	struct VertexStride
+	struct VertexFormat
 	{
-		uint32_t Vertex = UINT32_MAX;
-		uint32_t Position = UINT32_MAX;
-		uint32_t Normal = UINT32_MAX;
-		uint32_t Tangent = UINT32_MAX;
-		uint32_t TexCoord0 = UINT32_MAX;
-		uint32_t TexCoord1 = UINT32_MAX;
-		uint32_t Color = UINT32_MAX;
+		uint32_t VertexStride = UINT32_MAX;
+		uint32_t PositionOffset = UINT32_MAX;
+		uint32_t NormalOffset = UINT32_MAX;
+		uint32_t TangentOffset = UINT32_MAX;
+		uint32_t TexCoord0Offset = UINT32_MAX;
+		uint32_t TexCoord1Offset = UINT32_MAX;
+		uint32_t ColorOffset = UINT32_MAX;
 	};
 
 	Mesh(rhi::Device* device, const char* name, const char* sourceFilename);
@@ -35,7 +35,7 @@ public:
 	const st::math::aabox3f& GetBounds() const { return m_Bounds; }
 
 	void SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo);
-	void SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexStride& stride);
+	void SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexFormat& fmt);
 
 	void SetMaterial(std::shared_ptr<Material> mat);
 
@@ -46,7 +46,7 @@ public:
 	rhi::PrimitiveTopology GetPrimitiveTopology() const { return m_PrimitiveTopo; }
 
 	rhi::BufferHandle GetVertexBuffer() const { return m_VertexBuffer.get_weak(); }
-	const VertexStride& GetVertexStride() const { return m_VertexStride; }
+	const VertexFormat& GetVertexFormat() const { return m_VertexFormat; }
 
 	std::shared_ptr<Material> GetMaterial() const { return m_Material; }
 
@@ -60,7 +60,7 @@ private:
 	rhi::BufferOwner m_IndexBuffer;
 	rhi::PrimitiveTopology m_PrimitiveTopo;
 	rhi::BufferOwner m_VertexBuffer;
-	VertexStride m_VertexStride;
+	VertexFormat m_VertexFormat;
 
 	std::shared_ptr<Material> m_Material;
 

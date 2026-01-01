@@ -33,7 +33,7 @@ public:
 	RenderView(DeviceManager* deviceManager, const char* debugName);
 	~RenderView();
 
-	void SetScene(st::weak<Scene> scene) { m_Scene = scene; }
+	void SetScene(st::weak<Scene> scene);
 	void SetCamera(std::shared_ptr<Camera> camera);
 
 	// Sets render to an offscreen framebuffer. If not initialized or set to null, will render to 

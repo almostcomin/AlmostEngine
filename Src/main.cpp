@@ -82,7 +82,7 @@ int SDL_main(int argc, char* argv[])
 	}
 
 	// Create a window
-	SDL_Window* window = SDL_CreateWindow("Structure", 1280, 720, SDL_WINDOW_RESIZABLE);
+	SDL_Window* window = SDL_CreateWindow("Structure", 1920, 1080, SDL_WINDOW_RESIZABLE);
 	if (!window) 
 	{
 		SDL_Quit();
@@ -98,6 +98,24 @@ int SDL_main(int argc, char* argv[])
 		.VSyncEnabled = false
 	};
 	deviceManager->Init(initParams);
+
+	// Init ImGui
+	{
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		
+		ImGui::StyleColorsDark();
+
+		ImGuiStyle& style = ImGui::GetStyle();
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			style.WindowRounding = 0.0f;
+			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+		}
+	}
+
 
 	// Our scene
 	st::unique<st::gfx::Scene> scene;

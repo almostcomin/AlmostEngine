@@ -23,7 +23,11 @@ public:
 	~Material();
 
 	void SetDiffuseTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle);
-	rhi::TextureHandle GetDiffuseTexture() const;
+	const std::shared_ptr<st::gfx::LoadedTexture> GetDiffuseTexture() const;
+	rhi::TextureHandle GetDiffuseTextureHandle() const;
+
+
+	const std::string& GetName() const { return m_Name; }
 
 private:
 

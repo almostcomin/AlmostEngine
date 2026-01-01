@@ -275,8 +275,6 @@ bool st::gfx::ImGuiRenderStage::Init()
         };
     }
 
-    ImGui::CreateContext();
-
     return true;
 }
 

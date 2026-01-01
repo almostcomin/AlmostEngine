@@ -29,6 +29,15 @@ st::gfx::RenderView::~RenderView()
 	}
 }
 
+void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
+{ 
+	m_Scene = scene;
+	for (auto rp : m_RenderStages)
+	{
+		rp.renderPass->OnSceneChanged();
+	}
+}
+
 void st::gfx::RenderView::SetCamera(std::shared_ptr<st::gfx::Camera> camera)
 {
 	m_Camera = camera;

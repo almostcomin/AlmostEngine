@@ -1013,7 +1013,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
 
             // Interleave
             uint32_t vertexOffset = 0;
-            st::gfx::Mesh::VertexStride stride;
+            st::gfx::Mesh::VertexFormat vertexFormat;
             // Positions
             if (!vertexPosData.empty())
             {
@@ -1023,7 +1023,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                     *(decltype(vertexPosData)::value_type*)dstData = vertexPosData[v_idx];
                     dstData += vertexStride;
                 }
-                stride.Position = vertexOffset;
+                vertexFormat.PositionOffset = vertexOffset;
                 vertexOffset += posElemSize;
             }
             // Normals
@@ -1035,7 +1035,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                     *(decltype(vertexNormalData)::value_type*)dstData = vertexNormalData[v_idx];
                     dstData += vertexStride;
                 }
-                stride.Normal = vertexOffset;
+                vertexFormat.NormalOffset = vertexOffset;
                 vertexOffset += normalElemSize;
             }
             // Tangents
@@ -1047,7 +1047,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                     *(decltype(vertexTangentData)::value_type*)dstData = vertexTangentData[v_idx];
                     dstData += vertexStride;
                 }
-                stride.Tangent = vertexOffset;
+                vertexFormat.TangentOffset = vertexOffset;
                 vertexOffset += tangentElemSize;
             }
             // TexCoords
@@ -1059,16 +1059,16 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                     *(decltype(vertexTexCoordData)::value_type*)dstData = vertexTexCoordData[v_idx];
                     dstData += vertexStride;
                 }
-                stride.TexCoord0 = vertexOffset;
+                vertexFormat.TexCoord0Offset = vertexOffset;
                 vertexOffset += texCoordElemSize;
             }
-            stride.Vertex = vertexOffset;
+            vertexFormat.VertexStride = vertexOffset;
 
             // Create vertex buffer
             auto vertexBufferResult = CreateVertexBuffer(std::move(vertexData), vertexStride, debugName.c_str(), dataUploader, device);
             if (vertexBufferResult)
             {
-                mesh->SetVertexBuffer(std::move(vertexBufferResult->first), stride);
+                mesh->SetVertexBuffer(std::move(vertexBufferResult->first), vertexFormat);
                 out_handlesToWait.push_back(vertexBufferResult->second);
             }
 

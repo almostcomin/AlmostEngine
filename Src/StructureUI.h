@@ -24,6 +24,8 @@ public:
 
 	void BuildUI() override;
 
+	void OnSceneChanged() override;
+
 public:
 
 	Data m_Data;

@@ -4,19 +4,32 @@
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
+#include "Gfx/Material.h"
 #include <format>
 #include <Windows.h>
 #include <SDL3/SDL.h>
+#include <imgui/imgui_internal.h>
 
 namespace
 {
+
+void TextRightAligned(const char* text)
+{
+    float textWidth = ImGui::CalcTextSize(text).x;
+    float colWidth = ImGui::GetColumnWidth();
+    float cursorX = ImGui::GetCursorPosX();
+
+    ImGui::SetCursorPosX(cursorX + colWidth - textWidth);
+    ImGui::TextUnformatted(text);
+}
+
 void PropertyRowText(const char* label, const char* value)
 {
     ImGui::TableNextRow();
     // Label
     ImGui::TableNextColumn();
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(label);
+    TextRightAligned(label);
     // Value (fake input)
     ImGui::TableNextColumn();
     ImGui::PushID(label);
@@ -35,7 +48,7 @@ void PropertyRowInt(const char* label, int value)
     // Label
     ImGui::TableNextColumn();
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(label);
+    TextRightAligned(label);
     // Value
     ImGui::TableNextColumn();
     ImGui::PushID(label);
@@ -44,6 +57,86 @@ void PropertyRowInt(const char* label, int value)
     ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
     ImGui::EndDisabled();
     ImGui::PopID();
+}
+
+const char* GetTextureDimensionText(st::rhi::TextureDimension dim)
+{
+    switch (dim)
+    {
+    case st::rhi::TextureDimension::Texture1D: return "Texture1D";
+    case st::rhi::TextureDimension::Texture1DArray: return "Texture1DArray";
+    case st::rhi::TextureDimension::Texture2D: return "Texture2D";
+    case st::rhi::TextureDimension::Texture2DArray: return "Texture2DArray";
+    case st::rhi::TextureDimension::TextureCube: return "TextureCube";
+    case st::rhi::TextureDimension::TextureCubeArray: return "TextureCubeArray";
+    case st::rhi::TextureDimension::Texture2DMS: return "Texture2DMS";
+    case st::rhi::TextureDimension::Texture2DMSArray: return "Texture2DMSArray";
+    case st::rhi::TextureDimension::Texture3D: return "Texture3D";
+    default: return "Unknown";
+    }
+}
+
+void BuildTexture(const st::gfx::LoadedTexture& diffuseTex)
+{
+    ImGui::SeparatorText("Diffuse texture");
+    auto desc = diffuseTex.texture->GetDesc();
+
+    ImGui::BeginTable("texId", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+    PropertyRowText("id", diffuseTex.id.c_str());
+    ImGui::EndTable();
+
+    ImGui::BeginTable("##texDesc", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+    ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthFixed, 120);
+    ImGui::TableSetupColumn("val0", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    ImGui::TableSetupColumn("txt1", ImGuiTableColumnFlags_WidthFixed, 120);
+    ImGui::TableSetupColumn("val1", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+
+    auto propString = [](const char* label, const char* value)
+    {
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        TextRightAligned(label);
+        ImGui::TableNextColumn();
+        ImGui::PushID(label);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
+        ImGui::BeginDisabled();
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::InputText("##value", (char*)value, strlen(value), ImGuiInputTextFlags_ReadOnly);
+        ImGui::EndDisabled();
+        ImGui::PopStyleColor();
+        ImGui::PopID();
+    };
+
+    auto propInt = [](const char* label, int value)
+    {
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        TextRightAligned(label);
+        ImGui::TableNextColumn();
+        ImGui::PushID(label);
+        ImGui::BeginDisabled();
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
+        ImGui::EndDisabled();
+        ImGui::PopID();
+    };
+
+    // First row
+    ImGui::TableNextRow();
+    propInt("Width", desc.width);
+    propInt("Height", desc.width);
+    // Second row
+    ImGui::TableNextRow();
+    propInt("Depth", desc.depth);
+    propInt("ArraySize", desc.arraySize);
+    // Third row
+    ImGui::TableNextRow();
+    propInt("Mip levels", desc.mipLevels);
+    propString("Dimension", GetTextureDimensionText(desc.dimension));
+
+    ImGui::EndTable();
 }
 
 } // anonymous namespace
@@ -83,6 +176,11 @@ void StructureUI::BuildUI()
 
     if(m_ShowSceneWindow)
         BuildSceneWindow(&m_ShowSceneWindow);
+}
+
+void StructureUI::OnSceneChanged()
+{
+    m_SelectedNode = nullptr;
 }
 
 void StructureUI::BuildMainMenu()
@@ -216,8 +314,8 @@ void StructureUI::BuildMenuFile()
 void StructureUI::BuildSceneWindow(bool* p_open)
 {
     auto scene = m_RenderView->GetScene();
-    ImGui::SetNextWindowSize(ImVec2(430, 800), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Dear ImGui Demo", p_open, ImGuiWindowFlags_None) || !scene || !scene->GetSceneGraph() || !scene->GetSceneGraph()->GetRoot())
+    ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
+    if (!ImGui::Begin("Scene view", p_open, ImGuiWindowFlags_None) || !scene || !scene->GetSceneGraph() || !scene->GetSceneGraph()->GetRoot())
     {
         ImGui::End();
         return;
@@ -226,15 +324,8 @@ void StructureUI::BuildSceneWindow(bool* p_open)
         m_SelectedNode = scene->GetSceneGraph()->GetRoot().get();
 
     ImGuiTextFilter Filter;
-    if (ImGui::BeginChild("##tree", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders | ImGuiChildFlags_NavFlattened))
+    if (ImGui::BeginChild("##tree", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
     {
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::SetNextItemShortcut(ImGuiMod_Ctrl | ImGuiKey_F, ImGuiInputFlags_Tooltip);
-        ImGui::PushItemFlag(ImGuiItemFlags_NoNavDefaultFocus, true);
-        if (ImGui::InputTextWithHint("##Filter", "incl,-excl", Filter.InputBuf, std::size(Filter.InputBuf), ImGuiInputTextFlags_EscapeClearsAll))
-            Filter.Build();
-        ImGui::PopItemFlag();
-
         // Left side
         if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
         {
@@ -283,95 +374,100 @@ void StructureUI::BuildSceneWindow(bool* p_open)
             }
             ImGui::EndTable();
         }
-        ImGui::EndChild();
+    }
+    ImGui::EndChild();
 
-        // Right side
-        ImGui::SameLine();
-        ImGui::BeginGroup(); // Lock X position
+    // Right side
+    ImGui::SameLine();
+    if (ImGui::BeginChild("##details", ImVec2(0, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_AlwaysVerticalScrollbar))
+    {
         if (auto* node = m_SelectedNode)
         {
             ImGui::Text("%s", node->GetName().c_str());
             ImGui::Separator();
 
-            ImGui::SeparatorText("Local transform");
+            if (ImGui::CollapsingHeader("Node", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                const st::gfx::Transform& localTransform = node->GetLocalTransform();
-                ImGui::Text("Position");
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::InputFloat3("##localTrans", (float*)&(localTransform.GetTranslation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
-                ImGui::Text("Rotation");
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::InputFloat4("##localRot", (float*)&(localTransform.GetRotation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
-                ImGui::Text("Scale");
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::InputFloat3("##localScale", (float*)&(localTransform.GetScale()), "%.3f", ImGuiInputTextFlags_ReadOnly);
-            }
-            
-            ImGui::SeparatorText("World transform");
-            {
-                const st::gfx::Transform worldTransform{ node->GetWorldTransform() };
-                ImGui::Text("Position");
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::InputFloat3("##worldTrans", (float*)&(worldTransform.GetTranslation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
-                ImGui::Text("Rotation");
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::InputFloat4("##worldRot", (float*)&(worldTransform.GetRotation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
-                ImGui::Text("Scale");
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::InputFloat3("##worldScale", (float*)&(worldTransform.GetScale()), "%.3f", ImGuiInputTextFlags_ReadOnly);
-            }
-
-            if (node->HasBounds())
-            {
-                ImGui::SeparatorText("Bounds");
+                ImGui::SeparatorText("Local transform");
                 {
-                    const st::math::aabox3f& bbox = node->GetWorldBounds();
-                    ImGui::Text("Min");
+                    const st::gfx::Transform& localTransform = node->GetLocalTransform();
+                    ImGui::Text("Position");
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    ImGui::InputFloat3("##bboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
-                    ImGui::Text("Max");
+                    ImGui::InputFloat3("##localTrans", (float*)&(localTransform.GetTranslation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                    ImGui::Text("Rotation");
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    ImGui::InputFloat3("##bboxMax", (float*)&(bbox.max), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                    ImGui::InputFloat4("##localRot", (float*)&(localTransform.GetRotation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                    ImGui::Text("Scale");
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputFloat3("##localScale", (float*)&(localTransform.GetScale()), "%.3f", ImGuiInputTextFlags_ReadOnly);
                 }
-            }
 
-            ImGui::SeparatorText("ContentFlags");
-            {
-                const st::gfx::SceneContentFlags flags = node->GetContentFlags();
-                ImGui::BeginTable("##flags", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
-                ImGui::TableSetupColumn("cb0", ImGuiTableColumnFlags_WidthFixed, 0.0f);
-                ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-                ImGui::TableSetupColumn("cb1", ImGuiTableColumnFlags_WidthFixed, 0.0f);
-                ImGui::TableSetupColumn("txt1", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-
-                auto flagCell = [](const char* label, bool value)
+                ImGui::SeparatorText("World transform");
                 {
-                    ImGui::PushID((const void*)label);
-                    ImGui::BeginDisabled();
-                    ImGui::TableNextColumn();
-                    ImGui::Checkbox("##cb", &value);
-                    ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(label);
-                    ImGui::EndDisabled();
-                    ImGui::PopID();
-                };
+                    const st::gfx::Transform worldTransform{ node->GetWorldTransform() };
+                    ImGui::Text("Position");
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputFloat3("##worldTrans", (float*)&(worldTransform.GetTranslation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                    ImGui::Text("Rotation");
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputFloat4("##worldRot", (float*)&(worldTransform.GetRotation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                    ImGui::Text("Scale");
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputFloat3("##worldScale", (float*)&(worldTransform.GetScale()), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                }
 
-                // First row
-                ImGui::TableNextRow();
-                flagCell("OpaqueMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::OpaqueMeshes));
-                flagCell("Lights", st::has_flag(flags, st::gfx::SceneContentFlags::Lights));
+                if (node->HasBounds())
+                {
+                    ImGui::SeparatorText("Bounds");
+                    {
+                        const st::math::aabox3f& bbox = node->GetWorldBounds();
+                        ImGui::Text("Min");
+                        ImGui::SetNextItemWidth(-FLT_MIN);
+                        ImGui::InputFloat3("##bboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                        ImGui::Text("Max");
+                        ImGui::SetNextItemWidth(-FLT_MIN);
+                        ImGui::InputFloat3("##bboxMax", (float*)&(bbox.max), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                    }
+                }
 
-                // Second row
-                ImGui::TableNextRow();
-                flagCell("AlphaTestedMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::AlphaTestedMeshes));
-                flagCell("Cameras", st::has_flag(flags, st::gfx::SceneContentFlags::Cameras));
+                ImGui::SeparatorText("ContentFlags");
+                {
+                    const st::gfx::SceneContentFlags flags = node->GetContentFlags();
+                    ImGui::BeginTable("##flags", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+                    ImGui::TableSetupColumn("cb0", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+                    ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+                    ImGui::TableSetupColumn("cb1", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+                    ImGui::TableSetupColumn("txt1", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 
-                // Third row
-                ImGui::TableNextRow();
-                flagCell("BlendedMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::BlendedMeshes));
-                flagCell("Animations", st::has_flag(flags, st::gfx::SceneContentFlags::Animations));
-                
-                ImGui::EndTable();
+                    auto flagCell = [](const char* label, bool value)
+                    {
+                        ImGui::PushID((const void*)label);
+                        ImGui::BeginDisabled();
+                        ImGui::TableNextColumn();
+                        ImGui::Checkbox("##cb", &value);
+                        ImGui::TableNextColumn();
+                        ImGui::TextUnformatted(label);
+                        ImGui::EndDisabled();
+                        ImGui::PopID();
+                    };
+
+                    // First row
+                    ImGui::TableNextRow();
+                    flagCell("OpaqueMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::OpaqueMeshes));
+                    flagCell("Lights", st::has_flag(flags, st::gfx::SceneContentFlags::Lights));
+
+                    // Second row
+                    ImGui::TableNextRow();
+                    flagCell("AlphaTestedMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::AlphaTestedMeshes));
+                    flagCell("Cameras", st::has_flag(flags, st::gfx::SceneContentFlags::Cameras));
+
+                    // Third row
+                    ImGui::TableNextRow();
+                    flagCell("BlendedMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::BlendedMeshes));
+                    flagCell("Animations", st::has_flag(flags, st::gfx::SceneContentFlags::Animations));
+
+                    ImGui::EndTable();
+                }
             }
 
             const auto* leaf = node->GetLeaf() ? node->GetLeaf().get() : nullptr;
@@ -389,40 +485,110 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     assert(0);
                 }
             }
-
         }
-        ImGui::EndGroup();
     }
+
+    ImGui::EndChild();
     ImGui::End();
 }
 
 void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
 {
-    ImGui::SeparatorText("Mesh Instance");
     const auto& mesh = leaf->GetMesh();
-    const st::rhi::PrimitiveTopology topo = mesh->GetPrimitiveTopology();
 
-    ImGui::BeginTable("MeshProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
-    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 140.0f);
-    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-
-    const char* topoStr = nullptr;
-    switch (topo)
+    if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen))
     {
-    case st::rhi::PrimitiveTopology::PointList:
-        PropertyRowText("Primitive type", "PointList");
-        break;
-    case st::rhi::PrimitiveTopology::TriangleList:
-        PropertyRowText("Primitive type", "TriangleList");
-        break;
-    default:
-        assert(0);
-    }
-    
-    int primCount = st::rhi::GetPrimitiveCount(mesh->GetIndexCount(), topo);
-    PropertyRowInt("Primitive count", primCount);
+        const st::rhi::PrimitiveTopology topo = mesh->GetPrimitiveTopology();
 
-    ImGui::EndTable();
+        ImGui::BeginTable("MeshProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+        const char* topoStr = nullptr;
+        switch (topo)
+        {
+        case st::rhi::PrimitiveTopology::PointList:
+            PropertyRowText("Primitive type", "PointList");
+            break;
+        case st::rhi::PrimitiveTopology::TriangleList:
+            PropertyRowText("Primitive type", "TriangleList");
+            break;
+        default:
+            assert(0);
+        }
+    
+        int primCount = st::rhi::GetPrimitiveCount(mesh->GetIndexCount(), topo);
+        PropertyRowInt("Primitive count", primCount);
+
+        PropertyRowInt("Index count", mesh->GetIndexCount());
+
+        int vertexCount = mesh->GetVertexBuffer()->GetDesc().sizeBytes / mesh->GetVertexFormat().VertexStride;
+        PropertyRowInt("Vertex count", vertexCount);
+
+        PropertyRowInt("IB size bytes", mesh->GetIndexBuffer()->GetDesc().sizeBytes);
+        PropertyRowInt("VB size bytes", mesh->GetVertexBuffer()->GetDesc().sizeBytes);
+
+        ImGui::EndTable();
+
+        ImGui::SeparatorText("Vertex format");
+        {
+            const st::gfx::Mesh::VertexFormat& vertexFormat = mesh->GetVertexFormat();
+            const float cb_w = ImGui::GetFrameHeight();
+            ImGui::BeginTable("##flags", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+            ImGui::TableSetupColumn("cb0", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+            ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            ImGui::TableSetupColumn("cb1", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+            ImGui::TableSetupColumn("txt1", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+
+            auto flagCell = [](const char* label, bool value)
+            {
+                ImGui::PushID((const void*)label);
+                ImGui::BeginDisabled();
+                ImGui::TableNextColumn();
+                ImGui::Checkbox("##cb", &value);
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(label);
+                ImGui::EndDisabled();
+                ImGui::PopID();
+            };
+
+            // First row
+            ImGui::TableNextRow();
+            flagCell("Position", vertexFormat.PositionOffset != UINT32_MAX);
+            flagCell("TexCoord0", vertexFormat.TexCoord0Offset != UINT32_MAX);
+
+            // Second row
+            ImGui::TableNextRow();
+            flagCell("Normal", vertexFormat.NormalOffset != UINT32_MAX);
+            flagCell("TexCoord1", vertexFormat.TexCoord1Offset != UINT32_MAX);
+
+            // Third row
+            ImGui::TableNextRow();
+            flagCell("Tangent", vertexFormat.TangentOffset != UINT32_MAX);
+            flagCell("Color", vertexFormat.ColorOffset != UINT32_MAX);
+
+            ImGui::EndTable();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        const auto& mat = mesh->GetMaterial();
+        if (mat)
+        {
+            ImGui::BeginTable("MatProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+            ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+            PropertyRowText("Name", mat->GetName().c_str());
+            ImGui::EndTable();
+
+            const auto& diffuseTex = mat->GetDiffuseTexture();
+            if (diffuseTex)
+            {
+                BuildTexture(*diffuseTex);
+            }
+        }
+    }
 }
 
 std::string StructureUI::OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters)

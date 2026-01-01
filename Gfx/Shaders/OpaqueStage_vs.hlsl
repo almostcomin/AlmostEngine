@@ -33,9 +33,8 @@ PS_INPUT main(uint vertexID : SV_VertexID)
     uint baseIndex = indexBuffer[vertexID + meshData.indexOffset];
     uint vertexBufferOffset = meshData.vertexBufferOffsetBytes + (baseIndex * meshData.vertexStride);
     
-    float3 pos = LoadVertexAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionStride);
-    //float3 normal = LoadVertexAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexNormalStride);
-    float2 uv0 = LoadVertexAttribute2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Stride);
+    float3 pos = LoadVertexAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionOffset);
+    float2 uv0 = LoadVertexAttribute2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Offset);
         
     // Transform
     float4x4 modelMatrix = instanceData.modelMatrix;

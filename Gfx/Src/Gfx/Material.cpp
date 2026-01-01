@@ -16,7 +16,12 @@ void st::gfx::Material::SetDiffuseTexture(std::shared_ptr<st::gfx::LoadedTexture
 	m_DiffuseTexture = textureHandle;
 }
 
-st::rhi::TextureHandle st::gfx::Material::GetDiffuseTexture() const 
+const std::shared_ptr<st::gfx::LoadedTexture> st::gfx::Material::GetDiffuseTexture() const
+{
+	return m_DiffuseTexture;
+}
+
+st::rhi::TextureHandle st::gfx::Material::GetDiffuseTextureHandle() const 
 {
 	return m_DiffuseTexture ? m_DiffuseTexture->texture.get_weak() : nullptr;
 }
