@@ -7,16 +7,14 @@ ConstantBuffer<interop::SingleInstanceDrawData> Constants : register(b0);
 struct VS_OUTPUT
 {
     float4 pos : SV_POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD0;
 };
 
 [RootSignature(BindlessRootSignature)]
 VS_OUTPUT main(uint vertexID : SV_VertexID)
 {    
     ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
-    StructuredBuffer<interop::InstanceData> instancesBuffer = ResourceDescriptorHeap[Constants.instanceBufferDI];
-    StructuredBuffer<interop::MeshData> meshesBuffer = ResourceDescriptorHeap[Constants.meshesBufferDI];
+    StructuredBuffer<interop::InstanceData> instancesBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
+    StructuredBuffer<interop::MeshData> meshesBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
     
     interop::InstanceData instanceData = instancesBuffer[Constants.instanceIdx];
     interop::MeshData meshData = meshesBuffer[instanceData.meshIndex];
@@ -28,7 +26,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID)
     uint baseIndex = indexBuffer[vertexID + meshData.indexOffset];
     uint vertexBufferOffset = meshData.vertexBufferOffsetBytes + (baseIndex * meshData.vertexStride);
     
-    float3 pos = LoadVertexAttribute3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionOffset);
+    float3 pos = LoadVertexAttributeFloat3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionOffset);
         
     // Transform
     float4x4 modelMatrix = instanceData.modelMatrix;

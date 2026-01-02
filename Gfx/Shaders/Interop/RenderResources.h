@@ -50,7 +50,16 @@ namespace interop
         uint vertexTexCoord0Offset;
         uint vertexTexCoord1Offset;
         uint vertexColorOffset;
-        uint textureDI;
+        uint materialIdx;
+    };
+
+    struct MaterialData
+    {
+        uint baseColorTextureDI;
+        uint metalRoughTextureDI;
+        float4 baseColor; // rgb + opacity
+        float2 mr;  // metallic / roughness
+        float2 _padding;
     };
 
     struct Scene
@@ -60,13 +69,15 @@ namespace interop
         //float4x4 inverseProjectionMatrix;
         //float4x4 viewMatrix;
         //float4x4 inverseViewMatrix;
+        uint instanceBufferDI;  // DI for the instance data buffer
+        uint meshesBufferDI;    // DI for the mesh data buffer
+        uint materialsBufferDI;
+        uint _padding;
     };
 
     struct SingleInstanceDrawData
     {
         uint sceneDI;           // DI for the scene constants
-        uint instanceBufferDI;  // DI for the instance data buffer
-        uint meshesBufferDI;    // DI for the mesh data buffer
         uint instanceIdx;       // Index in the instance data buffer to render
     };
 

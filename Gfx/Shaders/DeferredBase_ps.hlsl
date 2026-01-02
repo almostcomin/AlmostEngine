@@ -1,5 +1,6 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
+#include "Common.hlsli"
 
 ConstantBuffer<interop::SingleInstanceDrawData> Constants : register(b0);
 
@@ -10,25 +11,49 @@ struct PS_INPUT
     float2 uv : TEXCOORD0;
 };
 
+struct PS_OUTPUT
+{
+    float4 GBuffer0 : SV_Target0;
+    float4 GBuffer1 : SV_Target1;
+    float4 GBuffer2 : SV_Target2;
+    float4 GBuffer3 : SV_Target3;
+};
+
 [RootSignature(BindlessRootSignature)]
-float4 main(PS_INPUT input) : SV_Target
+PS_OUTPUT main(PS_INPUT input)
 {
     ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     StructuredBuffer<interop::InstanceData> instancesBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
     StructuredBuffer<interop::MeshData> meshesBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
-    StructuredBuffer<interop::MaterialData> materialsBuffer = ResourceDescriptorHeap[sceneData.materialsBufferDI];
+    StructuredBuffer<interop::MaterialData> materialsBuffer = ResourceDescriptorHeap[sceneData.materialsBufferDI];    
     
     interop::InstanceData instanceData = instancesBuffer[Constants.instanceIdx];
     interop::MeshData meshData = meshesBuffer[instanceData.meshIndex];
     interop::MaterialData matData = materialsBuffer[meshData.materialIdx];
 
-    float4 out_col = matData.baseColor;
+    PS_OUTPUT output;
+    
+    // GBuffer0: BaseColor + MaterialID
+    float4 baseColor = matData.baseColor;
     if (matData.baseColorTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
         Texture2D baseColorTexture = ResourceDescriptorHeap[matData.baseColorTextureDI];
         float4 texColor = baseColorTexture.Sample(linearWrapSampler, input.uv);
-        out_col.rgb = texColor.rgb;
-        out_col.a *= texColor.a;
+        baseColor.rgb = texColor.rgb;
+        baseColor.a *= texColor.a;
     }
-    return out_col;
+    output.GBuffer0 = float4(baseColor.rgb, 0.0); // materialID = 0
+    
+    // GBuffer1: Normal.xy + Roughness
+    // Normal
+    float3 normal = normalize(input.normal);
+    output.GBuffer1 = float4(EncodeNormal(normal), 0.5, 0.0); // // roughness = 0.5
+    
+    // GBuffer2: Metallic + AO
+    output.GBuffer2 = float4(0.0, 1.f, 0.0, 0.0); // metallic = 0, AO = 1
+    
+    // GBuffer3: Emissive
+    output.GBuffer3 = float4(0.0, 0.0, 0.0, 0.0);
+        
+    return output;
 }

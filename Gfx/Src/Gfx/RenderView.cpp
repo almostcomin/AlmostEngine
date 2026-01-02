@@ -354,6 +354,18 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 
 	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
 	sceneData->viewProjectionMatrix = m_Camera ? m_Camera->GetViewProjectionMatrix() : float4x4{ 1.f };
+	if (m_Scene)
+	{
+		sceneData->instanceBufferDI = m_Scene->GetInstancesBufferDI();
+		sceneData->meshesBufferDI = m_Scene->GetMeshesBufferDI();
+		sceneData->materialsBufferDI = m_Scene->GetMaterialsBufferDI();
+	}
+	else
+	{
+		sceneData->instanceBufferDI = rhi::c_InvalidDescriptorIndex;
+		sceneData->meshesBufferDI = rhi::c_InvalidDescriptorIndex;
+		sceneData->materialsBufferDI = rhi::c_InvalidDescriptorIndex;
+	}
 	m_SceneCB->Unmap();
 }
 

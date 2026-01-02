@@ -568,12 +568,17 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
 
         if (srcMat.has_pbr_specular_glossiness)
         {
-            mat->SetDiffuseTexture(loadTex(srcMat.pbr_specular_glossiness.diffuse_texture.texture, true));
+            LOG_ERROR("Material {} unsupported mode: Specular-Glossiness", srcMat.name);
+            continue;
         }
-        else if(srcMat.has_pbr_metallic_roughness)
-        {
-            mat->SetDiffuseTexture(loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true));
-        }
+        assert(srcMat.has_pbr_metallic_roughness);
+
+        mat->SetBaseColorTexture(loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true));
+        mat->SetMetalRoughTexture(loadTex(srcMat.pbr_metallic_roughness.metallic_roughness_texture.texture, true));
+        mat->SetBaseColor(*(float3*)srcMat.pbr_metallic_roughness.base_color_factor);
+        mat->SetMetallicFactor(srcMat.pbr_metallic_roughness.metallic_factor);
+        mat->SetRoughnessFactor(srcMat.pbr_metallic_roughness.roughness_factor);
+        mat->SetOpacity(srcMat.pbr_metallic_roughness.base_color_factor[3]);
 
         matMap[&srcMat] = mat;
     }

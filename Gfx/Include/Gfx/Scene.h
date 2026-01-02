@@ -28,6 +28,7 @@ namespace st::gfx
 
 		rhi::DescriptorIndex GetInstancesBufferDI() const;
 		rhi::DescriptorIndex GetMeshesBufferDI() const;
+		rhi::DescriptorIndex GetMaterialsBufferDI() const;
 
 		int GetInstanceIndex(const st::gfx::MeshInstance* pInstance);
 
@@ -42,6 +43,7 @@ namespace st::gfx
 
 		rhi::BufferOwner m_InstancesBuffer;
 		rhi::BufferOwner m_MeshesBuffer;
+		rhi::BufferOwner m_MaterialsBuffer;
 
 		DeviceManager* m_DeviceManager;
 	};

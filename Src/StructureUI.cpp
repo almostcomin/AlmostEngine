@@ -582,10 +582,10 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
             PropertyRowText("Name", mat->GetName().c_str());
             ImGui::EndTable();
 
-            const auto& diffuseTex = mat->GetDiffuseTexture();
-            if (diffuseTex)
+            const auto& baseTex = mat->GetBaseColorTexture();
+            if (baseTex)
             {
-                BuildTexture(*diffuseTex);
+                BuildTexture(*baseTex);
             }
         }
     }

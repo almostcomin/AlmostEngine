@@ -1,13 +1,52 @@
-float2 LoadVertexAttribute2(ByteAddressBuffer buffer, uint offset, uint stride)
+
+float2 LoadVertexAttributeFloat2(ByteAddressBuffer buffer, uint vertexOffset, uint attributeOffset)
 {
-    if (stride == 0xFFFFFFFF)
+    if (attributeOffset == 0xFFFFFFFF)
         return float2(0, 0);
-    return asfloat(buffer.Load2(offset + stride));
+    return asfloat(buffer.Load2(vertexOffset + attributeOffset));
 };
 
-float3 LoadVertexAttribute3(ByteAddressBuffer buffer, uint offset, uint stride)
+float3 LoadVertexAttributeFloat3(ByteAddressBuffer buffer, uint vertexOffset, uint attributeOffset)
 {
-    if (stride == 0xFFFFFFFF)
+    if (attributeOffset == 0xFFFFFFFF)
         return float3(0, 0, 0);
-    return asfloat(buffer.Load3(offset + stride));
+    return asfloat(buffer.Load3(vertexOffset + attributeOffset));
 };
+
+uint LoadVertexAttributeUInt(ByteAddressBuffer buffer, uint vertexOffset, uint attributeOffset)
+{
+    if (attributeOffset == 0xFFFFFFFF)
+        return 0;
+    return buffer.Load(vertexOffset + attributeOffset);
+}
+
+// Octahedron encoding
+float2 EncodeNormal(float3 n)
+{
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    float2 enc = n.xy;
+    if (n.z < 0.0)
+    {
+        enc = (1.0 - abs(enc.yx)) * select(enc.xy >= 0.0, 1.0, -1.0);
+    }
+    return enc * 0.5 + 0.5; // [1,-1] -> [0,1]
+}
+
+// Octahedron decoding
+float3 DecodeNormal(float2 enc)
+{
+    enc = enc * 2.0 - 1.0;
+    float3 n = float3(enc.xy, 1.0 - abs(enc.x) - abs(enc.y));
+    float t = saturate(-n.z);
+    n.xy += select(n.xy >= 0.0, -t, t);
+    return normalize(n);
+}
+
+float3 DecodeSnorm8(uint n)
+{
+    int x = int(n << 24) >> 24;
+    int y = int(n << 16) >> 24;
+    int z = int(n << 8) >> 24;
+
+    return normalize(float3(x, y, z) / 127.0);
+}
