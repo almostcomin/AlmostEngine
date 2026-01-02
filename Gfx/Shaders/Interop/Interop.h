@@ -9,21 +9,6 @@ using uint = uint32_t;
 
 static constexpr uint INVALID_DESCRIPTOR_INDEX = 0xFFFFFFFFu;
 
-/*
-using int2 = st::int2;
-using int3 = st::int3;
-using int4 = st::int4;
-using uint = uint32_t;
-using uint2 = st::uint2;
-using uint3 = st::uint3;
-using uint4 = st::uint4;
-using float2 = st::float2;
-using float3 = st::float3;
-using float4 = st::float4;
-using float3x3 = st::float3x3;
-using float4x4 = st::float4x4;
-*/
-
 static_assert(sizeof(float4x4) == 64);
 
 #define column_major

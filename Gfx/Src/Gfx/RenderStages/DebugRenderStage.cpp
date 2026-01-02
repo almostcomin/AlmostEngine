@@ -7,11 +7,11 @@
 #include "Gfx/SceneGraph.h"
 #include "Interop/RenderResources.h"
 
-bool st::gfx::DebugRenderStage::Render()
+void st::gfx::DebugRenderStage::Render()
 {
 	auto scene = m_RenderView->GetScene();
 	if (!scene)
-		return true;
+		return;
 
 	auto commandList = m_RenderView->GetCommandList();
 
@@ -36,8 +36,6 @@ bool st::gfx::DebugRenderStage::Render()
 	commandList->DrawInstanced(24, bboxCount);
 
 	commandList->EndRenderPass();
-
-	return true;
 };
 
 void st::gfx::DebugRenderStage::OnAttached()

@@ -5,7 +5,7 @@
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
-bool st::gfx::CompositeRenderStage::Render()
+void st::gfx::CompositeRenderStage::Render()
 {
 	auto commandList = m_RenderView->GetCommandList();
 
@@ -29,8 +29,6 @@ bool st::gfx::CompositeRenderStage::Render()
 	commandList->Draw(3);
 
 	commandList->EndRenderPass();
-
-	return true;
 }
 
 void st::gfx::CompositeRenderStage::OnAttached()

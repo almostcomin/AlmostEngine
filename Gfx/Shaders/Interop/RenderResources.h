@@ -62,12 +62,12 @@ namespace interop
         //float4x4 inverseViewMatrix;
     };
 
-    struct OpaqueStage
+    struct SingleInstanceDrawData
     {
-        uint sceneDI;
-        uint instanceBufferDI;
-        uint meshesBufferDI;
-        uint instanceIdx;
+        uint sceneDI;           // DI for the scene constants
+        uint instanceBufferDI;  // DI for the instance data buffer
+        uint meshesBufferDI;    // DI for the mesh data buffer
+        uint instanceIdx;       // Index in the instance data buffer to render
     };
 
     struct BlitConstants

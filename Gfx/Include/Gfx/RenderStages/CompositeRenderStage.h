@@ -20,7 +20,7 @@ private:
 	rhi::TextureHandle m_SceneColor;
 	rhi::GraphicsPipelineStateOwner m_BlitPSO;
 
-	bool Render() override;
+	void Render() override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;

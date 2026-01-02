@@ -15,6 +15,7 @@
 #include "Gfx/RenderStages/OpaqueRenderStage.h"
 #include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "Gfx/RenderStages/DebugRenderStage.h"
+#include "Gfx/RenderStages/DepthPrepassRenderStage.h"
 #include "StructureUI.h"
 #include <thread>
 #include <sstream>
@@ -120,6 +121,9 @@ int SDL_main(int argc, char* argv[])
 	// Our scene
 	st::unique<st::gfx::Scene> scene;
 
+	// Create depth prepass render stage
+	std::shared_ptr<st::gfx::DepthPrepassRenderStage> depthPrepassRS{ new st::gfx::DepthPrepassRenderStage };
+
 	// Create opaque render stage
 	std::shared_ptr<st::gfx::OpaqueRenderStage> opaqueRS{ new st::gfx::OpaqueRenderStage };
 
@@ -147,7 +151,7 @@ int SDL_main(int argc, char* argv[])
 
 	// Create RenderView
 	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
-	renderView->SetRenderStages({ opaqueRS, debugRS, compositeRS, uiRS});
+	renderView->SetRenderStages({ depthPrepassRS, opaqueRS, debugRS, compositeRS, uiRS});
 	renderView->SetCamera(camera);
 
 	// Main loop
@@ -316,6 +320,7 @@ int SDL_main(int argc, char* argv[])
 	uiRS.reset();
 	compositeRS.reset();
 	opaqueRS.reset();
+	depthPrepassRS.reset();
 	debugRS.reset();
 	scene.reset();
 

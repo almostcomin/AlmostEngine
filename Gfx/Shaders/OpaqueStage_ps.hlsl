@@ -1,7 +1,7 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 
-ConstantBuffer<interop::OpaqueStage> Constants : register(b0);
+ConstantBuffer<interop::SingleInstanceDrawData> Constants : register(b0);
 
 struct PS_INPUT
 {

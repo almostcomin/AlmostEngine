@@ -34,7 +34,7 @@ protected:
 
 private:
 
-	virtual bool Render() = 0;
+	virtual void Render() = 0;
 	virtual void OnAttached() {};
 	virtual void OnDetached() {};
 	virtual void OnBackbufferResize() {};

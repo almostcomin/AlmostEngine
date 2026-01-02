@@ -1,20 +1,18 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
-#include "RHI/Shader.h"
 #include "RHI/PipelineState.h"
-#include "RHI/Framebuffer.h"
 
 namespace st::gfx
 {
 
-class OpaqueRenderStage : public RenderStage
+class DepthPrepassRenderStage : public RenderStage
 {
 public:
 
-	OpaqueRenderStage() = default;
+	DepthPrepassRenderStage() = default;
 
-	const char* GetDebugName() const override { return "OpaqueRenderStage"; }
+	const char* GetDebugName() const override { return "DepthPrepassRenderStage"; }
 
 private:
 
@@ -26,11 +24,9 @@ private:
 private:
 
 	st::rhi::ShaderOwner m_VS;
-	st::rhi::ShaderOwner m_PS;
+	st::rhi::FramebufferOwner m_FB;
 	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	st::rhi::GraphicsPipelineStateOwner m_PSO;
-
-	st::rhi::FramebufferOwner m_FB;
 };
 
 } // namespace st::gfx

@@ -248,36 +248,45 @@ void st::gfx::RenderView::Render()
 
 		for (auto& renderStage : m_RenderStages)
 		{
-			std::string markerName = renderStage.renderStage->GetDebugName();
-			markerName.append(" - Entry barriers");
-			commandList->BeginMarker(markerName.c_str());
+			commandList->BeginMarker(renderStage.renderStage->GetDebugName());
 
-			for (const auto& dep : renderStage.textureDeps)
+			// Entry barriers
 			{
-				auto state_it = resourcesStates.find(dep.declTex->id);
-				assert(state_it != resourcesStates.end());
-				if (state_it->second != dep.inputState)
+				std::vector<rhi::Barrier> barriers;
+				for (const auto& dep : renderStage.textureDeps)
 				{
-					commandList->PushBarrier(rhi::Barrier::Texture(
-						dep.declTex->texture.get(), state_it->second, dep.inputState));
-					state_it->second = dep.inputState;
+					auto state_it = resourcesStates.find(dep.declTex->id);
+					assert(state_it != resourcesStates.end());
+					if (state_it->second != dep.inputState)
+					{
+						barriers.push_back(rhi::Barrier::Texture(
+							dep.declTex->texture.get(), state_it->second, dep.inputState));
+						state_it->second = dep.inputState;
+					}
+				}
+				if (!barriers.empty())
+				{
+					std::string markerName = renderStage.renderStage->GetDebugName();
+					markerName.append(" - Entry barriers");
+					commandList->BeginMarker(markerName.c_str());
+					commandList->PushBarriers(barriers);
+					commandList->EndMarker();
 				}
 			}
 
-			commandList->EndMarker();
-
-			commandList->BeginMarker(renderStage.renderStage->GetDebugName());
 			renderStage.renderStage->Render();
 			commandList->EndMarker();
 
-			// Update the resource states with the state left by the stages
-			for (const auto& dep : renderStage.textureDeps)
+			// Update the resource states with the state left by the stage
 			{
-				auto state_it = resourcesStates.find(dep.declTex->id);
-				assert(state_it != resourcesStates.end());
-				if (state_it->second != dep.outputState)
+				for (const auto& dep : renderStage.textureDeps)
 				{
-					state_it->second = dep.outputState;
+					auto state_it = resourcesStates.find(dep.declTex->id);
+					assert(state_it != resourcesStates.end());
+					if (state_it->second != dep.outputState)
+					{
+						state_it->second = dep.outputState;
+					}
 				}
 			}
 		}

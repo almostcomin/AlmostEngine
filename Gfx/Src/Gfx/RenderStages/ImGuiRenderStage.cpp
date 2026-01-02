@@ -25,9 +25,6 @@ void st::gfx::ImGuiRenderStage::ReconcileInputState()
 void st::gfx::ImGuiRenderStage::OnAttached()
 {
     Init();
-
-    //m_RenderView->RequestTextureAccess(this, gfx::RenderView::AccessMode::Read, "SceneColor", 
-    //    rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 }
 
 void st::gfx::ImGuiRenderStage::OnDetached()
@@ -78,7 +75,7 @@ st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentIB()
     return m_IndexBuffer[currentFrameIdx % 3];
 }
 
-bool st::gfx::ImGuiRenderStage::Render()
+void st::gfx::ImGuiRenderStage::Render()
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
     st::rhi::Device* device = deviceManager->GetDevice();
@@ -93,7 +90,7 @@ bool st::gfx::ImGuiRenderStage::Render()
     if (!UpdateFontTexture())
     {
         LOG_ERROR("Failed to update ImGui font texture");
-        return false;
+        return;
     }
 
     ImGui::NewFrame();
@@ -104,13 +101,13 @@ bool st::gfx::ImGuiRenderStage::Render()
 
     ImDrawData* drawData = ImGui::GetDrawData();
     if (drawData->TotalIdxCount == 0)
-        return true; // nothing to render
+        return; // nothing to render
 
     // Address any change in geometry data
     if (!UpdateGeometry())
     {
         LOG_ERROR("Failed to update ImGui geometry buffer");
-        return false;
+        return;
     }
 
     // Handle DPI scaling
@@ -170,8 +167,6 @@ bool st::gfx::ImGuiRenderStage::Render()
     }
 
     commandList->EndRenderPass();
-    
-    return true;
 }
 
 void st::gfx::ImGuiRenderStage::OnBackbufferResize()

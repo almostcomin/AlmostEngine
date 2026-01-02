@@ -48,7 +48,7 @@ protected:
 
 private:
 
-	bool Render() override;
+	void Render() override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
