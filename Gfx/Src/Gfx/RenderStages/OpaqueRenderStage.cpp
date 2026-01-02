@@ -47,29 +47,14 @@ bool st::gfx::OpaqueRenderStage::Render()
 	shaderConstants.instanceBufferDI = scene->GetInstancesBufferDI();
 	shaderConstants.meshesBufferDI = scene->GetMeshesBufferDI();
 
-	const auto& frustum = camera->GetFrustum();
-	st::gfx::SceneGraph::Walker walker{ *scene->GetSceneGraph() };
-	while(walker)
+	const auto& visibleSet = m_RenderView->GetVisibleSet();
+	for (const st::gfx::MeshInstance* meshInstance : visibleSet)
 	{
-		auto node = *walker;
-		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && frustum.check(node->GetWorldBounds()))
-		{
-			auto leaf = node->GetLeaf();
-			if (leaf)
-			{
-				auto* meshInstance = st::checked_cast<st::gfx::MeshInstance*>(leaf.get());
-				shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
+		shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
 
-				commandList->PushConstants(shaderConstants);
-				commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
-			}
-			walker.Next();
-		}
-		else
-		{
-			walker.NextSibling();
-		}
-	} // while(walker)
+		commandList->PushConstants(shaderConstants);
+		commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
+	}
 
 	commandList->EndRenderPass();
 

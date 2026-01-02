@@ -50,6 +50,7 @@ public:
 	st::rhi::TextureHandle GetBackBuffer(int idx = 0);
 	st::rhi::CommandListHandle GetCommandList();
 	st::rhi::DescriptorIndex GetSceneBufferDI();
+	const std::vector<const st::gfx::MeshInstance*>& GetVisibleSet() const { return m_VisibleSet; }
 
 	bool CreateColorTarget(const char* id, int width, int height, rhi::Format format);
 	bool CreateDepthTarget(const char* id, int width, int height, rhi::Format format);
@@ -67,6 +68,7 @@ private:
 
 	void ClearRenderStages();
 	void UpdateSceneBuffer();
+	void UpdateVisibleSet();
 
 private:
 
@@ -101,11 +103,13 @@ private:
 	st::rhi::FramebufferHandle m_OffscreenFramebuffer;
 	std::vector<st::rhi::CommandListOwner> m_CommandLists;
 
+	std::vector<RenderStageDeps> m_RenderStages;
 	std::map<std::string, std::unique_ptr<DeclaredTexture>> m_DeclaredTextures;
 
-	st::rhi::BufferOwner m_SceneCB;
+	// Visible set for the current camera
+	std::vector<const st::gfx::MeshInstance*> m_VisibleSet;
 
-	std::vector<RenderStageDeps> m_RenderStages;
+	st::rhi::BufferOwner m_SceneCB;
 
 	bool m_IsDirty;
 

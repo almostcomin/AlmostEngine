@@ -5,6 +5,8 @@
 #include "RHI/Device.h"
 #include "Core/Log.h"
 #include "Interop/RenderResources.h"
+#include "Gfx/SceneGraph.h"
+#include "Gfx/MeshInstance.h"
 
 namespace
 {
@@ -223,6 +225,7 @@ void st::gfx::RenderView::Render()
 	}
 
 	UpdateSceneBuffer();
+	UpdateVisibleSet();
 
 	st::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
 	if (frameBuffer)
@@ -343,4 +346,33 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
 	sceneData->viewProjectionMatrix = m_Camera ? m_Camera->GetViewProjectionMatrix() : float4x4{ 1.f };
 	m_SceneCB->Unmap();
+}
+
+void st::gfx::RenderView::UpdateVisibleSet()
+{
+	m_VisibleSet.clear();
+	if (!m_Camera || !m_Scene || !m_Scene->GetSceneGraph())
+		return;
+
+	const auto& frustum = m_Camera->GetFrustum();
+	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
+	while (walker)
+	{
+		auto node = *walker;
+		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && frustum.check(node->GetWorldBounds()))
+		{
+			auto leaf = node->GetLeaf();
+			if (leaf)
+			{
+				const auto* meshInstance = st::checked_cast<const st::gfx::MeshInstance*>(leaf.get());
+				assert(meshInstance);
+				m_VisibleSet.push_back(meshInstance);
+			}
+			walker.Next();
+		}
+		else
+		{
+			walker.NextSibling();
+		}
+	}
 }

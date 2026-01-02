@@ -37,6 +37,7 @@ namespace st::gfx
 
 		unique<SceneGraph> m_SceneGraph;
 		
+		// For a mesh instance pointer, index in the m_InstancesBuffer of that instance
 		std::map<const st::gfx::MeshInstance*, size_t> m_InstanceIndices;
 
 		rhi::BufferOwner m_InstancesBuffer;
