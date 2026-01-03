@@ -189,7 +189,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 		}
 	}
 
-	commandList->WriteTexture(dstTexture.get(), subresources, m_UploadBuffer.get(), ticket.start);
+	commandList->WriteTexture(dstTexture.get(), subresources, m_UploadBuffer.get(), ticket.aligned_start);
 
 	// Transition from copy_dest to target state
 	if (targetState != rhi::ResourceState::COPY_DST)
@@ -252,7 +252,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 	auto copyReq = m_Device->GetCopyableRequirements(texDesc);
 	assert(copyReq.size >= srcData.size());
 
-	auto ticket = RequestUploadTicket(srcData.size(), copyReq.alignment);
+	auto ticket = RequestUploadTicket(copyReq.size, copyReq.alignment);
 	if (!ticket)
 		return std::unexpected(ticket.error());
 
@@ -277,8 +277,6 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 			}
 		}
 	}
-
-	//std::memcpy(ticket->ptr, srcData.data(), srcData.size());
 
 	auto uploadResult = CommitUploadTextureTicket(std::move(*ticket), dstTexture, currentState, targetState, subresources, opt_gpuMarker);
 	if (!uploadResult)
@@ -346,6 +344,11 @@ void st::gfx::DataUploader::OnCompletedTicket(UploadTicket&& ticket)
 	else
 	{
 		InsertPendingTicket(std::move(ticket));
+	}
+
+	if (m_UploadBufferHead == m_UploadBufferTail && m_PendingTickets.empty())
+	{
+		//m_UploadBufferHead = m_UploadBufferTail = 0;
 	}
 }
 
