@@ -26,6 +26,8 @@ public:
 
 	rhi::GraphicsPipelineStateOwner CreateBlitPSO(const rhi::FramebufferInfo& fbInfo);
 
+	rhi::ShaderHandle GetFullscreenTriangleVS() const;
+
 private:
 
 	ShaderFactory* m_ShaderFactory;
@@ -35,6 +37,7 @@ private:
 	rhi::ShaderOwner m_BlitPS;
 	rhi::GraphicsPipelineStateDesc m_BlitPSODesc;
 
+	rhi::ShaderOwner m_FullscreenTriangleVS;
 };
 
 } // namespace st::gfx

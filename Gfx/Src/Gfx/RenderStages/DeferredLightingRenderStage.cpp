@@ -1,0 +1,125 @@
+#include "Gfx/RenderStages/DeferredLightingRenderStage.h"
+#include "Gfx/DeviceManager.h"
+#include "RHI/Device.h"
+#include "Gfx/RenderView.h"
+#include "Gfx/ShaderFactory.h"
+#include "Gfx/CommonResources.h"
+#include "Interop/RenderResources.h"
+#include "Gfx/MeshInstance.h"
+#include "Gfx/Mesh.h"
+
+void st::gfx::DeferredLightingRenderStage::Render()
+{
+	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	auto commandList = m_RenderView->GetCommandList();
+
+	commandList->BeginRenderPass(
+		m_FB.get(),
+		{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack() }},
+		{},
+		rhi::RenderPassFlags::None);
+
+	commandList->SetPipelineState(m_PSO.get());
+
+	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
+		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
+
+	interop::DeferredLightingConstants shaderConstants;
+	shaderConstants.sceneDI = m_RenderView->GetSceneBufferDI();
+	shaderConstants.GBuffer0DI = m_RenderView->GetTexture("GBuffer0")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.GBuffer1DI = m_RenderView->GetTexture("GBuffer1")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.GBuffer2DI = m_RenderView->GetTexture("GBuffer2")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.GBuffer3DI = m_RenderView->GetTexture("GBuffer3")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+
+	commandList->PushConstants(shaderConstants);
+	commandList->Draw(3);
+
+	commandList->EndRenderPass();
+}
+
+void st::gfx::DeferredLightingRenderStage::OnAttached()
+{
+	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	st::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
+	rhi::Device* device = deviceManager->GetDevice();
+
+	// Create render target
+	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::SRGBA8_UNORM);
+
+	// Request access
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer0", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer1", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer2", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer3", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+
+	// Create Framebuffer
+	{
+		auto fbDesc = rhi::FramebufferDesc()
+			.AddColorAttachment(m_RenderView->GetTexture("SceneColor").get());
+		m_FB = device->CreateFramebuffer(fbDesc, "DeferredBaseRenderStage");
+	}
+
+	// Load shaders
+	{
+		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		m_PS = shaderFactory->LoadShader("DeferredLighting_ps.vso", rhi::ShaderType::Pixel);
+	}
+
+	// Create PSO
+	{
+		rhi::BlendState blendState;
+		blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
+		{
+			.blendEnable = false,
+		};
+
+		rhi::RasterizerState rasterState =
+		{
+			.fillMode = rhi::FillMode::Solid,
+			.cullMode = rhi::CullMode::None
+		};
+
+		rhi::DepthStencilState depthStencilState =
+		{
+			.depthTestEnable = false,
+			.depthWriteEnable = false,
+			.stencilEnable = false
+		};
+
+		m_PSODesc = rhi::GraphicsPipelineStateDesc
+		{
+			.VS = commonResources->GetFullscreenTriangleVS(),
+			.PS = m_PS.get_weak(),
+			.blendState = blendState,
+			.depthStencilState = depthStencilState,
+			.rasterState = rasterState
+		};
+
+		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "DeferredLightingRenderStage");
+	}
+}
+
+void st::gfx::DeferredLightingRenderStage::OnDetached()
+{
+	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+
+	device->ReleaseQueued(m_FB);
+	device->ReleaseQueued(m_PSO);
+	device->ReleaseQueued(m_PS);
+}
+
+void st::gfx::DeferredLightingRenderStage::OnBackbufferResize()
+{
+	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+
+	// Re-create Framebuffer
+	{
+		auto fbDesc = rhi::FramebufferDesc()
+			.AddColorAttachment(m_RenderView->GetTexture("SceneColor").get());
+		m_FB = device->CreateFramebuffer(fbDesc, "DeferredLightingRenderStage");
+	}
+
+	// Re-create PSO
+	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "DeferredLightingRenderStage");
+}

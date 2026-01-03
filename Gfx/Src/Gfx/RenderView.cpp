@@ -354,6 +354,9 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 
 	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
 	sceneData->viewProjectionMatrix = m_Camera ? m_Camera->GetViewProjectionMatrix() : float4x4{ 1.f };
+	sceneData->sunDirection = glm::normalize(float3(1.f, 1.f, 1.f));
+	sceneData->sunIntensity = 1.f;
+	sceneData->sunColor = float3(1.f);
 	if (m_Scene)
 	{
 		sceneData->instanceBufferDI = m_Scene->GetInstancesBufferDI();

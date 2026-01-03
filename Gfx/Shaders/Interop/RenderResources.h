@@ -69,16 +69,33 @@ namespace interop
         //float4x4 inverseProjectionMatrix;
         //float4x4 viewMatrix;
         //float4x4 inverseViewMatrix;
+
+
+        float3 sunDirection; // Normalized, from light
+        float sunIntensity;
+        float3 sunColor;
+        float _padding0;
+
+
         uint instanceBufferDI;  // DI for the instance data buffer
         uint meshesBufferDI;    // DI for the mesh data buffer
         uint materialsBufferDI;
-        uint _padding;
+        uint _padding1;
     };
 
     struct SingleInstanceDrawData
     {
         uint sceneDI;           // DI for the scene constants
         uint instanceIdx;       // Index in the instance data buffer to render
+    };
+
+    struct DeferredLightingConstants
+    {
+        uint sceneDI;
+        uint GBuffer0DI;
+        uint GBuffer1DI;
+        uint GBuffer2DI;
+        uint GBuffer3DI;
     };
 
     struct BlitConstants

@@ -38,6 +38,11 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 			.rasterState = rasterState,
 		};
 	}
+
+	// Load FullscreenTriangle VS
+	{
+		m_FullscreenTriangleVS = m_ShaderFactory->LoadShader("FullscreenTriangle_vs", rhi::ShaderType::Vertex);
+	}
 }
 
 st::gfx::CommonResources::~CommonResources()
@@ -47,4 +52,9 @@ st::gfx::CommonResources::~CommonResources()
 st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateBlitPSO(const rhi::FramebufferInfo& fbInfo)
 {
 	return m_Device->CreateGraphicsPipelineState(m_BlitPSODesc, fbInfo, "BlitPSO");
+}
+
+st::rhi::ShaderHandle st::gfx::CommonResources::GetFullscreenTriangleVS() const
+{
+	return m_FullscreenTriangleVS.get_weak();
 }
