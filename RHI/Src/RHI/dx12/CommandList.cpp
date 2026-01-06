@@ -218,7 +218,7 @@ void st::rhi::dx12::CommandList::SetViewport(const st::rhi::ViewportState& vp)
 		d3d12Viewport[i].Width = vp.viewports[0].Width();
 		d3d12Viewport[i].Height = vp.viewports[0].Height();
 		d3d12Viewport[i].MinDepth = vp.viewports[i].minZ;
-		d3d12Viewport[i].MaxDepth = vp.viewports[i].maxX;
+		d3d12Viewport[i].MaxDepth = vp.viewports[i].maxZ;
 	}
 	m_D3d12Commandlist->RSSetViewports(vp.viewports.size(), d3d12Viewport);
 

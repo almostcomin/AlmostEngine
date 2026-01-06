@@ -6,13 +6,13 @@
 namespace st::gfx
 {
 
-class DeferredLightingRenderStage : public RenderStage
+class ShadowmapRenderStage : public RenderStage
 {
 public:
 
-	DeferredLightingRenderStage() = default;
+	ShadowmapRenderStage(size_t resolution, size_t numCascades, rhi::Format pixelFormat);
 
-	const char* GetDebugName() const override { return "DeferredLightingRenderStage"; }
+	const char* GetDebugName() const override { return "ShadowmapRenderStage"; }
 
 private:
 
@@ -23,6 +23,12 @@ private:
 
 private:
 
+	size_t m_TextureWidth;
+	size_t m_TextureHeight;
+	size_t m_NumCascades;
+	rhi::Format m_PixelFormat;
+
+	st::rhi::ShaderOwner m_VS;
 	st::rhi::ShaderOwner m_PS;
 	st::rhi::FramebufferOwner m_FB;
 	st::rhi::GraphicsPipelineStateDesc m_PSODesc;

@@ -1,11 +1,12 @@
 #include "Gfx/Camera.h"
+#include "Gfx/Util.h"
 
 st::gfx::Camera::Camera() :
 	m_ProjectionModel{ ProjectionModel::Reverse },
 	m_Position{ 0.f, 0.f, 0.f },
-	m_Forward{ 0.f, 0.f, 1.f },
+	m_Forward{ 0.f, 0.f, -1.f }, // Right-hand
 	m_Up{ 0.f, 1.f, 0.f },
-	m_Right{ -1.f, 0.f, 0.f },
+	m_Right{ 1.f, 0.f, 0.f },
 	m_VerticalFov{ glm::radians(60.f) },
 	m_Aspect{ 1.f },
 	m_zNear{ 1.f },
@@ -112,43 +113,19 @@ void st::gfx::Camera::UpdateMatrices()
 
 void st::gfx::Camera::UpdateWorldViewMatrix()
 {
-	m_ViewMatrix = glm::lookAtLH(m_Position, m_Position + m_Forward, m_Up);
+	m_ViewMatrix = glm::lookAtRH(m_Position, m_Position + m_Forward, m_Up);
 }
 
 // D3D / Vulkan style, z clip space [0, 1]
 void st::gfx::Camera::UpdateProjectionMatrix()
 {
-	float yScale = 1.0f / tanf(0.5f * m_VerticalFov);
-	float xScale = yScale / m_Aspect;
-	float zScale = 1.0f / (m_zFar - m_zNear);
-
-	m_ProjectionMatrix = float4x4{
-		xScale,	0,		0,							0,
-		0,		yScale,	0,							0,
-		0,		0,		m_zFar * zScale,			1,
-		0,		0,		-m_zNear * m_zFar * zScale,	0 };
+	m_ProjectionMatrix = glm::perspectiveRH_ZO(m_VerticalFov, m_Aspect, m_zNear, m_zFar);
 }
 
-// D3D / Vulkan style, z clip space [1, 0]
+// Column major, right handed, reverse Z [1, 0]
 void st::gfx::Camera::UpdateProjectionMatrixReverse()
 {
-	float yScale = 1.0f / tanf(0.5f * m_VerticalFov);
-	float xScale = yScale / m_Aspect;
-/*
-	m_ProjectionMatrix = float4x4{
-		xScale,	0,		0,			0,
-		0,		yScale, 0,			0,
-		0,		0,		0,			1,
-		0,		0,		m_zNear,	0 };
-*/
-	float n = m_zNear;
-	float f = m_zFar;
-	m_ProjectionMatrix = {
-		xScale, 0,      0,        0,
-		0,      yScale, 0,        0,
-		0,      0,  n / (f - n),   1,
-		0,      0, (f * n) / (f - n), 0
-	};
+	m_ProjectionMatrix = BuildPersInvZInfFar(m_VerticalFov, m_Aspect, m_zNear);
 }
 
 void st::gfx::Camera::UpdateFrustum()

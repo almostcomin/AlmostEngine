@@ -60,25 +60,25 @@ void st::gfx::DeferredBaseRenderStage::OnAttached()
 		// GBuffer0
 		//	RGB = BaseColor (albedo)
 		//	A = MaterialID (0–255)
-		m_RenderView->CreateColorTarget("GBuffer0", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::RGBA8_UNORM);
+		m_RenderView->CreateColorTarget("GBuffer0", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
 
 		// GBuffer1
 		//	RG = Normal.xy(octahedron encoded)
 		//	B = Roughness
 		//	A = unused / AO
-		m_RenderView->CreateColorTarget("GBuffer1", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::RGBA8_UNORM);
+		m_RenderView->CreateColorTarget("GBuffer1", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
 
 		// GBuffer2
 		//	R = Metallic
 		//	G = Ambient Occlusion
 		//	B = Specular (optional, default 0.5)
 		//	A = unused / flags
-		m_RenderView->CreateColorTarget("GBuffer2", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::RGBA8_UNORM);
+		m_RenderView->CreateColorTarget("GBuffer2", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
 
 		// GBuffer3
 		//	RGB = Emissive color
 		//	A = unused
-		m_RenderView->CreateColorTarget("GBuffer3", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::RGBA16_FLOAT);
+		m_RenderView->CreateColorTarget("GBuffer3", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
 	}
 
 	// Request RT access

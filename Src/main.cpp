@@ -18,6 +18,7 @@
 #include "Gfx/RenderStages/DepthPrepassRenderStage.h"
 #include "Gfx/RenderStages/DeferredBaseRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
+#include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "StructureUI.h"
 #include <thread>
 #include <sstream>
@@ -122,6 +123,9 @@ int SDL_main(int argc, char* argv[])
 	// Our scene
 	st::unique<st::gfx::Scene> scene;
 
+	// Create shadowmap render stage
+	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 1024, 4, st::rhi::Format::D24S8 }};
+
 	// Create depth prepass render stage
 	std::shared_ptr<st::gfx::DepthPrepassRenderStage> depthPrepassRS{ new st::gfx::DepthPrepassRenderStage };
 
@@ -154,11 +158,11 @@ int SDL_main(int argc, char* argv[])
 	int windowWidth, windowHeight;
 	SDL_GetWindowSize(window, (int*)&windowWidth, (int*)&windowHeight);
 	camera->SetAspect((float)windowWidth / windowHeight);
-	camera->SetPosition({ 0.f, 0.f, -5.f });
+	camera->SetPosition({ 0.f, 0.f, 5.f });
 
 	// Create RenderView
 	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
-	renderView->SetRenderStages({ depthPrepassRS, deferredRS, lightingRS/*opaqueRS*/, debugRS, compositeRS, uiRS});
+	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, deferredRS, lightingRS/*opaqueRS*/, debugRS, compositeRS, uiRS});
 	renderView->SetCamera(camera);
 
 	// Main loop
@@ -220,7 +224,7 @@ int SDL_main(int argc, char* argv[])
 					}
 					{
 						float angleRad = event.motion.xrel * PI / windowWidth;
-						glm::quat q = glm::angleAxis(angleRad, camera->GetUp());
+						glm::quat q = glm::angleAxis(-angleRad, camera->GetUp());
 						float3 newFwd = q * camera->GetForward();
 						camera->SetForward(newFwd);
 					}
@@ -256,8 +260,8 @@ int SDL_main(int argc, char* argv[])
 				{
 				case SDLK_W: cameraSpeed.y = 1.f; break;
 				case SDLK_S: cameraSpeed.y = -1.f; break;
-				case SDLK_A: cameraSpeed.x = -1.f; break;
-				case SDLK_D: cameraSpeed.x = 1.f; break;
+				case SDLK_A: cameraSpeed.x = 1.f; break;
+				case SDLK_D: cameraSpeed.x = -1.f; break;
 				}
 				break;
 
@@ -330,6 +334,7 @@ int SDL_main(int argc, char* argv[])
 	lightingRS.reset();
 	deferredRS.reset();
 	depthPrepassRS.reset();
+	shadowmapRS.reset();
 	debugRS.reset();
 	scene.reset();
 

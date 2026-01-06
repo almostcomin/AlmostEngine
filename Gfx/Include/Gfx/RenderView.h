@@ -52,8 +52,8 @@ public:
 	st::rhi::DescriptorIndex GetSceneBufferDI();
 	const std::vector<const st::gfx::MeshInstance*>& GetVisibleSet() const { return m_VisibleSet; }
 
-	bool CreateColorTarget(const char* id, int width, int height, rhi::Format format);
-	bool CreateDepthTarget(const char* id, int width, int height, rhi::Format format);
+	bool CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
+	bool CreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
 
 	bool RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState);
 	rhi::TextureHandle GetTexture(const char* id) const;

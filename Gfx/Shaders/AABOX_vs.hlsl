@@ -42,7 +42,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     float3 worldPos = corners[cornerIdx];
     
     VS_OUTPUT o;
-    o.pos = mul(float4(worldPos, 1.0), sceneData.viewProjectionMatrix);
+    o.pos = mul(sceneData.camViewProjMatrix, float4(worldPos, 1.0));
     o.color = float4(1, 0, 0, 1);
     
     return o;

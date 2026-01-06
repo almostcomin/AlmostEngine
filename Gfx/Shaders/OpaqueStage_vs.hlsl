@@ -32,10 +32,14 @@ PS_INPUT main(uint vertexID : SV_VertexID)
     float2 uv0 = LoadVertexAttributeFloat2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Offset);
         
     // Transform
+/*    
     float4x4 modelMatrix = instanceData.modelMatrix;
     float4 posWorld = mul(float4(pos, 1.0f), modelMatrix);
     float4x4 viewProjectionMatrix = sceneData.viewProjectionMatrix;
     float4 posClip = mul(posWorld, viewProjectionMatrix);
+*/
+    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
+    float4 posClip = mul(sceneData.camViewProjMatrix, posWorld);
         
     // Output
     PS_INPUT output;

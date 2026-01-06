@@ -51,7 +51,7 @@ st::Blob st::rhi::ShaderCompiler::Compile(ShaderType shaderType, const st::WeakB
         wsEntryPoint.data(),
         L"-T",
         targetProfile.c_str(),
-        DXC_ARG_PACK_MATRIX_ROW_MAJOR,
+        //DXC_ARG_PACK_MATRIX_ROW_MAJOR,
         DXC_ARG_WARNINGS_ARE_ERRORS,
         DXC_ARG_ALL_RESOURCES_BOUND,
         L"-enable-16bit-types",

@@ -1222,7 +1222,10 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
 
         if (srcNode->has_matrix)
         {
-            dstNode->SetLocalTransform(st::gfx::Transform{ glm::make_mat4(srcNode->matrix) }); // TODO check if transpose is needed (glm::transpose)
+            //const glm::mat4 RHtoLH = glm::scale(glm::mat4(1.0f), glm::vec3(1, 1, -1));
+            //glm::mat4 m = RHtoLH * m * RHtoLH;
+            //dstNode->SetLocalTransform(st::gfx::Transform{ m });
+            dstNode->SetLocalTransform(st::gfx::Transform{ glm::make_mat4(srcNode->matrix) });
         }
         else
         {

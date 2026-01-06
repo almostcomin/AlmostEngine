@@ -105,50 +105,74 @@ uint32_t st::gfx::BitsPerPixel(st::rhi::Format format)
     return mapping.bitsPerPixel;
 }
 
-#if 0
-nvrhi::VertexAttributeDesc st::gfx::GetVertexAttributeDesc(VertexAttribute attribute, const char* name, uint32_t bufferIndex)
+float4x4 st::gfx::BuildPersInvZ(float v_fov, float aspect, float n_near, float z_far)
 {
-    nvrhi::VertexAttributeDesc result = {};
-    result.name = name;
-    result.bufferIndex = bufferIndex;
-    result.arraySize = 1;
+    float yScale = 1.0f / tanf(0.5f * v_fov);
+    float xScale = yScale / aspect;
+    float n = n_near;
+    float f = z_far;
 
-    switch (attribute)
-    {
-    case VertexAttribute::Position:
-    case VertexAttribute::PrevPosition:
-        result.format = nvrhi::Format::RGB32_FLOAT;
-        result.elementStride = sizeof(float3);
-        break;
-    case VertexAttribute::TexCoord1:
-    case VertexAttribute::TexCoord2:
-        result.format = nvrhi::Format::RG32_FLOAT;
-        result.elementStride = sizeof(float2);
-        break;
-    case VertexAttribute::Normal:
-    case VertexAttribute::Tangent:
-        result.format = nvrhi::Format::RGBA8_SNORM;
-        result.elementStride = sizeof(uint32_t);
-        break;
-    case VertexAttribute::Transform:
-        result.format = nvrhi::Format::RGBA32_FLOAT;
-        result.arraySize = 3;
-        result.offset = offsetof(InstanceData, transform);
-        result.elementStride = sizeof(InstanceData);
-        result.isInstanced = true;
-        break;
-    case VertexAttribute::PrevTransform:
-        result.format = nvrhi::Format::RGBA32_FLOAT;
-        result.arraySize = 3;
-        result.offset = offsetof(InstanceData, prevTransform);
-        result.elementStride = sizeof(InstanceData);
-        result.isInstanced = true;
-        break;
+    // Note that we are using GLM that uses column-major order for the arguments of its constructor.
+    // That means the first 4 inputs to the constructor are actually the first column of the matrix.
 
-    default:
-        assert(!"unknown attribute");
-    }
-
-    return result;
+    return float4x4 {
+        { xScale,   0.0f,   0.0f,           0.0f },	    // first column
+        { 0.0f,     yScale, 0.0f,           0.0f },	    // second column
+        { 0.0f,     0.0f,   (n - f) / n,    f / n },	// third column,
+        { 0.0f,     0.0f,   -1.0f,          0.0f } 	    // fourth column
+    };
 }
-#endif
+
+float4x4 st::gfx::BuildPersInvZInfFar(float v_fov, float aspect, float z_near)
+{
+    float yScale = 1.0f / tanf(0.5f * v_fov);
+    float xScale = yScale / aspect;
+
+    // WARNING!!! rows are columns!
+    return float4x4 {
+        { xScale,		0.f,		0.f,	0.f },	// first column
+        { 0.f,			yScale,		0.f,	0.f },	// second column
+        { 0.f,			0.f,		0.f,	-1.f },	// third column
+        { 0.f,			0.f,		z_near,	0.f }	// fourth column
+    };
+}
+
+float4x4 st::gfx::BuildOrthoInvZ(float left, float right, float bottom, float top, float z_near, float z_far)
+{
+    /*
+    float inv_dx = 1.0f / (right - left);
+    float inv_dy = 1.0f / (top - bottom);
+    float inv_dz = 1.0f / (z_near - z_far); // reverse Z
+
+    return float4x4 {
+        {  2.0f * inv_dx,           0.0f,                       0.0f,               0.0f }, // column 0        
+        {  0.0f,                    2.0f * inv_dy,              0.0f,               0.0f }, // column 1
+        {  0.0f,                    0.0f,                       -inv_dz,            0.0f }, // column 2 (Z)
+        { -(right + left) * inv_dx, -(top + bottom) * inv_dy,   z_far * inv_dz, 1.0f }  // column 3 (translation)
+    };
+*/
+/*
+    float inv_dx = 1.0f / (right - left);
+    float inv_dy = 1.0f / (top - bottom);
+    float inv_dz = 1.0f / (z_far - z_near);
+
+    // NOTE: BUILD BY COLUMNS for glm::mat4 (Right-Handed, Z-Reverse)
+    return float4x4 {
+        { 2.0f * inv_dx,            0.0f,                       0.0f,               0.0f }, // column 0
+        { 0.0f,                     2.0f * inv_dy,              0.0f,               0.0f }, // column 1
+        { 0.0f,                     0.0f,                       -inv_dz,             0.0f }, // column 2
+        { -(right + left) * inv_dx, -(top + bottom) * inv_dy,   z_near * inv_dz,         1.0f }  // column 3
+    };
+*/
+
+    float inv_dx = 1.0f / (right - left);
+    float inv_dy = 1.0f / (top - bottom);
+    float inv_dz = 1.0f / (z_far - z_near);
+
+    return float4x4{
+        { 2.0f * inv_dx,            0.0f,                       0.0f,               0.0f }, // column 0
+        { 0.0f,                     2.0f * inv_dy,              0.0f,               0.0f }, // column 1
+        { 0.0f,                     0.0f,                       -inv_dz,            0.0f }, // column 2
+        { -(right + left) * inv_dx, -(top + bottom) * inv_dy,   -z_near * inv_dz,   1.0f }  // column 3
+    };
+}

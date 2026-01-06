@@ -32,14 +32,13 @@ VS_OUTPUT main(uint vertexID : SV_VertexID)
     float3 normal = DecodeSnorm8(LoadVertexAttributeUInt(vertexBuffer, vertexBufferOffset, meshData.vertexNormalOffset));
     float2 uv0 = LoadVertexAttributeFloat2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Offset);
         
-    // Position
-    float4x4 modelMatrix = instanceData.modelMatrix;
-    float4 posWorld = mul(float4(pos, 1.0f), modelMatrix);
-    float4x4 viewProjectionMatrix = sceneData.viewProjectionMatrix;
-    float4 posClip = mul(posWorld, viewProjectionMatrix);
+    // Transform
+    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
+    float4 posClip = mul(sceneData.camViewProjMatrix, posWorld);
+        
     // Normal
-    const float3x3 normalMatrix = (float3x3) transpose(instanceData.inverseModelMatrix);
-    float3 normalWorld = normalize(mul(normal, normalMatrix));
+    const float3x3 normalMatrix = (float3x3)transpose(instanceData.inverseModelMatrix);
+    float3 normalWorld = normalize(mul(normalMatrix, normal));
             
     // Output
     VS_OUTPUT output;

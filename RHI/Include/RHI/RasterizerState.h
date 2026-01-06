@@ -22,7 +22,7 @@ struct RasterizerState
 {
 	FillMode fillMode = FillMode::Solid;
 	CullMode cullMode = CullMode::None;
-	bool frontCounterClockwise = false;
+	bool frontCounterClockwise = true;
 	bool depthClipEnable = false;
 	bool scissorEnable = false;
 	bool multisampleEnable = false;

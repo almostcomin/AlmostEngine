@@ -64,21 +64,21 @@ namespace interop
 
     struct Scene
     {
-        float4x4 viewProjectionMatrix;
+        float4x4 camViewProjMatrix;
         //float4x4 projectionMatrix;
         //float4x4 inverseProjectionMatrix;
         //float4x4 viewMatrix;
         //float4x4 inverseViewMatrix;
 
-
         float3 sunDirection; // Normalized, from light
         float sunIntensity;
         float3 sunColor;
         float _padding0;
+        
+        float4x4 sunWorldToClipMatrix;
 
-
-        uint instanceBufferDI;  // DI for the instance data buffer
-        uint meshesBufferDI;    // DI for the mesh data buffer
+        uint instanceBufferDI;  // Descriptor index for the instance data buffer
+        uint meshesBufferDI;
         uint materialsBufferDI;
         uint _padding1;
     };

@@ -22,7 +22,7 @@ void st::gfx::DepthPrepassRenderStage::Render()
 	commandList->BeginRenderPass(
 		m_FB.get(),
 		{},
-		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
+		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() }, // Inverse-z
 		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());
@@ -51,7 +51,7 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create depth stencil
-	m_RenderView->CreateDepthTarget("SceneDepth", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::D24S8);
+	m_RenderView->CreateDepthTarget("SceneDepth", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::D24S8);
 
 	// Request access
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneDepth", rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
@@ -74,7 +74,6 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 	{
 		rhi::RasterizerState rasterState =
 		{
-			.fillMode = rhi::FillMode::Solid,
 			.cullMode = rhi::CullMode::Back
 		};
 
@@ -82,7 +81,7 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 		{
 			.depthTestEnable = true,
 			.depthWriteEnable = true,
-			.depthFunc = rhi::ComparisonFunc::GreaterEqual,
+			.depthFunc = rhi::ComparisonFunc::Greater,
 			.stencilEnable = false
 		};
 

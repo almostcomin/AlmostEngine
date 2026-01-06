@@ -38,6 +38,7 @@ union ClearValue
 
 	static constexpr ClearValue ColorBlack() { return ClearValue{ float4{ 0.f } }; }
 	static constexpr ClearValue DepthZero() { return ClearValue{ .depthStencil{ 0.f, 0u } }; }
+	static constexpr ClearValue DepthOne() { return ClearValue{ .depthStencil{ 1.f, 0u } }; }
 };
 
 struct RenderPassOp

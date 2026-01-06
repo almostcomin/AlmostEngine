@@ -24,14 +24,14 @@ struct frustum3f
 
     frustum3f() = default;
 
-    frustum3f(const glm::mat4& viewProjMat)
+    frustum3f(const glm::mat4& mat)
     {
         // GLM is column-major: viewProjMat[col][row]
         // Plane normals pointing inside the volume
-        glm::vec4 row0 = glm::row(viewProjMat, 0);
-        glm::vec4 row1 = glm::row(viewProjMat, 1);
-        glm::vec4 row2 = glm::row(viewProjMat, 2);
-        glm::vec4 row3 = glm::row(viewProjMat, 3);
+        glm::vec4 row0 = glm::row(mat, 0);
+        glm::vec4 row1 = glm::row(mat, 1);
+        glm::vec4 row2 = glm::row(mat, 2);
+        glm::vec4 row3 = glm::row(mat, 3);
 
         planes[near_plane] = st::math::plane3f{ row3 + row2 };
         planes[far_plane] = st::math::plane3f{ row3 - row2 };

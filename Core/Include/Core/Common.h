@@ -100,6 +100,9 @@ constexpr bool has_flag(T lhs, T rhs)
 std::wstring ToWide(const char* utf8);
 std::string ToUtf8(const wchar_t* wide);
 
-
+inline bool AlmostEqual(float v1, float v2, float epsilon = 1.0e-05f)
+{
+    return abs(v2 - v1) <= FLT_EPSILON;
+}
 
 } // namespace st

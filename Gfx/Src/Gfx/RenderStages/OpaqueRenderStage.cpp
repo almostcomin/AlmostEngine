@@ -55,7 +55,7 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create render target
-	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, rhi::Format::SRGBA8_UNORM);
+	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::SRGBA8_UNORM);
 
 	// Request RT access
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);

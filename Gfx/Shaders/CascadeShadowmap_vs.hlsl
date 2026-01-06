@@ -29,11 +29,11 @@ VS_OUTPUT main(uint vertexID : SV_VertexID)
     float3 pos = LoadVertexAttributeFloat3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionOffset);
         
     // Transform
-    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
-    float4 posClip = mul(sceneData.camViewProjMatrix, posWorld);
-            
+    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));    
+    float4 posClip = mul(sceneData.sunWorldToClipMatrix, posWorld);
+        
     // Output
     VS_OUTPUT output;
-    output.pos = posClip;
+    output.pos = posClip;   
     return output;
 }

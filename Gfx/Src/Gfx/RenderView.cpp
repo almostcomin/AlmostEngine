@@ -7,6 +7,7 @@
 #include "Interop/RenderResources.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/Util.h"
 
 namespace
 {
@@ -101,7 +102,7 @@ st::rhi::DescriptorIndex st::gfx::RenderView::GetSceneBufferDI()
 	return m_SceneCB ? m_SceneCB->GetShaderViewIndex(rhi::BufferShaderView::ConstantBuffer) : rhi::c_InvalidDescriptorIndex;
 }
 
-bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, rhi::Format format)
+bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
 {
 	// Check that texture has not been already created
 	auto it = m_DeclaredTextures.find(id);
@@ -114,6 +115,7 @@ bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int heigh
 	rhi::TextureDesc desc{
 		.width = (uint32_t)GetActualSize(width, GetFramebuffer()->GetFramebufferInfo().width),
 		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
+		.arraySize = (uint32_t)arraySize,
 		.format = format,
 		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::RenderTarget };
 
@@ -123,7 +125,7 @@ bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int heigh
 	return true;
 }
 
-bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int height, rhi::Format format)
+bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
 {
 	// Check that texture has not been already created
 	auto it = m_DeclaredTextures.find(id);
@@ -136,6 +138,7 @@ bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int heigh
 	rhi::TextureDesc desc{
 		.width = (uint32_t)GetActualSize(width, GetFramebuffer()->GetFramebufferInfo().width),
 		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
+		.arraySize = (uint32_t)arraySize,
 		.format = format,
 		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::DepthStencil };
 
@@ -353,10 +356,73 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 	}
 
 	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
-	sceneData->viewProjectionMatrix = m_Camera ? m_Camera->GetViewProjectionMatrix() : float4x4{ 1.f };
-	sceneData->sunDirection = glm::normalize(float3(1.f, 1.f, 1.f));
+
+	sceneData->camViewProjMatrix = m_Camera ? m_Camera->GetViewProjectionMatrix() : float4x4{ 1.f };
+
+	float3 sunDirection = glm::normalize(float3(1.f, -1.f, 0.f));
+	sceneData->sunDirection = sunDirection;
 	sceneData->sunIntensity = 1.f;
 	sceneData->sunColor = float3(1.f);
+	if (m_Camera && m_Scene)
+	{
+		st::math::aabox3f sceneBounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds();
+		float3 sceneExtents = sceneBounds.max - sceneBounds.min;
+		float3 sceneCenter = sceneBounds.min + (sceneExtents / 2.f);
+		float sceneExtentMag = glm::length(sceneExtents);
+		//float3 sunPosition = sceneCenter - (sunDirection * (sceneExtentMag + 0.1f));
+		float3 sunPosition = m_Camera->GetPosition();
+		sceneData->sunDirection = glm::normalize(glm::normalize(sceneCenter - sunPosition) + float3{ 0.f, - 1.f, 0.f });
+
+		float3 sunUp = fabs(glm::dot(sunDirection, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
+		float4x4 sunViewMatrix = glm::lookAtRH(sunPosition, sunPosition + sceneData->sunDirection, sunUp);
+
+		float3 corners[8] = {
+			{sceneBounds.min.x, sceneBounds.min.y, sceneBounds.min.z},
+			{sceneBounds.max.x, sceneBounds.min.y, sceneBounds.min.z},
+			{sceneBounds.min.x, sceneBounds.max.y, sceneBounds.min.z},
+			{sceneBounds.max.x, sceneBounds.max.y, sceneBounds.min.z},
+			{sceneBounds.min.x, sceneBounds.min.y, sceneBounds.max.z},
+			{sceneBounds.max.x, sceneBounds.min.y, sceneBounds.max.z},
+			{sceneBounds.min.x, sceneBounds.max.y, sceneBounds.max.z},
+			{sceneBounds.max.x, sceneBounds.max.y, sceneBounds.max.z},
+		};
+		float3 min_v{ FLT_MAX };
+		float3 max_v{ -FLT_MAX };
+		for (int i = 0; i < 8; ++i)
+		{
+			float4 v = sunViewMatrix * float4(corners[i], 1.0f);
+			min_v.x = std::min(min_v.x, v.x);
+			min_v.y = std::min(min_v.y, v.y);
+			min_v.z = std::min(min_v.z, v.z);
+			max_v.x = std::max(max_v.x, v.x);
+			max_v.y = std::max(max_v.y, v.y);
+			max_v.z = std::max(max_v.z, v.z);
+		}
+		assert(max_v.z > min_v.z);
+		float zNear = std::max(-max_v.z, 0.f);
+		float zFar = std::max(-min_v.z, 0.f);
+		assert(zNear >= 0.0f);
+		assert(zFar >= zNear);
+
+		float4x4 sunProjMatrix = BuildOrthoInvZ(min_v.x, max_v.x, min_v.y, max_v.y, zNear, zFar);
+		sceneData->sunWorldToClipMatrix = sunProjMatrix * sunViewMatrix;
+
+		//*** TEST
+#ifdef _DEBUG
+		{
+			float4 pNear = sunProjMatrix * float4(min_v, 1.f);
+			float4 pFar = sunProjMatrix * float4(max_v, 1.f);
+			// Ortho proj, W is 1, so p.w should be 1
+			//assert(AlmostEqual(pNear.z, 1.f) && AlmostEqual(pFar.z, 0.f));
+			//assert(AlmostEqual(pNear.w, 1.f) && AlmostEqual(pFar.w, 1.f));
+		}
+#endif
+	}
+	else
+	{
+		sceneData->sunWorldToClipMatrix = float4x4{ 1.f };
+	}
+
 	if (m_Scene)
 	{
 		sceneData->instanceBufferDI = m_Scene->GetInstancesBufferDI();
@@ -383,7 +449,7 @@ void st::gfx::RenderView::UpdateVisibleSet()
 	while (walker)
 	{
 		auto node = *walker;
-		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && frustum.check(node->GetWorldBounds()))
+		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() /*&& frustum.check(node->GetWorldBounds())*/)
 		{
 			auto leaf = node->GetLeaf();
 			if (leaf)

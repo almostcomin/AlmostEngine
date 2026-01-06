@@ -22,8 +22,5 @@ static const uint INVALID_DESCRIPTOR_INDEX = 0xFFFFFFFFu;
 
 #define ConstantBufferStruct struct
 
-// Set the matrix packing to row major by default. Prevents needing to transpose matrices on the C++ side.
-#pragma pack_matrix(row_major)
-
 #endif // __cplusplus
 #endif // __SHADER_SHADERINTEROP_H__
