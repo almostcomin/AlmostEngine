@@ -155,7 +155,25 @@ void st::gfx::ImGuiRenderStage::Render()
                 cb.indexOffset = idxOffset;
                 cb.vertexBuffer = GetCurrentVB()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
                 cb.vertexBufferOffset = vtxOffset;
-                cb.textureIndex = m_FontTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+                if (pCmd->TexRef._TexID != NULL && !((ImGuiTexture*)pCmd->TexRef._TexID)->tex.expired())
+                {
+                    auto* guiTex = (ImGuiTexture*)pCmd->TexRef._TexID;
+                    cb.textureIndex = guiTex->tex->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+                    cb.flags = guiTex->flags;
+                    // Delete guiTex if it was a requested one (via ShowImage).
+                    for(auto it = m_CurrentTextures.begin(); it != m_CurrentTextures.end(); ++it)
+                    {
+                        if (it->get() == guiTex)
+                        {
+                            m_CurrentTextures.erase(it);
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    cb.textureIndex = rhi::c_InvalidDescriptorIndex;
+                }
 
                 commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0);
                 
@@ -279,6 +297,9 @@ void st::gfx::ImGuiRenderStage::Release()
 
     ImGui::DestroyContext();
 
+    m_GuiFontTexture.reset();
+    m_CurrentTextures.clear();
+
     device->ReleaseQueued(m_FontTexture);
     device->ReleaseQueued(m_PSO);
     for (int i = 0; i < 3; ++i)
@@ -296,7 +317,7 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
 
     // If the font texture exists and is bound to ImGui, we're done.
     // Note: ImGui_Renderer will reset io.Fonts->TexID when new fonts are added.
-    if (m_FontTexture && io.Fonts->TexRef.GetTexID())
+    if (m_GuiFontTexture && io.Fonts->TexRef.GetTexID())
         return true;
 
     // Get font texture atlas memory
@@ -329,7 +350,8 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
     m_RenderView->GetCommandList()->PushBarrier(
         rhi::Barrier::Texture(m_FontTexture.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 
-    io.Fonts->TexRef = m_FontTexture.get();
+    m_GuiFontTexture = st::make_unique_with_weak<ImGuiTexture>(m_FontTexture.get_weak(), ImGuiTexFlags_None);
+    io.Fonts->TexRef = m_GuiFontTexture.get();
 
     return true;
 }
@@ -417,4 +439,25 @@ st::rhi::GraphicsPipelineStateHandle st::gfx::ImGuiRenderStage::GetPSO(rhi::IFra
         assert(m_PSO);
     }
     return m_PSO.get_weak();
+}
+
+void st::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, ImGuiTexFlags flags)
+{
+    auto* imGuiTex = new ImGuiTexture{ tex, flags };
+    m_CurrentTextures.push_back(st::unique<ImGuiTexture>{ imGuiTex });
+
+    ImGui::Image(ImTextureRef{ imGuiTex }, ImVec2{ size.x, size.y }, ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
+}
+
+bool st::gfx::ImGuiRenderStage::ShowToggleButton(const char* label, bool* v)
+{
+    bool newV = *v;
+    if (*v)
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+    if (ImGui::Button(label))
+        newV = !newV;
+    if (*v)
+        ImGui::PopStyleColor();
+    *v = newV;
+    return *v;
 }

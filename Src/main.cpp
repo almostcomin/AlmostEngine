@@ -113,6 +113,11 @@ int SDL_main(int argc, char* argv[])
 		ImGui::StyleColorsDark();
 
 		ImGuiStyle& style = ImGui::GetStyle();
+		//style.ScaleAllSizes(1.25f);			// Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
+		//style.FontScaleDpi = 1.25f;			// Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+		io.ConfigDpiScaleFonts = true;      // [Experimental] Automatically overwrite style.FontScaleDpi in Begin() when Monitor DPI changes. This will scale fonts but _NOT_ scale sizes/padding for now.
+		io.ConfigDpiScaleViewports = true;  // [Experimental] Scale Dear ImGui and Platform Windows when Monitor DPI changes.
+
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
 			style.WindowRounding = 0.0f;
@@ -122,6 +127,9 @@ int SDL_main(int argc, char* argv[])
 
 	// Our scene
 	st::unique<st::gfx::Scene> scene;
+
+	// Create RenderView
+	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
 
 	// Create shadowmap render stage
 	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 1024, 4, st::rhi::Format::D24S8 }};
@@ -148,7 +156,7 @@ int SDL_main(int argc, char* argv[])
 	std::string requestLoadFile;
 	bool requestClose = false;
 	bool requestQuit = false;
-	std::shared_ptr<StructureUI> uiRS{ new StructureUI{window} };
+	std::shared_ptr<StructureUI> uiRS{ new StructureUI{ renderView.get_weak(), window, deviceManager.get() }};
 	uiRS->m_RequestLoadFile = [&requestLoadFile](const char* filename) { requestLoadFile = filename; };
 	uiRS->m_RequestClose = [&requestClose] { requestClose = true; };
 	uiRS->m_RequestQuit = [&requestQuit] { requestQuit = true; };
@@ -160,8 +168,7 @@ int SDL_main(int argc, char* argv[])
 	camera->SetAspect((float)windowWidth / windowHeight);
 	camera->SetPosition({ 0.f, 0.f, 5.f });
 
-	// Create RenderView
-	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
+	// Add stages to render view
 	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, deferredRS, lightingRS/*opaqueRS*/, debugRS, compositeRS, uiRS});
 	renderView->SetCamera(camera);
 

@@ -103,3 +103,15 @@ bool st::rhi::IsDepthFormat(Format format)
         return false;
     }
 }
+
+const char* st::rhi::GetFormatString(Format format)
+{
+    static_assert(sizeof(c_FormatInfo) / sizeof(FormatInfo) == size_t(Format::COUNT),
+        "The format info table doesn't have the right number of elements");
+
+    if (uint32_t(format) >= uint32_t(Format::COUNT))
+        return c_FormatInfo[0].name; // UNKNOWN
+
+    assert(c_FormatInfo[uint32_t(format)].format == format);
+    return c_FormatInfo[uint32_t(format)].name;
+}

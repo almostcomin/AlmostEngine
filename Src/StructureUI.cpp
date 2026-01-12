@@ -5,10 +5,14 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
+#include "Gfx/DeviceManager.h"
+#include "Gfx/RenderStage.h"
+#include "RHI/Device.h"
 #include <format>
 #include <Windows.h>
 #include <SDL3/SDL.h>
 #include <imgui/imgui_internal.h>
+#include <sstream>
 
 namespace
 {
@@ -32,7 +36,7 @@ void PropertyRowText(const char* label, const char* value)
     TextRightAligned(label);
     // Value (fake input)
     ImGui::TableNextColumn();
-    ImGui::PushID(label);
+    ImGui::PushID(value);
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
     ImGui::BeginDisabled();
     ImGui::SetNextItemWidth(-FLT_MIN);
@@ -40,6 +44,48 @@ void PropertyRowText(const char* label, const char* value)
     ImGui::EndDisabled();
     ImGui::PopStyleColor();
     ImGui::PopID();
+}
+
+struct RSDepResult
+{
+    bool hovered;
+    bool clicked;
+};
+
+RSDepResult ShowRSDep(const char* label, const char* value, bool selected, int id)
+{
+    RSDepResult ret;
+
+    ImGui::PushID(id);
+
+    // Label
+    ImGui::TextUnformatted(label);
+    ImGui::SameLine(0.0f, 40.0f);
+
+    float startX = ImGui::GetCursorPosX();
+    float width = 300.0f;
+    float height = ImGui::GetTextLineHeightWithSpacing();
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+
+    // hitbox
+    ImGui::InvisibleButton("##select", ImVec2(width, height));
+    ret.hovered = ImGui::IsItemHovered();
+
+    // background
+    ImU32 bg = ret.hovered ? ImGui::GetColorU32(ImGuiCol_HeaderHovered) : selected ? ImGui::GetColorU32(ImGuiCol_Header) : 0;
+    if (bg)
+        ImGui::GetWindowDrawList()->AddRectFilled(pos, ImVec2(pos.x + width, pos.y + height), bg, ImGui::GetStyle().FrameRounding);
+
+    // Draw text
+    ImGui::SetCursorScreenPos(ImVec2(pos.x + ImGui::GetStyle().FramePadding.x, pos.y));
+    ImGui::TextUnformatted(value);
+
+    // Button
+    ImGui::SameLine(startX + width + 8.0f);
+    ret.clicked = ImGui::Button("...", ImVec2(24, 0));
+
+    ImGui::PopID();
+    return ret;
 }
 
 void PropertyRowInt(const char* label, int value)
@@ -56,6 +102,44 @@ void PropertyRowInt(const char* label, int value)
     ImGui::SetNextItemWidth(-FLT_MIN);
     ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
     ImGui::EndDisabled();
+    ImGui::PopID();
+}
+
+void ShowPropertyText(const char* label, float labelWidth, const char* value, float valueWidth, int id)
+{
+    ImGui::PushID(id);
+    float startX = ImGui::GetCursorPosX();
+
+    // Label
+    ImGui::SetNextItemWidth(labelWidth);
+    ImGui::TextUnformatted(label);
+
+    ImGui::SameLine(startX + labelWidth + 8.0f);
+
+    ImGui::BeginDisabled();
+    ImGui::SetNextItemWidth(valueWidth);
+    ImGui::InputText("##value", (char*)value, strlen(value), ImGuiInputTextFlags_ReadOnly);
+    ImGui::EndDisabled();
+
+    ImGui::PopID();
+}
+
+void ShowPropertyInt(const char* label, float labelWidth, int value, float valueWidth, int id)
+{
+    ImGui::PushID(id);
+    float startX = ImGui::GetCursorPosX();
+
+    // Label
+    ImGui::SetNextItemWidth(labelWidth);
+    ImGui::TextUnformatted(label);
+
+    ImGui::SameLine(startX + labelWidth + 8.0f);
+
+    ImGui::BeginDisabled();
+    ImGui::SetNextItemWidth(valueWidth);
+    ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
+    ImGui::EndDisabled();
+
     ImGui::PopID();
 }
 
@@ -141,10 +225,14 @@ void BuildTexture(const st::gfx::LoadedTexture& diffuseTex)
 
 } // anonymous namespace
 
-StructureUI::StructureUI(SDL_Window* window) : 
+StructureUI::StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::DeviceManager* deviceManager) :
     m_Window{ window },
+    m_DeviceManager{ deviceManager },
+    m_RenderView{ renderView },
     m_ShowSceneWindow{ false },
-    m_SelectedNode{ nullptr }
+    m_SelectedNode{ nullptr },
+    m_ShowResourcesWindow{ false },
+    m_ShowRenderStages{ false }
 {}
 
 void StructureUI::BuildUI()
@@ -174,8 +262,27 @@ void StructureUI::BuildUI()
 
     BuildMainMenu();
 
-    if(m_ShowSceneWindow)
+    if (m_ShowSceneWindow)
         BuildSceneWindow(&m_ShowSceneWindow);
+
+    if (m_ShowResourcesWindow)
+        BuildResourcesWindow(&m_ShowResourcesWindow);
+
+    if (m_ShowRenderStages)
+        BuildRenderStagesWindow();
+
+    for (auto it = m_RSTextureViews.begin(); it != m_RSTextureViews.end();)
+    {
+        if (BuildRSTexView(&(*it)))
+        {
+            it++;
+        }
+        else
+        {
+            m_RenderView->ReleaseTextureView(it->ticket);
+            it = m_RSTextureViews.erase(it);
+        }        
+    }
 }
 
 void StructureUI::OnSceneChanged()
@@ -205,9 +312,12 @@ void StructureUI::BuildMainMenu()
         if (ImGui::BeginMenu("View"))
         {
             if (ImGui::MenuItem("Scene", NULL, m_ShowSceneWindow))
-            {
                 m_ShowSceneWindow = !m_ShowSceneWindow;
-            }
+            if (ImGui::MenuItem("Resources", NULL, m_ShowResourcesWindow))
+                m_ShowResourcesWindow = !m_ShowResourcesWindow;
+            if (ImGui::MenuItem("Render Stages", NULL, m_ShowRenderStages))
+                m_ShowRenderStages = !m_ShowRenderStages;
+
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -492,6 +602,230 @@ void StructureUI::BuildSceneWindow(bool* p_open)
     ImGui::End();
 }
 
+void StructureUI::BuildResourcesWindow(bool* p_open)
+{
+    ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
+    if (!ImGui::Begin("Resources view", p_open, ImGuiWindowFlags_None))
+    {
+        st::rhi::Device* device = m_DeviceManager->GetDevice();
+
+
+        ImGui::End();
+        return;
+    }
+
+    ImGui::End();
+}
+
+void StructureUI::BuildRenderStagesWindow()
+{
+    ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
+    if (!ImGui::Begin(m_RenderView->GetName().c_str(), &m_ShowRenderStages, ImGuiWindowFlags_None))
+    {
+        ImGui::End();
+        return;
+    }
+
+    int propid = 0;
+    std::string newHoveredId;
+    for (int rs_idx = 0; rs_idx < m_RenderView->GetNumRenderStages(); ++rs_idx)
+    {
+        const auto* rs = m_RenderView->GetRenderStage(rs_idx);
+        if (ImGui::CollapsingHeader(rs->renderStage->GetDebugName(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (!rs->reads.empty())
+            {
+                ImGui::SeparatorText("Reads");
+
+                for (const auto& dep : rs->reads)
+                {
+                    const auto* declTex = dep.declTex;
+                    bool selected = (m_RenderStageIOHoveredId == declTex->id);
+
+                    RSDepResult result = ShowRSDep("id", declTex->id.c_str(), selected, propid++);
+                    if (result.hovered)
+                    {
+                        newHoveredId = declTex->id;
+                    }
+                    if (result.clicked)
+                    {
+                        AddRenderStageTextureView(rs->renderStage.get(), st::gfx::RenderView::AccessMode::Read, declTex->id);
+                    }
+                }
+            }
+
+            if (!rs->writes.empty())
+            {
+                ImGui::SeparatorText("Writes");
+
+                for (const auto& dep : rs->writes)
+                {
+                    const auto* declTex = dep.declTex;
+                    bool selected = (m_RenderStageIOHoveredId == declTex->id);
+                    RSDepResult result = ShowRSDep("id", declTex->id.c_str(), selected, propid++);
+                    if (result.hovered)
+                    {
+                        newHoveredId = declTex->id;
+                    }
+                    if (result.clicked)
+                    {
+                        AddRenderStageTextureView(rs->renderStage.get(), st::gfx::RenderView::AccessMode::Write, declTex->id);
+                    }
+                }
+            }
+        }
+    }
+    m_RenderStageIOHoveredId = newHoveredId;
+
+    ImGui::End();
+}
+
+bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)
+{
+    bool isOpen = true;
+
+    st::rhi::TextureHandle tex = m_RenderView->GetTextureView(rsTexView->ticket);
+    if (!tex)
+        return isOpen;
+
+    std::stringstream title;
+    title << rsTexView->renderStage->GetDebugName() << " - ";
+    if (rsTexView->accessMode == st::gfx::RenderView::AccessMode::Read)
+        title << "Read";
+    else
+        title << "Write";
+    title << " - " << rsTexView->id.c_str();
+
+    const auto& texDesc = tex->GetDesc();
+    ImVec2 imageSize{ rsTexView->defaultImageWidth, rsTexView->defaultImageWidth * texDesc.height / texDesc.width };
+
+    const ImGuiStyle& style = ImGui::GetStyle(); 
+    const float detailsHeight = ImGui::GetTextLineHeightWithSpacing() * 8.0f + ImGui::GetFrameHeightWithSpacing(); 
+    const float childBorder = style.ChildBorderSize * 2.0f; 
+    const float spacingY = style.ItemSpacing.y; 
+    const float scrollbar = style.ScrollbarSize; 
+    const float windowWidth = imageSize.x + style.WindowPadding.x * 2.0f + style.WindowBorderSize * 2.0f + childBorder * 2 + 1.0f + 40.f; 
+    const float windowHeight = detailsHeight + spacingY + imageSize.y + style.WindowPadding.y * 2.0f + style.WindowBorderSize * 
+        2.0f + childBorder + scrollbar + 1.0f + 40.f;
+
+    ImGui::SetNextWindowSize(ImVec2{ windowWidth, windowHeight }, ImGuiCond_Appearing);
+    if (!ImGui::Begin(title.str().c_str(), &isOpen, ImGuiWindowFlags_None))
+    {
+        ImGui::End();
+        return isOpen;
+    }
+
+    ImGuiTexFlags texFlags = 0;
+    bool fitPressed = false;
+
+    //
+    // Detais child
+    //
+
+    ImGui::BeginChild("##details", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
+    {
+        int id = 0;
+        const float labelWidth = 80.f;
+        const float labelHeight = 120.f;
+
+        ShowPropertyInt("Width", labelWidth, texDesc.width, labelHeight, ++id);
+        ShowPropertyInt("Height", labelWidth, texDesc.height, labelHeight, ++id);
+        ShowPropertyInt("Depth", labelWidth, texDesc.depth, labelHeight, ++id);
+        ShowPropertyInt("ArraySize", labelWidth, texDesc.arraySize, labelHeight, ++id);
+        ShowPropertyInt("MipLevels", labelWidth, texDesc.mipLevels, labelHeight, ++id);
+        ShowPropertyText("Format", labelWidth, st::rhi::GetFormatString(texDesc.format), labelHeight, ++id);
+
+        fitPressed = ImGui::Button("Fit");
+        ImGui::SameLine();
+        ShowToggleButton("Alpha", &rsTexView->applyAlpha);
+        ImGui::SameLine();
+        if (ShowToggleButton("R", &rsTexView->redChannel))
+        {
+            rsTexView->alphaChannel = false;
+        }
+        ImGui::SameLine();
+        if (ShowToggleButton("G", &rsTexView->greenChannel))
+        {
+            rsTexView->alphaChannel = false;
+        }
+        ImGui::SameLine();
+        if (ShowToggleButton("B", &rsTexView->blueChannel))
+        {
+            rsTexView->alphaChannel = false;
+        }
+        ImGui::SameLine();
+        if (ShowToggleButton("A", &rsTexView->alphaChannel))
+        {
+            rsTexView->redChannel = false;
+            rsTexView->greenChannel = false;
+            rsTexView->blueChannel = false;
+        }
+
+        if (!rsTexView->applyAlpha)
+            texFlags |= ImGuiTexFlags_IgnoreAlpha;
+        if (!rsTexView->redChannel)
+            texFlags |= ImGuiTexFlags_HideRedChannel;
+        if (!rsTexView->greenChannel)
+            texFlags |= ImGuiTexFlags_HideGreenChannel;
+        if (!rsTexView->blueChannel)
+            texFlags |= ImGuiTexFlags_HideBlueChannel;
+        if (rsTexView->alphaChannel)
+            texFlags |= ImGuiTexFlags_ShowAlphaChannel;
+    }
+    ImGui::EndChild();
+
+    //
+    // Image child
+    //
+
+    ImGui::SetNextWindowContentSize(imageSize);
+    ImGuiWindowFlags imageChildFlags = ImGuiWindowFlags_None;
+    if (rsTexView->firstShow)
+    {
+        imageChildFlags |= ImGuiWindowFlags_NoScrollbar;
+    }
+    else
+    {
+        imageChildFlags |= ImGuiWindowFlags_HorizontalScrollbar;
+    }
+
+    ImVec2 childSize{ 0.f, 0.f };
+    if (rsTexView->firstShow)
+    {
+        childSize = { imageSize.x, imageSize.y };
+    }
+
+    ImGui::BeginChild("##image", childSize, ImGuiChildFlags_None, imageChildFlags);
+    {
+        ImRect clip = ImGui::GetCurrentWindow()->ClipRect;
+        ImVec2 avail = clip.GetSize();//ImGui::GetContentRegionAvail();
+
+        if (rsTexView->firstShow)
+        {
+            float scale = (std::max)((float)texDesc.width / avail.x, (float)texDesc.height / avail.y);
+            rsTexView->defaultImageWidth = texDesc.width / scale - 1.f;
+        }
+        else
+        {
+            if (fitPressed)
+            {
+                float scale = (std::max)((float)texDesc.width / avail.x, (float)texDesc.height / avail.y);
+                rsTexView->defaultImageWidth = texDesc.width / scale - 1.f;
+            }
+
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+            ShowImage(tex, { imageSize.x, imageSize.y }, { 0.f , 0.f }, { 1.f, 1.f }, texFlags);
+            ImGui::PopStyleVar();
+        }
+    }
+    ImGui::EndChild();
+
+    ImGui::End();
+
+    rsTexView->firstShow = false;
+    return isOpen;
+}
+
 void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
 {
     const auto& mesh = leaf->GetMesh();
@@ -589,6 +923,23 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
             }
         }
     }
+}
+
+void StructureUI::AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id)
+{
+    // Check if it already exists
+    for (auto& entry : m_RSTextureViews)
+    {
+        if (entry.renderStage == renderStage && entry.accessMode == accessMode && entry.id == id)
+        {
+            // TODO: focus
+            return;
+        }
+    }
+
+    auto ticket = m_RenderView->RequestTextureView(renderStage, accessMode, id);
+
+    m_RSTextureViews.emplace_back(renderStage, accessMode, id, ticket);
 }
 
 std::string StructureUI::OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters)

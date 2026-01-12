@@ -22,10 +22,35 @@ class RenderView : public st::enable_weak_from_this<RenderView>, private st::non
 {
 public:
 
+	using TextureViewTicket = void*;
+
 	enum AccessMode
 	{
 		Read,
 		Write
+	};
+
+	struct DeclaredTexture
+	{
+		rhi::TextureOwner texture;
+		std::string id;
+		bool isDepthStencil;
+		int originalWidth;
+		int originalHeight;
+	};
+
+	struct RenderStageTextureDep
+	{
+		DeclaredTexture* declTex;
+		rhi::ResourceState inputState;
+		rhi::ResourceState outputState;
+	};
+
+	struct RenderStageData
+	{
+		std::vector<RenderStageTextureDep> reads;
+		std::vector<RenderStageTextureDep> writes;
+		std::shared_ptr<RenderStage> renderStage;
 	};
 
 	static constexpr int c_BBSize = 0;
@@ -58,11 +83,19 @@ public:
 	bool RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState);
 	rhi::TextureHandle GetTexture(const char* id) const;
 
-	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }
-
 	void OnWindowSizeChanged();
 
 	void Render();
+
+	size_t GetNumRenderStages() const { return m_RenderStages.size(); }
+	const RenderStageData* GetRenderStage(uint32_t idx) const { return &m_RenderStages[idx]; }
+
+	TextureViewTicket RequestTextureView(RenderStage* rs, AccessMode accessMode, const std::string& id);
+	void ReleaseTextureView(TextureViewTicket ticket);
+	rhi::TextureHandle GetTextureView(TextureViewTicket ticket);
+
+	std::string GetName() const { return m_DebugName; }
+	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }
 
 private:
 
@@ -72,30 +105,23 @@ private:
 
 private:
 
-	struct DeclaredTexture
+	struct TextureViewRequest
 	{
-		rhi::TextureOwner texture;
-		std::string id;
-		bool isDepthStencil;
-		int originalWidth;
-		int originalHeight;
-	};
-
-	struct RenderStageTextureDep
-	{
-		DeclaredTexture* declTex;
+		RenderStage* rs;
 		AccessMode accessMode;
-		rhi::ResourceState inputState;
-		rhi::ResourceState outputState;
+		std::string id;
+		int refCount;
+		rhi::TextureOwner tex;
 	};
 
-	struct RenderStageDeps
-	{
-		std::vector<RenderStageTextureDep> textureDeps;
-		std::shared_ptr<RenderStage> renderStage;
-	};
+private:
 
 	void Refresh();
+
+	std::vector<TextureViewRequest*> GetTexViewRequests(RenderStage* rs, AccessMode accessMode);
+	void UpdateTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode, const std::map<std::string, rhi::ResourceState> resourcesStates);
+
+private:
 
 	st::weak<Scene> m_Scene;
 	std::shared_ptr<Camera> m_Camera;
@@ -103,13 +129,15 @@ private:
 	st::rhi::FramebufferHandle m_OffscreenFramebuffer;
 	std::vector<st::rhi::CommandListOwner> m_CommandLists;
 
-	std::vector<RenderStageDeps> m_RenderStages;
+	std::vector<RenderStageData> m_RenderStages;
 	std::map<std::string, std::unique_ptr<DeclaredTexture>> m_DeclaredTextures;
 
 	// Visible set for the current camera
 	std::vector<const st::gfx::MeshInstance*> m_VisibleSet;
 
 	st::rhi::BufferOwner m_SceneCB;
+
+	std::vector<TextureViewRequest*> m_TexViewRequests;
 
 	bool m_IsDirty;
 

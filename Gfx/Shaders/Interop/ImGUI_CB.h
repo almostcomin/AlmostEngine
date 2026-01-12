@@ -13,6 +13,7 @@ namespace interop
         uint vertexBuffer;
         uint vertexBufferOffset;
         uint textureIndex;
+        uint flags;
     };
 
 } // namespace interlop

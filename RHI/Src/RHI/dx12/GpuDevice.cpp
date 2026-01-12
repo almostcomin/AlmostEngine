@@ -465,6 +465,28 @@ size_t st::rhi::dx12::GpuDevice::GetCopyDataAlignment(CopyMethod method)
 	}
 }
 
+st::rhi::GPUBindingHandle st::rhi::dx12::GpuDevice::GetBindingHandle(ITexture* tex, TextureShaderView view)
+{
+	auto idx = tex->GetShaderViewIndex(view);
+	if (idx != c_InvalidDescriptorIndex)
+	{
+		switch (view)
+		{
+		case TextureShaderView::ShaderResource:
+		case TextureShaderView::UnorderedAcces:
+			return m_ShaderResourceViewHeap.GetGpuHandle(idx).ptr;
+
+		case TextureShaderView::RenderTarget:
+			return m_RenderTargetViewHeap.GetGpuHandle(idx).ptr;
+
+		case TextureShaderView::DepthStencil:
+			return m_DepthStencilViewHeap.GetGpuHandle(idx).ptr;
+		}
+	}
+
+	return 0ul;
+}
+
 void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value)
 {
 	if (!m_Queues[(int)type].queue)

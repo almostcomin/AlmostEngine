@@ -26,6 +26,8 @@ void st::gfx::DeferredLightingRenderStage::Render()
 
 	interop::DeferredLightingConstants shaderConstants;
 	shaderConstants.sceneDI = m_RenderView->GetSceneBufferDI();
+	shaderConstants.sceneDepthDI = m_RenderView->GetTexture("SceneDepth")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.shadowMapDI = m_RenderView->GetTexture("Shadowmap")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.GBuffer0DI = m_RenderView->GetTexture("GBuffer0")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.GBuffer1DI = m_RenderView->GetTexture("GBuffer1")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.GBuffer2DI = m_RenderView->GetTexture("GBuffer2")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
@@ -48,6 +50,8 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 
 	// Request access
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "Shadowmap", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer0", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer1", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer2", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);

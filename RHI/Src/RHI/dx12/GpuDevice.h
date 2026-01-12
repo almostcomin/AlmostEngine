@@ -48,6 +48,8 @@ namespace st::rhi::dx12
 
 		size_t GetCopyDataAlignment(CopyMethod method) override;
 
+		GPUBindingHandle GetBindingHandle(ITexture* tex, TextureShaderView view) override;
+
 		DescriptorHeap* GetDepthStencilViewHeap() { return &m_DepthStencilViewHeap; }
 		DescriptorHeap* GetRenderTargetViewHeap() { return &m_RenderTargetViewHeap; }
 		DescriptorHeap* GetShaderResourceViewHeap() { return &m_ShaderResourceViewHeap; }

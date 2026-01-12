@@ -1,12 +1,15 @@
 #pragma once
 
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
+#include "Gfx/RenderView.h"
 #include <functional>
+#include "Core/Memory.h"
 
 namespace st::gfx
 {
 	class SceneGraphNode;
 	class MeshInstance;
+	class DeviceManager;
 };
 
 class StructureUI : public st::gfx::ImGuiRenderStage
@@ -20,7 +23,7 @@ public:
 		float FPS = 0.f;
 	};
 
-	StructureUI(SDL_Window* window);
+	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::DeviceManager* deviceManager);
 
 	void BuildUI() override;
 
@@ -36,10 +39,33 @@ public:
 
 private:
 
+	struct RenderStageTextureView
+	{
+		st::gfx::RenderStage* renderStage;
+		st::gfx::RenderView::AccessMode accessMode;
+		std::string id;
+		st::gfx::RenderView::TextureViewTicket ticket;
+		bool applyAlpha = false;
+		bool redChannel = true;
+		bool greenChannel = true;
+		bool blueChannel = true;
+		bool alphaChannel = false;
+		float defaultImageWidth = 360.f;
+		bool firstShow = true;
+	};
+
+private:
+
 	void BuildMainMenu();
 	void BuildMenuFile();
 	void BuildSceneWindow(bool* p_open);
+	void BuildResourcesWindow(bool* p_open);
+	void BuildRenderStagesWindow();
+	bool BuildRSTexView(RenderStageTextureView* rsTexView);
+
 	void BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf);
+
+	void AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id);
 
 	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
 	std::string SaveFileNativeDialog(const std::string& filename);
@@ -47,7 +73,16 @@ private:
 private:
 
 	SDL_Window* m_Window;
+	st::gfx::DeviceManager* m_DeviceManager;
+	st::weak<st::gfx::RenderView> m_RenderView;
 
 	bool m_ShowSceneWindow;
 	const st::gfx::SceneGraphNode* m_SelectedNode;
+
+	bool m_ShowResourcesWindow;
+
+	bool m_ShowRenderStages;
+	std::string m_RenderStageIOHoveredId;
+
+	std::vector<RenderStageTextureView> m_RSTextureViews;
 };

@@ -13,6 +13,8 @@
 
 namespace st::rhi
 {
+    using GPUBindingHandle = uint64_t;
+
     class IResource;
 
 	class Device
@@ -28,7 +30,7 @@ namespace st::rhi
         virtual FramebufferOwner CreateFramebuffer(const FramebufferDesc& desc, const std::string& debugName) = 0;
         virtual CommandListOwner CreateCommandList(const CommandListParams& params, const std::string& debugName) = 0;
         virtual GraphicsPipelineStateOwner CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo, const std::string& debugName) = 0;
-        virtual FenceOwner CreateFence(uint64_t initialVale = 0, const std::string& debugName = nullptr) = 0;
+        virtual FenceOwner CreateFence(uint64_t initialVale, const std::string& debugName) = 0;
 
         virtual StorageRequirements GetStorageRequirements(const BufferDesc& desc) = 0;
         virtual StorageRequirements GetStorageRequirements(const TextureDesc& desc) = 0;
@@ -38,6 +40,7 @@ namespace st::rhi
 
         virtual size_t GetCopyDataAlignment(CopyMethod method) = 0;
 
+        virtual GPUBindingHandle GetBindingHandle(ITexture* tex, TextureShaderView view) = 0;
 
         template<class T>
         void ReleaseImmediately(unique<T>& handle) {

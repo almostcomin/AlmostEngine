@@ -65,10 +65,7 @@ namespace interop
     struct Scene
     {
         float4x4 camViewProjMatrix;
-        //float4x4 projectionMatrix;
-        //float4x4 inverseProjectionMatrix;
-        //float4x4 viewMatrix;
-        //float4x4 inverseViewMatrix;
+        float4x4 invCamViewProjMatrix;
 
         float3 sunDirection; // Normalized, from light
         float sunIntensity;
@@ -92,6 +89,8 @@ namespace interop
     struct DeferredLightingConstants
     {
         uint sceneDI;
+        uint sceneDepthDI;
+        uint shadowMapDI;
         uint GBuffer0DI;
         uint GBuffer1DI;
         uint GBuffer2DI;

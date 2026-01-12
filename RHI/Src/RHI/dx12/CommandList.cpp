@@ -107,6 +107,36 @@ void st::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::T
 	}
 }
 
+void st::rhi::dx12::CommandList::CopyTextureToTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& dstSubresources,
+	ITexture* srcTexture, const rhi::TextureSubresourceSet& srcSubresources)
+{
+	// Only single slice copy supported
+	assert(dstSubresources == AllSubresources);
+	assert(srcSubresources == AllSubresources);
+
+	const auto& dstDesc = dstTexture->GetDesc();
+	const auto& srcDesc = srcTexture->GetDesc();
+	assert(dstDesc.depth == 1 && dstDesc.arraySize == 1 && dstDesc.mipLevels == 1);
+	assert(srcDesc.depth == 1 && srcDesc.arraySize == 1 && srcDesc.mipLevels == 1);
+	assert(srcDesc.width == dstDesc.width && srcDesc.height == dstDesc.height);
+	
+	D3D12_TEXTURE_COPY_LOCATION dst =
+	{
+		dstTexture->GetNativeResource(),
+		D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		D3D12CalcSubresource(0, 0, 0, dstDesc.mipLevels, dstDesc.arraySize)
+	};
+
+	D3D12_TEXTURE_COPY_LOCATION src =
+	{
+		srcTexture->GetNativeResource(),
+		D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		D3D12CalcSubresource(0, 0, 0, srcDesc.mipLevels, srcDesc.arraySize)
+	};
+
+	m_D3d12Commandlist->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+}
+
 void st::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers)
 {
 	std::vector<D3D12_RESOURCE_BARRIER> d3d12Barriers;

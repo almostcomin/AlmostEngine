@@ -28,6 +28,9 @@ namespace st::rhi::dx12
 		void WriteBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, size_t size) override;
 		void WriteTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& subresources, IBuffer* srcBuffer, uint64_t srcOffset) override;
 
+		void CopyTextureToTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& dstSubresources,
+			ITexture* srcTexture, const rhi::TextureSubresourceSet& srcSubresources);
+
 		void PushBarriers(std::span<const Barrier> barriers) override;
 		void PushBarrier(const Barrier& barrier) override;
 		

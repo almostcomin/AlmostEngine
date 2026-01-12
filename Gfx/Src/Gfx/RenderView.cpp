@@ -71,12 +71,12 @@ void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<Rend
 	ClearRenderStages();
 
 	m_RenderStages.reserve(renderStages.size());
-	for (auto& rp : renderStages)
-		m_RenderStages.push_back(RenderStageDeps{ {}, rp });
+	for (auto& rs : renderStages)
+		m_RenderStages.push_back(RenderStageData{ {}, {}, rs });
 
-	for (auto rp : m_RenderStages)
+	for (auto rs : m_RenderStages)
 	{
-		rp.renderStage->Attach(this);
+		rs.renderStage->Attach(this);
 	}
 
 	m_IsDirty = true;
@@ -160,7 +160,7 @@ bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode acces
 	}
 
 	// Find render pass deps
-	auto rp_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rp](const RenderStageDeps& entry) -> bool
+	auto rp_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rp](const RenderStageData& entry) -> bool
 		{
 			return entry.renderStage.get() == rp;
 		});
@@ -170,7 +170,14 @@ bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode acces
 		return false;
 	}
 
-	rp_it->textureDeps.emplace_back(texture_it->second.get(), accessMode, inputState, outputState);
+	if (accessMode == AccessMode::Read)
+	{
+		rp_it->reads.emplace_back(texture_it->second.get(), inputState, outputState);
+	}
+	else
+	{
+		rp_it->writes.emplace_back(texture_it->second.get(), inputState, outputState);
+	}
 
 	return true;
 }
@@ -251,22 +258,30 @@ void st::gfx::RenderView::Render()
 
 		for (auto& renderStage : m_RenderStages)
 		{
+			UpdateTextureViews(commandList, renderStage.renderStage.get(), AccessMode::Read, resourcesStates);
+
 			commandList->BeginMarker(renderStage.renderStage->GetDebugName());
 
 			// Entry barriers
 			{
 				std::vector<rhi::Barrier> barriers;
-				for (const auto& dep : renderStage.textureDeps)
+				auto getBarriers = [&resourcesStates, &barriers](const std::vector<RenderStageTextureDep>& deps)
 				{
-					auto state_it = resourcesStates.find(dep.declTex->id);
-					assert(state_it != resourcesStates.end());
-					if (state_it->second != dep.inputState)
+					for (const auto& dep : deps)
 					{
-						barriers.push_back(rhi::Barrier::Texture(
-							dep.declTex->texture.get(), state_it->second, dep.inputState));
-						state_it->second = dep.inputState;
+						auto state_it = resourcesStates.find(dep.declTex->id);
+						assert(state_it != resourcesStates.end());
+						if (state_it->second != dep.inputState)
+						{
+							barriers.push_back(rhi::Barrier::Texture(
+								dep.declTex->texture.get(), state_it->second, dep.inputState));
+							state_it->second = dep.inputState;
+						}
 					}
-				}
+				};
+				getBarriers(renderStage.reads);
+				getBarriers(renderStage.writes);
+
 				if (!barriers.empty())
 				{
 					std::string markerName = renderStage.renderStage->GetDebugName();
@@ -282,16 +297,23 @@ void st::gfx::RenderView::Render()
 
 			// Update the resource states with the state left by the stage
 			{
-				for (const auto& dep : renderStage.textureDeps)
+				auto updateStates = [&resourcesStates](const std::vector<RenderStageTextureDep>& deps)
 				{
-					auto state_it = resourcesStates.find(dep.declTex->id);
-					assert(state_it != resourcesStates.end());
-					if (state_it->second != dep.outputState)
+					for (const auto& dep : deps)
 					{
-						state_it->second = dep.outputState;
+						auto state_it = resourcesStates.find(dep.declTex->id);
+						assert(state_it != resourcesStates.end());
+						if (state_it->second != dep.outputState)
+						{
+							state_it->second = dep.outputState;
+						}
 					}
-				}
+				};
+				updateStates(renderStage.reads);
+				updateStates(renderStage.writes);
 			}
+
+			UpdateTextureViews(commandList, renderStage.renderStage.get(), AccessMode::Write, resourcesStates);
 		}
 
 		// All the resources need to go back to it initial state
@@ -319,6 +341,44 @@ void st::gfx::RenderView::Render()
 	{
 		LOG_ERROR("No frame buffer specified. Nothing to render");
 	}
+}
+
+st::gfx::RenderView::TextureViewTicket st::gfx::RenderView::RequestTextureView(RenderStage* rs, AccessMode accessMode, const std::string& id)
+{
+	for (auto& entry : m_TexViewRequests)
+	{
+		if (entry->rs == rs && entry->accessMode == accessMode && entry->id == id)
+		{
+			++entry->refCount;
+			return entry;
+		}
+	}
+
+	auto* ticket = new TextureViewRequest{ rs, accessMode, id, 1 };
+	m_TexViewRequests.push_back(ticket);
+	return ticket;
+}
+
+void st::gfx::RenderView::ReleaseTextureView(TextureViewTicket ticket)
+{
+	auto it = std::find(m_TexViewRequests.begin(), m_TexViewRequests.end(), ticket);
+	if (it != m_TexViewRequests.end())
+	{
+		if (--((*it)->refCount) == 0)
+		{
+			delete *it;
+			m_TexViewRequests.erase(it);
+		}
+	}
+}
+
+st::rhi::TextureHandle st::gfx::RenderView::GetTextureView(TextureViewTicket ticket)
+{
+	auto it = std::find(m_TexViewRequests.begin(), m_TexViewRequests.end(), ticket);
+	if (it == m_TexViewRequests.end())
+		return nullptr;
+
+	return (*it)->tex.get_weak();
 }
 
 void st::gfx::RenderView::Refresh()
@@ -358,9 +418,9 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
 
 	sceneData->camViewProjMatrix = m_Camera ? m_Camera->GetViewProjectionMatrix() : float4x4{ 1.f };
+	sceneData->invCamViewProjMatrix = glm::inverse(sceneData->camViewProjMatrix);
 
-	float3 sunDirection = glm::normalize(float3(1.f, -1.f, 0.f));
-	sceneData->sunDirection = sunDirection;
+	sceneData->sunDirection = glm::normalize(float3(1.f, -1.f, 0.f)); // default;
 	sceneData->sunIntensity = 1.f;
 	sceneData->sunColor = float3(1.f);
 	if (m_Camera && m_Scene)
@@ -369,11 +429,13 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 		float3 sceneExtents = sceneBounds.max - sceneBounds.min;
 		float3 sceneCenter = sceneBounds.min + (sceneExtents / 2.f);
 		float sceneExtentMag = glm::length(sceneExtents);
-		//float3 sunPosition = sceneCenter - (sunDirection * (sceneExtentMag + 0.1f));
 		float3 sunPosition = m_Camera->GetPosition();
-		sceneData->sunDirection = glm::normalize(glm::normalize(sceneCenter - sunPosition) + float3{ 0.f, - 1.f, 0.f });
+		sceneData->sunDirection = m_Camera->GetForward();
+		sceneData->sunDirection = glm::normalize(glm::normalize(sceneCenter - sunPosition) + float3{ 0.f, -1.f, 0.f });
+		sceneData->sunDirection = glm::normalize(float3{ 1.f, 0.f, -1.f });
+		sunPosition = float3{ -5.f, 0.f, 5.f };
 
-		float3 sunUp = fabs(glm::dot(sunDirection, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
+		float3 sunUp = fabs(glm::dot(sceneData->sunDirection, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
 		float4x4 sunViewMatrix = glm::lookAtRH(sunPosition, sunPosition + sceneData->sunDirection, sunUp);
 
 		float3 corners[8] = {
@@ -404,7 +466,9 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 		assert(zNear >= 0.0f);
 		assert(zFar >= zNear);
 
-		float4x4 sunProjMatrix = BuildOrthoInvZ(min_v.x, max_v.x, min_v.y, max_v.y, zNear, zFar);
+		//float4x4 sunProjMatrix = BuildOrthoInvZ(min_v.x, max_v.x, min_v.y, max_v.y, zNear, zFar);
+		//float4x4 sunProjMatrix = BuildPersInvZInfFar(PI / 2.f, 1.f, 0.1f);
+		float4x4 sunProjMatrix = BuildPersInvZ(PI / 2.f, 1.f, zNear, zFar);
 		sceneData->sunWorldToClipMatrix = sunProjMatrix * sunViewMatrix;
 
 		//*** TEST
@@ -464,5 +528,75 @@ void st::gfx::RenderView::UpdateVisibleSet()
 		{
 			walker.NextSibling();
 		}
+	}
+}
+
+std::vector<st::gfx::RenderView::TextureViewRequest*> st::gfx::RenderView::GetTexViewRequests(RenderStage* rs, AccessMode accessMode)
+{
+	std::vector<st::gfx::RenderView::TextureViewRequest*> ret;
+	for (auto& entry : m_TexViewRequests)
+	{
+		if (entry->rs == rs && entry->accessMode == accessMode)
+		{
+			ret.push_back(entry);
+		}
+	}
+	return ret;
+}
+
+void st::gfx::RenderView::UpdateTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode, const std::map<std::string, rhi::ResourceState> resourcesStates)
+{
+	auto requests = GetTexViewRequests(rs, accessMode);
+	for (auto req : requests)
+	{
+		auto it = m_DeclaredTextures.find(req->id);
+		if (it == m_DeclaredTextures.end())
+			continue;
+
+		rhi::TextureHandle sourceTex = it->second->texture.get_weak();
+		if (!sourceTex)
+			continue;
+
+		rhi::TextureDesc sourceTexDesc = sourceTex->GetDesc();
+
+		// Create the target texture if does not exists
+		// TODO: If the source texture changed (resized for example) we need to re-create de texture
+		if (!req->tex)
+		{
+			rhi::TextureDesc desc{
+				.width = sourceTexDesc.width,
+				.height = sourceTexDesc.height,
+				.depth = sourceTexDesc.depth,
+				.arraySize = sourceTexDesc.arraySize,
+				.mipLevels = sourceTexDesc.mipLevels,
+				.format = sourceTexDesc.format,//rhi::Format::RGBA8_UNORM,
+				.shaderUsage = rhi::TextureShaderUsage::ShaderResource
+			};
+
+			std::stringstream debugName;
+			debugName << rs->GetDebugName() << " - ";
+			if (accessMode == st::gfx::RenderView::AccessMode::Read)
+				debugName << "Read";
+			else
+				debugName << "Write";
+			debugName << " - " << sourceTex->GetDebugName();
+
+			req->tex = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::SHADER_RESOURCE, debugName.str().c_str());
+			assert(req->tex);
+		}
+
+		rhi::ResourceState srcTexState = resourcesStates.find(req->id)->second;
+
+		rhi::Barrier entryBarriers[] = {
+			rhi::Barrier::Texture(sourceTex.get(), srcTexState, rhi::ResourceState::COPY_SRC),
+			rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST) };
+		commandList->PushBarriers(entryBarriers);
+
+		commandList->CopyTextureToTexture(req->tex.get(), rhi::AllSubresources, sourceTex.get(), rhi::AllSubresources);
+		
+		rhi::Barrier exitBarriers[] = {
+			rhi::Barrier::Texture(sourceTex.get(), rhi::ResourceState::COPY_SRC, srcTexState),
+			rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE) };
+		commandList->PushBarriers(exitBarriers);
 	}
 }
