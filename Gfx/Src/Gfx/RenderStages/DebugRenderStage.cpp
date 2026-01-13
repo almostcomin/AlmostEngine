@@ -19,6 +19,7 @@ void st::gfx::DebugRenderStage::Render()
 		m_FB.get(),
 		{ rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store} },
 		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store },
+		{},
 		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());

@@ -236,6 +236,9 @@ D3D12_RENDER_PASS_BEGINNING_ACCESS st::rhi::dx12::GetRenderPassBeginningAccess(s
 	D3D12_RENDER_PASS_BEGINNING_ACCESS ret = {};
 	switch (op)
 	{
+	case st::rhi::RenderPassOp::LoadOp::NoAccess:
+		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS;
+		break;
 	case st::rhi::RenderPassOp::LoadOp::Load: 
 		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
 		break;
@@ -270,6 +273,9 @@ D3D12_RENDER_PASS_ENDING_ACCESS st::rhi::dx12::GetRenderPassEngindAccess(st::rhi
 	D3D12_RENDER_PASS_ENDING_ACCESS ret = {};
 	switch (op)
 	{
+	case st::rhi::RenderPassOp::StoreOp::NoAccess:
+		ret.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS;
+		break;
 	case st::rhi::RenderPassOp::StoreOp::Store:
 		ret.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
 		break;

@@ -282,7 +282,7 @@ void st::rhi::dx12::CommandList::PushConstants(const void* data, size_t sizeByte
 }
 
 void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, 
-	const RenderPassOp& dsvRenderPassOp, RenderPassFlags rpFlags)
+	const RenderPassOp& depthRenderPassOp, const RenderPassOp& stencilRenderPassOp, RenderPassFlags rpFlags)
 {
 	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
 	
@@ -293,6 +293,7 @@ void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const s
 	for (int rtv_idx = 0; rtv_idx < fb->RTVs.size(); ++rtv_idx)
 	{
 		RTVs[rtv_idx].cpuDescriptor = gpuDevice->GetRenderTargetViewHeap()->GetCpuHandle(fb->RTVs[rtv_idx]);
+
 		RTVs[rtv_idx].BeginningAccess = GetRenderPassBeginningAccess(
 			rtvRenderPassOp[rtv_idx].loadOp, rtvRenderPassOp[rtv_idx].clearValue, fb->rtvTextures[rtv_idx]->GetDesc().format);
 		RTVs[rtv_idx].EndingAccess = GetRenderPassEngindAccess(rtvRenderPassOp[rtv_idx].storeOp);
@@ -302,9 +303,14 @@ void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const s
 	if (fb->DSV != c_InvalidDescriptorIndex)
 	{
 		DSV.cpuDescriptor = gpuDevice->GetDepthStencilViewHeap()->GetCpuHandle(fb->DSV);
+
 		DSV.DepthBeginningAccess = GetRenderPassBeginningAccess(
-			dsvRenderPassOp.loadOp, dsvRenderPassOp.clearValue, fb->dsvTexture->GetDesc().format);
-		DSV.DepthEndingAccess = GetRenderPassEngindAccess(dsvRenderPassOp.storeOp);
+			depthRenderPassOp.loadOp, depthRenderPassOp.clearValue, fb->dsvTexture->GetDesc().format);
+		DSV.DepthEndingAccess = GetRenderPassEngindAccess(depthRenderPassOp.storeOp);
+
+		DSV.StencilBeginningAccess = GetRenderPassBeginningAccess(
+			stencilRenderPassOp.loadOp, stencilRenderPassOp.clearValue, fb->dsvTexture->GetDesc().format);
+		DSV.StencilEndingAccess = GetRenderPassEngindAccess(stencilRenderPassOp.storeOp);
 	}
 
 	D3D12_RENDER_PASS_FLAGS flags = D3D12_RENDER_PASS_FLAG_NONE;

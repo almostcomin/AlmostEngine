@@ -144,8 +144,8 @@ float4x4 st::gfx::BuildOrthoInvZ(float left, float right, float bottom, float to
     return float4x4{
         { 2.0f * inv_dx,            0.0f,                       0.0f,               0.0f }, // column 0
         { 0.0f,                     2.0f * inv_dy,              0.0f,               0.0f }, // column 1
-        { 0.0f,                     0.0f,                       -inv_dz,            0.0f }, // column 2
-        { -(right + left) * inv_dx, -(top + bottom) * inv_dy,   -z_near * inv_dz,   1.0f }  // column 3
-        //{ -(right + left) * inv_dx, -(top + bottom) * inv_dy,   z_far * inv_dz,     1.0f }  // column 3
+        { 0.0f,                     0.0f,                       inv_dz,            0.0f }, // column 2
+        //{ -(right + left) * inv_dx, -(top + bottom) * inv_dy,   -z_near * inv_dz,   1.0f }  // column 3
+        { -(right + left) * inv_dx, -(top + bottom) * inv_dy,   z_far * inv_dz,     1.0f }  // column 3
     };
 }

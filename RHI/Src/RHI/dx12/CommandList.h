@@ -44,7 +44,8 @@ namespace st::rhi::dx12
 
 		void PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes) override;
 
-		void BeginRenderPass(rhi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags flags) override;
+		void BeginRenderPass(rhi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, 
+			const RenderPassOp& depthRenderPassOp, const RenderPassOp& stencilRenderPassOp, RenderPassFlags flags) override;
 		void EndRenderPass() override;
 
 		void Draw(uint32_t vertexCount) override;

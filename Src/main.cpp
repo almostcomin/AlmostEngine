@@ -132,7 +132,7 @@ int SDL_main(int argc, char* argv[])
 	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
 
 	// Create shadowmap render stage
-	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 1024, 4, st::rhi::Format::D24S8 }};
+	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 1024, 4, st::rhi::Format::D32 }};
 
 	// Create depth prepass render stage
 	std::shared_ptr<st::gfx::DepthPrepassRenderStage> depthPrepassRS{ new st::gfx::DepthPrepassRenderStage };
@@ -295,8 +295,8 @@ int SDL_main(int argc, char* argv[])
 			const float3& camRight = camera->GetRight();
 
 			float3 newPos = camera->GetPosition();
-			newPos += camFwd * cameraSpeed.y * elapsedMs * 0.01f;
-			newPos += -camRight * cameraSpeed.x * elapsedMs * 0.01f;
+			newPos += camFwd * cameraSpeed.y * elapsedMs * 0.001f;
+			newPos += -camRight * cameraSpeed.x * elapsedMs * 0.001f;
 
 			camera->SetPosition(newPos);
 

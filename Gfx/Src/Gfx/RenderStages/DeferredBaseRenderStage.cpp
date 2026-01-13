@@ -28,6 +28,7 @@ void st::gfx::DeferredBaseRenderStage::Render()
 			rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack() }
 		},
 		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
+		{},
 		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());

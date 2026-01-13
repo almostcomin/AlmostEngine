@@ -121,6 +121,7 @@ void st::gfx::ImGuiRenderStage::Render()
         frameBuffer.get(),
         { rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store} },
         {},
+        {},
         rhi::RenderPassFlags::None);
 
     commandList->SetPipelineState(GetPSO(frameBuffer.get()).get());

@@ -17,6 +17,7 @@ void st::gfx::DeferredLightingRenderStage::Render()
 		m_FB.get(),
 		{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack() }},
 		{},
+		{},
 		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());

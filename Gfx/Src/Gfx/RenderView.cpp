@@ -432,8 +432,13 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 		float3 sunPosition = m_Camera->GetPosition();
 		sceneData->sunDirection = m_Camera->GetForward();
 		sceneData->sunDirection = glm::normalize(glm::normalize(sceneCenter - sunPosition) + float3{ 0.f, -1.f, 0.f });
-		//sceneData->sunDirection = glm::normalize(float3{ 1.f, 0.f, -1.f });
-		//sunPosition = float3{ -5.f, 0.f, 5.f };
+		
+		//sceneData->sunDirection = glm::normalize(float3{ 1.f, -1.f, -1.f });
+		//sunPosition = float3{ -5.f, 5.f, 5.f };
+
+		sceneData->sunDirection.x = -sceneData->sunDirection.x;
+		sceneData->sunDirection.z = -sceneData->sunDirection.z;
+		sunPosition = -sceneData->sunDirection * 100.f;
 
 		float3 sunUp = fabs(glm::dot(sceneData->sunDirection, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
 		float4x4 sunViewMatrix = glm::lookAtRH(sunPosition, sunPosition + sceneData->sunDirection, sunUp);
@@ -466,19 +471,25 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 		assert(zNear >= 0.0f);
 		assert(zFar >= zNear);
 
-		//float4x4 sunProjMatrix = BuildOrthoInvZ(min_v.x, max_v.x, min_v.y, max_v.y, zNear, zFar);
+		float4x4 sunProjMatrix = BuildOrthoInvZ(min_v.x, max_v.x, min_v.y, max_v.y, zNear, zFar);
 		//float4x4 sunProjMatrix = BuildPersInvZInfFar(PI / 2.f, 1.f, 0.1f);
-		float4x4 sunProjMatrix = BuildPersInvZ(PI / 2.f, 1.f, zNear, zFar);
+		//float4x4 sunProjMatrix = BuildPersInvZ(PI / 2.f, 1.f, zNear, zFar);
 		sceneData->sunWorldToClipMatrix = sunProjMatrix * sunViewMatrix;
 
 		//*** TEST
 #ifdef _DEBUG
 		{
-			float4 pNear = sunProjMatrix * float4(min_v, 1.f);
-			float4 pFar = sunProjMatrix * float4(max_v, 1.f);
+			//float4 pNear = sunProjMatrix * float4(min_v, 1.f);
+			//float4 pFar = sunProjMatrix * float4(max_v, 1.f);
+			float4 pNear = sunProjMatrix * float4{ 0.f, 0.f, -zNear, 1.f };
+			float4 pFar = sunProjMatrix * float4{ 0.f, 0.f, -zFar, 1.f };
+			float zn = pNear.z / pNear.w;
+			float zf = pFar.z / pFar.w;
+			puts("gola");
+			//assert(zn > zf);
 			// Ortho proj, W is 1, so p.w should be 1
-			//assert(AlmostEqual(pNear.z, 1.f) && AlmostEqual(pFar.z, 0.f));
-			//assert(AlmostEqual(pNear.w, 1.f) && AlmostEqual(pFar.w, 1.f));
+			//assert(AlmostEqual(zn, 1.f) && AlmostEqual(pFar.z, 0.f));
+			//assert(AlmostEqual(zf, 1.f) && AlmostEqual(pFar.w, 1.f));
 		}
 #endif
 	}

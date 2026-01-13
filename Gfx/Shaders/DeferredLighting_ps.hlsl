@@ -22,14 +22,8 @@ float4 main(PS_INPUT input) : SV_Target
     Texture2D GBuffer3 = ResourceDescriptorHeap[Constants.GBuffer3DI]; // Emissive.rgb
     
     // World pos reconstruction
-    float4 ndcPos;
-    ndcPos.x = input.uv.x * 2.0 - 1.0;
-    ndcPos.y = 1.0 - input.uv.y * 2.0; // Y flip D3D
-    ndcPos.z = sceneDepth.Sample(pointClampSampler, input.uv).r; // reverse-Z [0, 1]
-    ndcPos.w = 1.0;
-    float4 worldPos = mul(sceneData.invCamViewProjMatrix, ndcPos);
-    worldPos /= worldPos.w;
-            
+    float4 worldPos = WorldPosReconstruction(input.uv, sceneDepth, sceneData.invCamViewProjMatrix);
+                
     // Sample G-Buffers
     float4 g0 = GBuffer0.Sample(pointClampSampler, input.uv);
     float4 g1 = GBuffer1.Sample(pointClampSampler, input.uv);
@@ -54,12 +48,9 @@ float4 main(PS_INPUT input) : SV_Target
         
     // Sample shadowmap
     float shadowDepth = shadowMap.Sample(pointClampSampler, shadowUV).r;
-    // Reverse-Z compare
-    float bias = 0.1 * tan(acos(NdotL));
-    bool inShadow = false;//(ndcPosFromSun.z + bias) < shadowDepth;
-    
+        
     // Diffuse color
-    float shadow = inShadow ? 0.0 : 1.f;
+    float shadow = ndcPosFromSun.z < shadowDepth ? 0.0 : 1.f; // Reverse-Z compare
     float3 diffuse = shadow * baseColor * sceneData.sunColor * sceneData.sunIntensity * NdotL;
     
     float3 color = diffuse + emissive;

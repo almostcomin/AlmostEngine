@@ -45,18 +45,20 @@ struct RenderPassOp
 {
 	enum class LoadOp
 	{
+		NoAccess,
 		Load,
 		Clear,
 		Discard
 	};
 	enum class StoreOp
 	{
+		NoAccess,
 		Store,
 		Discard
 	};
 
-	LoadOp loadOp = LoadOp::Load;
-	StoreOp storeOp = StoreOp::Store;
+	LoadOp loadOp = LoadOp::NoAccess;
+	StoreOp storeOp = StoreOp::NoAccess;
 	ClearValue clearValue = {};
 };
 
@@ -95,7 +97,8 @@ public:
 	template<class T>
 	void PushConstants(const T& data) { PushConstants((const void*)&data, sizeof(T), 0); }
 
-	virtual void BeginRenderPass(rhi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, const RenderPassOp& dsvRenderPassOp, RenderPassFlags flags) = 0;
+	virtual void BeginRenderPass(rhi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, 
+		const RenderPassOp& depthRenderPassOp, const RenderPassOp& stencilRenderPassOp, RenderPassFlags flags) = 0;
 	virtual void EndRenderPass() = 0;
 
 	virtual void Draw(uint32_t vertexCount) = 0;

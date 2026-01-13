@@ -23,6 +23,7 @@ void st::gfx::DepthPrepassRenderStage::Render()
 		m_FB.get(),
 		{},
 		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() }, // Inverse-z
+		{},
 		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());

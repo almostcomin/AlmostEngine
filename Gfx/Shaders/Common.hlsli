@@ -1,4 +1,16 @@
 
+float4 WorldPosReconstruction(float2 uv, Texture2D depthTex, float4x4 invViewProjMatrix)
+{
+    float4 ndcPos;
+    ndcPos.x = uv.x * 2.0 - 1.0;
+    ndcPos.y = 1.0 - uv.y * 2.0; // Y flip D3D
+    ndcPos.z = depthTex.Sample(pointClampSampler, uv).r; // reverse-Z [0, 1]
+    ndcPos.w = 1.0;
+    float4 worldPos = mul(invViewProjMatrix, ndcPos);
+    worldPos /= worldPos.w;
+    return worldPos;
+}
+
 uint GetIndex(ByteAddressBuffer indexBuffer, uint indexOffsetBytes, uint indexSize, uint vertexID)
 {
     if (indexSize == 2)

@@ -37,6 +37,7 @@ void st::gfx::ShadowmapRenderStage::Render()
 		{},
 #endif
 		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
+		{},
 		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());
@@ -106,9 +107,9 @@ void st::gfx::ShadowmapRenderStage::OnAttached()
 
 		rhi::RasterizerState rasterState =
 		{
-			.cullMode = rhi::CullMode::Back
-			//.depthBias = 1000,
-			//.slopeScaledDepthBias = 1.f
+			.cullMode = rhi::CullMode::Back,
+			.depthBias = -1000,
+			.slopeScaledDepthBias = -1.f
 		};
 
 		rhi::DepthStencilState depthStencilState =
