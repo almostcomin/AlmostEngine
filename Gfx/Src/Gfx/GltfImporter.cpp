@@ -995,7 +995,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             auto indexBufferResult = CreateIndexBuffer(std::move(indexData), idx32bits, debugName.c_str(), dataUploader, device);
             if (indexBufferResult)
             {
-                mesh->SetIndexBuffer(std::move(indexBufferResult->first), st::rhi::PrimitiveTopology::TriangleList);
+                mesh->SetIndexBuffer(std::move(indexBufferResult->first), st::rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(int32_t) : sizeof(int16_t));
                 out_handlesToWait.push_back(indexBufferResult->second);
             }
 

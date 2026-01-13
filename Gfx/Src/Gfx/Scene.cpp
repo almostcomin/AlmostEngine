@@ -102,7 +102,8 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			for (const st::gfx::Mesh* mesh : meshes)
 			{
 				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
-				meshDataPtr->indexOffset = 0;
+				meshDataPtr->indexSize = mesh->GetIndexSize();
+				meshDataPtr->indexOffsetBytes = 0;
 				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
 				meshDataPtr->vertexBufferOffsetBytes = 0;
 				const auto& vertexFormat = mesh->GetVertexFormat();

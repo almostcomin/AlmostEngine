@@ -432,8 +432,8 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 		float3 sunPosition = m_Camera->GetPosition();
 		sceneData->sunDirection = m_Camera->GetForward();
 		sceneData->sunDirection = glm::normalize(glm::normalize(sceneCenter - sunPosition) + float3{ 0.f, -1.f, 0.f });
-		sceneData->sunDirection = glm::normalize(float3{ 1.f, 0.f, -1.f });
-		sunPosition = float3{ -5.f, 0.f, 5.f };
+		//sceneData->sunDirection = glm::normalize(float3{ 1.f, 0.f, -1.f });
+		//sunPosition = float3{ -5.f, 0.f, 5.f };
 
 		float3 sunUp = fabs(glm::dot(sceneData->sunDirection, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
 		float4x4 sunViewMatrix = glm::lookAtRH(sunPosition, sunPosition + sceneData->sunDirection, sunUp);

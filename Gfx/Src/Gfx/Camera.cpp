@@ -9,7 +9,7 @@ st::gfx::Camera::Camera() :
 	m_Right{ 1.f, 0.f, 0.f },
 	m_VerticalFov{ glm::radians(60.f) },
 	m_Aspect{ 1.f },
-	m_zNear{ 1.f },
+	m_zNear{ 0.1f },
 	m_zFar{ 1000.f },
 	m_IsDirty{ true }
 {

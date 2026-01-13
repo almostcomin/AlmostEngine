@@ -40,7 +40,8 @@ namespace interop
     struct MeshData
     {
         uint indexBufferDI;
-        uint indexOffset;
+        uint indexSize;
+        uint indexOffsetBytes;
         uint vertexBufferDI;
         uint vertexBufferOffsetBytes;
         uint vertexStride;
@@ -51,6 +52,7 @@ namespace interop
         uint vertexTexCoord1Offset;
         uint vertexColorOffset;
         uint materialIdx;
+        uint _padding[3];
     };
 
     struct MaterialData

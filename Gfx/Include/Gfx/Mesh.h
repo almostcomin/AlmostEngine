@@ -34,7 +34,7 @@ public:
 
 	const st::math::aabox3f& GetBounds() const { return m_Bounds; }
 
-	void SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo);
+	void SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo, uint8_t indexSize);
 	void SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexFormat& fmt);
 
 	void SetMaterial(std::shared_ptr<Material> mat);
@@ -44,6 +44,7 @@ public:
 	rhi::BufferHandle GetIndexBuffer() const { return m_IndexBuffer.get_weak(); }
 	size_t GetIndexCount() const;
 	rhi::PrimitiveTopology GetPrimitiveTopology() const { return m_PrimitiveTopo; }
+	uint8_t GetIndexSize() const { return m_IndexSize; }
 
 	rhi::BufferHandle GetVertexBuffer() const { return m_VertexBuffer.get_weak(); }
 	const VertexFormat& GetVertexFormat() const { return m_VertexFormat; }
@@ -59,6 +60,8 @@ private:
 
 	rhi::BufferOwner m_IndexBuffer;
 	rhi::PrimitiveTopology m_PrimitiveTopo;
+	uint8_t m_IndexSize;
+
 	rhi::BufferOwner m_VertexBuffer;
 	VertexFormat m_VertexFormat;
 

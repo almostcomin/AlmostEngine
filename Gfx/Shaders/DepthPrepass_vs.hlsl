@@ -19,11 +19,11 @@ VS_OUTPUT main(uint vertexID : SV_VertexID)
     interop::InstanceData instanceData = instancesBuffer[Constants.instanceIdx];
     interop::MeshData meshData = meshesBuffer[instanceData.meshIndex];
             
-    StructuredBuffer<uint16_t> indexBuffer = ResourceDescriptorHeap[meshData.indexBufferDI];
+    ByteAddressBuffer indexBuffer = ResourceDescriptorHeap[meshData.indexBufferDI];
     ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[meshData.vertexBufferDI];
     
     // Fetch vertex data
-    uint baseIndex = indexBuffer[vertexID + meshData.indexOffset];
+    uint baseIndex = GetIndex(indexBuffer, meshData.indexOffsetBytes, meshData.indexSize, vertexID);
     uint vertexBufferOffset = meshData.vertexBufferOffsetBytes + (baseIndex * meshData.vertexStride);
     
     float3 pos = LoadVertexAttributeFloat3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionOffset);

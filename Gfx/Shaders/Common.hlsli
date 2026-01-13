@@ -1,23 +1,36 @@
 
-float2 LoadVertexAttributeFloat2(ByteAddressBuffer buffer, uint vertexOffset, uint attributeOffset)
+uint GetIndex(ByteAddressBuffer indexBuffer, uint indexOffsetBytes, uint indexSize, uint vertexID)
 {
-    if (attributeOffset == 0xFFFFFFFF)
+    if (indexSize == 2)
+    {
+        uint word = indexBuffer.Load(indexOffsetBytes + (vertexID & ~1) * 2);
+        return (vertexID & 1) ? (word >> 16) : (word & 0xFFFF);
+    }
+    else
+    {
+        return indexBuffer.Load(indexOffsetBytes + vertexID * 4);
+    }
+}
+
+float2 LoadVertexAttributeFloat2(ByteAddressBuffer buffer, uint vertexOffsetBytes, uint attributeOffsetBytes)
+{
+    if (attributeOffsetBytes == 0xFFFFFFFF)
         return float2(0, 0);
-    return asfloat(buffer.Load2(vertexOffset + attributeOffset));
+    return asfloat(buffer.Load2(vertexOffsetBytes + attributeOffsetBytes));
 };
 
-float3 LoadVertexAttributeFloat3(ByteAddressBuffer buffer, uint vertexOffset, uint attributeOffset)
+float3 LoadVertexAttributeFloat3(ByteAddressBuffer buffer, uint vertexOffsetBytes, uint attributeOffsetBytes)
 {
-    if (attributeOffset == 0xFFFFFFFF)
+    if (attributeOffsetBytes == 0xFFFFFFFF)
         return float3(0, 0, 0);
-    return asfloat(buffer.Load3(vertexOffset + attributeOffset));
+    return asfloat(buffer.Load3(vertexOffsetBytes + attributeOffsetBytes));
 };
 
-uint LoadVertexAttributeUInt(ByteAddressBuffer buffer, uint vertexOffset, uint attributeOffset)
+uint LoadVertexAttributeUInt(ByteAddressBuffer buffer, uint vertexOffsetBytes, uint attributeOffsetBytes)
 {
-    if (attributeOffset == 0xFFFFFFFF)
+    if (attributeOffsetBytes == 0xFFFFFFFF)
         return 0;
-    return buffer.Load(vertexOffset + attributeOffset);
+    return buffer.Load(vertexOffsetBytes + attributeOffsetBytes);
 }
 
 // Octahedron encoding

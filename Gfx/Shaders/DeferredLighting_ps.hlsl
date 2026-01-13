@@ -56,7 +56,7 @@ float4 main(PS_INPUT input) : SV_Target
     float shadowDepth = shadowMap.Sample(pointClampSampler, shadowUV).r;
     // Reverse-Z compare
     float bias = 0.1 * tan(acos(NdotL));
-    bool inShadow = (ndcPosFromSun.z + bias) < shadowDepth;
+    bool inShadow = false;//(ndcPosFromSun.z + bias) < shadowDepth;
     
     // Diffuse color
     float shadow = inShadow ? 0.0 : 1.f;

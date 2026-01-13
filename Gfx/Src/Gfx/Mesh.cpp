@@ -6,7 +6,8 @@ st::gfx::Mesh::Mesh(rhi::Device* device, const char* name, const char* sourceFil
 	m_Name{ name ? name : "<null>" },
 	m_SourceFilename{ sourceFilename ? sourceFilename : "<null>" },
 	m_Bounds{ st::math::aabox3f::InitEmpty },
-	m_PrimitiveTopo{ rhi::PrimitiveTopology::TriangleList }
+	m_PrimitiveTopo{ rhi::PrimitiveTopology::TriangleList },
+	m_IndexSize{ 0 }
 {}
 
 st::gfx::Mesh::~Mesh()
@@ -15,10 +16,11 @@ st::gfx::Mesh::~Mesh()
 	m_Device->ReleaseQueued(m_VertexBuffer);
 }
 
-void st::gfx::Mesh::SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo)
+void st::gfx::Mesh::SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo, uint8_t indexSize)
 {
 	m_IndexBuffer = std::move(indexBuffer);
 	m_PrimitiveTopo = topo;
+	m_IndexSize = indexSize;
 }
 
 void st::gfx::Mesh::SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexFormat& fmt)
