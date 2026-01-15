@@ -9,8 +9,12 @@
 
 namespace st::rhi::dx12
 {
+	class Queue;
+
 	class CommandList : public ICommandList
 	{
+		friend class GpuDevice;
+
 	public:
 
 		using NativeCommandListType = ID3D12GraphicsCommandList4;
@@ -19,7 +23,9 @@ namespace st::rhi::dx12
 			ICommandList(device, debugName),
 			m_D3d12Commandlist{ d3d12CommandList },
 			m_D3d12CommandAllocator{ commandAllocator },
-			m_Type{ type }
+			m_Type{ type },
+			m_DrawCalls{ 0 },
+			m_PrimitiveCount{ 0 }
 		{}
 
 		void Open() override;
@@ -57,6 +63,11 @@ namespace st::rhi::dx12
 		void BeginMarker(const char* str) override;
 		void EndMarker() override;
 
+		void BeginTimerQuery(ITimerQuery* query) override;
+		void EndTimerQuery(ITimerQuery* query) override;
+
+		void OnExecuted(Queue& queue);
+
 		QueueType GetType() const override { return m_Type; }
 
 		ResourceType GetResourceType() const override { return ResourceType::CommandList; }
@@ -73,5 +84,11 @@ namespace st::rhi::dx12
 
 		st::rhi::GraphicsPipelineStateHandle m_CurrentPSO;
 		st::rhi::FramebufferHandle m_CurrentFB;
+
+		std::vector<TimerQueryHandle> m_BeginTimerQueries;
+		std::vector<TimerQueryHandle> m_EndTimerQueries;
+
+		uint32_t m_DrawCalls;
+		uint32_t m_PrimitiveCount;
 	};
 }

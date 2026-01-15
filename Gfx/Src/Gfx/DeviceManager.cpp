@@ -7,6 +7,7 @@
 #include "Gfx/TextureCache.h"
 #include "Gfx/CommonResources.h"
 #include "RHI/Device.h"
+#include "RHI/TimerQuery.h"
 
 st::gfx::DeviceManager::~DeviceManager()
 {}
@@ -34,7 +35,22 @@ bool st::gfx::DeviceManager::Init(const DeviceParams& params)
 		m_DataUploader = std::make_unique<st::gfx::DataUploader>(m_Device.get());
 		m_TextureCache = std::make_unique<st::gfx::TextureCache>(m_Device.get(), m_DataUploader.get());
 		m_CommonResources = std::make_unique<st::gfx::CommonResources>(m_ShaderFactory.get(), m_Device.get());
+
+		for (uint32_t i = 0; i < QueuedFramesCount; ++i)
+		{
+			m_FrameTimers[i] = GetDevice()->CreateTimerQuery("FrameTimerQuery");
+		}
+		m_NextTimerToUse = 0;
+
+		m_BeginCommandLists.resize(params.SwapChainBufferCount);
+		m_EndCommandLists.resize(params.SwapChainBufferCount);
+		for (uint32_t i = 0; i < params.SwapChainBufferCount; ++i)
+		{
+			m_BeginCommandLists[i] = GetDevice()->CreateCommandList({ rhi::QueueType::Graphics }, "DeviceManager Begin");
+			m_EndCommandLists[i] = GetDevice()->CreateCommandList({ rhi::QueueType::Graphics }, "DeviceManager End");
+		}
 	}
+
 	return ok;
 }
 
@@ -121,7 +137,36 @@ void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 	if (IsWindowVisible())
 	{
 		BeginFrame();
+
+		// Begin time query
+		{
+			m_FrameTimers[m_NextTimerToUse]->Reset();
+
+			auto& commandList = m_BeginCommandLists[GetFrameModuleIndex()];
+			
+			commandList->Open();
+			commandList->BeginTimerQuery(m_FrameTimers[m_NextTimerToUse].get());
+			commandList->Close();
+
+			GetDevice()->ExecuteCommandList(commandList.get(), st::rhi::QueueType::Graphics);
+		}
+
+		// Render callback
 		cb();
+
+		// End time query
+		{
+			auto& commandList = m_EndCommandLists[GetFrameModuleIndex()];
+
+			commandList->Open();
+			commandList->EndTimerQuery(m_FrameTimers[m_NextTimerToUse].get());
+			commandList->Close();
+
+			GetDevice()->ExecuteCommandList(commandList.get(), st::rhi::QueueType::Graphics);
+			
+			m_NextTimerToUse = (m_NextTimerToUse + 1) % QueuedFramesCount;
+		}
+
 		bool presentOk = Present();
 		assert(presentOk);
 	}
@@ -132,4 +177,20 @@ void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 uint32_t st::gfx::DeviceManager::GetFrameModuleIndex() const
 {
 	return m_FrameCount % m_SwapChainFramebuffers.size();
+}
+
+float st::gfx::DeviceManager::GetGPUFrameTime()
+{
+	for (int i = m_NextTimerToUse - 1; i >= 0; i--)
+	{
+		if (m_FrameTimers[i]->Poll())
+			return m_FrameTimers[i]->GetQueryTime() * 1000.f;
+	}
+
+	for (int i = QueuedFramesCount - 1; i > m_NextTimerToUse; i--)
+	{
+		if (m_FrameTimers[i]->Poll())
+			return m_FrameTimers[i]->GetQueryTime() * 1000.f;
+	}
+	return -1.0f;
 }

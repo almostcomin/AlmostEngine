@@ -19,8 +19,9 @@ public:
 	struct Data
 	{
 		bool ShowUI = true;
-		bool ShowFPS = true;
 		float FPS = 0.f;
+		float CPUTime = 0.f;
+		float GPUTime = 0.f;
 	};
 
 	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::DeviceManager* deviceManager);
@@ -57,6 +58,7 @@ private:
 private:
 
 	void BuildMainMenu();
+	void BuildBottomBar();
 	void BuildMenuFile();
 	void BuildSceneWindow(bool* p_open);
 	void BuildResourcesWindow(bool* p_open);

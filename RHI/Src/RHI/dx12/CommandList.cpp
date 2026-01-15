@@ -7,6 +7,7 @@
 #include "RHI/dx12/ResourceState.h"
 #include "RHI/dx12/PipelineState.h"
 #include "RHI/dx12/FrameBuffer.h"
+#include "RHI/dx12/TimerQuery.h"
 #include "RHI/dx12/GPUDevice.h"
 #include "RHI/dx12/Utils.h"
 #include <pix3.h>
@@ -41,6 +42,12 @@ void st::rhi::dx12::CommandList::Open()
 	};
 	m_D3d12Commandlist->SetDescriptorHeaps(std::size(heaps), heaps);
 	m_CurrentPSO = nullptr;
+
+	m_DrawCalls = 0;
+	m_PrimitiveCount = 0;
+
+	m_BeginTimerQueries.clear();
+	m_EndTimerQueries.clear();
 }
 
 void st::rhi::dx12::CommandList::Close()
@@ -331,11 +338,17 @@ void st::rhi::dx12::CommandList::EndRenderPass()
 void st::rhi::dx12::CommandList::Draw(uint32_t vertexCount)
 {
 	m_D3d12Commandlist->DrawInstanced(vertexCount, 1, 0, 0);
+	
+	++m_DrawCalls;
+	m_PrimitiveCount += GetPrimitiveCount(vertexCount, m_CurrentPSO->GetDesc().primTopo);
 }
 
 void st::rhi::dx12::CommandList::DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount)
 {
 	m_D3d12Commandlist->DrawInstanced(vertexCountPerInstance, instanceCount, 0, 0);
+
+	++m_DrawCalls;
+	m_PrimitiveCount += GetPrimitiveCount(vertexCountPerInstance, m_CurrentPSO->GetDesc().primTopo) * instanceCount;
 }
 
 void st::rhi::dx12::CommandList::Discard(IBuffer* buffer)
@@ -367,6 +380,41 @@ void st::rhi::dx12::CommandList::BeginMarker(const char* str)
 void st::rhi::dx12::CommandList::EndMarker()
 {
 	PIXEndEvent(m_D3d12Commandlist.Get());
+}
+
+void st::rhi::dx12::CommandList::BeginTimerQuery(ITimerQuery* query)
+{
+	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+	auto* tq = st::checked_cast<TimerQuery*>(query);
+
+	m_D3d12Commandlist->EndQuery(gpuDevice->GetQueryHeap(), D3D12_QUERY_TYPE_TIMESTAMP, tq->m_BeginQueryIndex);
+
+	m_BeginTimerQueries.push_back(static_pointer_cast<TimerQuery>(query->weak_from_this()));
+}
+
+void st::rhi::dx12::CommandList::EndTimerQuery(ITimerQuery* query)
+{
+	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+	auto* tq = st::checked_cast<TimerQuery*>(query);
+
+	m_D3d12Commandlist->EndQuery(gpuDevice->GetQueryHeap(), D3D12_QUERY_TYPE_TIMESTAMP, tq->m_EndQueryIndex);
+
+	m_D3d12Commandlist->ResolveQueryData(gpuDevice->GetQueryHeap(), D3D12_QUERY_TYPE_TIMESTAMP,
+		tq->m_BeginQueryIndex, 2, gpuDevice->GetQueryResolveBuffer(), tq->m_BeginQueryIndex * 8);
+
+	m_EndTimerQueries.push_back(static_pointer_cast<ITimerQuery>(query->weak_from_this()));
+}
+
+void st::rhi::dx12::CommandList::OnExecuted(st::rhi::dx12::Queue& queue)
+{
+	for (const auto& it : m_BeginTimerQueries)
+	{
+		static_pointer_cast<TimerQuery>(it)->OnBeginExecuted();
+	}
+	for (const auto& it : m_EndTimerQueries)
+	{
+		static_pointer_cast<TimerQuery>(it)->OnEndExecuted(queue);
+	}
 }
 
 void st::rhi::dx12::CommandList::Release(Device* device)

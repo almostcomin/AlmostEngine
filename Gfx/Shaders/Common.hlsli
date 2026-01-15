@@ -11,6 +11,21 @@ float4 WorldPosReconstruction(float2 uv, Texture2D depthTex, float4x4 invViewPro
     return worldPos;
 }
 
+float SampleShadowMap(float4 worldPos, float4x4 worldToClipMatrix, Texture2D shadowMap)
+{
+    float4 clipPos = mul(worldToClipMatrix, worldPos);
+    float3 ndcPos = clipPos.xyz / clipPos.w;
+    // UV
+    float2 shadowUV = ndcPos.xy * 0.5 + 0.5;
+    shadowUV.y = 1.0 - shadowUV.y;
+        
+    // Sample shadowmap
+    float shadowDepth = shadowMap.Sample(pointClampSampler, shadowUV).r;
+    
+    float shadow = ndcPos.z < shadowDepth ? 0.0 : 1.f; // Reverse-Z compare    
+    return shadow;
+}
+
 uint GetIndex(ByteAddressBuffer indexBuffer, uint indexOffsetBytes, uint indexSize, uint vertexID)
 {
     if (indexSize == 2)

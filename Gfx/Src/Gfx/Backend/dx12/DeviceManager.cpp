@@ -98,6 +98,7 @@ bool st::gfx::dx12::DeviceManager::BeginFrame()
 {
     auto bufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
     WaitForSingleObject(m_FrameFenceEvents[bufferIndex], INFINITE);
+
     return true;
 }
 

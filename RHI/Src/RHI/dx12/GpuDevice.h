@@ -3,22 +3,22 @@
 #include "Core/ComPtr.h"
 #include "RHI/dx12/Device.h"
 #include "RHI/dx12/DescriptorHeap.h"
-#include <unordered_set>
+#include "Core/BitSetAllocator.h"
 
 namespace st::rhi::dx12
 {
 	struct Queue
 	{
-		ComPtr<ID3D12CommandQueue> queue;
-		ComPtr<ID3D12Fence> fence;
+		ComPtr<ID3D12CommandQueue> d3d12Queue;
+		ComPtr<ID3D12Fence> d3d12Fence;
 		uint64_t lastSubmittedInstance = 0;
 		uint64_t lastCompletedInstance = 0;
 
-		uint64_t UpdateLastCompletedInstance()
+		uint64_t GetLastCompletedInstance()
 		{
 			if (lastCompletedInstance < lastSubmittedInstance)
 			{
-				lastCompletedInstance = fence->GetCompletedValue();
+				lastCompletedInstance = d3d12Fence->GetCompletedValue();
 			}
 			return lastCompletedInstance;
 		}
@@ -39,6 +39,7 @@ namespace st::rhi::dx12
 		CommandListOwner CreateCommandList(const CommandListParams& params, const std::string& debugName) override;
 		GraphicsPipelineStateOwner CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo, const std::string& debugName) override;
 		FenceOwner CreateFence(uint64_t initialVale, const std::string& debugName) override;
+		TimerQueryOwner CreateTimerQuery(const std::string& debugName) override;
 
 		StorageRequirements GetStorageRequirements(const BufferDesc& desc) override;
 		StorageRequirements GetStorageRequirements(const TextureDesc& desc) override;
@@ -50,11 +51,6 @@ namespace st::rhi::dx12
 
 		GPUBindingHandle GetBindingHandle(ITexture* tex, TextureShaderView view) override;
 
-		DescriptorHeap* GetDepthStencilViewHeap() { return &m_DepthStencilViewHeap; }
-		DescriptorHeap* GetRenderTargetViewHeap() { return &m_RenderTargetViewHeap; }
-		DescriptorHeap* GetShaderResourceViewHeap() { return &m_ShaderResourceViewHeap; }
-		DescriptorHeap* GetSamperHeap() { return &m_SamplerHeap; }
-
 		void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value) override;
 		void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value) override;
 
@@ -63,6 +59,18 @@ namespace st::rhi::dx12
 		void NextFrame() override;
 
 		void Shutdown() override;
+
+		const Stats& GetStats() const override { return m_LastStats; }
+
+		Queue* GetQueue(QueueType type) { return &m_Queues[(int)type]; }
+
+		DescriptorHeap* GetDepthStencilViewHeap() { return &m_DepthStencilViewHeap; }
+		DescriptorHeap* GetRenderTargetViewHeap() { return &m_RenderTargetViewHeap; }
+		DescriptorHeap* GetShaderResourceViewHeap() { return &m_ShaderResourceViewHeap; }
+		DescriptorHeap* GetSamperHeap() { return &m_SamplerHeap; }
+
+		ID3D12QueryHeap* GetQueryHeap() { return m_TimerQueryHeap.Get(); }
+		ID3D12Resource* GetQueryResolveBuffer() { return m_TimerQueryResolveBuffer.Get(); }
 
 		ID3D12Device* GetNativeDevice() { return m_D3d12Device.Get(); }
 
@@ -97,6 +105,10 @@ namespace st::rhi::dx12
 		DescriptorHeap m_ShaderResourceViewHeap;
 		DescriptorHeap m_SamplerHeap;
 
+		BitSetAllocator m_TimerQueries;
+		ComPtr<ID3D12QueryHeap> m_TimerQueryHeap;
+		ComPtr<ID3D12Resource> m_TimerQueryResolveBuffer;
+
 		D3D12_FEATURE_DATA_D3D12_OPTIONS  m_Options = {};
 		D3D12_FEATURE_DATA_D3D12_OPTIONS1 m_Options1 = {};
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 m_Options5 = {};
@@ -126,6 +138,9 @@ namespace st::rhi::dx12
 		std::vector<std::vector<IResource*>> m_StaleResources;
 
 		uint64_t m_CurrentFrameIdx;
+
+		Stats m_LastStats;
+		Stats m_CurrentStats;
 
 		DeviceDesc m_Desc;
 	};

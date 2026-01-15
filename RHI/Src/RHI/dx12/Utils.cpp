@@ -288,3 +288,15 @@ D3D12_RENDER_PASS_ENDING_ACCESS st::rhi::dx12::GetRenderPassEngindAccess(st::rhi
 	}
 	return ret;
 }
+
+void st::rhi::dx12::WaitForFence(ID3D12Fence* fence, uint64_t value, HANDLE event)
+{
+	// Test if the fence has been reached
+	if (fence->GetCompletedValue() < value)
+	{
+		// If it's not, wait for it to finish using an event
+		ResetEvent(event);
+		fence->SetEventOnCompletion(value, event);
+		WaitForSingleObject(event, INFINITE);
+	}
+}

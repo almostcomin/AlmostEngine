@@ -20,10 +20,7 @@ float4 main(PS_INPUT input) : SV_Target
     Texture2D GBuffer1 = ResourceDescriptorHeap[Constants.GBuffer1DI]; // Normal.xy + Roughness.z
     Texture2D GBuffer2 = ResourceDescriptorHeap[Constants.GBuffer2DI]; // Metallic.x + AO.z
     Texture2D GBuffer3 = ResourceDescriptorHeap[Constants.GBuffer3DI]; // Emissive.rgb
-    
-    // World pos reconstruction
-    float4 worldPos = WorldPosReconstruction(input.uv, sceneDepth, sceneData.invCamViewProjMatrix);
-                
+                    
     // Sample G-Buffers
     float4 g0 = GBuffer0.Sample(pointClampSampler, input.uv);
     float4 g1 = GBuffer1.Sample(pointClampSampler, input.uv);
@@ -37,21 +34,13 @@ float4 main(PS_INPUT input) : SV_Target
     float roughness = g1.z;
     float3 emissive = g3.rgb;
         
+    // World pos reconstruction
+    float4 worldPos = WorldPosReconstruction(input.uv, sceneDepth, sceneData.invCamViewProjMatrix);
+    // Get shadow factor
+    float shadow = SampleShadowMap(worldPos, sceneData.sunWorldToClipMatrix, shadowMap);
+    // Lambert
     float NdotL = saturate(dot(normal, -sceneData.sunDirection));
-    
-    // Project world pos to sun light space
-    float4 clipPosFromSun = mul(sceneData.sunWorldToClipMatrix, worldPos);
-    float3 ndcPosFromSun = clipPosFromSun.xyz / clipPosFromSun.w;
-    // UV
-    float2 shadowUV = ndcPosFromSun.xy * 0.5 + 0.5;
-    shadowUV.y = 1.0 - shadowUV.y;
-        
-    // Sample shadowmap
-    float shadowDepth = shadowMap.Sample(pointClampSampler, shadowUV).r;
-        
-    // Diffuse color
-    float shadow = ndcPosFromSun.z < shadowDepth ? 0.0 : 1.f; // Reverse-Z compare
-    float3 diffuse = shadow * baseColor * sceneData.sunColor * sceneData.sunIntensity * NdotL;
+    float3 diffuse = baseColor * sceneData.sunColor * sceneData.sunIntensity * shadow * NdotL;
     
     float3 color = diffuse + emissive;
     return float4(color, 1.0);

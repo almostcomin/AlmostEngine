@@ -15,6 +15,13 @@ namespace st::rhi
 {
     using GPUBindingHandle = uint64_t;
 
+    struct Stats
+    {
+        uint32_t DrawCalls;
+        uint32_t PrimitiveCount;
+        float ElapsedGpuMs;
+    };
+
     class IResource;
 
 	class Device
@@ -31,6 +38,7 @@ namespace st::rhi
         virtual CommandListOwner CreateCommandList(const CommandListParams& params, const std::string& debugName) = 0;
         virtual GraphicsPipelineStateOwner CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo, const std::string& debugName) = 0;
         virtual FenceOwner CreateFence(uint64_t initialVale, const std::string& debugName) = 0;
+        virtual TimerQueryOwner CreateTimerQuery(const std::string& debugName) = 0;
 
         virtual StorageRequirements GetStorageRequirements(const BufferDesc& desc) = 0;
         virtual StorageRequirements GetStorageRequirements(const TextureDesc& desc) = 0;
@@ -59,6 +67,8 @@ namespace st::rhi
         virtual void WaitForIdle() = 0;
 
         virtual void NextFrame() = 0;
+
+        virtual const Stats& GetStats() const = 0;
 
         virtual void Shutdown() = 0;
 

@@ -12,7 +12,7 @@ class ITexture;
 class IShader;
 class IFramebuffer;
 class IGraphicsPipelineState;
-
+class ITimerQuery;
 
 using BufferOwner = st::unique<IBuffer>;
 using BufferHandle = st::weak<IBuffer>;
@@ -34,5 +34,8 @@ using FramebufferHandle = st::weak<IFramebuffer>;
 
 using GraphicsPipelineStateOwner = st::unique<IGraphicsPipelineState>;
 using GraphicsPipelineStateHandle = st::weak<IGraphicsPipelineState>;
+
+using TimerQueryOwner = st::unique<ITimerQuery>;
+using TimerQueryHandle = st::weak<ITimerQuery>;
 
 } // namespace st::rhi

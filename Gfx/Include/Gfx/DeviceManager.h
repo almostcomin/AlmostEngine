@@ -122,6 +122,8 @@ public:
     uint32_t GetSwapchainBufferCount() const { return m_SwapChainFramebuffers.size(); }
     uint32_t GetFrameModuleIndex() const;
 
+    float GetGPUFrameTime();
+
     st::rhi::Device* GetDevice() { return m_Device.get(); }
 
 protected:
@@ -150,6 +152,13 @@ private:
     std::unique_ptr<st::gfx::DataUploader> m_DataUploader;
     std::unique_ptr<st::gfx::TextureCache> m_TextureCache;
     std::unique_ptr<st::gfx::CommonResources> m_CommonResources;
+
+    static const uint32_t QueuedFramesCount = 3;
+    rhi::TimerQueryOwner m_FrameTimers[QueuedFramesCount];
+    int m_NextTimerToUse = 0;
+
+    std::vector<rhi::CommandListOwner> m_BeginCommandLists;
+    std::vector<rhi::CommandListOwner> m_EndCommandLists;
 };
 
 } // namespace st::graphics

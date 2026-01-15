@@ -18,7 +18,8 @@ namespace st::rhi
 		Fence,
 		CommandList,
 		Shader,
-		GraphicsPipelineState
+		GraphicsPipelineState,
+		TimerQuery
 	};
 
 	inline const char* ResourceTypeToString(ResourceType type)

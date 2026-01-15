@@ -17,4 +17,6 @@ namespace st::rhi::dx12
 	D3D12_RENDER_PASS_BEGINNING_ACCESS GetRenderPassBeginningAccess(st::rhi::RenderPassOp::LoadOp op, const ClearValue& clearValue, Format format);
 	D3D12_RENDER_PASS_ENDING_ACCESS GetRenderPassEngindAccess(st::rhi::RenderPassOp::StoreOp op);
 
+	void WaitForFence(ID3D12Fence* fence, uint64_t value, HANDLE event);
+
 } // namespace st::rpai::dx12

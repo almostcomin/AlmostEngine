@@ -11,6 +11,4 @@ namespace st::rhi
 	protected:
 		IFence(Device* device, const std::string& debugName) : IResource(device, debugName) {};
 	};
-
-	using FenceHandle = st::weak<IFence>;
 }

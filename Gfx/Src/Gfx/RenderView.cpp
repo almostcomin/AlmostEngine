@@ -50,9 +50,9 @@ st::gfx::RenderView::~RenderView()
 void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
 { 
 	m_Scene = scene;
-	for (auto rp : m_RenderStages)
+	for (auto rs : m_RenderStages)
 	{
-		rp.renderStage->OnSceneChanged();
+		rs->renderStage->OnSceneChanged();
 	}
 }
 
@@ -72,11 +72,21 @@ void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<Rend
 
 	m_RenderStages.reserve(renderStages.size());
 	for (auto& rs : renderStages)
-		m_RenderStages.push_back(RenderStageData{ {}, {}, rs });
+	{
+		auto rsd = new RenderStageData{ {}, {}, rs, {} };
+		rsd->timerQueries.reserve(m_DeviceManager->GetSwapchainBufferCount());
+		for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
+		{
+			rsd->timerQueries.push_back(m_DeviceManager->GetDevice()->CreateTimerQuery(
+				std::format("{} - TimerQuery", rs->GetDebugName())));
+		}
+
+		m_RenderStages.push_back(rsd);
+	}
 
 	for (auto rs : m_RenderStages)
 	{
-		rs.renderStage->Attach(this);
+		rs->renderStage->Attach(this);
 	}
 
 	m_IsDirty = true;
@@ -149,7 +159,7 @@ bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int heigh
 	return true;
 }
 
-bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState)
+bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rs, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState)
 {
 	// Check that texture is create
 	auto texture_it = m_DeclaredTextures.find(id);
@@ -160,23 +170,23 @@ bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rp, AccessMode acces
 	}
 
 	// Find render pass deps
-	auto rp_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rp](const RenderStageData& entry) -> bool
+	auto rs_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const RenderStageData* entry) -> bool
 		{
-			return entry.renderStage.get() == rp;
+			return entry->renderStage.get() == rs;
 		});
-	if (rp_it == m_RenderStages.end())
+	if (rs_it == m_RenderStages.end())
 	{
-		LOG_ERROR("Render pass with debug name {} not registered", rp->GetDebugName());
+		LOG_ERROR("Render pass with debug name {} not registered", rs->GetDebugName());
 		return false;
 	}
 
 	if (accessMode == AccessMode::Read)
 	{
-		rp_it->reads.emplace_back(texture_it->second.get(), inputState, outputState);
+		(*rs_it)->reads.emplace_back(texture_it->second.get(), inputState, outputState);
 	}
 	else
 	{
-		rp_it->writes.emplace_back(texture_it->second.get(), inputState, outputState);
+		(*rs_it)->writes.emplace_back(texture_it->second.get(), inputState, outputState);
 	}
 
 	return true;
@@ -221,7 +231,7 @@ void st::gfx::RenderView::OnWindowSizeChanged()
 		// Inform render stages
 		for (auto rs : m_RenderStages)
 		{
-			rs.renderStage->OnBackbufferResize();
+			rs->renderStage->OnBackbufferResize();
 		}
 	}
 	// TODO: Check if we are resized (or changed) the offscreen BB
@@ -256,11 +266,11 @@ void st::gfx::RenderView::Render()
 				rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET);
 		}
 
-		for (auto& renderStage : m_RenderStages)
+		for (auto& rs : m_RenderStages)
 		{
-			UpdateTextureViews(commandList, renderStage.renderStage.get(), AccessMode::Read, resourcesStates);
+			UpdateTextureViews(commandList, rs->renderStage.get(), AccessMode::Read, resourcesStates);
 
-			commandList->BeginMarker(renderStage.renderStage->GetDebugName());
+			commandList->BeginMarker(rs->renderStage->GetDebugName());
 
 			// Entry barriers
 			{
@@ -279,12 +289,12 @@ void st::gfx::RenderView::Render()
 						}
 					}
 				};
-				getBarriers(renderStage.reads);
-				getBarriers(renderStage.writes);
+				getBarriers(rs->reads);
+				getBarriers(rs->writes);
 
 				if (!barriers.empty())
 				{
-					std::string markerName = renderStage.renderStage->GetDebugName();
+					std::string markerName = rs->renderStage->GetDebugName();
 					markerName.append(" - Entry barriers");
 					commandList->BeginMarker(markerName.c_str());
 					commandList->PushBarriers(barriers);
@@ -292,7 +302,7 @@ void st::gfx::RenderView::Render()
 				}
 			}
 
-			renderStage.renderStage->Render();
+			rs->renderStage->Render();
 			commandList->EndMarker();
 
 			// Update the resource states with the state left by the stage
@@ -309,11 +319,11 @@ void st::gfx::RenderView::Render()
 						}
 					}
 				};
-				updateStates(renderStage.reads);
-				updateStates(renderStage.writes);
+				updateStates(rs->reads);
+				updateStates(rs->writes);
 			}
 
-			UpdateTextureViews(commandList, renderStage.renderStage.get(), AccessMode::Write, resourcesStates);
+			UpdateTextureViews(commandList, rs->renderStage.get(), AccessMode::Write, resourcesStates);
 		}
 
 		// All the resources need to go back to it initial state
@@ -388,9 +398,10 @@ void st::gfx::RenderView::Refresh()
 
 void st::gfx::RenderView::ClearRenderStages()
 {
-	for (auto rp : m_RenderStages)
+	for (auto rs : m_RenderStages)
 	{
-		rp.renderStage->Detach();
+		rs->renderStage->Detach();
+		delete rs;
 	}
 	m_RenderStages.clear();
 
@@ -524,7 +535,7 @@ void st::gfx::RenderView::UpdateVisibleSet()
 	while (walker)
 	{
 		auto node = *walker;
-		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() /*&& frustum.check(node->GetWorldBounds())*/)
+		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && frustum.check(node->GetWorldBounds()))
 		{
 			auto leaf = node->GetLeaf();
 			if (leaf)

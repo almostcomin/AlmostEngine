@@ -5,6 +5,7 @@
 #include "RHI/Framebuffer.h"
 #include "RHI/CommandList.h"
 #include "RHI/Buffer.h"
+#include "RHI/TimerQuery.h"
 #include "Gfx/Scene.h"
 #include <map>
 
@@ -51,6 +52,7 @@ public:
 		std::vector<RenderStageTextureDep> reads;
 		std::vector<RenderStageTextureDep> writes;
 		std::shared_ptr<RenderStage> renderStage;
+		std::vector<rhi::TimerQueryOwner> timerQueries;
 	};
 
 	static constexpr int c_BBSize = 0;
@@ -80,7 +82,7 @@ public:
 	bool CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
 	bool CreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
 
-	bool RequestTextureAccess(RenderStage* rp, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState);
+	bool RequestTextureAccess(RenderStage* rs, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState);
 	rhi::TextureHandle GetTexture(const char* id) const;
 
 	void OnWindowSizeChanged();
@@ -88,7 +90,7 @@ public:
 	void Render();
 
 	size_t GetNumRenderStages() const { return m_RenderStages.size(); }
-	const RenderStageData* GetRenderStage(uint32_t idx) const { return &m_RenderStages[idx]; }
+	const RenderStageData* GetRenderStage(uint32_t idx) const { return m_RenderStages[idx]; }
 
 	TextureViewTicket RequestTextureView(RenderStage* rs, AccessMode accessMode, const std::string& id);
 	void ReleaseTextureView(TextureViewTicket ticket);
@@ -114,6 +116,11 @@ private:
 		rhi::TextureOwner tex;
 	};
 
+	struct RenderStageInFrameData
+	{
+		
+	};
+
 private:
 
 	void Refresh();
@@ -129,16 +136,21 @@ private:
 	st::rhi::FramebufferHandle m_OffscreenFramebuffer;
 	std::vector<st::rhi::CommandListOwner> m_CommandLists;
 
-	std::vector<RenderStageData> m_RenderStages;
+	std::vector<RenderStageData*> m_RenderStages;
 	std::map<std::string, std::unique_ptr<DeclaredTexture>> m_DeclaredTextures;
 
 	// Visible set for the current camera
 	std::vector<const st::gfx::MeshInstance*> m_VisibleSet;
 
+	// Scene constant buffer, set at begin frame, no changes during frame render
 	st::rhi::BufferOwner m_SceneCB;
 
+	// Request for visualizing render targets
 	std::vector<TextureViewRequest*> m_TexViewRequests;
 
+	int m_NextTimerToUse = 0;
+
+	// True if a renderstage has added or removed
 	bool m_IsDirty;
 
 	std::string m_DebugName;

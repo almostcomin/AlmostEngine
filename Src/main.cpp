@@ -113,8 +113,8 @@ int SDL_main(int argc, char* argv[])
 		ImGui::StyleColorsDark();
 
 		ImGuiStyle& style = ImGui::GetStyle();
-		//style.ScaleAllSizes(1.25f);			// Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
-		//style.FontScaleDpi = 1.25f;			// Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+		style.ScaleAllSizes(1.25f);			// Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
+		style.FontScaleDpi = 1.25f;			// Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
 		io.ConfigDpiScaleFonts = true;      // [Experimental] Automatically overwrite style.FontScaleDpi in Begin() when Monitor DPI changes. This will scale fonts but _NOT_ scale sizes/padding for now.
 		io.ConfigDpiScaleViewports = true;  // [Experimental] Scale Dear ImGui and Platform Windows when Monitor DPI changes.
 
@@ -184,6 +184,8 @@ int SDL_main(int argc, char* argv[])
 		const auto currentTime = std::chrono::steady_clock::now();
 		const std::chrono::duration<float> elapsed = currentTime - lastTime;
 		const float elapsedMs = elapsed.count() * 1000.0f;
+		uiRS->m_Data.CPUTime = elapsedMs;
+		uiRS->m_Data.GPUTime = (std::max)(deviceManager->GetGPUFrameTime(), 0.f);
 
 		if (!requestLoadFile.empty())
 		{

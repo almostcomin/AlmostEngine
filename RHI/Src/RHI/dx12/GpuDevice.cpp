@@ -11,6 +11,7 @@
 #include "RHI/dx12/Shader.h"
 #include "RHI/dx12/ResourceState.h"
 #include "RHI/dx12/PipelineState.h"
+#include "RHI/dx12/TimerQuery.h"
 #include "RHI/dx12/Utils.h"
 
 #define HR_RETURN_NULL(hr)			\
@@ -23,18 +24,6 @@
 
 namespace
 {
-	void WaitForFence(ID3D12Fence* fence, uint64_t value, HANDLE event)
-	{
-		// Test if the fence has been reached
-		if (fence->GetCompletedValue() < value)
-		{
-			// If it's not, wait for it to finish using an event
-			ResetEvent(event);
-			fence->SetEventOnCompletion(value, event);
-			WaitForSingleObject(event, INFINITE);
-		}
-	}
-
 	D3D12_CLEAR_VALUE ConvertTextureClearValue(const st::rhi::TextureDesc& d)
 	{
 		const auto& formatMapping = st::rhi::GetDxgiFormatMapping(d.format);
@@ -68,27 +57,34 @@ st::rhi::dx12::GpuDevice::GpuDevice(const st::rhi::dx12::DeviceDesc& desc) :
 	m_RenderTargetViewHeap{ desc.pDevice },
 	m_ShaderResourceViewHeap{ desc.pDevice },
 	m_SamplerHeap{ desc.pDevice },
+	m_TimerQueries{ desc.maxTimerQueries, true },
 	m_CurrentFrameIdx{ 1 },
 	m_Desc{ desc }
 {
 	m_D3d12Device = desc.pDevice;
 
+	//
+	// Create command queues
+	//
 	if (desc.pGraphicsCommandQueue)
 	{
-		m_Queues[int(QueueType::Graphics)].queue = desc.pGraphicsCommandQueue;
-		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(QueueType::Graphics)].fence));
+		m_Queues[int(QueueType::Graphics)].d3d12Queue = desc.pGraphicsCommandQueue;
+		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(QueueType::Graphics)].d3d12Fence));
 	}
 	if (desc.pComputeCommandQueue)
 	{
-		m_Queues[int(QueueType::Compute)].queue = desc.pGraphicsCommandQueue;
-		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(QueueType::Compute)].fence));
+		m_Queues[int(QueueType::Compute)].d3d12Queue = desc.pGraphicsCommandQueue;
+		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(QueueType::Compute)].d3d12Fence));
 	}
 	if (desc.pCopyCommandQueue)
 	{
-		m_Queues[int(QueueType::Copy)].queue = desc.pGraphicsCommandQueue;
-		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(QueueType::Copy)].fence));
+		m_Queues[int(QueueType::Copy)].d3d12Queue = desc.pGraphicsCommandQueue;
+		m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Queues[int(QueueType::Copy)].d3d12Fence));
 	}
 
+	//
+	// Create descripor heaps
+	//
 	m_DepthStencilViewHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, desc.depthStencilViewHeapSize, false);
 	m_RenderTargetViewHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, desc.renderTargetViewHeapSize, false);
 	m_ShaderResourceViewHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 
@@ -96,6 +92,9 @@ st::rhi::dx12::GpuDevice::GpuDevice(const st::rhi::dx12::DeviceDesc& desc) :
 	m_SamplerHeap.AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 
 		std::min(desc.samplerHeapSize, (uint32_t)D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE), true);
 
+	//
+	// Check features supported
+	//
 	m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &m_Options, sizeof(m_Options));
 	m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &m_Options1, sizeof(m_Options1));
 	bool hasOptions5 = SUCCEEDED(m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &m_Options5, sizeof(m_Options5)));
@@ -131,11 +130,51 @@ st::rhi::dx12::GpuDevice::GpuDevice(const st::rhi::dx12::DeviceDesc& desc) :
 			hasShaderModel && shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_6;
 	}
 
+	//
+	// Create Query Heap
+	//
+	{
+		D3D12_QUERY_HEAP_DESC queryHeapDesc = {};
+		queryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+		queryHeapDesc.Count = uint32_t(m_TimerQueries.GetCapacity()) * 2; // Use 2 D3D12 queries per 1 TimerQuery
+		m_D3d12Device->CreateQueryHeap(&queryHeapDesc, IID_PPV_ARGS(&m_TimerQueryHeap));
+
+		D3D12_RESOURCE_DESC d3d12Desc = {};
+		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		d3d12Desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+		d3d12Desc.Width = queryHeapDesc.Count * 4;
+		d3d12Desc.Height = 1;
+		d3d12Desc.DepthOrArraySize = 1;
+		d3d12Desc.MipLevels = 1;
+		d3d12Desc.Format = DXGI_FORMAT_UNKNOWN;
+		d3d12Desc.SampleDesc.Count = 1;
+		d3d12Desc.SampleDesc.Quality = 0;
+		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		d3d12Desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		// TODO: D3D12MA
+		D3D12_HEAP_PROPERTIES heapProps = {};
+		heapProps.Type = D3D12_HEAP_TYPE_READBACK;
+		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+		HRESULT hr = m_D3d12Device->CreateCommittedResource(
+			&heapProps, D3D12_HEAP_FLAG_NONE, &d3d12Desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_TimerQueryResolveBuffer));
+		assert(SUCCEEDED(hr));
+		m_TimerQueryResolveBuffer->SetName(L"TimerQuery Resolve Buffer");
+	}
+
+	// Used for WaitForIdle only. Probably unneeded
 	m_FenceEvent = CreateEvent(nullptr, false, false, nullptr);
 
+	// Bindless RS
 	CreateBindlessRootSignature();
 
+	// Stale resource vectors
 	m_StaleResources.resize(m_Desc.swapChainFrames);
+
+	m_LastStats = {};
+	m_CurrentStats = {};
 };
 
 st::rhi::dx12::GpuDevice::~GpuDevice()
@@ -307,7 +346,7 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 
 st::rhi::CommandListOwner st::rhi::dx12::GpuDevice::CreateCommandList(const CommandListParams& params, const std::string& debugName)
 {
-	if (!m_Queues[(int)params.queueType].queue)
+	if (!m_Queues[(int)params.queueType].d3d12Queue)
 	{
 		return nullptr;
 	}
@@ -389,6 +428,18 @@ st::rhi::FenceOwner st::rhi::dx12::GpuDevice::CreateFence(uint64_t initialVale, 
 	d3d12Fence->SetName(ws_nmame.c_str());
 
 	return InsertNewResource<IFence>(new Fence{ d3d12Fence.Get(), this, debugName });
+}
+
+st::rhi::TimerQueryOwner st::rhi::dx12::GpuDevice::CreateTimerQuery(const std::string& debugName)
+{
+	int queryIndex = m_TimerQueries.Allocate();
+	if (queryIndex < 0)
+	{
+		LOG_ERROR("Not enough space in Timer Query Heap");
+		return nullptr;
+	}
+
+	return InsertNewResource<ITimerQuery>(new TimerQuery{ (uint32_t)queryIndex * 2, ((uint32_t)queryIndex * 2) + 1, this, debugName });
 }
 
 st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetStorageRequirements(const BufferDesc& desc)
@@ -489,7 +540,8 @@ st::rhi::GPUBindingHandle st::rhi::dx12::GpuDevice::GetBindingHandle(ITexture* t
 
 void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value)
 {
-	if (!m_Queues[(int)type].queue)
+	auto& queue = m_Queues[(int)type];
+	if (!queue.d3d12Queue)
 	{
 		LOG_ERROR("Queue type '%d' not initialized", (int)type);
 		return;
@@ -498,13 +550,27 @@ void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> comm
 	std::vector<ID3D12CommandList*> d3d12CommandLists;
 	d3d12CommandLists.reserve(commandLists.size());
 	for (auto cl : commandLists)
+	{
 		d3d12CommandLists.push_back(cl->GetNativeResource());
+	}
 
-	m_Queues[(int)type].queue->ExecuteCommandLists(d3d12CommandLists.size(), d3d12CommandLists.data());
+	queue.d3d12Queue->ExecuteCommandLists(d3d12CommandLists.size(), d3d12CommandLists.data());
 
 	if (signal)
 	{
-		m_Queues[(int)type].queue->Signal(signal->GetNativeResource(), value);
+		queue.d3d12Queue->Signal(signal->GetNativeResource(), value);
+	}
+
+	queue.d3d12Queue->Signal(queue.d3d12Fence.Get(), ++queue.lastSubmittedInstance);
+
+	for (auto cl : commandLists)
+	{
+		auto* dx12cl = st::checked_cast<dx12::CommandList*>(cl);
+		// Gather stats
+		m_CurrentStats.DrawCalls += dx12cl->m_DrawCalls;
+		m_CurrentStats.PrimitiveCount += dx12cl->m_PrimitiveCount;
+
+		dx12cl->OnExecuted(m_Queues[(int)type]);
 	}
 }
 
@@ -529,6 +595,9 @@ void st::rhi::dx12::GpuDevice::NextFrame()
 
 	m_StaleResources[nextFrameModule].clear();
 	++m_CurrentFrameIdx;
+
+	m_LastStats = m_CurrentStats;
+	m_CurrentStats = {};
 }
 
 void st::rhi::dx12::GpuDevice::Shutdown()
@@ -577,12 +646,12 @@ void st::rhi::dx12::GpuDevice::WaitForIdle()
 	// Wait for every queue to reach its last submitted instance
 	for (auto& queue : m_Queues)
 	{
-		if (!queue.queue)
+		if (!queue.d3d12Queue)
 			continue;
 
-		if (queue.UpdateLastCompletedInstance() < queue.lastSubmittedInstance)
+		if (queue.GetLastCompletedInstance() < queue.lastSubmittedInstance)
 		{
-			WaitForFence(queue.fence.Get(), queue.lastSubmittedInstance, m_FenceEvent);
+			WaitForFence(queue.d3d12Fence.Get(), queue.lastSubmittedInstance, m_FenceEvent);
 		}
 	}
 }

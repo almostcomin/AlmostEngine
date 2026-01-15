@@ -241,26 +241,21 @@ void StructureUI::BuildUI()
         return;
 
     ImGuiIO const& io = ImGui::GetIO();
+
     BeginFullScreenWindow();
-
-    if (!m_RenderView->GetScene())
     {
-        DrawCenteredText("Click File->Open to open a scene file");
+        if (!m_RenderView->GetScene())
+        {
+            DrawCenteredText("Click File->Open to open a scene file");
+        }
     }
-
-    // Show FPS
-    {
-        std::string fps = std::format(" {:.3f} FPS", m_Data.FPS);
-
-        ImVec2 textSize = ImGui::CalcTextSize(fps.c_str());
-        ImGui::SetCursorPosX(0.f);
-        ImGui::SetCursorPosY(ImGui::GetWindowSize().y - textSize.y);
-        ImGui::TextUnformatted(fps.c_str());
-    }
-
     EndFullScreenWindow();
 
     BuildMainMenu();
+    BuildBottomBar();
+
+    ImGui::DockSpaceOverViewport(
+        0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
 
     if (m_ShowSceneWindow)
         BuildSceneWindow(&m_ShowSceneWindow);
@@ -322,6 +317,58 @@ void StructureUI::BuildMainMenu()
         }
         ImGui::EndMainMenuBar();
     }
+}
+
+void StructureUI::BuildBottomBar()
+{
+    const auto renderStats = m_DeviceManager->GetDevice()->GetStats();
+
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    const float statusBarHeight = ImGui::GetFrameHeight();
+
+    ImGui::SetNextWindowPos(ImVec2{ vp->Pos.x, vp->Pos.y + vp->Size.y - statusBarHeight });
+    ImGui::SetNextWindowSize(ImVec2{ vp->Size.x, statusBarHeight });
+
+    ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoSavedSettings;
+
+    ImGui::Begin("##StatusBar", nullptr, flags);
+    {
+        float textHeight = ImGui::GetTextLineHeight();
+        float paddingY = ImGui::GetStyle().WindowPadding.y;
+
+        // Centro vertical real
+        float cursorY = (statusBarHeight - textHeight) * 0.5f;
+
+        ImGui::SetCursorPosY(cursorY);
+
+        ImGui::Text(" FPS: %1.3f", m_Data.FPS);
+        float xpos = 160.f;
+
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(xpos);
+        ImGui::Text("| Draw calls: %d", renderStats.DrawCalls);
+        xpos += 160.f;
+
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(xpos);
+        ImGui::Text("| Primitives: %d", renderStats.PrimitiveCount);
+        xpos += 200.f;
+
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(xpos);
+        ImGui::Text("| GPU: %1.2f ms", m_Data.GPUTime);
+        xpos += 160.f;
+
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(xpos);
+        ImGui::Text("| CPU: %1.2f ms", m_Data.CPUTime);
+    }
+    ImGui::End();
 }
 
 void StructureUI::BuildMenuFile()

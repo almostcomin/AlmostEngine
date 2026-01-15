@@ -110,6 +110,9 @@ public:
 	virtual void BeginMarker(const char* str) = 0;
 	virtual void EndMarker() = 0;
 
+	virtual void BeginTimerQuery(ITimerQuery* query) = 0;
+	virtual void EndTimerQuery(ITimerQuery* query) = 0;
+
 	virtual QueueType GetType() const = 0;
 
 protected:
