@@ -7,11 +7,12 @@
 #include "Gfx/Material.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/RenderStage.h"
+#include "Gfx/Camera.h"
 #include "RHI/Device.h"
 #include <format>
 #include <Windows.h>
 #include <SDL3/SDL.h>
-#include <imgui/imgui_internal.h>
+#include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
 #include <sstream>
 
 namespace
@@ -143,6 +144,75 @@ void ShowPropertyInt(const char* label, float labelWidth, int value, float value
     ImGui::PopID();
 }
 
+void TextAlignedRight(float rightPos, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    char buffer[256];
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    float textWidth = ImGui::CalcTextSize(buffer).x;
+    ImGui::SetCursorPosX(rightPos - textWidth);
+    ImGui::TextUnformatted(buffer);
+}
+
+bool Float3Widget(const char* label, float3& value, bool editable)
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
+    float labelWidth = 0.0f;
+    int numElements = 3;
+    if (label != nullptr)
+    {        
+        numElements = 4;
+        labelWidth = availWidth / numElements;
+    }
+    float itemWidth = availWidth / numElements;
+
+    bool modified = false;
+
+    ImGui::PushID(label ? label : "vec3");
+
+    ImGui::SetCursorPosX(style.ItemSpacing.x);
+
+    // Label
+    if (label != nullptr)
+    {
+        TextAlignedRight(itemWidth, label);
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(itemWidth + style.ItemSpacing.x);
+    }
+
+    ImGuiInputTextFlags flags = ImGuiInputTextFlags_None;
+    if (!editable)
+        flags |= ImGuiInputTextFlags_ReadOnly;
+
+    // Component x
+    ImGui::PushID("x");
+    ImGui::SetNextItemWidth(itemWidth);
+    modified = ImGui::InputFloat("##x", &value.x, 0.f, 0.f, "%.3f", flags) || modified;
+    ImGui::PopID();
+    ImGui::SameLine();
+
+    // Component y
+    ImGui::PushID("y");
+    ImGui::SetNextItemWidth(itemWidth);
+    modified = ImGui::InputFloat("##y", &value.y, 0.f, 0.f, "%.3f", flags) || modified;
+    ImGui::PopID();
+    ImGui::SameLine();
+
+    // Component z
+    ImGui::PushID("z");
+    ImGui::SetNextItemWidth(itemWidth);
+    modified = ImGui::InputFloat("##z", &value.z, 0.f, 0.f, "%.3f", flags) || modified;
+    ImGui::PopID();
+
+    ImGui::PopID();
+
+    return modified;
+}
+
 const char* GetTextureDimensionText(st::rhi::TextureDimension dim)
 {
     switch (dim)
@@ -229,6 +299,7 @@ StructureUI::StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* w
     m_Window{ window },
     m_DeviceManager{ deviceManager },
     m_RenderView{ renderView },
+    m_ShowSettings{ false },
     m_ShowSceneWindow{ false },
     m_SelectedNode{ nullptr },
     m_ShowResourcesWindow{ false },
@@ -256,6 +327,9 @@ void StructureUI::BuildUI()
 
     ImGui::DockSpaceOverViewport(
         0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
+
+    if (m_ShowSettings)
+        BuildSettingsWindow();
 
     if (m_ShowSceneWindow)
         BuildSceneWindow(&m_ShowSceneWindow);
@@ -306,6 +380,8 @@ void StructureUI::BuildMainMenu()
         }
         if (ImGui::BeginMenu("View"))
         {
+            if (ImGui::MenuItem("Settings", NULL, m_ShowSettings))
+                m_ShowSettings = !m_ShowSettings;
             if (ImGui::MenuItem("Scene", NULL, m_ShowSceneWindow))
                 m_ShowSceneWindow = !m_ShowSceneWindow;
             if (ImGui::MenuItem("Resources", NULL, m_ShowResourcesWindow))
@@ -468,6 +544,90 @@ void StructureUI::BuildMenuFile()
 #endif
 }
 
+void StructureUI::BuildSettingsWindow()
+{
+    ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
+
+    if (!ImGui::Begin("Scene view", &m_ShowSettings, ImGuiWindowFlags_None))
+    {
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_None))
+    {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
+        auto camera = m_RenderView->GetCamera();
+
+        // Position
+        float3 pos = camera->GetPosition();
+        if (Float3Widget("Position", pos, true))
+        {
+            camera->SetPosition(pos);
+        }
+
+        // Direction
+        float3 dir = camera->GetForward();
+        if (Float3Widget("Direction", dir, true))
+        {
+            dir = glm::normalize(dir);
+            camera->SetForward(dir);
+        }
+
+        // 3 elements in a row
+        float itemWidth = availWidth / 6;
+
+        // FOV
+        TextAlignedRight(itemWidth + style.ItemSpacing.x, "FOV");
+        ImGui::SameLine();
+
+        float fov = glm::degrees(camera->GetVerticalFOV());
+        ImGui::PushID("fov");
+        ImGui::SetNextItemWidth(itemWidth);
+        if (ImGui::InputFloat("##fov", &fov, 0.f, 0.f, "%.3f", 0))
+        {
+            camera->SetVerticalFov(glm::radians(fov));
+        }
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        // Near plane
+        TextAlignedRight(itemWidth * 3 + style.ItemSpacing.x, "Near");
+        ImGui::SameLine();
+
+        float znear = camera->GetZNear();
+        ImGui::PushID("z-near");
+        ImGui::SetNextItemWidth(itemWidth);
+        if (ImGui::InputFloat("##znear", &znear, 0.f, 0.f, "%.3f", 0))
+        {
+            camera->SetZNear(znear);
+        }
+        ImGui::PopID();
+        ImGui::SameLine();
+
+        // Speed
+        TextAlignedRight(itemWidth * 5 + style.ItemSpacing.x * 2, "Speed");
+        ImGui::SameLine();
+
+        float speed = m_Data.CameraSpeed;
+        ImGui::PushID("camspeed");
+        ImGui::SetNextItemWidth(itemWidth);
+        if (ImGui::InputFloat("##camspeed", &speed, 0.f, 0.f, "%.3f", 0))
+        {
+            m_Data.CameraSpeed = speed;
+        }
+        ImGui::PopID();
+    }
+
+    if (ImGui::CollapsingHeader("Debug view", ImGuiTreeNodeFlags_None))
+    {
+        ImGui::Checkbox("BBoxes", &m_Data.ShowBBoxes);
+    }
+
+    ImGui::End();
+}
+
 void StructureUI::BuildSceneWindow(bool* p_open)
 {
     auto scene = m_RenderView->GetScene();
@@ -480,7 +640,6 @@ void StructureUI::BuildSceneWindow(bool* p_open)
     if (!m_SelectedNode)
         m_SelectedNode = scene->GetSceneGraph()->GetRoot().get();
 
-    ImGuiTextFilter Filter;
     if (ImGui::BeginChild("##tree", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
     {
         // Left side

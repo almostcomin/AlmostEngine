@@ -13,6 +13,9 @@ void st::gfx::DebugRenderStage::Render()
 	if (!scene)
 		return;
 
+	if (!m_RenderBBoxes)
+		return;
+
 	auto commandList = m_RenderView->GetCommandList();
 
 	commandList->BeginRenderPass(

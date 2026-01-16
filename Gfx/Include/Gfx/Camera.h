@@ -33,6 +33,8 @@ public:
 	const float3& GetForward() const { return m_Forward; }
 	const float3& GetRight() const { return m_Right; }
 	const float3& GetUp() const { return m_Up; }
+	float GetVerticalFOV() const { return m_VerticalFov; }
+	float GetZNear() const { return m_zNear; }
 
 	const float4x4& GeViewMatrix();
 	const float4x4& GetProjectionMatrix();

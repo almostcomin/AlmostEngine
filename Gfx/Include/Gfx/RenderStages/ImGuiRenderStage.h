@@ -19,20 +19,6 @@ namespace st::gfx
 namespace st::gfx
 {
 
-enum class MouseButton
-{
-	LEFT,
-	RIGHT,
-	MIDDLE
-};
-
-enum class KeyAction
-{
-	PRESS,
-	RELEASE,
-	REPEAT
-};
-
 class ImGuiRenderStage : public RenderStage
 {
 public:
@@ -48,9 +34,6 @@ public:
 public:
 
 	virtual void BuildUI() = 0;
-
-	bool OnMouseMove(float posX, float posY);
-	bool OnMouseButtonUpdate(MouseButton button, KeyAction action);
 
 	const char* GetDebugName() const override { return "ImGuiRenderStage"; }
 
@@ -71,8 +54,6 @@ private:
 
 	bool ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
 	rhi::GraphicsPipelineStateHandle GetPSO(rhi::IFramebuffer* frameBuffer);
-
-	void ReconcileInputState();
 
 protected:
 
@@ -97,8 +78,6 @@ private:
 	};
 
 private:
-
-	std::array<KeyAction, 5> m_CachedMouseButtons;
 
 	rhi::ShaderOwner m_VS;
 	rhi::ShaderOwner m_PS;

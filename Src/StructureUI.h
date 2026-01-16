@@ -22,6 +22,8 @@ public:
 		float FPS = 0.f;
 		float CPUTime = 0.f;
 		float GPUTime = 0.f;
+		float CameraSpeed = 1.f;
+		bool ShowBBoxes = false;
 	};
 
 	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::DeviceManager* deviceManager);
@@ -60,6 +62,8 @@ private:
 	void BuildMainMenu();
 	void BuildBottomBar();
 	void BuildMenuFile();
+
+	void BuildSettingsWindow();
 	void BuildSceneWindow(bool* p_open);
 	void BuildResourcesWindow(bool* p_open);
 	void BuildRenderStagesWindow();
@@ -77,6 +81,8 @@ private:
 	SDL_Window* m_Window;
 	st::gfx::DeviceManager* m_DeviceManager;
 	st::weak<st::gfx::RenderView> m_RenderView;
+
+	bool m_ShowSettings;
 
 	bool m_ShowSceneWindow;
 	const st::gfx::SceneGraphNode* m_SelectedNode;

@@ -8,20 +8,6 @@
 #include "RHI/Device.h"
 #include <imgui/imgui.h>
 
-void st::gfx::ImGuiRenderStage::ReconcileInputState()
-{
-    ImGuiIO& io = ImGui::GetIO();
-
-    // Reconcile mouse
-    for (size_t i = 0; i < m_CachedMouseButtons.size(); i++)
-    {
-        if (io.MouseDown[i] == true && m_CachedMouseButtons[i] == KeyAction::RELEASE)
-        {
-            io.MouseDown[i] = false;
-        }
-    }
-}
-
 void st::gfx::ImGuiRenderStage::OnAttached()
 {
     Init();
@@ -96,8 +82,6 @@ void st::gfx::ImGuiRenderStage::Render()
     ImGui::NewFrame();
     BuildUI();
     ImGui::Render();
-
-    ReconcileInputState();
 
     ImDrawData* drawData = ImGui::GetDrawData();
     if (drawData->TotalIdxCount == 0)
@@ -191,50 +175,6 @@ void st::gfx::ImGuiRenderStage::Render()
 void st::gfx::ImGuiRenderStage::OnBackbufferResize()
 {
     // no-op
-}
-
-bool st::gfx::ImGuiRenderStage::OnMouseMove(float posX, float posY)
-{
-    ImGuiIO& io = ImGui::GetIO();
-    io.MousePos.x = float(posX);
-    io.MousePos.y = float(posY);
-
-    return io.WantCaptureMouse;
-}
-
-bool st::gfx::ImGuiRenderStage::OnMouseButtonUpdate(MouseButton button, KeyAction action)
-{
-    auto& io = ImGui::GetIO();
-
-    int buttonIndex = 0;
-    switch (button)
-    {
-    case MouseButton::LEFT:
-        buttonIndex = 0;
-        break;
-    case MouseButton::RIGHT:
-        buttonIndex = 1;
-        break;
-    case MouseButton::MIDDLE:
-        buttonIndex = 2;
-        break;
-    }
-   
-    // Update internal state
-    assert(buttonIndex < m_CachedMouseButtons.max_size());
-    m_CachedMouseButtons[buttonIndex] = action;
-
-    if (action == KeyAction::PRESS)
-    {
-        io.MouseDown[buttonIndex] = true;
-    }
-    else
-    {
-        // for mouse up events, ImGui state is only updated after the next frame
-        // this ensures that short clicks are not missed
-    }
-
-    return io.WantCaptureMouse;
 }
 
 bool st::gfx::ImGuiRenderStage::Init()

@@ -20,6 +20,8 @@ public:
 
 	DebugRenderStage() = default;
 
+	void SetRenderBBoxes(bool b) { m_RenderBBoxes = b; }
+
 	const char* GetDebugName() const override { return "DebugRenderStage"; }
 
 private:
@@ -36,6 +38,8 @@ private:
 	rhi::ShaderOwner m_PS;
 	rhi::BufferOwner m_AABBOXBuffer;
 	rhi::FramebufferOwner m_FB;
+
+	bool m_RenderBBoxes = false;
 };
 
 } // namespace st::gfx
