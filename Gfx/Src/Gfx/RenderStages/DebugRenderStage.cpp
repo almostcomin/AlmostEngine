@@ -33,7 +33,7 @@ void st::gfx::DebugRenderStage::Render()
 	auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene.get(), commandList);
 
 	interop::DebugStage shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferDI();
+	shaderConstants.sceneDI = m_RenderView->GetSceneConstantBufferDI();
 	shaderConstants.aaboxDI = bboxBufferDI;	
 	commandList->PushConstants(shaderConstants);
 

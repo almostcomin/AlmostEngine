@@ -66,20 +66,26 @@ namespace interop
 
     struct Scene
     {
+        // Camera
         float4x4 camViewProjMatrix;
         float4x4 invCamViewProjMatrix;
 
+        // Sun light
         float3 sunDirection; // Normalized, from light
         float sunIntensity;
         float3 sunColor;
-        float _padding0;
-        
+        uint _padding0;
         float4x4 sunWorldToClipMatrix;
 
-        uint instanceBufferDI;  // Descriptor index for the instance data buffer
+        // Sky/ambient light
+        float4 ambientTop;
+        float4 ambientBottom;
+
+        // Global descriptors indices
+        uint instanceBufferDI;
         uint meshesBufferDI;
         uint materialsBufferDI;
-        uint _padding1;
+        uint _padding3;
     };
 
     struct SingleInstanceDrawData

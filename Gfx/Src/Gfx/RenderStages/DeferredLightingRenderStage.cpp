@@ -26,7 +26,7 @@ void st::gfx::DeferredLightingRenderStage::Render()
 		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
 
 	interop::DeferredLightingConstants shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferDI();
+	shaderConstants.sceneDI = m_RenderView->GetSceneConstantBufferDI();
 	shaderConstants.sceneDepthDI = m_RenderView->GetTexture("SceneDepth")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.shadowMapDI = m_RenderView->GetShaderViewIndex("Shadowmap", rhi::TextureShaderView::ShaderResource);
 	shaderConstants.GBuffer0DI = m_RenderView->GetTexture("GBuffer0")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);

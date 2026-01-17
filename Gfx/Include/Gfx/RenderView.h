@@ -76,7 +76,7 @@ public:
 	st::rhi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
 	st::rhi::TextureHandle GetBackBuffer(int idx = 0);
 	st::rhi::CommandListHandle GetCommandList();
-	st::rhi::DescriptorIndex GetSceneBufferDI();
+	st::rhi::DescriptorIndex GetSceneConstantBufferDI();
 	const std::vector<const st::gfx::MeshInstance*>& GetVisibleSet() const { return m_VisibleSet; }
 
 	bool CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
@@ -109,7 +109,7 @@ public:
 private:
 
 	void ClearRenderStages();
-	void UpdateSceneBuffer();
+	void UpdateSceneConstantBuffer();
 	void UpdateVisibleSet();
 
 private:

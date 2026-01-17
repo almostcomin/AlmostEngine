@@ -32,7 +32,7 @@ void st::gfx::DepthPrepassRenderStage::Render()
 		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
 
 	interop::SingleInstanceDrawData shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferDI();
+	shaderConstants.sceneDI = m_RenderView->GetSceneConstantBufferDI();
 
 	const auto& visibleSet = m_RenderView->GetVisibleSet();
 	for (const st::gfx::MeshInstance* meshInstance : visibleSet)

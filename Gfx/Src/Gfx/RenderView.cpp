@@ -107,7 +107,7 @@ st::rhi::CommandListHandle st::gfx::RenderView::GetCommandList()
 	return m_CommandLists[m_DeviceManager->GetFrameModuleIndex()].get_weak();
 }
 
-st::rhi::DescriptorIndex st::gfx::RenderView::GetSceneBufferDI()
+st::rhi::DescriptorIndex st::gfx::RenderView::GetSceneConstantBufferDI()
 {
 	return m_SceneCB ? m_SceneCB->GetShaderViewIndex(rhi::BufferShaderView::ConstantBuffer) : rhi::c_InvalidDescriptorIndex;
 }
@@ -340,7 +340,7 @@ void st::gfx::RenderView::Render()
 		Refresh();
 	}
 
-	UpdateSceneBuffer();
+	UpdateSceneConstantBuffer();
 	UpdateVisibleSet();
 
 	st::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
@@ -509,7 +509,7 @@ void st::gfx::RenderView::ClearRenderStages()
 	m_DeclaredTextures.clear();
 }
 
-void st::gfx::RenderView::UpdateSceneBuffer()
+void st::gfx::RenderView::UpdateSceneConstantBuffer()
 {
 	if (!m_SceneCB)
 	{
@@ -534,22 +534,25 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 	if (m_Camera && m_Scene)
 	{
 		st::math::aabox3f sceneBounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds();
-		float3 sceneExtents = sceneBounds.max - sceneBounds.min;
-		float3 sceneCenter = sceneBounds.min + (sceneExtents / 2.f);
-		float sceneExtentMag = glm::length(sceneExtents);
+		const float3 sceneExtents = sceneBounds.max - sceneBounds.min;
+		const float3 sceneCenter = sceneBounds.center();
+		const float maxDim = std::max(sceneExtents.x, std::max(sceneExtents.y, sceneExtents.z));
+
+		const float3 sunDirection = glm::normalize(float3{ 1.f, -1.f, 1.f });
+		const float3 sunPosition = sceneCenter - sunDirection * 1000.f;
+
+#if 0
 		float3 sunPosition = m_Camera->GetPosition();
-		sceneData->sunDirection = m_Camera->GetForward();
 		sceneData->sunDirection = glm::normalize(glm::normalize(sceneCenter - sunPosition) + float3{ 0.f, -1.f, 0.f });
 		
-		//sceneData->sunDirection = glm::normalize(float3{ 1.f, -1.f, -1.f });
-		//sunPosition = float3{ -5.f, 5.f, 5.f };
-
 		sceneData->sunDirection.x = -sceneData->sunDirection.x;
 		sceneData->sunDirection.z = -sceneData->sunDirection.z;
 		sunPosition = -sceneData->sunDirection * 100.f;
+#endif
+		sceneData->sunDirection = sunDirection;
 
-		float3 sunUp = fabs(glm::dot(sceneData->sunDirection, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
-		float4x4 sunViewMatrix = glm::lookAtRH(sunPosition, sunPosition + sceneData->sunDirection, sunUp);
+		float3 sunUp = fabs(glm::dot(sunDirection, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
+		float4x4 sunViewMatrix = glm::lookAtRH(sunPosition, sunPosition + sunDirection, sunUp);
 
 		float3 corners[8] = {
 			{sceneBounds.min.x, sceneBounds.min.y, sceneBounds.min.z},
@@ -580,24 +583,19 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 		assert(zFar >= zNear);
 
 		float4x4 sunProjMatrix = BuildOrthoInvZ(min_v.x, max_v.x, min_v.y, max_v.y, zNear, zFar);
-		//float4x4 sunProjMatrix = BuildPersInvZInfFar(PI / 2.f, 1.f, 0.1f);
-		//float4x4 sunProjMatrix = BuildPersInvZ(PI / 2.f, 1.f, zNear, zFar);
 		sceneData->sunWorldToClipMatrix = sunProjMatrix * sunViewMatrix;
 
-		//*** TEST
 #ifdef _DEBUG
+		//*** TEST
 		{
-			//float4 pNear = sunProjMatrix * float4(min_v, 1.f);
-			//float4 pFar = sunProjMatrix * float4(max_v, 1.f);
 			float4 pNear = sunProjMatrix * float4{ 0.f, 0.f, -zNear, 1.f };
 			float4 pFar = sunProjMatrix * float4{ 0.f, 0.f, -zFar, 1.f };
 			float zn = pNear.z / pNear.w;
 			float zf = pFar.z / pFar.w;
-			puts("gola");
-			//assert(zn > zf);
+			assert(zn > zf);
 			// Ortho proj, W is 1, so p.w should be 1
-			//assert(AlmostEqual(zn, 1.f) && AlmostEqual(pFar.z, 0.f));
-			//assert(AlmostEqual(zf, 1.f) && AlmostEqual(pFar.w, 1.f));
+			assert(AlmostEqual(zn, 1.f) && AlmostEqual(pFar.z, 0.f));
+			assert(AlmostEqual(zf, 0.f) && AlmostEqual(pFar.w, 1.f));
 		}
 #endif
 	}
@@ -608,6 +606,9 @@ void st::gfx::RenderView::UpdateSceneBuffer()
 
 	if (m_Scene)
 	{
+		sceneData->ambientTop = float4{ m_Scene->GetAmbientIntensity() * m_Scene->GetSkyColor(), 0.f };
+		sceneData->ambientBottom = float4{ m_Scene->GetAmbientIntensity() * m_Scene->GetGroundColor(), 0.f };
+
 		sceneData->instanceBufferDI = m_Scene->GetInstancesBufferDI();
 		sceneData->meshesBufferDI = m_Scene->GetMeshesBufferDI();
 		sceneData->materialsBufferDI = m_Scene->GetMaterialsBufferDI();

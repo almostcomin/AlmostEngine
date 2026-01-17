@@ -12,7 +12,11 @@
 #include <cassert>
 
 st::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceManager }
-{}
+{
+	m_AmbientIntensity = 0.22f;
+	m_SkyColor = float3{ 0.17f, 0.37f, 0.65f };
+	m_GroundColor = float3{ 0.62f, 0.58f, 0.55f };
+}
 
 st::gfx::Scene::~Scene()
 {
@@ -25,6 +29,12 @@ st::gfx::Scene::~Scene()
 
 void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 {
+	// Release old data
+	m_DeviceManager->GetDevice()->ReleaseQueued(m_MaterialsBuffer);
+	m_DeviceManager->GetDevice()->ReleaseQueued(m_MeshesBuffer);
+	m_DeviceManager->GetDevice()->ReleaseQueued(m_InstancesBuffer);
+	m_InstanceIndices.clear();
+
 	m_SceneGraph = std::move(graph);
 	m_SceneGraph->Refresh(); // Make sure it is up to date
 

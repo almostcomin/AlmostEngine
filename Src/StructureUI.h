@@ -23,10 +23,13 @@ public:
 		float FPS = 0.f;
 		float CPUTime = 0.f;
 		float GPUTime = 0.f;
-		float CameraSpeed = 1.f;
+		float CameraSpeed = 2.f;
 		bool ShowBBoxes = false;
 		bool ShadowmapEnabled = true;
 		int2 ShadowmapSize;
+		float AmbientColorIntensity;
+		float3 SkyColor;
+		float3 GroundColor;
 	};
 
 	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::DeviceManager* deviceManager);

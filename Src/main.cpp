@@ -129,7 +129,7 @@ int SDL_main(int argc, char* argv[])
 	}
 
 	// Our scene
-	st::unique<st::gfx::Scene> scene;
+	auto scene = st::make_unique_with_weak<st::gfx::Scene>(deviceManager.get());
 
 	// Create RenderView
 	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
@@ -177,6 +177,9 @@ int SDL_main(int argc, char* argv[])
 
 	// Update UI data with initial render stages values
 	uiRS->m_Data.ShadowmapSize = shadowmapRS->GetSize();
+	uiRS->m_Data.AmbientColorIntensity = scene->GetAmbientIntensity();
+	uiRS->m_Data.SkyColor = scene->GetSkyColor();
+	uiRS->m_Data.GroundColor = scene->GetGroundColor();
 
 	// Main loop
 
@@ -198,7 +201,6 @@ int SDL_main(int argc, char* argv[])
 			auto importResult = st::gfx::ImportGlTF(requestLoadFile.c_str(), deviceManager.get());
 			if (importResult)
 			{
-				scene.reset(new st::gfx::Scene{ deviceManager.get() });
 				scene->SetSceneGraph(std::move(*importResult));
 
 				renderView->SetScene(scene.get_weak());
@@ -326,6 +328,7 @@ int SDL_main(int argc, char* argv[])
 		// Update UI values
 		{
 			debugRS->SetRenderBBoxes(uiRS->m_Data.ShowBBoxes);
+
 			if (uiRS->m_Data.ShadowmapSize != shadowmapRS->GetSize())
 			{
 				shadowmapRS->SetSize(uiRS->m_Data.ShadowmapSize);
@@ -334,6 +337,10 @@ int SDL_main(int argc, char* argv[])
 			{
 				shadowmapRS->SetEnabled(uiRS->m_Data.ShadowmapEnabled);
 			}
+
+			scene->SetAmbientIntensity(uiRS->m_Data.AmbientColorIntensity);
+			scene->SetSkyColor(uiRS->m_Data.SkyColor);
+			scene->SetGroundColor(uiRS->m_Data.GroundColor);
 		}
 
 		// Update FPS counter

@@ -15,7 +15,7 @@ float4 main(PS_INPUT input) : SV_Target
 {
     ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     Texture2D sceneDepth = ResourceDescriptorHeap[Constants.sceneDepthDI];
-    Texture2D GBuffer0 = ResourceDescriptorHeap[Constants.GBuffer0DI]; // BaseColor.rgb + MaterialID.z
+    Texture2D GBuffer0 = ResourceDescriptorHeap[Constants.GBuffer0DI]; // SurfaceAlbedo.rgb + MaterialID.z
     Texture2D GBuffer1 = ResourceDescriptorHeap[Constants.GBuffer1DI]; // Normal.xy + Roughness.z
     Texture2D GBuffer2 = ResourceDescriptorHeap[Constants.GBuffer2DI]; // Metallic.x + AO.z
     Texture2D GBuffer3 = ResourceDescriptorHeap[Constants.GBuffer3DI]; // Emissive.rgb
@@ -26,12 +26,12 @@ float4 main(PS_INPUT input) : SV_Target
     float4 g2 = GBuffer2.Sample(pointClampSampler, input.uv);
     float4 g3 = GBuffer3.Sample(pointClampSampler, input.uv);
     
-    float3 baseColor = g0.rgb;
-    float3 normal = DecodeNormal(g1.xy);
+    float3 surfaceAlbedo = g0.rgb;
+    float3 surfaceNormal = DecodeNormal(g1.xy);
     
     float metallic = g2.x;
     float roughness = g1.z;
-    float3 emissive = g3.rgb;
+    float3 surfaceEmissive = g3.rgb;
         
     // World pos reconstruction
     float4 worldPos = WorldPosReconstruction(input.uv, sceneDepth, sceneData.invCamViewProjMatrix);
@@ -42,10 +42,15 @@ float4 main(PS_INPUT input) : SV_Target
         Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
         shadowFactor = SampleShadowMap(worldPos, sceneData.sunWorldToClipMatrix, shadowMap);
     }
-    // Lambert
-    float NdotL = saturate(dot(normal, -sceneData.sunDirection));
-    float3 diffuse = baseColor * sceneData.sunColor * sceneData.sunIntensity * shadowFactor * NdotL;
     
-    float3 color = diffuse + emissive;
+    // Diffuse
+    float NdotL = saturate(dot(surfaceNormal, -sceneData.sunDirection));
+    float3 diffuseTerm = surfaceAlbedo * sceneData.sunColor * sceneData.sunIntensity * shadowFactor * NdotL;
+    
+    // Ambient    
+    float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceNormal.y * 0.5 + 0.5);
+    diffuseTerm += ambientColor * surfaceAlbedo; // TODO: Ambient occlusion
+        
+    float3 color = diffuseTerm + surfaceEmissive;
     return float4(color, 1.0);
 }

@@ -666,6 +666,14 @@ void StructureUI::BuildSettingsWindow()
         }
     }
 
+    if (ImGui::CollapsingHeader("Ambient"))
+    {
+        ImGui::SliderFloat("Intensity", &m_Data.AmbientColorIntensity, 0.f, 1.f);
+        ImGui::ColorEdit3("Sky Color", &m_Data.SkyColor.x, ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("Ground Color", &m_Data.GroundColor.x, ImGuiColorEditFlags_Float);
+
+    }
+
     ImGui::End();
 }
 
