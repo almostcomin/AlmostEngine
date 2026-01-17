@@ -61,7 +61,7 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 	{
 		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
 		auto fbDesc = rhi::FramebufferDesc()
-			.SetDepthAttachment(depthStencil.get());
+			.SetDepthAttachment(depthStencil);
 		m_FB = device->CreateFramebuffer(fbDesc, "DepthPrepassRenderStage");
 	}
 
@@ -113,7 +113,7 @@ void st::gfx::DepthPrepassRenderStage::OnBackbufferResize()
 	{
 		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
 		auto fbDesc = rhi::FramebufferDesc()
-			.SetDepthAttachment(depthStencil.get());
+			.SetDepthAttachment(depthStencil);
 		m_FB = device->CreateFramebuffer(fbDesc, "DepthPrepassRenderStage");
 	}
 

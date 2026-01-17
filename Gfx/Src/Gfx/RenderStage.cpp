@@ -16,3 +16,16 @@ void st::gfx::RenderStage::Detach()
 	assert(!m_RenderView.expired() && "Trying to detach a non-attached render pass");
 	m_RenderView.reset();
 }
+
+void st::gfx::RenderStage::SetEnabled(bool b) 
+{ 
+	m_Enabled = b; 
+	if (m_Enabled)
+	{
+		OnEnabled();
+	}
+	else
+	{
+		OnDisabled();
+	}
+}

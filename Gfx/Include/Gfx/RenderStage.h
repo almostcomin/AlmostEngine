@@ -26,6 +26,11 @@ class RenderStage
 
 public:
 
+	bool IsEnabled() const { return m_Enabled; }
+	bool IsAttached() const { return m_RenderView; }
+
+	void SetEnabled(bool b);
+
 	virtual const char* GetDebugName() const = 0;
 
 protected:
@@ -39,8 +44,14 @@ private:
 	virtual void OnDetached() {};
 	virtual void OnBackbufferResize() {};
 	virtual void OnSceneChanged() {};
+	virtual void OnEnabled() {};
+	virtual void OnDisabled() {};
 
 	void Attach(RenderView* renderView);
 	void Detach();
+
+private:
+
+	bool m_Enabled = true;
 };
 }

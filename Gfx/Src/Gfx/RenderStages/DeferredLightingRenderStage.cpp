@@ -28,7 +28,7 @@ void st::gfx::DeferredLightingRenderStage::Render()
 	interop::DeferredLightingConstants shaderConstants;
 	shaderConstants.sceneDI = m_RenderView->GetSceneBufferDI();
 	shaderConstants.sceneDepthDI = m_RenderView->GetTexture("SceneDepth")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.shadowMapDI = m_RenderView->GetTexture("Shadowmap")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.shadowMapDI = m_RenderView->GetShaderViewIndex("Shadowmap", rhi::TextureShaderView::ShaderResource);
 	shaderConstants.GBuffer0DI = m_RenderView->GetTexture("GBuffer0")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.GBuffer1DI = m_RenderView->GetTexture("GBuffer1")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.GBuffer2DI = m_RenderView->GetTexture("GBuffer2")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
@@ -61,7 +61,7 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 	// Create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("SceneColor").get());
+			.AddColorAttachment(m_RenderView->GetTexture("SceneColor"));
 		m_FB = device->CreateFramebuffer(fbDesc, "DeferredBaseRenderStage");
 	}
 
@@ -121,7 +121,7 @@ void st::gfx::DeferredLightingRenderStage::OnBackbufferResize()
 	// Re-create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("SceneColor").get());
+			.AddColorAttachment(m_RenderView->GetTexture("SceneColor"));
 		m_FB = device->CreateFramebuffer(fbDesc, "DeferredLightingRenderStage");
 	}
 

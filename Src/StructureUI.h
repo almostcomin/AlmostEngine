@@ -10,6 +10,7 @@ namespace st::gfx
 	class SceneGraphNode;
 	class MeshInstance;
 	class DeviceManager;
+	class ShadowmapRenderStage;
 };
 
 class StructureUI : public st::gfx::ImGuiRenderStage
@@ -24,9 +25,11 @@ public:
 		float GPUTime = 0.f;
 		float CameraSpeed = 1.f;
 		bool ShowBBoxes = false;
+		bool ShadowmapEnabled = true;
+		int2 ShadowmapSize;
 	};
 
-	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::DeviceManager* deviceManager);
+	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::DeviceManager* deviceManager);
 
 	void BuildUI() override;
 
@@ -83,6 +86,8 @@ private:
 	st::weak<st::gfx::RenderView> m_RenderView;
 
 	bool m_ShowSettings;
+	int2 m_ShadowmapSize;
+	st::gfx::ShadowmapRenderStage* m_ShadowmapRS;
 
 	bool m_ShowSceneWindow;
 	const st::gfx::SceneGraphNode* m_SelectedNode;

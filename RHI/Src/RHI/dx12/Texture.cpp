@@ -36,6 +36,15 @@ st::rhi::DescriptorIndex st::rhi::dx12::Texture::GetShaderViewIndex(TextureShade
     return m_ShaderViews[(int)type];
 }
 
+void st::rhi::dx12::Texture::Swap(ITexture& other)
+{
+    auto* otherTex = st::checked_cast<Texture*>(&other);
+
+    std::swap(m_Desc, otherTex->m_Desc);
+    std::swap(m_ShaderViews, otherTex->m_ShaderViews);
+    std::swap(m_D3d12Resource, otherTex->m_D3d12Resource);
+}
+
 void st::rhi::dx12::Texture::CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, TextureSubresourceSet subresources)
 {
     subresources.Resolve(m_Desc);

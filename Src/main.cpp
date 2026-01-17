@@ -114,10 +114,10 @@ int SDL_main(int argc, char* argv[])
 		ImGui::StyleColorsDark();
 
 		ImGuiStyle& style = ImGui::GetStyle();
-		style.ScaleAllSizes(1.25f);			// Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
-		style.FontScaleDpi = 1.25f;			// Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
-		io.ConfigDpiScaleFonts = true;      // [Experimental] Automatically overwrite style.FontScaleDpi in Begin() when Monitor DPI changes. This will scale fonts but _NOT_ scale sizes/padding for now.
-		io.ConfigDpiScaleViewports = true;  // [Experimental] Scale Dear ImGui and Platform Windows when Monitor DPI changes.
+		//style.ScaleAllSizes(1.0f);			// Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
+		//style.FontScaleDpi = 1.0f;			// Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+		//io.ConfigDpiScaleFonts = true;      // [Experimental] Automatically overwrite style.FontScaleDpi in Begin() when Monitor DPI changes. This will scale fonts but _NOT_ scale sizes/padding for now.
+		//io.ConfigDpiScaleViewports = true;  // [Experimental] Scale Dear ImGui and Platform Windows when Monitor DPI changes.
 
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
@@ -159,7 +159,7 @@ int SDL_main(int argc, char* argv[])
 	std::string requestLoadFile;
 	bool requestClose = false;
 	bool requestQuit = false;
-	std::shared_ptr<StructureUI> uiRS{ new StructureUI{ renderView.get_weak(), window, deviceManager.get() }};
+	std::shared_ptr<StructureUI> uiRS{ new StructureUI{ renderView.get_weak(), window, shadowmapRS.get(), deviceManager.get() }};
 	uiRS->m_RequestLoadFile = [&requestLoadFile](const char* filename) { requestLoadFile = filename; };
 	uiRS->m_RequestClose = [&requestClose] { requestClose = true; };
 	uiRS->m_RequestQuit = [&requestQuit] { requestQuit = true; };
@@ -174,6 +174,9 @@ int SDL_main(int argc, char* argv[])
 	// Add stages to render view
 	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, deferredRS, lightingRS/*opaqueRS*/, debugRS, compositeRS, uiRS});
 	renderView->SetCamera(camera);
+
+	// Update UI data with initial render stages values
+	uiRS->m_Data.ShadowmapSize = shadowmapRS->GetSize();
 
 	// Main loop
 
@@ -316,9 +319,17 @@ int SDL_main(int argc, char* argv[])
 			scene->Update();
 		}
 
-		// Update other stuff
+		// Update UI values
 		{
 			debugRS->SetRenderBBoxes(uiRS->m_Data.ShowBBoxes);
+			if (uiRS->m_Data.ShadowmapSize != shadowmapRS->GetSize())
+			{
+				shadowmapRS->SetSize(uiRS->m_Data.ShadowmapSize);
+			}
+			if (uiRS->m_Data.ShadowmapEnabled != shadowmapRS->IsEnabled())
+			{
+				shadowmapRS->SetEnabled(uiRS->m_Data.ShadowmapEnabled);
+			}
 		}
 
 		// Update FPS counter

@@ -92,11 +92,11 @@ void st::gfx::DeferredBaseRenderStage::OnAttached()
 	// Create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer0").get())
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer1").get())
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer2").get())
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer3").get())
-			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth").get());
+			.AddColorAttachment(m_RenderView->GetTexture("GBuffer0"))
+			.AddColorAttachment(m_RenderView->GetTexture("GBuffer1"))
+			.AddColorAttachment(m_RenderView->GetTexture("GBuffer2"))
+			.AddColorAttachment(m_RenderView->GetTexture("GBuffer3"))
+			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
 		m_FB = device->CreateFramebuffer(fbDesc, "DeferredBaseRenderStage");
 	}
 
@@ -157,11 +157,11 @@ void st::gfx::DeferredBaseRenderStage::OnBackbufferResize()
 	// Re-create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer0").get())
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer1").get())
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer2").get())
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer3").get())
-			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth").get());
+			.AddColorAttachment(m_RenderView->GetTexture("GBuffer0"))
+			.AddColorAttachment(m_RenderView->GetTexture("GBuffer1"))
+			.AddColorAttachment(m_RenderView->GetTexture("GBuffer2"))
+			.AddColorAttachment(m_RenderView->GetTexture("GBuffer3"))
+			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
 		m_FB = device->CreateFramebuffer(fbDesc, "DeferredBaseRenderStage");
 	}
 

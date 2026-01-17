@@ -117,6 +117,8 @@ namespace st::rhi
 		virtual const TextureDesc& GetDesc() const = 0;
         virtual DescriptorIndex GetShaderViewIndex(TextureShaderView type) = 0;
 
+        virtual void Swap(ITexture& other) = 0;
+
     protected:
 
         ITexture(Device* device, const std::string& debugName) : IResource(device, debugName) {};

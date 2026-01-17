@@ -16,8 +16,9 @@ namespace st::rhi::dx12
 		virtual ~Texture() override = default;
 
 		const TextureDesc& GetDesc() const override;
-
 		DescriptorIndex GetShaderViewIndex(TextureShaderView type) override;
+
+		void Swap(ITexture& other) override;
 
 		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, const TextureSubresourceSet subresources);
 		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureDimension dimension, const TextureSubresourceSet subresources);

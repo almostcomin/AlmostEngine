@@ -102,8 +102,8 @@ public:
     st::rhi::FramebufferHandle GetCurrentFramebuffer();
 
     virtual uint32_t GetCurrentBackBufferIndex() const = 0;
-    virtual st::rhi::ITexture* GetCurrentBackBuffer() = 0;
-    virtual st::rhi::ITexture* GetBackBuffer(uint32_t index) = 0;
+    virtual st::rhi::TextureHandle GetCurrentBackBuffer() = 0;
+    virtual st::rhi::TextureHandle GetBackBuffer(uint32_t index) = 0;
     
     bool IsWindowVisible() const { return m_WindowVisible; }
 

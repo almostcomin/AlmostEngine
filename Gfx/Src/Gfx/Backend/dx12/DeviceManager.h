@@ -23,8 +23,8 @@ public:
 	glm::ivec2 GetWindowDimensions() const override;
 
 	uint32_t GetCurrentBackBufferIndex() const override;
-	st::rhi::ITexture* GetCurrentBackBuffer() override;
-	st::rhi::ITexture* GetBackBuffer(uint32_t index) override;
+	st::rhi::TextureHandle GetCurrentBackBuffer() override;
+	st::rhi::TextureHandle GetBackBuffer(uint32_t index) override;
 
 	void ReportLiveObjects() override;
 

@@ -42,7 +42,7 @@ public:
 
 	struct RenderStageTextureDep
 	{
-		DeclaredTexture* declTex;
+		std::string id;
 		rhi::ResourceState inputState;
 		rhi::ResourceState outputState;
 	};
@@ -82,8 +82,15 @@ public:
 	bool CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
 	bool CreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
 
-	bool RequestTextureAccess(RenderStage* rs, AccessMode accessMode, const char* id, rhi::ResourceState inputState, rhi::ResourceState outputState);
-	rhi::TextureHandle GetTexture(const char* id) const;
+	bool RecreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
+	bool RecreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
+
+	bool ReleaseTexture(const char* id);
+
+	bool RequestTextureAccess(RenderStage* rs, AccessMode accessMode, const std::string& id, rhi::ResourceState inputState, rhi::ResourceState outputState);
+	
+	rhi::TextureHandle GetTexture(const std::string& id) const;
+	rhi::DescriptorIndex GetShaderViewIndex(const std::string& id, rhi::TextureShaderView view);
 
 	void OnWindowSizeChanged();
 

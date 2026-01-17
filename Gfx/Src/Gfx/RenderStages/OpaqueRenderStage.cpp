@@ -67,8 +67,8 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 		st::rhi::TextureHandle renderTarget = m_RenderView->GetTexture("SceneColor");
 		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(renderTarget.get())
-			.SetDepthAttachment(depthStencil.get());
+			.AddColorAttachment(renderTarget)
+			.SetDepthAttachment(depthStencil);
 		m_FB = device->CreateFramebuffer(fbDesc, "OpaqueRenderStage");
 	}
 
@@ -133,8 +133,8 @@ void st::gfx::OpaqueRenderStage::OnBackbufferResize()
 		st::rhi::TextureHandle renderTarget = m_RenderView->GetTexture("SceneColor");
 		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(renderTarget.get())
-			.SetDepthAttachment(depthStencil.get());
+			.AddColorAttachment(renderTarget)
+			.SetDepthAttachment(depthStencil);
 		m_FB = device->CreateFramebuffer(fbDesc, "OpaqueRenderStage");
 	}
 

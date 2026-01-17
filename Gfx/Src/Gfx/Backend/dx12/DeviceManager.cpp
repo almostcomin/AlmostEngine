@@ -405,14 +405,14 @@ uint32_t st::gfx::dx12::DeviceManager::GetCurrentBackBufferIndex() const
     return m_SwapChain->GetCurrentBackBufferIndex();
 }
 
-st::rhi::ITexture* st::gfx::dx12::DeviceManager::GetCurrentBackBuffer()
+st::rhi::TextureHandle st::gfx::dx12::DeviceManager::GetCurrentBackBuffer()
 {
-    return m_SwapChainBuffers[m_SwapChain->GetCurrentBackBufferIndex()].get();
+    return m_SwapChainBuffers[m_SwapChain->GetCurrentBackBufferIndex()].get_weak();
 }
 
-st::rhi::ITexture* st::gfx::dx12::DeviceManager::GetBackBuffer(uint32_t index)
+st::rhi::TextureHandle st::gfx::dx12::DeviceManager::GetBackBuffer(uint32_t index)
 {
-    return m_SwapChainBuffers[index].get();
+    return m_SwapChainBuffers[index].get_weak();
 }
 
 bool st::gfx::dx12::DeviceManager::CreateRenderTargets()

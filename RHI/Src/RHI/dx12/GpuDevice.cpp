@@ -294,13 +294,13 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 
 	if (!desc.ColorAttachments.empty())
 	{
-		Texture* texture = checked_cast<Texture*>(desc.ColorAttachments[0].texture);
+		Texture* texture = checked_cast<Texture*>(desc.ColorAttachments[0].texture.get());
 		fb->rtWidth = texture->GetDesc().width;
 		fb->rtHeight = texture->GetDesc().height;
 	}
 	else if (desc.DepthAttachment.Valid())
 	{
-		Texture* texture = checked_cast<Texture*>(desc.DepthAttachment.texture);
+		Texture* texture = checked_cast<Texture*>(desc.DepthAttachment.texture.get());
 		fb->rtWidth = texture->GetDesc().width;
 		fb->rtHeight = texture->GetDesc().height;
 	}
@@ -309,7 +309,7 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 	{
 		auto& attachment = desc.ColorAttachments[rt];
 
-		Texture* texture = checked_cast<Texture*>(attachment.texture);
+		Texture* texture = checked_cast<Texture*>(attachment.texture.get());
 		assert(texture->GetDesc().width == fb->rtWidth);
 		assert(texture->GetDesc().height == fb->rtHeight);
 
@@ -326,7 +326,7 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 
 	if (desc.DepthAttachment.Valid())
 	{
-		Texture* texture = checked_cast<Texture*>(desc.DepthAttachment.texture);
+		Texture* texture = checked_cast<Texture*>(desc.DepthAttachment.texture.get());
 		assert(texture->GetDesc().width == fb->rtWidth);
 		assert(texture->GetDesc().height == fb->rtHeight);
 

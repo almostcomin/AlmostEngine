@@ -15,7 +15,6 @@ float4 main(PS_INPUT input) : SV_Target
 {
     ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     Texture2D sceneDepth = ResourceDescriptorHeap[Constants.sceneDepthDI];
-    Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
     Texture2D GBuffer0 = ResourceDescriptorHeap[Constants.GBuffer0DI]; // BaseColor.rgb + MaterialID.z
     Texture2D GBuffer1 = ResourceDescriptorHeap[Constants.GBuffer1DI]; // Normal.xy + Roughness.z
     Texture2D GBuffer2 = ResourceDescriptorHeap[Constants.GBuffer2DI]; // Metallic.x + AO.z
@@ -36,11 +35,16 @@ float4 main(PS_INPUT input) : SV_Target
         
     // World pos reconstruction
     float4 worldPos = WorldPosReconstruction(input.uv, sceneDepth, sceneData.invCamViewProjMatrix);
-    // Get shadow factor
-    float shadow = SampleShadowMap(worldPos, sceneData.sunWorldToClipMatrix, shadowMap);
+    // Retrieve shadow factor
+    float shadowFactor = 1.0;
+    if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
+        shadowFactor = SampleShadowMap(worldPos, sceneData.sunWorldToClipMatrix, shadowMap);
+    }
     // Lambert
     float NdotL = saturate(dot(normal, -sceneData.sunDirection));
-    float3 diffuse = baseColor * sceneData.sunColor * sceneData.sunIntensity * shadow * NdotL;
+    float3 diffuse = baseColor * sceneData.sunColor * sceneData.sunIntensity * shadowFactor * NdotL;
     
     float3 color = diffuse + emissive;
     return float4(color, 1.0);

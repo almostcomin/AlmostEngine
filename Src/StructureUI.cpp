@@ -8,6 +8,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/RenderStage.h"
 #include "Gfx/Camera.h"
+#include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "RHI/Device.h"
 #include <format>
 #include <Windows.h>
@@ -17,6 +18,12 @@
 
 namespace
 {
+
+struct RSDepResult
+{
+    bool hovered;
+    bool clicked;
+};
 
 void TextRightAligned(const char* text)
 {
@@ -46,12 +53,6 @@ void PropertyRowText(const char* label, const char* value)
     ImGui::PopStyleColor();
     ImGui::PopID();
 }
-
-struct RSDepResult
-{
-    bool hovered;
-    bool clicked;
-};
 
 RSDepResult ShowRSDep(const char* label, const char* value, bool selected, int id)
 {
@@ -295,7 +296,8 @@ void BuildTexture(const st::gfx::LoadedTexture& diffuseTex)
 
 } // anonymous namespace
 
-StructureUI::StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::DeviceManager* deviceManager) :
+StructureUI::StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, 
+                         st::gfx::DeviceManager* deviceManager) :
     m_Window{ window },
     m_DeviceManager{ deviceManager },
     m_RenderView{ renderView },
@@ -303,8 +305,14 @@ StructureUI::StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* w
     m_ShowSceneWindow{ false },
     m_SelectedNode{ nullptr },
     m_ShowResourcesWindow{ false },
-    m_ShowRenderStages{ false }
-{}
+    m_ShowRenderStages{ false },
+    m_ShadowmapRS{ shadowmapRS }
+{
+    if (m_ShadowmapRS)
+    {
+        m_ShadowmapSize = m_ShadowmapRS->GetSize();
+    }
+}
 
 void StructureUI::BuildUI()
 {
@@ -554,10 +562,11 @@ void StructureUI::BuildSettingsWindow()
         return;
     }
 
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
+
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_None))
     {
-        const ImGuiStyle& style = ImGui::GetStyle();
-        const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
         auto camera = m_RenderView->GetCamera();
 
         // Position
@@ -623,6 +632,38 @@ void StructureUI::BuildSettingsWindow()
     if (ImGui::CollapsingHeader("Debug view", ImGuiTreeNodeFlags_None))
     {
         ImGui::Checkbox("BBoxes", &m_Data.ShowBBoxes);
+    }
+
+    if (ImGui::CollapsingHeader("Shadowmap", ImGuiTreeNodeFlags_None) && m_ShadowmapRS)
+    {
+        ImGui::Checkbox("Enabled", &m_Data.ShadowmapEnabled);
+
+        float itemWidth = availWidth / 5;
+        ImGui::SetCursorPosX(style.ItemSpacing.x);
+
+        ImGui::Text("Size");
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(itemWidth + style.ItemSpacing.x);
+
+        ImGui::SetNextItemWidth(itemWidth);
+        ImGui::InputInt("##sizex", (int*)&m_ShadowmapSize.x, ImGuiInputTextFlags_None);
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth(itemWidth);
+        ImGui::InputInt("##sizey", (int*)&m_ShadowmapSize.y, ImGuiInputTextFlags_None);
+        ImGui::SameLine();
+
+        if (ImGui::Button("Reset", ImVec2{ itemWidth - style.ItemSpacing.x / 2, 0 }))
+        {
+            m_ShadowmapSize = m_ShadowmapRS->GetSize();
+            m_Data.ShadowmapSize = m_ShadowmapSize;
+        }
+        ImGui::SameLine();
+
+        if (ImGui::Button("Apply", ImVec2{ itemWidth - style.ItemSpacing.x / 2, 0 }))
+        {
+            m_Data.ShadowmapSize = m_ShadowmapSize;
+        }
     }
 
     ImGui::End();
@@ -845,17 +886,16 @@ void StructureUI::BuildRenderStagesWindow()
 
                 for (const auto& dep : rs->reads)
                 {
-                    const auto* declTex = dep.declTex;
-                    bool selected = (m_RenderStageIOHoveredId == declTex->id);
+                    bool selected = (m_RenderStageIOHoveredId == dep.id);
 
-                    RSDepResult result = ShowRSDep("id", declTex->id.c_str(), selected, propid++);
+                    RSDepResult result = ShowRSDep("id", dep.id.c_str(), selected, propid++);
                     if (result.hovered)
                     {
-                        newHoveredId = declTex->id;
+                        newHoveredId = dep.id;
                     }
                     if (result.clicked)
                     {
-                        AddRenderStageTextureView(rs->renderStage.get(), st::gfx::RenderView::AccessMode::Read, declTex->id);
+                        AddRenderStageTextureView(rs->renderStage.get(), st::gfx::RenderView::AccessMode::Read, dep.id);
                     }
                 }
             }
@@ -866,16 +906,16 @@ void StructureUI::BuildRenderStagesWindow()
 
                 for (const auto& dep : rs->writes)
                 {
-                    const auto* declTex = dep.declTex;
-                    bool selected = (m_RenderStageIOHoveredId == declTex->id);
-                    RSDepResult result = ShowRSDep("id", declTex->id.c_str(), selected, propid++);
+                    bool selected = (m_RenderStageIOHoveredId == dep.id);
+
+                    RSDepResult result = ShowRSDep("id", dep.id.c_str(), selected, propid++);
                     if (result.hovered)
                     {
-                        newHoveredId = declTex->id;
+                        newHoveredId = dep.id;
                     }
                     if (result.clicked)
                     {
-                        AddRenderStageTextureView(rs->renderStage.get(), st::gfx::RenderView::AccessMode::Write, declTex->id);
+                        AddRenderStageTextureView(rs->renderStage.get(), st::gfx::RenderView::AccessMode::Write, dep.id);
                     }
                 }
             }
