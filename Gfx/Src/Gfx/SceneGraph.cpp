@@ -175,7 +175,7 @@ void st::gfx::SceneGraph::Refresh()
                     // Reset world bounds using leaf data
                     if (node->m_Leaf && node->m_Leaf->HasBounds())
                     {
-                        node->m_WorldBounds = node->m_Leaf->GetBounds() * node->m_WorldMatrix;
+                        node->m_WorldBounds = node->m_Leaf->GetBounds().transform(node->m_WorldMatrix);
                         node->m_HasBounds = true;
                     }
                     else

@@ -33,6 +33,16 @@ struct aabox
         return *this;
     }
 
+    vec_t center() const
+    {
+        return (min + max) / T(2);
+    }
+
+    vec_t size() const
+    {
+        return max - min;
+    }
+
     aabox& merge(const vec_t& vec)
     {
         min = glm::min(min, vec);
@@ -47,7 +57,7 @@ struct aabox
         return *this;
     }
 
-    aabox operator * (const glm::mat<n + 1, n + 1, T, glm::defaultp>& mat) const
+    [[nodiscard]] aabox transform(const glm::mat<n + 1, n + 1, T, glm::defaultp>& mat) const
     {
         // fast method to apply an affine matrix transform to an AABB
         aabox<T, n> result;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Math/frustum.h"
+#include "Core/Math/aabox.h"
 
 namespace st::gfx
 {
@@ -19,15 +20,18 @@ public:
 
 	Camera();
 
-	Camera& SetPosition(const float3& pos);
-	Camera& SetForward(const float3& dir);
+	void SetPosition(const float3& pos);
+	void SetForward(const float3& dir);
+	void LookAt(const float3& pos);
 	
-	Camera& SetVerticalFov(float vFov);
-	Camera& SetAspect(float aspect);
-	Camera& SetZNear(float zNear);
-	Camera& SetZFar(float zFar);
+	void SetVerticalFov(float vFov);
+	void SetAspect(float aspect);
+	void SetZNear(float zNear);
+	void SetZFar(float zFar);
 
-	Camera& SetProjectionModel(ProjectionModel model);
+	void SetProjectionModel(ProjectionModel model);
+
+	void Fit(const st::math::aabox3f& bbox);
 
 	const float3& GetPosition() const { return m_Position; }
 	const float3& GetForward() const { return m_Forward; }

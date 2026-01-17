@@ -15,14 +15,13 @@ st::gfx::Camera::Camera() :
 {
 }
 
-st::gfx::Camera& st::gfx::Camera::SetPosition(const float3& pos)
+void st::gfx::Camera::SetPosition(const float3& pos)
 {
 	m_Position = pos;
 	m_IsDirty = true;
-	return *this;
 }
 
-st::gfx::Camera& st::gfx::Camera::SetForward(const float3& dir)
+void st::gfx::Camera::SetForward(const float3& dir)
 {
 	m_Forward = glm::normalize(dir);
 
@@ -30,42 +29,59 @@ st::gfx::Camera& st::gfx::Camera::SetForward(const float3& dir)
 	m_Up = glm::cross(m_Right, m_Forward);
 
 	m_IsDirty = true;
-	return *this;
 }
 
-st::gfx::Camera& st::gfx::Camera::SetVerticalFov(float vFov)
+void st::gfx::Camera::LookAt(const float3& pos)
+{
+	SetForward(pos - m_Position);
+}
+
+void st::gfx::Camera::SetVerticalFov(float vFov)
 {
 	m_VerticalFov = vFov;
 	m_IsDirty = true;
-	return *this;
 }
 
-st::gfx::Camera& st::gfx::Camera::SetAspect(float aspect)
+void st::gfx::Camera::SetAspect(float aspect)
 {
 	m_Aspect = aspect;
 	m_IsDirty = true;
-	return *this;
 }
 
-st::gfx::Camera& st::gfx::Camera::SetZNear(float zNear)
+void st::gfx::Camera::SetZNear(float zNear)
 {
 	m_zNear = zNear;
 	m_IsDirty = true;
-	return *this;
 }
 
-st::gfx::Camera& st::gfx::Camera::SetZFar(float zFar)
+void st::gfx::Camera::SetZFar(float zFar)
 {
 	m_zFar = zFar;
 	m_IsDirty = true;
-	return *this;
 }
 
-st::gfx::Camera& st::gfx::Camera::SetProjectionModel(st::gfx::Camera::ProjectionModel model)
+void st::gfx::Camera::SetProjectionModel(st::gfx::Camera::ProjectionModel model)
 {
 	m_ProjectionModel = model;
 	m_IsDirty = true;
-	return *this;
+}
+
+void st::gfx::Camera::Fit(const st::math::aabox3f& box)
+{
+	const float3 boxCenter = box.center();
+	const float3 boxSize = box.size();
+	const float maxDim = std::max(boxSize.x, std::max(boxSize.y, boxSize.z));
+
+	float dist = (maxDim / 2.f) / glm::tan(m_VerticalFov / 2.f);
+	if (m_Aspect > 1.f)
+	{
+		dist *= m_Aspect;
+	}
+
+	float3 newFwd = glm::normalize(boxCenter - m_Position);
+	float3 newPos = boxCenter - newFwd * dist;
+	SetPosition(newPos);
+	SetForward(newFwd);
 }
 
 const float4x4& st::gfx::Camera::GeViewMatrix()

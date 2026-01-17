@@ -302,7 +302,7 @@ st::weak<T> checked_pointer_cast(const st::weak<U>& r) noexcept
     }
     return st::weak<T>{ p, r.flag };
 #else
-    return static_pointer_cast<T>(u);
+    return static_pointer_cast<T>(r);
 #endif
 }
 
