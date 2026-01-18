@@ -68,7 +68,7 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_PS = shaderFactory->LoadShader("DeferredLighting_ps.vso", rhi::ShaderType::Pixel);
+		m_PS = shaderFactory->LoadShader("DeferredLighting_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO

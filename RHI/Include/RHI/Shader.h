@@ -38,12 +38,7 @@ namespace st::rhi
     struct ShaderDesc
     {
         ShaderType Type = ShaderType::None;
-        std::string DebugName = "{null}";
         std::string EntryPoint = "main";
-
-        constexpr ShaderDesc& SetShaderType(st::rhi::ShaderType value) { Type = value; return *this; }
-        ShaderDesc& SetDebugName(const std::string& value) { DebugName = value; return *this; }
-        ShaderDesc& SetEntryPoint(const std::string& value) { EntryPoint = value; return *this; }
     };
 
 	class IShader : public IResource

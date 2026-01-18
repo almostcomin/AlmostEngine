@@ -8,6 +8,7 @@ struct VS_OUTPUT
 {
     float4 pos : SV_POSITION;
     float3 normal : NORMAL;
+    float4 tangent : TANGENT; // xyz = tangent, w = handedness (-1 or +1)    
     float2 uv : TEXCOORD0;
 };
 
@@ -29,7 +30,8 @@ VS_OUTPUT main(uint vertexID : SV_VertexID)
     uint vertexBufferOffset = meshData.vertexBufferOffsetBytes + (baseIndex * meshData.vertexStride);
     
     float3 pos = LoadVertexAttributeFloat3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionOffset);
-    float3 normal = DecodeSnorm8(LoadVertexAttributeUInt(vertexBuffer, vertexBufferOffset, meshData.vertexNormalOffset));
+    float3 normal = Unpack_RGB8_SNORM(LoadVertexAttributeUInt(vertexBuffer, vertexBufferOffset, meshData.vertexNormalOffset));
+    float4 tangent = Unpack_RGBA8_SNORM(LoadVertexAttributeUInt(vertexBuffer, vertexBufferOffset, meshData.vertexTangetOffset));
     float2 uv0 = LoadVertexAttributeFloat2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Offset);
         
     // Transform
@@ -39,11 +41,15 @@ VS_OUTPUT main(uint vertexID : SV_VertexID)
     // Normal
     const float3x3 normalMatrix = (float3x3)transpose(instanceData.inverseModelMatrix);
     float3 normalWorld = normalize(mul(normalMatrix, normal));
+    
+    // Tangent
+    float3 tangentWorld = normalize(mul(instanceData.modelMatrix, float4(tangent.xyz, 0.0)).xyz);
             
     // Output
     VS_OUTPUT output;
     output.pos = posClip;
     output.normal = normalWorld;
+    output.tangent = float4(tangentWorld, tangent.w);
     output.uv = uv0;
     return output;
 }

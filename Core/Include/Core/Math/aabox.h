@@ -38,7 +38,7 @@ struct aabox
         return (min + max) / T(2);
     }
 
-    vec_t size() const
+    vec_t extents() const
     {
         return max - min;
     }

@@ -452,6 +452,7 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
         // Decode %-encoded characters in the URI, because cgltf doesn't do that for some reason.
         std::string uri = image->uri;
         cgltf_decode_uri(uri.data());
+        uri.resize(strlen(uri.data()));
 
         // No inline data - read a file.
         std::filesystem::path filePath = loadCache.path.parent_path() / uri;
@@ -575,10 +576,31 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
 
         mat->SetBaseColorTexture(loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true));
         mat->SetMetalRoughTexture(loadTex(srcMat.pbr_metallic_roughness.metallic_roughness_texture.texture, true));
+        mat->SetNormalTexture(loadTex(srcMat.normal_texture.texture, false));
+
         mat->SetBaseColor(*(float3*)srcMat.pbr_metallic_roughness.base_color_factor);
         mat->SetMetallicFactor(srcMat.pbr_metallic_roughness.metallic_factor);
         mat->SetRoughnessFactor(srcMat.pbr_metallic_roughness.roughness_factor);
         mat->SetOpacity(srcMat.pbr_metallic_roughness.base_color_factor[3]);
+
+        mat->SetNormalScale(srcMat.normal_texture.has_transform ?
+            float2{ srcMat.normal_texture.transform.scale[0], srcMat.normal_texture.transform.scale[1] } : float2{ 1.f });
+
+        // Log warnings for all unsupported texture coordinate transformations
+        if (srcMat.pbr_metallic_roughness.base_color_texture.has_transform ||
+            srcMat.pbr_metallic_roughness.metallic_roughness_texture.has_transform ||
+            srcMat.pbr_specular_glossiness.diffuse_texture.has_transform ||
+            srcMat.pbr_specular_glossiness.specular_glossiness_texture.has_transform ||
+            srcMat.occlusion_texture.has_transform ||
+            srcMat.emissive_texture.has_transform ||
+            (srcMat.normal_texture.has_transform &&
+                (srcMat.normal_texture.transform.rotation != 0.0f ||
+                    srcMat.normal_texture.transform.offset[0] != 0.0f ||
+                    srcMat.normal_texture.transform.offset[1] != 0.0f)))
+        {
+            LOG_WARNING("Material '{}' uses the KHR_texture_transform extension, which is not supported on non-scale transformations and all textures except normal",
+                srcMat.name ? srcMat.name : "<Unnamed>");
+        }
 
         matMap[&srcMat] = mat;
     }
@@ -730,14 +752,17 @@ void CollectPrimitiveNormals(const cgltf_accessor& normals, std::vector<uint32_t
 
 void CollectPrimitiveTangents(const cgltf_accessor& tangents, std::vector<uint32_t>& out_tangentNormalData)
 {
+    assert(tangents.type == cgltf_type_vec4);
+    assert(tangents.component_type == cgltf_component_type_r_32f);
+
     out_tangentNormalData.resize(tangents.count);
 
-    auto [tangentSrc, tangentStride] = BufferIterator(tangents, sizeof(float) * 3);
+    auto [tangentSrc, tangentStride] = BufferIterator(tangents, sizeof(float) * 4);
     uint32_t* tangentDst = out_tangentNormalData.data();
 
     for (size_t v_idx = 0; v_idx < tangents.count; v_idx++)
     {
-        const glm::vec3* tangent = (const glm::vec3*)tangentSrc;
+        const glm::vec4* tangent = (const glm::vec4*)tangentSrc;
         *tangentDst = st::math::VectorToSnorm8(*tangent);
 
         tangentSrc += tangentStride;
@@ -758,6 +783,83 @@ void CollectPrimitiveTexcoords(const cgltf_accessor& texcoords, std::vector<glm:
 
         texcoordSrc += texcoordStride;
         ++texcoordDst;
+    }
+}
+
+template<typename index_t>
+void ComputeTangents(const cgltf_accessor& indices, const cgltf_accessor& positions, const cgltf_accessor& normals, const cgltf_accessor& texcoords, 
+    std::vector<uint32_t>& out_tangentNormalData)
+{
+    auto [posSrc, posStride] = BufferIterator(positions, sizeof(float) * 3);
+    auto [normalSrc, normalStride] = BufferIterator(normals, sizeof(float) * 3);
+    auto [texcoordSrc, texcoordStride] = BufferIterator(texcoords, sizeof(float) * 2);
+    auto [indexSrc, indexStride] = BufferIterator(indices, sizeof(index_t));
+
+    std::vector<float3> computedTangents{ positions.count, float3{0.f} };
+    std::vector<float3> computedBitangents{ positions.count, float3{0.f} };
+
+    for (size_t idx_i = 0; idx_i < indices.count; idx_i += 3)
+    {
+        index_t idx0 = *(index_t*)(indexSrc + (indexStride * idx_i));
+        index_t idx1 = *(index_t*)(indexSrc + (indexStride * (idx_i + 1)));
+        index_t idx2 = *(index_t*)(indexSrc + (indexStride * (idx_i + 2)));
+
+        const float3& p0 = *(const float3*)(posSrc + posStride * idx0);
+        const float3& p1 = *(const float3*)(posSrc + posStride * idx1);
+        const float3& p2 = *(const float3*)(posSrc + posStride * idx2);
+
+        const float2& t0 = *(const float2*)(texcoordSrc + texcoordStride * idx0);
+        const float2& t1 = *(const float2*)(texcoordSrc + texcoordStride * idx1);
+        const float2& t2 = *(const float2*)(texcoordSrc + texcoordStride * idx2);
+
+        float3 dPds = p1 - p0;
+        float3 dPdt = p2 - p0;
+
+        float2 dTds = t1 - t0;
+        float2 dTdt = t2 - t0;
+
+        float r = 1.0f / (dTds.x * dTdt.y - dTds.y * dTdt.x);
+        float3 tangent = r * (dPds * dTdt.y - dPdt * dTds.y);
+        float3 bitangent = r * (dPdt * dTds.x - dPds * dTdt.x);
+
+        float tangentLength = length(tangent);
+        float bitangentLength = length(bitangent);
+        if (tangentLength > 0 && bitangentLength > 0)
+        {
+            tangent /= tangentLength;
+            bitangent /= bitangentLength;
+
+            computedTangents[idx0] += tangent;
+            computedTangents[idx1] += tangent;
+            computedTangents[idx2] += tangent;
+            computedBitangents[idx0] += bitangent;
+            computedBitangents[idx1] += bitangent;
+            computedBitangents[idx2] += bitangent;
+        }
+    }
+
+    out_tangentNormalData.resize(positions.count);
+    uint32_t* tangentDst = out_tangentNormalData.data();
+
+    for (size_t v_idx = 0; v_idx < positions.count; v_idx++)
+    {
+        const float3& normal = *(const float3*)(normalSrc + (v_idx * normalStride));
+        float3 tangent = computedTangents[v_idx];
+        float3 bitangent = computedBitangents[v_idx];
+
+        float sign = 0;
+        float tangentLength = length(tangent);
+        float bitangentLength = length(bitangent);
+        if (tangentLength > 0 && bitangentLength > 0)
+        {
+            tangent /= tangentLength;
+            bitangent /= bitangentLength;
+            float3 cross_b = cross(normal, tangent);
+            sign = (dot(cross_b, bitangent) > 0) ? -1.f : 1.f;
+        }
+
+        *tangentDst = st::math::VectorToSnorm8(float4(tangent, sign));
+        ++tangentDst;
     }
 }
 
@@ -944,8 +1046,6 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             st::math::aabox3f bounds;
             CollectPrimitivePositions(*positions, vertexPosData, bounds);
 
-            // TODO: radius
-
             std::vector<uint32_t> vertexNormalData;
             if (normals)
             {
@@ -953,11 +1053,23 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                 CollectPrimitiveNormals(*normals, vertexNormalData);
             }
 
+            const bool forceRebuildTangets = false;
             std::vector<uint32_t> vertexTangentData;
-            if (tangents)
+            if (tangents && !forceRebuildTangets)
             {
                 assert(tangents->count == positions->count);
                 CollectPrimitiveTangents(*tangents, vertexTangentData);
+            }
+            else if (normals && texcoords)
+            {
+                if (idx32bits)
+                {
+                    ComputeTangents<uint32_t>(*prim.indices, *positions, *normals, *texcoords, vertexTangentData);
+                }
+                else
+                {
+                    ComputeTangents<uint16_t>(*prim.indices, *positions, *normals, *texcoords, vertexTangentData);
+                }
             }
 
             std::vector<glm::vec2> vertexTexCoordData;

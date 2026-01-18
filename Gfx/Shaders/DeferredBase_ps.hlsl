@@ -8,6 +8,7 @@ struct PS_INPUT
 {
     float4 pos : SV_POSITION;
     float3 normal : NORMAL;
+    float4 tangent : TANGENT; // xyz = tangent, w = handedness (-1 or +1)
     float2 uv : TEXCOORD0;
 };
 
@@ -45,9 +46,26 @@ PS_OUTPUT main(PS_INPUT input)
     output.GBuffer0 = float4(baseColor.rgb, 0.0); // materialID = 0
     
     // GBuffer1: Normal.xy + Roughness
-    // Normal
-    float3 normal = normalize(input.normal);
-    output.GBuffer1 = float4(EncodeNormal(normal), 0.5, 0.0); // // roughness = 0.5
+    float3 surfaceNormal = normalize(input.normal);
+
+    if (matData.normalTextureDI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D normalTexture = ResourceDescriptorHeap[matData.normalTextureDI];
+        // Sample normal and remap to [-1,1]
+        float3 tangentNormal = normalTexture.Sample(linearWrapSampler, input.uv).xyz;
+        tangentNormal = tangentNormal * 2.0 - 1.0;
+        // Apply scale
+        tangentNormal.xy *= matData.normalScale;
+        // Build TBN matrix
+        float3 N = surfaceNormal;
+        float3 T = normalize(input.tangent.xyz);
+        float3 B = cross(N, T) * input.tangent.w; // w is headedness
+        float3x3 TBN = float3x3(T, B, N);
+        
+        surfaceNormal = normalize(mul(tangentNormal, TBN));
+    }
+
+    output.GBuffer1 = float4(EncodeNormal(surfaceNormal), 0.5, 0.0); // // roughness = 0.5
     
     // GBuffer2: Metallic + AO
     output.GBuffer2 = float4(0.0, 1.f, 0.0, 0.0); // metallic = 0, AO = 1

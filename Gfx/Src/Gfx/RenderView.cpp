@@ -523,102 +523,49 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 		m_SceneCB = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, "Scene CB");
 	}
 
-	interop::Scene* sceneData = (interop::Scene*)m_SceneCB->Map();
+	interop::Scene* sceneShaderConstant = (interop::Scene*)m_SceneCB->Map();
 
-	sceneData->camViewProjMatrix = m_Camera ? m_Camera->GetViewProjectionMatrix() : float4x4{ 1.f };
-	sceneData->invCamViewProjMatrix = glm::inverse(sceneData->camViewProjMatrix);
-
-	sceneData->sunDirection = glm::normalize(float3(1.f, -1.f, 0.f)); // default;
-	sceneData->sunIntensity = 1.f;
-	sceneData->sunColor = float3(1.f);
-	if (m_Camera && m_Scene)
+	// Camera
+	if (m_Camera)
 	{
-		st::math::aabox3f sceneBounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds();
-		const float3 sceneExtents = sceneBounds.max - sceneBounds.min;
-		const float3 sceneCenter = sceneBounds.center();
-		const float maxDim = std::max(sceneExtents.x, std::max(sceneExtents.y, sceneExtents.z));
-
-		const float3 sunDirection = glm::normalize(float3{ 1.f, -1.f, 1.f });
-		const float3 sunPosition = sceneCenter - sunDirection * 1000.f;
-
-#if 0
-		float3 sunPosition = m_Camera->GetPosition();
-		sceneData->sunDirection = glm::normalize(glm::normalize(sceneCenter - sunPosition) + float3{ 0.f, -1.f, 0.f });
-		
-		sceneData->sunDirection.x = -sceneData->sunDirection.x;
-		sceneData->sunDirection.z = -sceneData->sunDirection.z;
-		sunPosition = -sceneData->sunDirection * 100.f;
-#endif
-		sceneData->sunDirection = sunDirection;
-
-		float3 sunUp = fabs(glm::dot(sunDirection, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
-		float4x4 sunViewMatrix = glm::lookAtRH(sunPosition, sunPosition + sunDirection, sunUp);
-
-		float3 corners[8] = {
-			{sceneBounds.min.x, sceneBounds.min.y, sceneBounds.min.z},
-			{sceneBounds.max.x, sceneBounds.min.y, sceneBounds.min.z},
-			{sceneBounds.min.x, sceneBounds.max.y, sceneBounds.min.z},
-			{sceneBounds.max.x, sceneBounds.max.y, sceneBounds.min.z},
-			{sceneBounds.min.x, sceneBounds.min.y, sceneBounds.max.z},
-			{sceneBounds.max.x, sceneBounds.min.y, sceneBounds.max.z},
-			{sceneBounds.min.x, sceneBounds.max.y, sceneBounds.max.z},
-			{sceneBounds.max.x, sceneBounds.max.y, sceneBounds.max.z},
-		};
-		float3 min_v{ FLT_MAX };
-		float3 max_v{ -FLT_MAX };
-		for (int i = 0; i < 8; ++i)
-		{
-			float4 v = sunViewMatrix * float4(corners[i], 1.0f);
-			min_v.x = std::min(min_v.x, v.x);
-			min_v.y = std::min(min_v.y, v.y);
-			min_v.z = std::min(min_v.z, v.z);
-			max_v.x = std::max(max_v.x, v.x);
-			max_v.y = std::max(max_v.y, v.y);
-			max_v.z = std::max(max_v.z, v.z);
-		}
-		assert(max_v.z > min_v.z);
-		float zNear = std::max(-max_v.z, 0.f);
-		float zFar = std::max(-min_v.z, 0.f);
-		assert(zNear >= 0.0f);
-		assert(zFar >= zNear);
-
-		float4x4 sunProjMatrix = BuildOrthoInvZ(min_v.x, max_v.x, min_v.y, max_v.y, zNear, zFar);
-		sceneData->sunWorldToClipMatrix = sunProjMatrix * sunViewMatrix;
-
-#ifdef _DEBUG
-		//*** TEST
-		{
-			float4 pNear = sunProjMatrix * float4{ 0.f, 0.f, -zNear, 1.f };
-			float4 pFar = sunProjMatrix * float4{ 0.f, 0.f, -zFar, 1.f };
-			float zn = pNear.z / pNear.w;
-			float zf = pFar.z / pFar.w;
-			assert(zn > zf);
-			// Ortho proj, W is 1, so p.w should be 1
-			assert(AlmostEqual(zn, 1.f) && AlmostEqual(pFar.z, 0.f));
-			assert(AlmostEqual(zf, 0.f) && AlmostEqual(pFar.w, 1.f));
-		}
-#endif
+		sceneShaderConstant->camViewProjMatrix = m_Camera->GetViewProjectionMatrix();
 	}
 	else
 	{
-		sceneData->sunWorldToClipMatrix = float4x4{ 1.f };
+		sceneShaderConstant->camViewProjMatrix = float4x4{ 1.f };
 	}
+	sceneShaderConstant->invCamViewProjMatrix = glm::inverse(sceneShaderConstant->camViewProjMatrix);
 
+	// Scene data
 	if (m_Scene)
 	{
-		sceneData->ambientTop = float4{ m_Scene->GetAmbientIntensity() * m_Scene->GetSkyColor(), 0.f };
-		sceneData->ambientBottom = float4{ m_Scene->GetAmbientIntensity() * m_Scene->GetGroundColor(), 0.f };
+		// Sun directional light
+		const Scene::SunParams& sunParams = m_Scene->GetSunParams();
+		const float3 sunDir = st::ElevationAzimuthRadToDir(
+			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
-		sceneData->instanceBufferDI = m_Scene->GetInstancesBufferDI();
-		sceneData->meshesBufferDI = m_Scene->GetMeshesBufferDI();
-		sceneData->materialsBufferDI = m_Scene->GetMaterialsBufferDI();
+		sceneShaderConstant->sunDirection = sunDir;
+		sceneShaderConstant->sunIntensity = sunParams.Intensity;
+		sceneShaderConstant->sunColor = float4{ sunParams.Color, 0.f };
+		sceneShaderConstant->sunWorldToClipMatrix = GetSunWoldToClipMatrix(sunDir);
+
+		// Ambient 
+		const Scene::AmbientParams& ambientParams = m_Scene->GetAmbientParams();
+		sceneShaderConstant->ambientTop = float4{ ambientParams.SkyColor * ambientParams.Intensity, 0.f };
+		sceneShaderConstant->ambientBottom = float4{ ambientParams.GroundColor * ambientParams.Intensity, 0.f };
+
+		// Data buffers
+		sceneShaderConstant->instanceBufferDI = m_Scene->GetInstancesBufferDI();
+		sceneShaderConstant->meshesBufferDI = m_Scene->GetMeshesBufferDI();
+		sceneShaderConstant->materialsBufferDI = m_Scene->GetMaterialsBufferDI();
 	}
 	else
 	{
-		sceneData->instanceBufferDI = rhi::c_InvalidDescriptorIndex;
-		sceneData->meshesBufferDI = rhi::c_InvalidDescriptorIndex;
-		sceneData->materialsBufferDI = rhi::c_InvalidDescriptorIndex;
+		sceneShaderConstant->instanceBufferDI = rhi::c_InvalidDescriptorIndex;
+		sceneShaderConstant->meshesBufferDI = rhi::c_InvalidDescriptorIndex;
+		sceneShaderConstant->materialsBufferDI = rhi::c_InvalidDescriptorIndex;
 	}
+
 	m_SceneCB->Unmap();
 }
 
@@ -719,4 +666,63 @@ void st::gfx::RenderView::UpdateTextureViews(st::rhi::CommandListHandle commandL
 			rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE) };
 		commandList->PushBarriers(exitBarriers);
 	}
+}
+
+float4x4 st::gfx::RenderView::GetSunWoldToClipMatrix(const float3& sunDir)
+{
+	const Scene::SunParams& sunParams = m_Scene->GetSunParams();
+
+	const st::math::aabox3f sceneBounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds();
+	const float3 sceneCenter = sceneBounds.center();
+	const float3 sceneExtents = sceneBounds.extents();
+	const float3 sunPos = sceneCenter - (sunDir * glm::length(sceneExtents) / 2.f);
+
+	const float3 sunUp = fabs(glm::dot(sunDir, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
+	const float4x4 sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
+
+	float3 corners[8] = {
+		{sceneBounds.min.x, sceneBounds.min.y, sceneBounds.min.z},
+		{sceneBounds.max.x, sceneBounds.min.y, sceneBounds.min.z},
+		{sceneBounds.min.x, sceneBounds.max.y, sceneBounds.min.z},
+		{sceneBounds.max.x, sceneBounds.max.y, sceneBounds.min.z},
+		{sceneBounds.min.x, sceneBounds.min.y, sceneBounds.max.z},
+		{sceneBounds.max.x, sceneBounds.min.y, sceneBounds.max.z},
+		{sceneBounds.min.x, sceneBounds.max.y, sceneBounds.max.z},
+		{sceneBounds.max.x, sceneBounds.max.y, sceneBounds.max.z},
+	};
+	float3 min_v{ FLT_MAX };
+	float3 max_v{ -FLT_MAX };
+	for (int i = 0; i < 8; ++i)
+	{
+		float4 v = sunViewMatrix * float4(corners[i], 1.0f);
+		min_v.x = std::min(min_v.x, v.x);
+		min_v.y = std::min(min_v.y, v.y);
+		min_v.z = std::min(min_v.z, v.z);
+		max_v.x = std::max(max_v.x, v.x);
+		max_v.y = std::max(max_v.y, v.y);
+		max_v.z = std::max(max_v.z, v.z);
+	}
+	assert(max_v.z > min_v.z);
+	float zNear = -max_v.z;
+	float zFar = -min_v.z;
+	assert(zNear >= 0.0f);
+	assert(zFar >= zNear);
+
+	const float4x4 sunProjMatrix = BuildOrthoInvZ(min_v.x, max_v.x, min_v.y, max_v.y, zNear, zFar);
+
+#ifdef _DEBUG
+	//*** TEST
+	{
+		float4 pNear = sunProjMatrix * float4{ 0.f, 0.f, -zNear, 1.f };
+		float4 pFar = sunProjMatrix * float4{ 0.f, 0.f, -zFar, 1.f };
+		float zn = pNear.z / pNear.w;
+		float zf = pFar.z / pFar.w;
+		assert(zn > zf);
+		// Ortho proj, W is 1, so p.w should be 1
+		assert(AlmostEqual(zn, 1.f) && AlmostEqual(pFar.z, 0.f));
+		assert(AlmostEqual(zf, 0.f) && AlmostEqual(pFar.w, 1.f));
+	}
+#endif
+
+	return sunProjMatrix * sunViewMatrix;
 }

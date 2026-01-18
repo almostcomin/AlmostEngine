@@ -177,9 +177,8 @@ int SDL_main(int argc, char* argv[])
 
 	// Update UI data with initial render stages values
 	uiRS->m_Data.ShadowmapSize = shadowmapRS->GetSize();
-	uiRS->m_Data.AmbientColorIntensity = scene->GetAmbientIntensity();
-	uiRS->m_Data.SkyColor = scene->GetSkyColor();
-	uiRS->m_Data.GroundColor = scene->GetGroundColor();
+	uiRS->m_Data.AmbientParams = scene->GetAmbientParams();
+	uiRS->m_Data.SunParams = scene->GetSunParams();
 
 	// Main loop
 
@@ -338,9 +337,17 @@ int SDL_main(int argc, char* argv[])
 				shadowmapRS->SetEnabled(uiRS->m_Data.ShadowmapEnabled);
 			}
 
-			scene->SetAmbientIntensity(uiRS->m_Data.AmbientColorIntensity);
-			scene->SetSkyColor(uiRS->m_Data.SkyColor);
-			scene->SetGroundColor(uiRS->m_Data.GroundColor);
+			if (uiRS->m_Data.AmbientParamsUpdated)
+			{
+				scene->SetAmbientParams(uiRS->m_Data.AmbientParams);
+				uiRS->m_Data.AmbientParamsUpdated = false;
+			}
+
+			if (uiRS->m_Data.SunParamsUpdated)
+			{
+				scene->SetSunParams(uiRS->m_Data.SunParams);
+				uiRS->m_Data.SunParamsUpdated = false;
+			}
 		}
 
 		// Update FPS counter

@@ -13,9 +13,18 @@
 
 st::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceManager }
 {
-	m_AmbientIntensity = 0.22f;
-	m_SkyColor = float3{ 0.17f, 0.37f, 0.65f };
-	m_GroundColor = float3{ 0.62f, 0.58f, 0.55f };
+	m_AmbientParams = AmbientParams{
+		.SkyColor = float3{ 0.17f, 0.37f, 0.65f },
+		.GroundColor = float3{ 0.62f, 0.58f, 0.55f },
+		.Intensity = 0.22f
+	};
+
+	m_SunParams = SunParams{
+		.ElevationDeg = 40.f,
+		.AzimuthDeg = 120.f,
+		.Intensity = 1.f,
+		.Color = float3{ 1.f, 1.f, 1.f },
+	};
 }
 
 st::gfx::Scene::~Scene()
@@ -154,6 +163,10 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 					mat->GetBaseColorTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 				matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle() ?
 					mat->GetMetalRoughTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
+				matDataPtr->normalTextureDI = mat->GetNormalTextureHandle() ? 
+					mat->GetNormalTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
+
+				matDataPtr->normalScale = mat->GetNormalScale();
 				matDataPtr->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
 				matDataPtr->mr = { mat->GetMetallicFactor(), mat->GetRoughnessFactor() };
 

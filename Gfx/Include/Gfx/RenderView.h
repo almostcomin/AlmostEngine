@@ -111,6 +111,7 @@ private:
 	void ClearRenderStages();
 	void UpdateSceneConstantBuffer();
 	void UpdateVisibleSet();
+	float4x4 GetSunWoldToClipMatrix(const float3& sunDir);
 
 private:
 

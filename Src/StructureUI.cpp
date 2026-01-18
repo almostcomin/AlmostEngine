@@ -666,12 +666,24 @@ void StructureUI::BuildSettingsWindow()
         }
     }
 
+    if (ImGui::CollapsingHeader("Directional light"))
+    {
+        const float minAzimuth = -180.0;
+        const float maxAzimuth = 180.0;
+        const float minElevation = -90.0;
+        const float maxElevation = 90.0;
+
+        m_Data.SunParamsUpdated |= ImGui::SliderScalar(
+            "Azimuth", ImGuiDataType_Float, &m_Data.SunParams.AzimuthDeg, &minAzimuth, &maxAzimuth, "%.1f deg", ImGuiSliderFlags_NoRoundToFormat);
+        m_Data.SunParamsUpdated |= ImGui::SliderScalar(
+            "Elevation", ImGuiDataType_Float, &m_Data.SunParams.ElevationDeg, &minElevation, &maxElevation, "%.1f deg", ImGuiSliderFlags_NoRoundToFormat);
+    }
+
     if (ImGui::CollapsingHeader("Ambient"))
     {
-        ImGui::SliderFloat("Intensity", &m_Data.AmbientColorIntensity, 0.f, 1.f);
-        ImGui::ColorEdit3("Sky Color", &m_Data.SkyColor.x, ImGuiColorEditFlags_Float);
-        ImGui::ColorEdit3("Ground Color", &m_Data.GroundColor.x, ImGuiColorEditFlags_Float);
-
+        m_Data.AmbientParamsUpdated |= ImGui::SliderFloat("Intensity", &m_Data.AmbientParams.Intensity, 0.f, 1.f);
+        m_Data.AmbientParamsUpdated |= ImGui::ColorEdit3("Sky Color", &m_Data.AmbientParams.SkyColor.x, ImGuiColorEditFlags_Float);
+        m_Data.AmbientParamsUpdated |= ImGui::ColorEdit3("Ground Color", &m_Data.AmbientParams.GroundColor.x, ImGuiColorEditFlags_Float);
     }
 
     ImGui::End();

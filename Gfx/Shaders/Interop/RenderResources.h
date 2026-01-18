@@ -59,9 +59,10 @@ namespace interop
     {
         uint baseColorTextureDI;
         uint metalRoughTextureDI;
+        uint normalTextureDI;
+        float2 normalScale;
         float4 baseColor; // rgb + opacity
         float2 mr;  // metallic / roughness
-        float2 _padding;
     };
 
     struct Scene
@@ -73,13 +74,12 @@ namespace interop
         // Sun light
         float3 sunDirection; // Normalized, from light
         float sunIntensity;
-        float3 sunColor;
-        uint _padding0;
+        float4 sunColor; // rgb
         float4x4 sunWorldToClipMatrix;
 
         // Sky/ambient light
-        float4 ambientTop;
-        float4 ambientBottom;
+        float4 ambientTop;      // rgb
+        float4 ambientBottom;   // rgb
 
         // Global descriptors indices
         uint instanceBufferDI;

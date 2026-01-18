@@ -183,8 +183,8 @@ bool st::gfx::ImGuiRenderStage::Init()
     st::rhi::Device* device = deviceManager->GetDevice();
     st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 
-    m_VS = shaderFactory->LoadShader("imgui_bindless_vs.vso", rhi::ShaderType::Vertex);
-    m_PS = shaderFactory->LoadShader("imgui_bindless_ps.pso", rhi::ShaderType::Pixel);
+    m_VS = shaderFactory->LoadShader("imgui_bindless_vs", rhi::ShaderType::Vertex);
+    m_PS = shaderFactory->LoadShader("imgui_bindless_ps", rhi::ShaderType::Pixel);
     if (!m_VS || !m_PS)
     {
         LOG_ERROR("Failed to create ImGui shaders");

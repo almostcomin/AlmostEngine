@@ -82,11 +82,21 @@ float3 DecodeNormal(float2 enc)
     return normalize(n);
 }
 
-float3 DecodeSnorm8(uint n)
+float3 Unpack_RGB8_SNORM(uint n)
 {
     int x = int(n << 24) >> 24;
     int y = int(n << 16) >> 24;
     int z = int(n << 8) >> 24;
 
-    return normalize(float3(x, y, z) / 127.0);
+    return float3(x, y, z) / 127.0;
+}
+
+float4 Unpack_RGBA8_SNORM(uint n)
+{
+    int x = int(n << 24) >> 24;
+    int y = int(n << 16) >> 24;
+    int z = int(n << 8) >> 24;
+    int w = int(n) >> 24;
+
+    return float4(x, y, z, w) / 127.0;
 }

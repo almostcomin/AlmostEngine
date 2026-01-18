@@ -75,8 +75,8 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("OpaqueStage_vs.vso", rhi::ShaderType::Vertex);
-		m_PS = shaderFactory->LoadShader("OpaqueStage_ps.vso", rhi::ShaderType::Pixel);
+		m_VS = shaderFactory->LoadShader("OpaqueStage_vs", rhi::ShaderType::Vertex);
+		m_PS = shaderFactory->LoadShader("OpaqueStage_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO

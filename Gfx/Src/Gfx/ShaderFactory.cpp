@@ -8,65 +8,89 @@ st::gfx::ShaderFactory::ShaderFactory(st::rhi::Device* device) : m_Device(device
 {
 }
 
-st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const char* filename, st::rhi::ShaderType shaderType)
+st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const std::string& name, st::rhi::ShaderType shaderType)
 {
 	st::WeakBlob cachedBytecode;
 
-	auto it = m_BytecodeCache.find(filename);
+	auto it = m_BytecodeCache.find(name);
 	if (it == m_BytecodeCache.end())
 	{
-		st::Blob byteCode;
-/*
-		st::fs::File file{ filename };
-		if (file.IsOpen())
+		std::filesystem::path srcPath = SHADERS_SRC_FOLDER;
+		srcPath /= (name + ".hlsl");
+		std::filesystem::path binPath = std::filesystem::current_path() / "Shaders" / (name + ".bin");
+
+		const bool srcExists = std::filesystem::exists(srcPath);
+		const bool binExists = std::filesystem::exists(binPath);
+		bool compileShader = false;
+
+		if (!binExists)
 		{
-			auto readResult = file.Read();
-			assert(readResult);
-			byteCode = std::move(*readResult);
+			compileShader = true;
+		}
+		else if (srcExists)
+		{
+			auto sourceTime = std::filesystem::last_write_time(srcPath);
+			auto binTime = std::filesystem::last_write_time(binPath);
+			compileShader = sourceTime > binTime;
+		}
+
+		st::Blob byteCode;
+		// Load bin if compilation is not needed
+		if (!compileShader)
+		{
+			st::fs::File file{ binPath.string() };
+			if (file.IsOpen())
+			{
+				auto readResult = file.Read();
+				assert(readResult);
+				byteCode = std::move(*readResult);
+			}
 		}
 		else
-*/
-		st::fs::File file;
 		{
-			std::filesystem::path shaderSourcePath = SHADERS_SRC_FOLDER;
-			shaderSourcePath /= filename;
-			shaderSourcePath.replace_extension(".hlsl");
-			fs::File srcFile{ shaderSourcePath.string() };
+			fs::File srcFile{ srcPath.string() };
 			if (!srcFile.IsOpen())
 			{
-				LOG_ERROR("Shader source file '{}' not found", shaderSourcePath.string());
+				LOG_ERROR("Shader source file '{}' not found", srcPath.string());
 			}
 			else
 			{
 				auto readResult = srcFile.Read();
 				assert(readResult);
-				st::Blob pdbData;
-				std::wstring pdbName;
+				srcFile.Close();
+
+				LOG_INFO("Compiling shader '{}'...", srcPath.string());
+				auto startTime = std::chrono::steady_clock::now();
 				byteCode = st::rhi::ShaderCompiler::Compile(shaderType, st::WeakBlob{ *readResult }, SHADERS_SRC_FOLDER, "main", true);
+				auto elapsed = std::chrono::steady_clock::now() - startTime;
+
 				if (byteCode)
 				{
-					LOG_INFO("Shader '{}' compiled OK", shaderSourcePath.string());
+					LOG_INFO("Shader '{}' compiled OK in {} ms", srcPath.string(), std::chrono::duration<float>(elapsed) * 1000.f);
 
-					// Save compìled shader and pdb if present
-					file.Open(filename, fs::OpenMode::Write);
-					assert(file.IsOpen());
-					file.Write(byteCode.data(), byteCode.size());
-					file.Close();
+					// Save bin
+					fs::File binFile{ binPath.string(), fs::OpenMode::Write };
+					assert(binFile.IsOpen());
+					auto writeResult = binFile.Write(byteCode.data(), byteCode.size());
+					if (!writeResult)
+					{
+						LOG_ERROR("Faileds writing shader file '{}'", binPath.string());
+					}
 				}
 				else
 				{
-					LOG_ERROR("Failed shader compilation '{}'", shaderSourcePath.string());
+					LOG_ERROR("Failed shader compilation '{}'", srcPath.string());
 				}
 			}
 		}
 
 		if (byteCode)
 		{
-			auto result = m_BytecodeCache.insert({ filename, std::move(byteCode) });
+			auto result = m_BytecodeCache.insert({ name, std::move(byteCode) });
 			cachedBytecode = st::WeakBlob{ result.first->second };
 		}
 	}
-	else
+	else // Bytecode already cached
 	{
 		cachedBytecode = st::WeakBlob{ it->second };
 	}
@@ -75,11 +99,10 @@ st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const char* filename, st
 	{
 		rhi::ShaderDesc shaderDesc{
 			.Type = shaderType,
-			.DebugName = filename,
 			.EntryPoint = "main"
 		};
 
-		return m_Device->CreateShader(shaderDesc, cachedBytecode, filename);
+		return m_Device->CreateShader(shaderDesc, cachedBytecode, name);
 	}
 	else
 	{

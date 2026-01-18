@@ -68,7 +68,7 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("DepthPrepass_vs.vso", rhi::ShaderType::Vertex);
+		m_VS = shaderFactory->LoadShader("DepthPrepass_vs", rhi::ShaderType::Vertex);
 	}
 
 	// Create PSO

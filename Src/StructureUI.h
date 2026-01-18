@@ -27,9 +27,11 @@ public:
 		bool ShowBBoxes = false;
 		bool ShadowmapEnabled = true;
 		int2 ShadowmapSize;
-		float AmbientColorIntensity;
-		float3 SkyColor;
-		float3 GroundColor;
+		
+		st::gfx::Scene::AmbientParams AmbientParams;
+		bool AmbientParamsUpdated = false;
+		st::gfx::Scene::SunParams SunParams;
+		bool SunParamsUpdated = false;
 	};
 
 	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::DeviceManager* deviceManager);

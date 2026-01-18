@@ -69,8 +69,8 @@ void st::gfx::Camera::SetProjectionModel(st::gfx::Camera::ProjectionModel model)
 void st::gfx::Camera::Fit(const st::math::aabox3f& box)
 {
 	const float3 boxCenter = box.center();
-	const float3 boxSize = box.size();
-	const float maxDim = std::max(boxSize.x, std::max(boxSize.y, boxSize.z));
+	const float3 boxExtents = box.extents();
+	const float maxDim = std::max(boxExtents.x, std::max(boxExtents.y, boxExtents.z));
 
 	float dist = (maxDim / 2.f) / glm::tan(m_VerticalFov / 2.f);
 	if (m_Aspect > 1.f)

@@ -103,8 +103,8 @@ void st::gfx::DeferredBaseRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("DeferredBase_vs.vso", rhi::ShaderType::Vertex);
-		m_PS = shaderFactory->LoadShader("DeferredBase_ps.vso", rhi::ShaderType::Pixel);
+		m_VS = shaderFactory->LoadShader("DeferredBase_vs", rhi::ShaderType::Vertex);
+		m_PS = shaderFactory->LoadShader("DeferredBase_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO

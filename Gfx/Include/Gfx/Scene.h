@@ -19,18 +19,33 @@ namespace st::gfx
 	{
 	public:
 
+		struct AmbientParams
+		{
+			float3 SkyColor;
+			float3 GroundColor;
+			float Intensity;
+		};
+
+		struct SunParams
+		{
+			float ElevationDeg;
+			float AzimuthDeg;
+			float Intensity;
+			float3 Color;
+		};
+
+	public:
+
 		Scene(DeviceManager* deviceManager);
 		~Scene();
 
 		void SetSceneGraph(unique<SceneGraph>&& graph);
 
-		float GetAmbientIntensity() const { return m_AmbientIntensity; }
-		const float3& GetSkyColor() const { return m_SkyColor; }
-		const float3& GetGroundColor() const { return m_GroundColor; }
+		const AmbientParams& GetAmbientParams() const { return m_AmbientParams; }
+		void SetAmbientParams(const AmbientParams& v) { m_AmbientParams = v; }
 
-		void SetAmbientIntensity(float v) { m_AmbientIntensity = v; }
-		void SetSkyColor(const float3& v) { m_SkyColor = v; }
-		void SetGroundColor(const float3& v) { m_GroundColor = v; }
+		const SunParams& GetSunParams() const { return m_SunParams; }
+		void SetSunParams(const SunParams& v) { m_SunParams = v; }
 
 		rhi::DescriptorIndex GetInstancesBufferDI() const;
 		rhi::DescriptorIndex GetMeshesBufferDI() const;
@@ -47,9 +62,8 @@ namespace st::gfx
 
 		unique<SceneGraph> m_SceneGraph;
 		
-		float m_AmbientIntensity;
-		float3 m_SkyColor;
-		float3 m_GroundColor;
+		AmbientParams m_AmbientParams;
+		SunParams m_SunParams;
 
 		// For a mesh instance pointer, index in the m_InstancesBuffer of that instance
 		std::map<const st::gfx::MeshInstance*, size_t> m_InstanceIndices;

@@ -45,7 +45,7 @@ float4 main(PS_INPUT input) : SV_Target
     
     // Diffuse
     float NdotL = saturate(dot(surfaceNormal, -sceneData.sunDirection));
-    float3 diffuseTerm = surfaceAlbedo * sceneData.sunColor * sceneData.sunIntensity * shadowFactor * NdotL;
+    float3 diffuseTerm = surfaceAlbedo * sceneData.sunColor.xyz * sceneData.sunIntensity * shadowFactor * NdotL;
     
     // Ambient    
     float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceNormal.y * 0.5 + 0.5);
