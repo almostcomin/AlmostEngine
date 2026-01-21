@@ -1,4 +1,4 @@
-#include "Gfx/RenderStages/DeferredBaseRenderStage.h"
+#include "Gfx/RenderStages/GBuffersRenderStage.h"
 #include "Gfx/DeviceManager.h"
 #include "RHI/Device.h"
 #include "Gfx/RenderView.h"
@@ -7,7 +7,7 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 
-void st::gfx::DeferredBaseRenderStage::Render()
+void st::gfx::GBuffersRenderStage::Render()
 {
 	auto scene = m_RenderView->GetScene();
 	if (!scene)
@@ -51,7 +51,7 @@ void st::gfx::DeferredBaseRenderStage::Render()
 	commandList->EndRenderPass();
 }
 
-void st::gfx::DeferredBaseRenderStage::OnAttached()
+void st::gfx::GBuffersRenderStage::OnAttached()
 {
 	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
@@ -97,14 +97,14 @@ void st::gfx::DeferredBaseRenderStage::OnAttached()
 			.AddColorAttachment(m_RenderView->GetTexture("GBuffer2"))
 			.AddColorAttachment(m_RenderView->GetTexture("GBuffer3"))
 			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
-		m_FB = device->CreateFramebuffer(fbDesc, "DeferredBaseRenderStage");
+		m_FB = device->CreateFramebuffer(fbDesc, "GBuffersRenderStage");
 	}
 
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("DeferredBase_vs", rhi::ShaderType::Vertex);
-		m_PS = shaderFactory->LoadShader("DeferredBase_ps", rhi::ShaderType::Pixel);
+		m_VS = shaderFactory->LoadShader("GBuffers_vs", rhi::ShaderType::Vertex);
+		m_PS = shaderFactory->LoadShader("GBuffers_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO
@@ -138,11 +138,11 @@ void st::gfx::DeferredBaseRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "DeferredBaseRenderStage");
+		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "GBuffersRenderStage");
 	}
 }
 
-void st::gfx::DeferredBaseRenderStage::OnDetached()
+void st::gfx::GBuffersRenderStage::OnDetached()
 {
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
@@ -150,7 +150,7 @@ void st::gfx::DeferredBaseRenderStage::OnDetached()
 	device->ReleaseQueued(m_PSO);
 }
 
-void st::gfx::DeferredBaseRenderStage::OnBackbufferResize()
+void st::gfx::GBuffersRenderStage::OnBackbufferResize()
 {
 	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
@@ -162,9 +162,9 @@ void st::gfx::DeferredBaseRenderStage::OnBackbufferResize()
 			.AddColorAttachment(m_RenderView->GetTexture("GBuffer2"))
 			.AddColorAttachment(m_RenderView->GetTexture("GBuffer3"))
 			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
-		m_FB = device->CreateFramebuffer(fbDesc, "DeferredBaseRenderStage");
+		m_FB = device->CreateFramebuffer(fbDesc, "GBuffersRenderStage");
 	}
 
 	// Re-create PSO
-	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "DeferredBaseRenderStage");
+	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "GBuffersRenderStage");
 }

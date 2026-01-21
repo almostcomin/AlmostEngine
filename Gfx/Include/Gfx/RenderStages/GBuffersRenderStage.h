@@ -5,13 +5,13 @@
 
 namespace st::gfx
 {
-class DeferredBaseRenderStage : public RenderStage
+class GBuffersRenderStage : public RenderStage
 {
 public:
 
-	DeferredBaseRenderStage() = default;
+	GBuffersRenderStage() = default;
 
-	const char* GetDebugName() const override { return "DeferredBaseRenderStage"; }
+	const char* GetDebugName() const override { return "GBuffersRenderStage"; }
 
 private:
 

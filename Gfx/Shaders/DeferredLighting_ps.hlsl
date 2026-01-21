@@ -1,6 +1,21 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
-#include "Common.hlsli"
+#include "Shading.hlsli"
+
+MaterialSample DecodeGBuffer(float4 channels[4])
+{
+    MaterialSample surface = DefaultMaterialSample();
+    
+    surface.diffuseAlbedo = channels[0].xyz;
+    surface.opacity = channels[0].w;
+    surface.specularF0 = channels[1].xyz;
+    surface.occlusion = channels[1].w;
+    surface.normal = DecodeNormal(channels[2].xy);
+    surface.roughness = channels[2].z;
+    surface.emissiveColor = channels[3].xyz;
+    
+    return surface;
+}
 
 ConstantBuffer<interop::DeferredLightingConstants> Constants : register(b0);
 
@@ -15,42 +30,55 @@ float4 main(PS_INPUT input) : SV_Target
 {
     ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     Texture2D sceneDepth = ResourceDescriptorHeap[Constants.sceneDepthDI];
-    Texture2D GBuffer0 = ResourceDescriptorHeap[Constants.GBuffer0DI]; // SurfaceAlbedo.rgb + MaterialID.z
-    Texture2D GBuffer1 = ResourceDescriptorHeap[Constants.GBuffer1DI]; // Normal.xy + Roughness.z
-    Texture2D GBuffer2 = ResourceDescriptorHeap[Constants.GBuffer2DI]; // Metallic.x + AO.z
-    Texture2D GBuffer3 = ResourceDescriptorHeap[Constants.GBuffer3DI]; // Emissive.rgb
+    Texture2D GBuffer0 = ResourceDescriptorHeap[Constants.GBuffer0DI];
+    Texture2D GBuffer1 = ResourceDescriptorHeap[Constants.GBuffer1DI];
+    Texture2D GBuffer2 = ResourceDescriptorHeap[Constants.GBuffer2DI];
+    Texture2D GBuffer3 = ResourceDescriptorHeap[Constants.GBuffer3DI];
                     
     // Sample G-Buffers
-    float4 g0 = GBuffer0.Sample(pointClampSampler, input.uv);
-    float4 g1 = GBuffer1.Sample(pointClampSampler, input.uv);
-    float4 g2 = GBuffer2.Sample(pointClampSampler, input.uv);
-    float4 g3 = GBuffer3.Sample(pointClampSampler, input.uv);
-    
-    float3 surfaceAlbedo = g0.rgb;
-    float3 surfaceNormal = DecodeNormal(g1.xy);
-    
-    float metallic = g2.x;
-    float roughness = g1.z;
-    float3 surfaceEmissive = g3.rgb;
+    float4 gbuffers[4];
+    gbuffers[0] = GBuffer0.Sample(pointClampSampler, input.uv);
+    gbuffers[1] = GBuffer1.Sample(pointClampSampler, input.uv);
+    gbuffers[2] = GBuffer2.Sample(pointClampSampler, input.uv);
+    gbuffers[3] = GBuffer3.Sample(pointClampSampler, input.uv);
         
+    MaterialSample surfaceMat = DecodeGBuffer(gbuffers);
+            
     // World pos reconstruction
-    float4 worldPos = WorldPosReconstruction(input.uv, sceneDepth, sceneData.invCamViewProjMatrix);
+    float4 surfacePos = WorldPosReconstruction(input.uv, sceneDepth, sceneData.invCamViewProjMatrix);
     // Retrieve shadow factor
     float shadowFactor = 1.0;
     if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
     {
         Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
-        shadowFactor = SampleShadowMap(worldPos, sceneData.sunWorldToClipMatrix, shadowMap);
+        shadowFactor = SampleShadowMap(surfacePos, sceneData.sunWorldToClipMatrix, shadowMap);
     }
+    shadowFactor *= surfaceMat.occlusion;
     
+    LightConstants sunConstants;
+    sunConstants.lighType = LightType_Directional;
+    sunConstants.direction = sceneData.sunDirection;
+    sunConstants.intensity = sceneData.sunIntensity;
+    sunConstants.angularSizeOrInvRange = 0.0093; // sun angular size in radians
+    
+    // Shade
+    float3 viewIncident = normalize(surfacePos.xyz - sceneData.camWorldPos.xyz);    
+    float3 diffuseRadiance = 0.0;
+    float3 specularRadiance = 0.0;
+    ShadeSurface(sunConstants, surfaceMat, surfacePos.xyz, viewIncident, diffuseRadiance, specularRadiance);
+    
+    float3 diffuseTerm = shadowFactor * diffuseRadiance * sceneData.sunColor.rgb;
+    float3 specularTerm = shadowFactor * specularRadiance * sceneData.sunColor.rgb;
+        
     // Diffuse
-    float NdotL = saturate(dot(surfaceNormal, -sceneData.sunDirection));
-    float3 diffuseTerm = surfaceAlbedo * sceneData.sunColor.xyz * sceneData.sunIntensity * shadowFactor * NdotL;
+    //float NdotL = saturate(dot(surfaceNormal, -sceneData.sunDirection));
+    //float3 diffuseTerm = surfaceAlbedo * sceneData.sunColor.xyz * sceneData.sunIntensity * shadowFactor * NdotL;
     
     // Ambient    
-    float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceNormal.y * 0.5 + 0.5);
-    diffuseTerm += ambientColor * surfaceAlbedo; // TODO: Ambient occlusion
+    float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
+    diffuseTerm += ambientColor * surfaceMat.diffuseAlbedo;
+    specularTerm += ambientColor * surfaceMat.specularF0;
         
-    float3 color = diffuseTerm + surfaceEmissive;
+    float3 color = diffuseTerm + specularTerm + surfaceMat.emissiveColor;
     return float4(color, 1.0);
 }

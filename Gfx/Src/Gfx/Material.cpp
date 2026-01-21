@@ -2,9 +2,9 @@
 #include "RHI/Device.h"
 
 st::gfx::Material::Material(st::rhi::Device* device, const char* name, const char* filename) :
-	m_BaseColor{ 0.f, 0.f, 0.f },
+	m_BaseColor{ 1.f },
 	m_MetallicFactor{ 0.f },
-	m_RoughnessFactor{ 0.f },
+	m_RoughnessFactor{ 0.5f },
 	m_NormalScale{ 1.f },
 	m_Device{ device },
 	m_Name{ name ? name : "<null>" },

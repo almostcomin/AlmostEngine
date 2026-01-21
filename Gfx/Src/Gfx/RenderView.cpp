@@ -529,10 +529,12 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	if (m_Camera)
 	{
 		sceneShaderConstant->camViewProjMatrix = m_Camera->GetViewProjectionMatrix();
+		sceneShaderConstant->camWorldPos = float4{ m_Camera->GetPosition(), 0.f };
 	}
 	else
 	{
 		sceneShaderConstant->camViewProjMatrix = float4x4{ 1.f };
+		sceneShaderConstant->camWorldPos = float4{ 0.f };
 	}
 	sceneShaderConstant->invCamViewProjMatrix = glm::inverse(sceneShaderConstant->camViewProjMatrix);
 

@@ -17,7 +17,7 @@
 #include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "Gfx/RenderStages/DebugRenderStage.h"
 #include "Gfx/RenderStages/DepthPrepassRenderStage.h"
-#include "Gfx/RenderStages/DeferredBaseRenderStage.h"
+#include "Gfx/RenderStages/GBuffersRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "StructureUI.h"
@@ -141,7 +141,7 @@ int SDL_main(int argc, char* argv[])
 	std::shared_ptr<st::gfx::DepthPrepassRenderStage> depthPrepassRS{ new st::gfx::DepthPrepassRenderStage };
 
 	// Create deferred render stage
-	std::shared_ptr<st::gfx::DeferredBaseRenderStage> deferredRS{ new st::gfx::DeferredBaseRenderStage };
+	std::shared_ptr<st::gfx::GBuffersRenderStage> gBufRS{ new st::gfx::GBuffersRenderStage };
 
 	// Create lighting render stage
 	std::shared_ptr<st::gfx::DeferredLightingRenderStage> lightingRS{ new st::gfx::DeferredLightingRenderStage };
@@ -172,7 +172,7 @@ int SDL_main(int argc, char* argv[])
 	camera->SetPosition({ 0.f, 0.f, 5.f });
 
 	// Add stages to render view
-	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, deferredRS, lightingRS/*opaqueRS*/, debugRS, compositeRS, uiRS});
+	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, gBufRS, lightingRS/*opaqueRS*/, debugRS, compositeRS, uiRS});
 	renderView->SetCamera(camera);
 
 	// Update UI data with initial render stages values
@@ -205,7 +205,7 @@ int SDL_main(int argc, char* argv[])
 				renderView->SetScene(scene.get_weak());
 				PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
 
-				camera->SetPosition(float3{ 1000.f, 1000.f, -1000.f });
+				camera->SetPosition(float3{ -1000.f, 1000.f, 1000.f });
 				camera->LookAt(float3{ 0.f });
 				camera->Fit(scene->GetSceneGraph()->GetRoot()->GetWorldBounds());
 			}
@@ -386,7 +386,7 @@ int SDL_main(int argc, char* argv[])
 	compositeRS.reset();
 	opaqueRS.reset();
 	lightingRS.reset();
-	deferredRS.reset();
+	gBufRS.reset();
 	depthPrepassRS.reset();
 	shadowmapRS.reset();
 	debugRS.reset();

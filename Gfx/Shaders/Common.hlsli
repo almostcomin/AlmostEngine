@@ -1,3 +1,8 @@
+#ifndef __COMMON_HLSLI__
+#define __COMMON_HLSLI__
+
+#define M_PI 3.14159265358979323846
+#define M_INV_PI 0.31830988618379067154
 
 float4 WorldPosReconstruction(float2 uv, Texture2D depthTex, float4x4 invViewProjMatrix)
 {
@@ -24,6 +29,21 @@ float SampleShadowMap(float4 worldPos, float4x4 worldToClipMatrix, Texture2D sha
     
     float shadow = ndcPos.z < shadowDepth ? 0.0 : 1.f; // Reverse-Z compare    
     return shadow;
+}
+
+float3 ApplyNormalMap(float3 vNormal, float4 vTangent, float3 tNormal, float2 normalScale)
+{
+    // Remap to [-1,1]
+    float3 tangentNormal = tNormal * 2.0 - 1.0;
+    // Apply scale
+    tangentNormal.xy *= normalScale;
+    // Build TBN matrix
+    float3 N = vNormal;
+    float3 T = normalize(vTangent.xyz);
+    float3 B = cross(N, T) * vTangent.w; // w is headedness
+    float3x3 TBN = float3x3(T, B, N);
+        
+    return normalize(mul(tangentNormal, TBN));
 }
 
 uint GetIndex(ByteAddressBuffer indexBuffer, uint indexOffsetBytes, uint indexSize, uint vertexID)
@@ -100,3 +120,10 @@ float4 Unpack_RGBA8_SNORM(uint n)
 
     return float4(x, y, z, w) / 127.0;
 }
+
+float square(float x)
+{
+    return x * x;
+}
+
+#endif // __COMMON_HLSLI__

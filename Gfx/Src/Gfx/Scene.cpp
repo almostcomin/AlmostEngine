@@ -20,8 +20,8 @@ st::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceMan
 	};
 
 	m_SunParams = SunParams{
-		.ElevationDeg = 40.f,
-		.AzimuthDeg = 120.f,
+		.ElevationDeg = 80.f,
+		.AzimuthDeg = -135.f,
 		.Intensity = 1.f,
 		.Color = float3{ 1.f, 1.f, 1.f },
 	};
@@ -159,16 +159,17 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			auto* matDataPtr = (interop::MaterialData*)uploadTicket->GetPtr();
 			for (const st::gfx::Material* mat : materials)
 			{
-				matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle() ? 
+				matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle() ?
 					mat->GetBaseColorTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 				matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle() ?
 					mat->GetMetalRoughTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
-				matDataPtr->normalTextureDI = mat->GetNormalTextureHandle() ? 
+				matDataPtr->normalTextureDI = mat->GetNormalTextureHandle() ?
 					mat->GetNormalTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 
 				matDataPtr->normalScale = mat->GetNormalScale();
 				matDataPtr->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
-				matDataPtr->mr = { mat->GetMetallicFactor(), mat->GetRoughnessFactor() };
+				matDataPtr->metalness = mat->GetMetallicFactor();
+				matDataPtr->roughness = mat->GetRoughnessFactor();
 
 				matDataPtr++;
 			}

@@ -62,7 +62,8 @@ namespace interop
         uint normalTextureDI;
         float2 normalScale;
         float4 baseColor; // rgb + opacity
-        float2 mr;  // metallic / roughness
+        float metalness;
+        float roughness;
     };
 
     struct Scene
@@ -70,6 +71,7 @@ namespace interop
         // Camera
         float4x4 camViewProjMatrix;
         float4x4 invCamViewProjMatrix;
+        float4 camWorldPos; // xyz
 
         // Sun light
         float3 sunDirection; // Normalized, from light
