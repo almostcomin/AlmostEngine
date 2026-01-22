@@ -22,7 +22,8 @@ st::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceMan
 	m_SunParams = SunParams{
 		.ElevationDeg = 80.f,
 		.AzimuthDeg = -135.f,
-		.Intensity = 1.f,
+		.Irradiance = 1.f,
+		.AngularSizeDeg = 0.53f,
 		.Color = float3{ 1.f, 1.f, 1.f },
 	};
 }

@@ -47,7 +47,7 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create render target
-	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::SRGBA8_UNORM);
+	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
 
 	// Request access
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);

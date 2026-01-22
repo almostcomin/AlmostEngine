@@ -58,8 +58,8 @@ float4 main(PS_INPUT input) : SV_Target
     LightConstants sunConstants;
     sunConstants.lighType = LightType_Directional;
     sunConstants.direction = sceneData.sunDirection;
-    sunConstants.intensity = sceneData.sunIntensity;
-    sunConstants.angularSizeOrInvRange = 0.0093; // sun angular size in radians
+    sunConstants.intensity = sceneData.sunIrradiance;
+    sunConstants.angularSizeOrInvRange = sceneData.sunAngularSizeRad;
     
     // Shade
     float3 viewIncident = normalize(surfacePos.xyz - sceneData.camWorldPos.xyz);    
@@ -69,16 +69,21 @@ float4 main(PS_INPUT input) : SV_Target
     
     float3 diffuseTerm = shadowFactor * diffuseRadiance * sceneData.sunColor.rgb;
     float3 specularTerm = shadowFactor * specularRadiance * sceneData.sunColor.rgb;
-        
-    // Diffuse
-    //float NdotL = saturate(dot(surfaceNormal, -sceneData.sunDirection));
-    //float3 diffuseTerm = surfaceAlbedo * sceneData.sunColor.xyz * sceneData.sunIntensity * shadowFactor * NdotL;
-    
+            
     // Ambient    
     float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
     diffuseTerm += ambientColor * surfaceMat.diffuseAlbedo;
     specularTerm += ambientColor * surfaceMat.specularF0;
-        
+
     float3 color = diffuseTerm + specularTerm + surfaceMat.emissiveColor;
+    
+    //float exposure = 1.0;
+    //color = 1.0 - exp(-color * exposure);
+    
+    //color *= 2.0; // exposición burra
+    //color = 1.0 - exp(-color); // tone map simple    
+    
+    //color = color / (color + 1.0);
+    
     return float4(color, 1.0);
 }

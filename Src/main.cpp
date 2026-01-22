@@ -205,7 +205,7 @@ int SDL_main(int argc, char* argv[])
 				renderView->SetScene(scene.get_weak());
 				PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
 
-				camera->SetPosition(float3{ -1000.f, 1000.f, 1000.f });
+				camera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
 				camera->LookAt(float3{ 0.f });
 				camera->Fit(scene->GetSceneGraph()->GetRoot()->GetWorldBounds());
 			}

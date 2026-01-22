@@ -111,7 +111,7 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
     {        
         // Lets assume default ORM texture (occlusion-roughness-metalness)
         // TODO: Check for different configurations
-        result.occlusion *= textures.metalRough.r;
+        //result.occlusion *= textures.metalRough.r; // lets ignore occlusion since we have plang to gen it in realtime
         result.roughness *= textures.metalRough.g;
         result.metalness *= textures.metalRough.b;
     }

@@ -25,7 +25,7 @@ void st::gfx::Camera::SetForward(const float3& dir)
 {
 	m_Forward = glm::normalize(dir);
 
-	m_Right = glm::cross(m_Forward, float3{ 0.f, 1.f, 0.f });
+	m_Right = glm::normalize(glm::cross(m_Forward, m_Up));
 	m_Up = glm::cross(m_Right, m_Forward);
 
 	m_IsDirty = true;
@@ -66,20 +66,15 @@ void st::gfx::Camera::SetProjectionModel(st::gfx::Camera::ProjectionModel model)
 	m_IsDirty = true;
 }
 
-void st::gfx::Camera::Fit(const st::math::aabox3f& box)
+void st::gfx::Camera::Fit(const st::math::aabox3f& bounds)
 {
-	const float3 boxCenter = box.center();
-	const float3 boxExtents = box.extents();
-	const float maxDim = std::max(boxExtents.x, std::max(boxExtents.y, boxExtents.z));
+	const float3 targetPos = bounds.center();
+	const float radius = glm::length(bounds.extents()) / 2.f;
+	const float distance = radius / sinf(m_VerticalFov / 2.f);
 
-	float dist = (maxDim / 2.f) / glm::tan(m_VerticalFov / 2.f);
-	if (m_Aspect > 1.f)
-	{
-		dist *= m_Aspect;
-	}
+	const float3 newFwd = glm::normalize(targetPos - m_Position);
+	const float3 newPos = targetPos - newFwd * distance;
 
-	float3 newFwd = glm::normalize(boxCenter - m_Position);
-	float3 newPos = boxCenter - newFwd * dist;
 	SetPosition(newPos);
 	SetForward(newFwd);
 }

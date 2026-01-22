@@ -677,6 +677,12 @@ void StructureUI::BuildSettingsWindow()
             "Azimuth", ImGuiDataType_Float, &m_Data.SunParams.AzimuthDeg, &minAzimuth, &maxAzimuth, "%.1f deg", ImGuiSliderFlags_NoRoundToFormat);
         m_Data.SunParamsUpdated |= ImGui::SliderScalar(
             "Elevation", ImGuiDataType_Float, &m_Data.SunParams.ElevationDeg, &minElevation, &maxElevation, "%.1f deg", ImGuiSliderFlags_NoRoundToFormat);
+        m_Data.SunParamsUpdated |= ImGui::ColorEdit3(
+            "Color", &m_Data.SunParams.Color.x, ImGuiColorEditFlags_Float);
+        m_Data.SunParamsUpdated |= ImGui::SliderFloat(
+            "Irradiance", &m_Data.SunParams.Irradiance, 0.f, 100.f, "%.2f", ImGuiSliderFlags_Logarithmic);
+        m_Data.SunParamsUpdated |= ImGui::SliderFloat(
+            "Angular Size", &m_Data.SunParams.AngularSizeDeg, 0.1f, 20.f);
     }
 
     if (ImGui::CollapsingHeader("Ambient"))

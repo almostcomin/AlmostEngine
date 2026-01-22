@@ -75,8 +75,9 @@ namespace interop
 
         // Sun light
         float3 sunDirection; // Normalized, from light
-        float sunIntensity;
-        float4 sunColor; // rgb
+        float sunIrradiance;
+        float3 sunColor;
+        float sunAngularSizeRad;
         float4x4 sunWorldToClipMatrix;
 
         // Sky/ambient light

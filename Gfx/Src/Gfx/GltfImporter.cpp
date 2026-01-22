@@ -575,7 +575,7 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         assert(srcMat.has_pbr_metallic_roughness);
 
         mat->SetBaseColorTexture(loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true));
-        mat->SetMetalRoughTexture(loadTex(srcMat.pbr_metallic_roughness.metallic_roughness_texture.texture, true));
+        mat->SetMetalRoughTexture(loadTex(srcMat.pbr_metallic_roughness.metallic_roughness_texture.texture, false));
         mat->SetNormalTexture(loadTex(srcMat.normal_texture.texture, false));
 
         mat->SetBaseColor(*(float3*)srcMat.pbr_metallic_roughness.base_color_factor);

@@ -34,7 +34,7 @@ void ShadeSurface(LightConstants light, MaterialSample surfaceMaterial, float3 s
         // TODO
         return;
     }
-
+    
     out_diffuseRadiance = BRDF_Diffuse(surfaceMaterial.normal, lightIncident) * surfaceMaterial.diffuseAlbedo * irradiance;
     out_specularRadiance = BRDF_Specular(surfaceMaterial.normal, viewIncident, lightIncident, surfaceMaterial.specularF0, 
         surfaceMaterial.roughness, halfAngularSize);

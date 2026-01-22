@@ -30,7 +30,8 @@ namespace st::gfx
 		{
 			float ElevationDeg;
 			float AzimuthDeg;
-			float Intensity;
+			float Irradiance;
+			float AngularSizeDeg;
 			float3 Color;
 		};
 

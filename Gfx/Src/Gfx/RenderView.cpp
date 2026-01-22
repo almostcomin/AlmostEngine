@@ -547,8 +547,9 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
 		sceneShaderConstant->sunDirection = sunDir;
-		sceneShaderConstant->sunIntensity = sunParams.Intensity;
+		sceneShaderConstant->sunIrradiance = sunParams.Irradiance;
 		sceneShaderConstant->sunColor = float4{ sunParams.Color, 0.f };
+		sceneShaderConstant->sunAngularSizeRad = glm::radians(sunParams.AngularSizeDeg);
 		sceneShaderConstant->sunWorldToClipMatrix = GetSunWoldToClipMatrix(sunDir);
 
 		// Ambient 
