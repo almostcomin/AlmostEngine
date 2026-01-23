@@ -53,7 +53,7 @@ float4 main(PS_INPUT input) : SV_Target
         Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
         shadowFactor = SampleShadowMap(surfacePos, sceneData.sunWorldToClipMatrix, shadowMap);
     }
-    shadowFactor *= surfaceMat.occlusion;
+    //shadowFactor *= surfaceMat.occlusion;
     
     LightConstants sunConstants;
     sunConstants.lighType = LightType_Directional;

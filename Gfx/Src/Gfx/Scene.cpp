@@ -162,13 +162,17 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			{
 				matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle() ?
 					mat->GetBaseColorTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
+				matDataPtr->emissiveTextureDI = mat->GetEmissiveTextureHandle() ? 
+					mat->GetEmissiveTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 				matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle() ?
 					mat->GetMetalRoughTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 				matDataPtr->normalTextureDI = mat->GetNormalTextureHandle() ?
 					mat->GetNormalTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
 
-				matDataPtr->normalScale = mat->GetNormalScale();
+				matDataPtr->normalScale = mat->GetNormalTextureScale();
 				matDataPtr->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
+				matDataPtr->emissiveColor = mat->GetEmissiveColor();
+				matDataPtr->occlusion = mat->GetOcclusionStrengh();
 				matDataPtr->metalness = mat->GetMetallicFactor();
 				matDataPtr->roughness = mat->GetRoughnessFactor();
 

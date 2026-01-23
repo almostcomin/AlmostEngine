@@ -9,6 +9,7 @@ static const int MaterialTextureSample_ValidBaseColor   = 0x00000001;
 static const int MaterialTextureSample_ValidMetalRough  = 0x00000002;
 static const int MaterialTextureSample_ValidNormal      = 0x00000004;
 static const int MaterialTextureSample_ValidEmissive    = 0x00000008;
+static const int MaterialTextureSample_ValidOcclusion   = 0x00000010;
 
 struct MaterialSample
 {
@@ -26,6 +27,7 @@ struct MaterialTextureSample
 {
     float4 baseColor;
     float4 metalRough;
+    float4 occlusion;
     float4 normal;
     float4 emissive;
     uint MaterialTextureSample_Flags;
@@ -75,12 +77,31 @@ MaterialTextureSample SampleMaterialTextures(float2 uv, interop::MaterialData ma
         Texture2D metalRoughTexture = ResourceDescriptorHeap[mat.metalRoughTextureDI];
         ret.metalRough = metalRoughTexture.Sample(linearWrapSampler, uv);
         ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidMetalRough;
+        // Special case: usually we are going to have OCR texture (r=Occlusion, g=Roughness, b=Metalness)
+        // We can check here if that is the case and avoid an extra sample
+        if (mat.metalRoughTextureDI == mat.occlusionTextureDI)
+        {
+            ret.occlusion = ret.metalRough;
+            ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidOcclusion;
+        }
+    }
+    if (mat.occlusionTextureDI != INVALID_DESCRIPTOR_INDEX && (ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidOcclusion) == 0)
+    {
+        Texture2D occlusionTexture = ResourceDescriptorHeap[mat.occlusionTextureDI];
+        ret.occlusion = occlusionTexture.Sample(linearWrapSampler, uv);
+        ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidOcclusion;
     }
     if (mat.normalTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
         Texture2D normalTexture = ResourceDescriptorHeap[mat.normalTextureDI];
         ret.normal = normalTexture.Sample(linearWrapSampler, uv);
         ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidNormal;
+    }
+    if (mat.emissiveTextureDI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D emissiveTexture = ResourceDescriptorHeap[mat.emissiveTextureDI];
+        ret.emissive = emissiveTexture.Sample(linearWrapSampler, uv);
+        ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidEmissive;
     }
     
     return ret;
@@ -103,19 +124,30 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
         result.opacity = mat.baseColor.a;
     }
     
-    // Occlusion & Roughness & Metalness
-    result.occlusion = 1.0;
+    // Emissive
+    result.emissiveColor = mat.emissiveColor;
+    if ((textures.MaterialTextureSample_Flags & MaterialTextureSample_ValidEmissive) != 0)
+    {
+        result.emissiveColor *= textures.emissive.rgb;
+    }
+    
+    // Roughness & Metalness
     result.metalness = mat.metalness;
     result.roughness = mat.roughness;
     if ((textures.MaterialTextureSample_Flags & MaterialTextureSample_ValidMetalRough) != 0)
-    {        
+    {
         // Lets assume default ORM texture (occlusion-roughness-metalness)
-        // TODO: Check for different configurations
-        //result.occlusion *= textures.metalRough.r; // lets ignore occlusion since we have plang to gen it in realtime
         result.roughness *= textures.metalRough.g;
         result.metalness *= textures.metalRough.b;
     }
-            
+    
+    // Occlusion
+    result.occlusion = mat.occlusion;
+    if ((textures.MaterialTextureSample_Flags & MaterialTextureSample_ValidOcclusion) != 0)
+    {
+        result.occlusion *= textures.occlusion.r;
+    }
+                
     // Compute the BRDF inputs for the metal-rough model
     // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#metal-brdf-and-dielectric-brdf
     result.diffuseAlbedo = lerp(baseColor * (1.0 - c_DielectricSpecular), 0.0, result.metalness);
@@ -130,8 +162,6 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
     {
         result.normal = normal;
     }
-
-    // TODO: emissiveColor & occlusion
     
     return result;
 }

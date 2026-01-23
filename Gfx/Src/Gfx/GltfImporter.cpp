@@ -577,13 +577,17 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         mat->SetBaseColorTexture(loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true));
         mat->SetMetalRoughTexture(loadTex(srcMat.pbr_metallic_roughness.metallic_roughness_texture.texture, false));
         mat->SetNormalTexture(loadTex(srcMat.normal_texture.texture, false));
+        mat->SetEmissiveTexture(loadTex(srcMat.emissive_texture.texture, true));
+        mat->SetOcclusionTexture(loadTex(srcMat.occlusion_texture.texture, false));
 
         mat->SetBaseColor(*(float3*)srcMat.pbr_metallic_roughness.base_color_factor);
+        mat->SetOpacity(srcMat.pbr_metallic_roughness.base_color_factor[3]);
+        mat->SetEmissiveColor(*(float3*)srcMat.emissive_factor);
         mat->SetMetallicFactor(srcMat.pbr_metallic_roughness.metallic_factor);
         mat->SetRoughnessFactor(srcMat.pbr_metallic_roughness.roughness_factor);
-        mat->SetOpacity(srcMat.pbr_metallic_roughness.base_color_factor[3]);
+        mat->SetOcclusionStrengh(srcMat.occlusion_texture.scale);
 
-        mat->SetNormalScale(srcMat.normal_texture.has_transform ?
+        mat->SetNormalTextureScale(srcMat.normal_texture.has_transform ?
             float2{ srcMat.normal_texture.transform.scale[0], srcMat.normal_texture.transform.scale[1] } : float2{ 1.f });
 
         // Log warnings for all unsupported texture coordinate transformations

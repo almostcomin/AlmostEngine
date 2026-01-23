@@ -25,7 +25,7 @@ void st::gfx::Camera::SetForward(const float3& dir)
 {
 	m_Forward = glm::normalize(dir);
 
-	m_Right = glm::normalize(glm::cross(m_Forward, m_Up));
+	m_Right = glm::normalize(glm::cross(m_Forward, float3{ 0.f, 1.f, 0.f }));
 	m_Up = glm::cross(m_Right, m_Forward);
 
 	m_IsDirty = true;

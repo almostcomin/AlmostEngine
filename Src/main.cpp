@@ -201,13 +201,19 @@ int SDL_main(int argc, char* argv[])
 			if (importResult)
 			{
 				scene->SetSceneGraph(std::move(*importResult));
-
 				renderView->SetScene(scene.get_weak());
-				PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
+
+				const st::math::aabox3f& bounds = scene->GetSceneGraph()->GetRoot()->GetWorldBounds();
+				const float radius = glm::length(bounds.extents()) / 2.f;
+				camera->SetZNear(radius * 0.01f);
 
 				camera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
 				camera->LookAt(float3{ 0.f });
-				camera->Fit(scene->GetSceneGraph()->GetRoot()->GetWorldBounds());
+				camera->Fit(bounds);
+
+				uiRS->m_Data.CameraSpeed = radius * 2.f;
+
+				PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
 			}
 			else
 			{

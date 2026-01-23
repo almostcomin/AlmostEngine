@@ -58,10 +58,14 @@ namespace interop
     struct MaterialData
     {
         uint baseColorTextureDI;
+        uint emissiveTextureDI;
         uint metalRoughTextureDI;
+        uint occlusionTextureDI;
         uint normalTextureDI;
         float2 normalScale;
         float4 baseColor; // rgb + opacity
+        float3 emissiveColor;
+        float occlusion;
         float metalness;
         float roughness;
     };
