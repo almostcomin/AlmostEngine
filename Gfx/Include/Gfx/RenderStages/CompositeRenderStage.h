@@ -17,8 +17,8 @@ public:
 
 private:
 
-	rhi::TextureHandle m_SceneColor;
-	rhi::GraphicsPipelineStateOwner m_BlitPSO;
+	rhi::ShaderOwner m_PS;
+	rhi::GraphicsPipelineStateOwner m_PSO;
 
 	void Render() override;
 	void OnAttached() override;

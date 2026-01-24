@@ -2,6 +2,7 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/CommonResources.h"
+#include "Gfx/ShaderFactory.h"
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
@@ -17,13 +18,14 @@ void st::gfx::CompositeRenderStage::Render()
 		{},
 		rhi::RenderPassFlags::None);
 
-	commandList->SetPipelineState(m_BlitPSO.get());
+	commandList->SetPipelineState(m_PSO.get());
 
 	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
 		(float)fb->GetFramebufferInfo().width, (float)fb->GetFramebufferInfo().height }));
 
-	interop::BlitConstants shaderConstants;
-	shaderConstants.textureDI = m_SceneColor->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	interop::PresentConstants shaderConstants;
+	shaderConstants.sceneTextureDI = m_RenderView->GetTexture("SceneColor")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.colorSpace = (uint)m_RenderView->GetDeviceManager()->GetColorSpace();
 
 	commandList->PushConstants(shaderConstants);
 
@@ -34,26 +36,43 @@ void st::gfx::CompositeRenderStage::Render()
 
 void st::gfx::CompositeRenderStage::OnAttached()
 {
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", 
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneColor",
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	m_SceneColor = m_RenderView->GetTexture("SceneColor");
 
-	m_BlitPSO = m_RenderView->GetDeviceManager()->GetCommonResources()->CreateBlitPSO(
-		m_RenderView->GetFramebuffer()->GetFramebufferInfo());
+	// Load shaders
+	{
+		st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();
+		m_PS = shaderFactory->LoadShader("Present_ps", rhi::ShaderType::Pixel);
+	}
+
+	// Create PSO
+	{
+		st::gfx::CommonResources* commonResurces = m_RenderView->GetDeviceManager()->GetCommonResources();
+		m_PSO = commonResurces->CreateBlitPSO(
+			m_RenderView->GetFramebuffer()->GetFramebufferInfo(),
+			commonResurces->GetBlitVS(),
+			m_PS.get_weak(),
+			"Composite Render Stage");
+	}
 }
 
 void st::gfx::CompositeRenderStage::OnDetached()
 {
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
-	device->ReleaseQueued(m_BlitPSO);
-	m_SceneColor = nullptr;
+	device->ReleaseQueued(m_PSO);
+	device->ReleaseQueued(m_PS);
 }
 
 void st::gfx::CompositeRenderStage::OnBackbufferResize()
 {
-	m_SceneColor = m_RenderView->GetTexture("SceneColor");
-
-	m_BlitPSO = m_RenderView->GetDeviceManager()->GetCommonResources()->CreateBlitPSO(
-		m_RenderView->GetFramebuffer()->GetFramebufferInfo());
+	// Recreate PSO
+	{
+		st::gfx::CommonResources* commonResurces = m_RenderView->GetDeviceManager()->GetCommonResources();
+		m_PSO = commonResurces->CreateBlitPSO(
+			m_RenderView->GetFramebuffer()->GetFramebufferInfo(),
+			commonResurces->GetBlitVS(),
+			m_PS.get_weak(),
+			"Composite Render Stage");
+	}
 }

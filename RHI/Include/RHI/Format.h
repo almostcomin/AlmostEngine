@@ -3,6 +3,13 @@
 namespace st::rhi
 {
 
+enum class ColorSpace : uint8_t
+{
+    SRGB = 0,		    // SDR color space (8 or 10 bits per channel)
+    HDR10_ST2084 = 1,   // HDR10 color space (10 bits per channel)
+    HDR_LINEAR,		    // HDR color space (16 bits per channel)
+};
+
 enum class Format : uint8_t
 {
     UNKNOWN,

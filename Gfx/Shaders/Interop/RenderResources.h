@@ -128,6 +128,12 @@ namespace interop
         float3 min;
         float3 max;
     };
+
+    struct PresentConstants
+    {
+        uint sceneTextureDI;
+        uint colorSpace; // st::rhi::ColorSpace
+    };
 }
 
 #endif // __SHADERS_INTEROP_RENDERRESOURCES_H__

@@ -309,6 +309,14 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
         return false;
     }
 
+    if (m_DeviceParams.SwapChainFormat == rhi::Format::UNKNOWN)
+    {
+        m_DeviceParams.SwapChainFormat = m_DeviceParams.ForceSDR ? 
+            rhi::Format::SRGBA8_UNORM : rhi::Format::R10G10B10A2_UNORM;
+
+        //m_DeviceParams.SwapChainFormat = rhi::Format::R10G10B10A2_UNORM;
+    }
+
     m_SwapChainDesc = {};
     m_SwapChainDesc.Width = m_BackBufferWidth;
     m_SwapChainDesc.Height = m_BackBufferHeight;
@@ -365,6 +373,9 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
     hr = pSwapChain1->QueryInterface(IID_PPV_ARGS(&m_SwapChain));
     HR_RETURN(hr);
 
+    const bool hdr = !m_DeviceParams.ForceSDR && CheckHDRSupport();
+    SetColorSpace(m_SwapChainDesc.Format, hdr);
+
     if (!CreateRenderTargets())
         return false;
 
@@ -377,6 +388,23 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
     }
 
     return true;
+}
+
+st::rhi::ColorSpace st::gfx::dx12::DeviceManager::GetColorSpace() const
+{
+    switch (m_DxgiColorSpace)
+    {
+    case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709:
+        return rhi::ColorSpace::SRGB;
+    case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
+        return rhi::ColorSpace::HDR10_ST2084;
+    case DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709:
+        return rhi::ColorSpace::HDR_LINEAR;
+    }
+
+    // Not initialized?
+    assert(0);
+    return rhi::ColorSpace::SRGB;
 }
 
 void st::gfx::dx12::DeviceManager::ReportLiveObjects()
@@ -461,4 +489,66 @@ void st::gfx::dx12::DeviceManager::ReleaseRenderTargets()
         m_Device->ReleaseImmediately(texture);
     }
     m_SwapChainBuffers.clear();
+}
+
+bool st::gfx::dx12::DeviceManager::CheckHDRSupport()
+{
+    // HDR display query: https://docs.microsoft.com/en-us/windows/win32/direct3darticles/high-dynamic-range
+
+    ComPtr<IDXGIOutput> dxgiOutput;
+    if (SUCCEEDED(m_SwapChain->GetContainingOutput(&dxgiOutput)))
+    {
+        ComPtr<IDXGIOutput6> output6;
+        if(SUCCEEDED(dxgiOutput->QueryInterface(IID_PPV_ARGS(&output6))))
+        {
+            DXGI_OUTPUT_DESC1 desc1;
+            if (SUCCEEDED(output6->GetDesc1(&desc1)))
+            {
+                if (desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+void st::gfx::dx12::DeviceManager::SetColorSpace(DXGI_FORMAT swapChainFormat, bool allowHdr)
+{
+    // Ensure correct color space:
+    //	https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12HDR/src/D3D12HDR.cpp
+
+    m_DxgiColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709; // fallback
+
+    DXGI_COLOR_SPACE_TYPE result;
+    switch (swapChainFormat)
+    {
+    case DXGI_FORMAT_R10G10B10A2_UNORM:
+        // This format is either HDR10 (ST.2084), or SDR (SRGB)
+        result = allowHdr ? DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 : DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+        break;
+    case DXGI_FORMAT_R16G16B16A16_FLOAT:
+        // This format is HDR (Linear):
+        result = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
+        break;
+    default:
+        // Anything else will be SDR (SRGB):
+        result = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+        break;
+    }
+
+    UINT colorSpaceSupport = 0;
+    if (SUCCEEDED(m_SwapChain->CheckColorSpaceSupport(result, &colorSpaceSupport)))
+    {
+        if (colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT)
+        {
+            HRESULT hr = m_SwapChain->SetColorSpace1(result);
+            if (SUCCEEDED(hr))
+            {
+                m_DxgiColorSpace = result;
+            }
+        }
+    }
 }

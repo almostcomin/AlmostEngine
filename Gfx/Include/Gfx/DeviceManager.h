@@ -72,7 +72,9 @@ public:
         int SwapChainSampleCount = 1;
         int SwapChainSampleQuality = 0;
         int SwapChainBufferCount = 3;
-        st::rhi::Format SwapChainFormat = st::rhi::Format::SRGBA8_UNORM;
+        // Format can be forced setting it here. If UNKNOWN then will be set automatically to SRGBA8_UNORM (sdr) or R10G10B10A2_UNORM (hdr)
+        st::rhi::Format SwapChainFormat = st::rhi::Format::UNKNOWN;
+        bool ForceSDR = false; // Force SDR or allow hdr. Only if SwapChainFormat is set to UNKNOWN
 
         uint32_t RefreshRate = 0;           // 0 forces the native display's refresh rate
 
@@ -121,6 +123,8 @@ public:
     uint64_t GetFrameCount() const { return m_FrameCount; }
     uint32_t GetSwapchainBufferCount() const { return m_SwapChainFramebuffers.size(); }
     uint32_t GetFrameModuleIndex() const;
+
+    virtual rhi::ColorSpace GetColorSpace() const = 0;
 
     float GetGPUFrameTime();
 

@@ -94,7 +94,7 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 
 		m_PSODesc = rhi::GraphicsPipelineStateDesc
 		{
-			.VS = commonResources->GetFullscreenTriangleVS(),
+			.VS = commonResources->GetBlitVS(),
 			.PS = m_PS.get_weak(),
 			.blendState = blendState,
 			.depthStencilState = depthStencilState,

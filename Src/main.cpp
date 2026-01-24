@@ -100,7 +100,8 @@ int SDL_main(int argc, char* argv[])
 		.WindowHandle = window,
 		.DebugRuntime = true,
 		.GPUValidation = true,
-		.VSyncEnabled = false
+		.VSyncEnabled = false,
+		.ForceSDR = false
 	};
 	deviceManager->Init(initParams);
 

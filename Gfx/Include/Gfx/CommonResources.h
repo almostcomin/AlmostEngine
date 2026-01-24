@@ -25,8 +25,11 @@ public:
 	~CommonResources();
 
 	rhi::GraphicsPipelineStateOwner CreateBlitPSO(const rhi::FramebufferInfo& fbInfo);
+	rhi::GraphicsPipelineStateOwner CreateBlitPSO(const rhi::FramebufferInfo& fbInfo, const rhi::ShaderHandle& VS, const rhi::ShaderHandle& PS, 
+		const std::string debugName);
 
-	rhi::ShaderHandle GetFullscreenTriangleVS() const;
+	rhi::ShaderHandle GetBlitVS() const { return m_BlitVS.get_weak(); }
+	rhi::ShaderHandle GetBlitPS() const { return m_BlitPS.get_weak(); }
 
 private:
 
@@ -35,9 +38,8 @@ private:
 
 	rhi::ShaderOwner m_BlitVS;
 	rhi::ShaderOwner m_BlitPS;
-	rhi::GraphicsPipelineStateDesc m_BlitPSODesc;
 
-	rhi::ShaderOwner m_FullscreenTriangleVS;
+	rhi::GraphicsPipelineStateDesc m_BlitPSODesc;
 };
 
 } // namespace st::gfx

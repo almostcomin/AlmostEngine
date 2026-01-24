@@ -1,6 +1,6 @@
 #pragma once
 #include "Gfx/DeviceManager.h"
-#include <dxgi1_5.h>
+#include <dxgi1_6.h>
 #include "RHI/dx12/d3d12_headers.h"
 #include "RHI/Texture.h"
 #include "Core/ComPtr.h"
@@ -26,6 +26,8 @@ public:
 	st::rhi::TextureHandle GetCurrentBackBuffer() override;
 	st::rhi::TextureHandle GetBackBuffer(uint32_t index) override;
 
+	rhi::ColorSpace GetColorSpace() const override;
+
 	void ReportLiveObjects() override;
 
 private:
@@ -38,6 +40,9 @@ private:
 
 	bool CreateRenderTargets();
 	void ReleaseRenderTargets();
+
+	bool CheckHDRSupport();
+	void SetColorSpace(DXGI_FORMAT swapChainFormat, bool allowHdr);
 
 private:
 
@@ -57,6 +62,8 @@ private:
 
 	ComPtr<ID3D12Fence>				m_FrameFence;
 	std::vector<HANDLE>				m_FrameFenceEvents;
+
+	DXGI_COLOR_SPACE_TYPE		m_DxgiColorSpace;
 
 	std::string						m_RendererString;
 };

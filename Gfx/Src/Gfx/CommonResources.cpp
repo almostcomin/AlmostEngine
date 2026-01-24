@@ -8,7 +8,7 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 	m_BlitVS = m_ShaderFactory->LoadShader("Blit_vs", rhi::ShaderType::Vertex);
 	m_BlitPS = m_ShaderFactory->LoadShader("Blit_ps", rhi::ShaderType::Pixel);
 
-	// Create blit PSO
+	// Create blit PSO desc
 	{
 		rhi::BlendState blendState;
 		blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
@@ -38,11 +38,6 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 			.rasterState = rasterState,
 		};
 	}
-
-	// Load FullscreenTriangle VS
-	{
-		m_FullscreenTriangleVS = m_ShaderFactory->LoadShader("FullscreenTriangle_vs", rhi::ShaderType::Vertex);
-	}
 }
 
 st::gfx::CommonResources::~CommonResources()
@@ -54,7 +49,12 @@ st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateBlitPSO(cons
 	return m_Device->CreateGraphicsPipelineState(m_BlitPSODesc, fbInfo, "BlitPSO");
 }
 
-st::rhi::ShaderHandle st::gfx::CommonResources::GetFullscreenTriangleVS() const
+st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateBlitPSO(const rhi::FramebufferInfo& fbInfo,
+	const rhi::ShaderHandle& VS, const rhi::ShaderHandle& PS, const std::string debugName)
 {
-	return m_FullscreenTriangleVS.get_weak();
+	auto desc = m_BlitPSODesc;
+	desc.VS = VS;
+	desc.PS = PS;
+
+	return m_Device->CreateGraphicsPipelineState(desc, fbInfo, debugName);
 }
