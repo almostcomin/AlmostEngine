@@ -15,6 +15,8 @@ public:
 
 	const char* GetDebugName() const override { return "CompositeRenderStage"; }
 
+	void SetExposure(float v) { m_Exposure = v; }
+
 private:
 
 	rhi::ShaderOwner m_PS;
@@ -26,6 +28,8 @@ private:
 	void OnBackbufferResize() override;
 
 private:
+
+	float m_Exposure = 1.f;
 };
 
 } // namespace st::gfx

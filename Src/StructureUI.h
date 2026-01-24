@@ -32,6 +32,8 @@ public:
 		bool AmbientParamsUpdated = false;
 		st::gfx::Scene::SunParams SunParams;
 		bool SunParamsUpdated = false;
+
+		float exposure = 1.f;
 	};
 
 	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::DeviceManager* deviceManager);

@@ -692,6 +692,11 @@ void StructureUI::BuildSettingsWindow()
         m_Data.AmbientParamsUpdated |= ImGui::ColorEdit3("Ground Color", &m_Data.AmbientParams.GroundColor.x, ImGuiColorEditFlags_Float);
     }
 
+    if (ImGui::CollapsingHeader("Present"))
+    {
+        ImGui::SliderFloat("Exposure", &m_Data.exposure, 0.f, 10.f);
+    }
+
     ImGui::End();
 }
 

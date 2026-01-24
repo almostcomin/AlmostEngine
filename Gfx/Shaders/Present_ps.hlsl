@@ -29,9 +29,9 @@ float4 main(PS_INPUT input) : SV_Target
     else if (Constants.colorSpace == COLOR_SPACE_HDR10_ST2084)
     {
         // https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12HDR/src/presentPS.hlsl
-        const half referenceWhiteNits = 80.0;
-        const half st2084max = 10000.0;
-        const half hdrScalar = referenceWhiteNits / st2084max;
+        const float referenceWhiteNits = 203.0;
+        const float st2084max = 10000.0;
+        const float hdrScalar = Constants.exposure * referenceWhiteNits / st2084max;
 	    // The input is in Rec.709, but the display is Rec.2020
         color.rgb = Rec709ToRec2020(color.rgb);
         // Apply the ST.2084 curve to the result.

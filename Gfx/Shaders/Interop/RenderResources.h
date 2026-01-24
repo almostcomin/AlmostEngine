@@ -133,6 +133,7 @@ namespace interop
     {
         uint sceneTextureDI;
         uint colorSpace; // st::rhi::ColorSpace
+        float exposure;
     };
 }
 

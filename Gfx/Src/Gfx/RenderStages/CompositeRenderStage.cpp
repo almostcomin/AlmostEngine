@@ -26,6 +26,7 @@ void st::gfx::CompositeRenderStage::Render()
 	interop::PresentConstants shaderConstants;
 	shaderConstants.sceneTextureDI = m_RenderView->GetTexture("SceneColor")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.colorSpace = (uint)m_RenderView->GetDeviceManager()->GetColorSpace();
+	shaderConstants.exposure = m_Exposure;
 
 	commandList->PushConstants(shaderConstants);
 

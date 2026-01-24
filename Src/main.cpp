@@ -355,6 +355,8 @@ int SDL_main(int argc, char* argv[])
 				scene->SetSunParams(uiRS->m_Data.SunParams);
 				uiRS->m_Data.SunParamsUpdated = false;
 			}
+
+			compositeRS->SetExposure(uiRS->m_Data.exposure);
 		}
 
 		// Update FPS counter
