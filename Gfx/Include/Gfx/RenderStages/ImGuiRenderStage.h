@@ -53,7 +53,6 @@ private:
 	bool UpdateGeometry();
 
 	bool ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
-	rhi::GraphicsPipelineStateHandle GetPSO(rhi::IFramebuffer* frameBuffer);
 
 protected:
 
@@ -82,15 +81,16 @@ private:
 	rhi::ShaderOwner m_VS;
 	rhi::ShaderOwner m_PS;
 
+	rhi::FramebufferOwner m_FB;
+
 	rhi::GraphicsPipelineStateDesc m_BasePSODesc;
+	rhi::GraphicsPipelineStateOwner m_PSO;
 
 	rhi::TextureOwner m_FontTexture;
 	st::unique<ImGuiTexture> m_GuiFontTexture;
 
 	rhi::BufferOwner m_VertexBuffer[3];
 	rhi::BufferOwner m_IndexBuffer[3];
-
-	rhi::GraphicsPipelineStateOwner m_PSO;
 
 	std::vector<st::unique<ImGuiTexture>> m_CurrentTextures;
 };

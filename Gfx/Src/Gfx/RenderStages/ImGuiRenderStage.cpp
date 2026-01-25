@@ -10,11 +10,16 @@
 
 void st::gfx::ImGuiRenderStage::OnAttached()
 {
+    m_RenderView->CreateColorTarget("ImGui", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
+    m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ImGui",
+        rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+
     Init();
 }
 
 void st::gfx::ImGuiRenderStage::OnDetached()
 {
+    m_RenderView->ReleaseTexture("ImGui");
     Release();
 }
 
@@ -99,16 +104,14 @@ void st::gfx::ImGuiRenderStage::Render()
 
     float2 invDisplaySize = { 1.f / io.DisplaySize.x, 1.f / io.DisplaySize.y };
 
-    rhi::FramebufferHandle frameBuffer = m_RenderView->GetFramebuffer();
-
     commandList->BeginRenderPass(
-        frameBuffer.get(),
-        { rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store} },
+        m_FB.get(),
+        { rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store} },
         {},
         {},
         rhi::RenderPassFlags::None);
 
-    commandList->SetPipelineState(GetPSO(frameBuffer.get()).get());
+    commandList->SetPipelineState(m_PSO.get());
     
     commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
         io.DisplaySize.x* io.DisplayFramebufferScale.x,
@@ -174,7 +177,21 @@ void st::gfx::ImGuiRenderStage::Render()
 
 void st::gfx::ImGuiRenderStage::OnBackbufferResize()
 {
-    // no-op
+    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+    st::rhi::Device* device = deviceManager->GetDevice();
+
+    // Recreate framebuffer
+    {
+        m_FB = device->CreateFramebuffer(rhi::FramebufferDesc()
+            .AddColorAttachment(m_RenderView->GetTexture("ImGui")), "ImGui");
+    }
+
+    // Recreatre PSO
+    {
+        m_PSO = deviceManager->GetDevice()->CreateGraphicsPipelineState(
+            m_BasePSODesc, m_FB->GetFramebufferInfo(), "ImGui PSO");
+        assert(m_PSO);
+    }
 }
 
 bool st::gfx::ImGuiRenderStage::Init()
@@ -183,12 +200,21 @@ bool st::gfx::ImGuiRenderStage::Init()
     st::rhi::Device* device = deviceManager->GetDevice();
     st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 
-    m_VS = shaderFactory->LoadShader("imgui_bindless_vs", rhi::ShaderType::Vertex);
-    m_PS = shaderFactory->LoadShader("imgui_bindless_ps", rhi::ShaderType::Pixel);
-    if (!m_VS || !m_PS)
+    // Load shaders
     {
-        LOG_ERROR("Failed to create ImGui shaders");
-        return false;
+        m_VS = shaderFactory->LoadShader("imgui_bindless_vs", rhi::ShaderType::Vertex);
+        m_PS = shaderFactory->LoadShader("imgui_bindless_ps", rhi::ShaderType::Pixel);
+        if (!m_VS || !m_PS)
+        {
+            LOG_ERROR("Failed to create ImGui shaders");
+            return false;
+        }
+    }
+
+    // Create framebuffer
+    {
+        m_FB = device->CreateFramebuffer(rhi::FramebufferDesc()
+            .AddColorAttachment(m_RenderView->GetTexture("ImGui")), "ImGui");
     }
 
     // Create PSO
@@ -199,8 +225,8 @@ bool st::gfx::ImGuiRenderStage::Init()
             .blendEnable = true,
             .srcBlend = rhi::BlendFactor::SrcAlpha,
             .destBlend = rhi::BlendFactor::InvSrcAlpha,
-            .srcBlendAlpha = rhi::BlendFactor::InvSrcAlpha,
-            .destBlendAlpha = rhi::BlendFactor::Zero
+            .srcBlendAlpha = rhi::BlendFactor::One,
+            .destBlendAlpha = rhi::BlendFactor::InvSrcAlpha
         };
 
         rhi::RasterizerState rasterState =
@@ -227,6 +253,9 @@ bool st::gfx::ImGuiRenderStage::Init()
             .depthStencilState = depthStencilState,
             .rasterState = rasterState
         };
+
+        m_PSO = deviceManager->GetDevice()->CreateGraphicsPipelineState(m_BasePSODesc, m_FB->GetFramebufferInfo(), "ImGui PSO");
+        assert(m_PSO);
     }
 
     return true;
@@ -248,6 +277,11 @@ void st::gfx::ImGuiRenderStage::Release()
         device->ReleaseQueued(m_VertexBuffer[i]);
         device->ReleaseQueued(m_IndexBuffer[i]);
     }
+
+    device->ReleaseQueued(m_PSO);
+    device->ReleaseQueued(m_FB);
+    device->ReleaseQueued(m_PS);
+    device->ReleaseQueued(m_VS);
 }
 
 bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
@@ -368,18 +402,6 @@ bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_
             return false;
     }
     return true;
-}
-
-st::rhi::GraphicsPipelineStateHandle st::gfx::ImGuiRenderStage::GetPSO(rhi::IFramebuffer* frameBuffer)
-{
-    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-
-    if (!m_PSO)
-    {
-        m_PSO = deviceManager->GetDevice()->CreateGraphicsPipelineState(m_BasePSODesc, frameBuffer->GetFramebufferInfo(), "ImGui PSO");
-        assert(m_PSO);
-    }
-    return m_PSO.get_weak();
 }
 
 void st::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, ImGuiTexFlags flags)

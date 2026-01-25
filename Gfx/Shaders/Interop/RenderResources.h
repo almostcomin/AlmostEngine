@@ -129,11 +129,13 @@ namespace interop
         float3 max;
     };
 
-    struct PresentConstants
+    struct CompositeConstants
     {
         uint sceneTextureDI;
+        uint uiTextureDI;
         uint colorSpace; // st::rhi::ColorSpace
         float exposure;
+        uint tonemapping;
     };
 }
 

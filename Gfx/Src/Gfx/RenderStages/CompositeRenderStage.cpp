@@ -23,10 +23,12 @@ void st::gfx::CompositeRenderStage::Render()
 	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
 		(float)fb->GetFramebufferInfo().width, (float)fb->GetFramebufferInfo().height }));
 
-	interop::PresentConstants shaderConstants;
+	interop::CompositeConstants shaderConstants;
 	shaderConstants.sceneTextureDI = m_RenderView->GetTexture("SceneColor")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.uiTextureDI = m_RenderView->GetTexture("ImGui")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.colorSpace = (uint)m_RenderView->GetDeviceManager()->GetColorSpace();
 	shaderConstants.exposure = m_Exposure;
+	shaderConstants.tonemapping = (uint)m_Tonemapping;
 
 	commandList->PushConstants(shaderConstants);
 
@@ -39,11 +41,13 @@ void st::gfx::CompositeRenderStage::OnAttached()
 {
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneColor",
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "ImGui",
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();
-		m_PS = shaderFactory->LoadShader("Present_ps", rhi::ShaderType::Pixel);
+		m_PS = shaderFactory->LoadShader("Composite_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO

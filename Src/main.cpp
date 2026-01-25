@@ -153,9 +153,6 @@ int SDL_main(int argc, char* argv[])
 	// Create debug render stage
 	std::shared_ptr<st::gfx::DebugRenderStage> debugRS{ new st::gfx::DebugRenderStage };
 
-	// Create composite render stage
-	std::shared_ptr<st::gfx::CompositeRenderStage> compositeRS{ new st::gfx::CompositeRenderStage };
-
 	// Create UI render stage
 	std::string requestLoadFile;
 	bool requestClose = false;
@@ -165,6 +162,9 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_RequestClose = [&requestClose] { requestClose = true; };
 	uiRS->m_RequestQuit = [&requestQuit] { requestQuit = true; };
 
+	// Create composite render stage
+	std::shared_ptr<st::gfx::CompositeRenderStage> compositeRS{ new st::gfx::CompositeRenderStage };
+
 	// Create camera
 	auto camera = std::make_shared<st::gfx::Camera>();
 	int windowWidth, windowHeight;
@@ -173,7 +173,7 @@ int SDL_main(int argc, char* argv[])
 	camera->SetPosition({ 0.f, 0.f, 5.f });
 
 	// Add stages to render view
-	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, gBufRS, lightingRS/*opaqueRS*/, debugRS, compositeRS, uiRS});
+	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, gBufRS, lightingRS/*opaqueRS*/, debugRS, uiRS, compositeRS});
 	renderView->SetCamera(camera);
 
 	// Update UI data with initial render stages values
@@ -357,6 +357,7 @@ int SDL_main(int argc, char* argv[])
 			}
 
 			compositeRS->SetExposure(uiRS->m_Data.exposure);
+			compositeRS->SetTonemapping(uiRS->m_Data.tonemapping);
 		}
 
 		// Update FPS counter

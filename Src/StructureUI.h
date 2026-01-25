@@ -34,6 +34,7 @@ public:
 		bool SunParamsUpdated = false;
 
 		float exposure = 1.f;
+		bool tonemapping = true;
 	};
 
 	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::DeviceManager* deviceManager);
