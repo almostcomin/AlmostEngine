@@ -38,6 +38,7 @@ namespace st::rhi::dx12
 		FramebufferOwner CreateFramebuffer(const FramebufferDesc& desc, const std::string& debugName) override;
 		CommandListOwner CreateCommandList(const CommandListParams& params, const std::string& debugName) override;
 		GraphicsPipelineStateOwner CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo, const std::string& debugName) override;
+		ComputePipelineStateOwner CreateComputePipelineState(const ComputePipelineStateDesc& desc, const std::string& debugName) override;
 		FenceOwner CreateFence(uint64_t initialVale, const std::string& debugName) override;
 		TimerQueryOwner CreateTimerQuery(const std::string& debugName) override;
 

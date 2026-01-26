@@ -86,6 +86,7 @@ public:
 	virtual void PushBarrier(const Barrier& barrier) = 0;
 
 	virtual void SetPipelineState(IGraphicsPipelineState* pso) = 0;
+	virtual void SetPipelineState(IComputePipelineState* pso) = 0;
 
 	virtual void SetViewport(const rhi::ViewportState& vp) = 0;
 
@@ -93,9 +94,11 @@ public:
 
 	virtual void SetBlendFactor(const float4& value) = 0;
 
-	virtual void PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes) = 0;
+	virtual void PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute) = 0;
 	template<class T>
-	void PushConstants(const T& data) { PushConstants((const void*)&data, sizeof(T), 0); }
+	void PushGraphicsConstants(const T& data) { PushConstants((const void*)&data, sizeof(T), 0, false); }
+	template<class T>
+	void PushComputeConstants(const T& data) { PushConstants((const void*)&data, sizeof(T), 0, true); }
 
 	virtual void BeginRenderPass(rhi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, 
 		const RenderPassOp& depthRenderPassOp, const RenderPassOp& stencilRenderPassOp, RenderPassFlags flags) = 0;
@@ -103,6 +106,8 @@ public:
 
 	virtual void Draw(uint32_t vertexCount) = 0;
 	virtual void DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount) = 0;
+
+	virtual void Dispatch(uint32_t threadGroupCountX, uint32_t threadGroupCountY, uint32_t threadGroupCountZ) = 0;
 
 	virtual void Discard(IBuffer* buffer) = 0;
 	virtual void Discard(ITexture* texture, int mipLevel = -1, int arraySlice = -1) = 0;

@@ -137,6 +137,16 @@ namespace interop
         float exposure;
         uint tonemapping;
     };
+
+    struct TonemapConstants
+    {
+        uint inputTextureDI;
+        uint outputTextureDI;
+        float contrast;
+        float shoulder;
+        float2 bc;
+        float exposure;
+    };
 }
 
 #endif // __SHADERS_INTEROP_RENDERRESOURCES_H__

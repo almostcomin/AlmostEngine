@@ -20,6 +20,7 @@
 #include "Gfx/RenderStages/GBuffersRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
+#include "Gfx/RenderStages/ToneMappingRenderStage.h"
 #include "StructureUI.h"
 #include <thread>
 #include <sstream>
@@ -150,6 +151,9 @@ int SDL_main(int argc, char* argv[])
 	// Create opaque render stage
 	std::shared_ptr<st::gfx::OpaqueRenderStage> opaqueRS{ new st::gfx::OpaqueRenderStage };
 
+	// Create TonemMapping
+	std::shared_ptr<st::gfx::ToneMappingRenderStage> toneMappingRS{ new st::gfx::ToneMappingRenderStage };
+
 	// Create debug render stage
 	std::shared_ptr<st::gfx::DebugRenderStage> debugRS{ new st::gfx::DebugRenderStage };
 
@@ -173,7 +177,7 @@ int SDL_main(int argc, char* argv[])
 	camera->SetPosition({ 0.f, 0.f, 5.f });
 
 	// Add stages to render view
-	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, gBufRS, lightingRS/*opaqueRS*/, debugRS, uiRS, compositeRS});
+	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, gBufRS, lightingRS/*opaqueRS*/, toneMappingRS, debugRS, uiRS, compositeRS });
 	renderView->SetCamera(camera);
 
 	// Update UI data with initial render stages values

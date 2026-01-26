@@ -34,7 +34,7 @@ void st::gfx::DeferredLightingRenderStage::Render()
 	shaderConstants.GBuffer2DI = m_RenderView->GetTexture("GBuffer2")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.GBuffer3DI = m_RenderView->GetTexture("GBuffer3")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 
-	commandList->PushConstants(shaderConstants);
+	commandList->PushGraphicsConstants(shaderConstants);
 	commandList->Draw(3);
 
 	commandList->EndRenderPass();

@@ -41,6 +41,7 @@ namespace st::rhi::dx12
 		void PushBarrier(const Barrier& barrier) override;
 		
 		void SetPipelineState(IGraphicsPipelineState* pso) override;
+		void SetPipelineState(IComputePipelineState* pso) override;
 
 		void SetViewport(const rhi::ViewportState& vp) override;
 
@@ -48,7 +49,7 @@ namespace st::rhi::dx12
 
 		void SetBlendFactor(const float4& value);
 
-		void PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes) override;
+		void PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute) override;
 
 		void BeginRenderPass(rhi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, 
 			const RenderPassOp& depthRenderPassOp, const RenderPassOp& stencilRenderPassOp, RenderPassFlags flags) override;
@@ -56,6 +57,8 @@ namespace st::rhi::dx12
 
 		void Draw(uint32_t vertexCount) override;
 		void DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount) override;
+
+		void Dispatch(uint32_t threadGroupCountX, uint32_t threadGroupCountY, uint32_t threadGroupCountZ) override;
 
 		void Discard(IBuffer* buffer) override;
 		void Discard(ITexture* texture, int mipLevel, int arraySlice) override;
@@ -82,13 +85,15 @@ namespace st::rhi::dx12
 		
 		QueueType m_Type;
 
-		st::rhi::GraphicsPipelineStateHandle m_CurrentPSO;
+		st::rhi::GraphicsPipelineStateHandle m_CurrentGraphicsPSO;
+		st::rhi::ComputePipelineStateHandle m_CurrentComputePSO;
 		st::rhi::FramebufferHandle m_CurrentFB;
 
 		std::vector<TimerQueryHandle> m_BeginTimerQueries;
 		std::vector<TimerQueryHandle> m_EndTimerQueries;
 
 		uint32_t m_DrawCalls;
+		uint32_t m_DispatchCalls;
 		uint32_t m_PrimitiveCount;
 	};
 }

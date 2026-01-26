@@ -31,13 +31,20 @@ public:
 		Write
 	};
 
+	enum TextureResourceType
+	{
+		RenderTarget,
+		DepthStencil,
+		ShaderResource
+	};
+
 	struct DeclaredTexture
 	{
 		rhi::TextureOwner texture;
 		std::string id;
-		bool isDepthStencil;
-		int originalWidth;
-		int originalHeight;
+		TextureResourceType type;
+		int requestedWidth;
+		int requestedHeight;
 	};
 
 	struct RenderStageTextureDep
@@ -81,9 +88,9 @@ public:
 
 	bool CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
 	bool CreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
+	bool CreateTexture(const char* id, TextureResourceType type, int width, int height, int arraySize, rhi::Format format, bool needUAV);
 
-	bool RecreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
-	bool RecreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
+	bool RecreateTexture(const char* id, int width, int height, int arraySize, rhi::Format format);
 
 	bool ReleaseTexture(const char* id);
 

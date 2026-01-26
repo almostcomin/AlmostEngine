@@ -35,7 +35,7 @@ void st::gfx::DebugRenderStage::Render()
 	interop::DebugStage shaderConstants;
 	shaderConstants.sceneDI = m_RenderView->GetSceneConstantBufferDI();
 	shaderConstants.aaboxDI = bboxBufferDI;	
-	commandList->PushConstants(shaderConstants);
+	commandList->PushGraphicsConstants(shaderConstants);
 
 	commandList->DrawInstanced(24, bboxCount);
 

@@ -163,7 +163,7 @@ void st::gfx::ImGuiRenderStage::Render()
                     cb.textureIndex = rhi::c_InvalidDescriptorIndex;
                 }
 
-                commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0);
+                commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0, false);
                 
                 commandList->Draw(pCmd->ElemCount);
             }

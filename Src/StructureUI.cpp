@@ -898,7 +898,7 @@ void StructureUI::BuildResourcesWindow(bool* p_open)
 
 void StructureUI::BuildRenderStagesWindow()
 {
-    ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(400, 800), ImGuiCond_Once);
     if (!ImGui::Begin(m_RenderView->GetName().c_str(), &m_ShowRenderStages, ImGuiWindowFlags_None))
     {
         ImGui::End();

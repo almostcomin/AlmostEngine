@@ -22,6 +22,46 @@ int GetActualSize(int desired, int ref)
 	return ref / (-desired + 1);
 }
 
+st::rhi::ResourceState GetInitialState(st::gfx::RenderView::TextureResourceType type)
+{
+	switch (type)
+	{
+	case st::gfx::RenderView::TextureResourceType::RenderTarget:
+		return st::rhi::ResourceState::RENDERTARGET;
+	case st::gfx::RenderView::TextureResourceType::DepthStencil:
+		return st::rhi::ResourceState::DEPTHSTENCIL;
+	case st::gfx::RenderView::TextureResourceType::ShaderResource:
+		return st::rhi::ResourceState::SHADER_RESOURCE;
+	default:
+		assert(0);
+		return st::rhi::ResourceState::SHADER_RESOURCE;
+	}
+}
+
+st::rhi::TextureShaderUsage GetTextureShaderUsage(st::gfx::RenderView::TextureResourceType type, bool needUAV)
+{
+	st::rhi::TextureShaderUsage usage;
+	switch (type)
+	{
+	case st::gfx::RenderView::TextureResourceType::RenderTarget:
+		usage = st::rhi::TextureShaderUsage::ShaderResource | st::rhi::TextureShaderUsage::RenderTarget;
+		break;
+	case st::gfx::RenderView::TextureResourceType::DepthStencil:
+		usage = st::rhi::TextureShaderUsage::ShaderResource | st::rhi::TextureShaderUsage::DepthStencil;
+		break;
+	case st::gfx::RenderView::TextureResourceType::ShaderResource:
+		usage = st::rhi::TextureShaderUsage::ShaderResource;
+		break;
+	default:		
+		assert(0);
+		usage = st::rhi::TextureShaderUsage::ShaderResource;
+	}
+	if (needUAV)
+		usage |= st::rhi::TextureShaderUsage::UnorderedAccess;
+	
+	return usage;
+}
+
 } // anonymous namespace
 
 st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
@@ -114,29 +154,16 @@ st::rhi::DescriptorIndex st::gfx::RenderView::GetSceneConstantBufferDI()
 
 bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
 {
-	// Check that texture has not been already created
-	auto it = m_DeclaredTextures.find(id);
-	if (it != m_DeclaredTextures.end())
-	{
-		LOG_ERROR("Texture with id {} already created", id);
-		return false;
-	}
-
-	rhi::TextureDesc desc{
-		.width = (uint32_t)GetActualSize(width, GetFramebuffer()->GetFramebufferInfo().width),
-		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
-		.arraySize = (uint32_t)arraySize,
-		.format = format,
-		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::RenderTarget };
-
-	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, id);
-	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, false, width, height) });
-
-	return true;
+	return CreateTexture(id, TextureResourceType::RenderTarget, width, height, arraySize, format, false);
 }
 
 bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
 {
+	return CreateTexture(id, TextureResourceType::DepthStencil, width, height, arraySize, format, false);
+}
+
+bool st::gfx::RenderView::CreateTexture(const char* id, TextureResourceType type, int width, int height, int arraySize, rhi::Format format, bool needUAV)
+{
 	// Check that texture has not been already created
 	auto it = m_DeclaredTextures.find(id);
 	if (it != m_DeclaredTextures.end())
@@ -150,16 +177,16 @@ bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int heigh
 		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
 		.arraySize = (uint32_t)arraySize,
 		.format = format,
-		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::DepthStencil };
+		.shaderUsage = GetTextureShaderUsage(type, needUAV) };
 
 	// Created in common state
-	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::DEPTHSTENCIL, id);
-	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, true, width, height) });
+	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(type), id);
+	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, type, width, height) });
 
 	return true;
 }
 
-bool st::gfx::RenderView::RecreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
+bool st::gfx::RenderView::RecreateTexture(const char* id, int width, int height, int arraySize, rhi::Format format)
 {
 	// Check that texture has been already created
 	auto it = m_DeclaredTextures.find(id);
@@ -169,14 +196,13 @@ bool st::gfx::RenderView::RecreateColorTarget(const char* id, int width, int hei
 		return false;
 	}
 
-	rhi::TextureDesc desc{
-		.width = (uint32_t)GetActualSize(width, GetFramebuffer()->GetFramebufferInfo().width),
-		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
-		.arraySize = (uint32_t)arraySize,
-		.format = format,
-		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::RenderTarget };
+	rhi::TextureDesc desc = it->second->texture->GetDesc();
+	desc.width = width;
+	desc.height = height;
+	desc.arraySize = arraySize;
+	desc.format = format;
 
-	rhi::TextureOwner newTexture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, id);
+	rhi::TextureOwner newTexture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(it->second->type), id);
 	rhi::TextureOwner& oldTexture = it->second->texture;
 
 	// Swap
@@ -186,41 +212,8 @@ bool st::gfx::RenderView::RecreateColorTarget(const char* id, int width, int hei
 	// but lets do it explicitly
 	m_DeviceManager->GetDevice()->ReleaseQueued(newTexture);
 
-	it->second->originalWidth = width;
-	it->second->originalHeight = height;
-
-	return true;
-}
-
-bool st::gfx::RenderView::RecreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
-{
-	// Check that texture has been already created
-	auto it = m_DeclaredTextures.find(id);
-	if (it == m_DeclaredTextures.end())
-	{
-		LOG_ERROR("Texture with id {} does not exist", id);
-		return false;
-	}
-
-	rhi::TextureDesc desc{
-		.width = (uint32_t)GetActualSize(width, GetFramebuffer()->GetFramebufferInfo().width),
-		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
-		.arraySize = (uint32_t)arraySize,
-		.format = format,
-		.shaderUsage = rhi::TextureShaderUsage::ShaderResource | rhi::TextureShaderUsage::DepthStencil };
-
-	rhi::TextureOwner newTexture = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::DEPTHSTENCIL, id);
-	rhi::TextureOwner& oldTexture = it->second->texture;
-
-	// Swap
-	oldTexture->Swap(*newTexture.get());
-
-	// newTexture (actually the old old since it has been swap-ed) would be released when the owner pointer gets out of scope
-	// but lets do it explicitly
-	m_DeviceManager->GetDevice()->ReleaseQueued(newTexture);
-
-	it->second->originalWidth = width;
-	it->second->originalHeight = height;
+	it->second->requestedWidth = width;
+	it->second->requestedHeight = height;
 
 	return true;
 }
@@ -310,17 +303,17 @@ void st::gfx::RenderView::OnWindowSizeChanged()
 		for (auto& it : m_DeclaredTextures)
 		{
 			auto& declTex = it.second;
-			if (declTex->originalWidth <= 0 || declTex->originalHeight <= 0)
+			if (declTex->requestedWidth <= 0 || declTex->requestedHeight <= 0)
 			{
 				rhi::TextureDesc newDesc = declTex->texture->GetDesc();
-				newDesc.width = GetActualSize(declTex->originalWidth, newSize.x);
-				newDesc.height = GetActualSize(declTex->originalWidth, newSize.y);
+				newDesc.width = GetActualSize(declTex->requestedWidth, newSize.x);
+				newDesc.height = GetActualSize(declTex->requestedHeight, newSize.y);
 				
 				// Lets queue the release just in case, but should not be neccessary because we are waiting for the GPU
 				// At least in the case of swapchan BB.
 				m_DeviceManager->GetDevice()->ReleaseQueued(declTex->texture);
 				declTex->texture = m_DeviceManager->GetDevice()->CreateTexture(newDesc, 
-					declTex->isDepthStencil ? rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET, declTex->id);
+					GetInitialState(declTex->type), declTex->id);
 			}
 		}
 
@@ -358,8 +351,7 @@ void st::gfx::RenderView::Render()
 		std::map<std::string, rhi::ResourceState> resourcesStates;
 		for (auto& entry : m_DeclaredTextures)
 		{
-			resourcesStates.emplace(entry.first, entry.second->isDepthStencil ? 
-				rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET);
+			resourcesStates.emplace(entry.first, GetInitialState(entry.second->type));
 		}
 
 		for (auto& rs : m_RenderStages)
@@ -426,7 +418,7 @@ void st::gfx::RenderView::Render()
 		// All the resources need to go back to it initial state
 		for (auto& tex : m_DeclaredTextures)
 		{
-			rhi::ResourceState initialState = tex.second->isDepthStencil ? rhi::ResourceState::DEPTHSTENCIL : rhi::ResourceState::RENDERTARGET;
+			rhi::ResourceState initialState = GetInitialState(tex.second->type);
 			rhi::ResourceState currentState = resourcesStates.find(tex.first)->second;
 			if (initialState != currentState)
 			{

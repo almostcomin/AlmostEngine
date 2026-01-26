@@ -28,9 +28,9 @@ void st::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 	if (IsEnabled() && IsAttached())
 	{
 		// Create render target
-		m_RenderView->RecreateDepthTarget("Shadowmap", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
+		m_RenderView->RecreateTexture("Shadowmap", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
 #ifdef DEBUG_STAGE
-		m_RenderView->RecreateColorTarget("ShadowmapColor", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, rhi::Format::RGBA8_UNORM);
+		m_RenderView->RecreateTexture("ShadowmapColor", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, rhi::Format::RGBA8_UNORM);
 #endif
 
 		// Recreate Framebuffer
@@ -173,7 +173,7 @@ void st::gfx::ShadowmapRenderStage::Render()
 	{
 		shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
 
-		commandList->PushConstants(shaderConstants);
+		commandList->PushGraphicsConstants(shaderConstants);
 		commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
 	}
 

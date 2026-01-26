@@ -41,9 +41,11 @@ void st::rhi::dx12::CommandList::Open()
 		gpuDevice->GetSamperHeap()->GetHeap()
 	};
 	m_D3d12Commandlist->SetDescriptorHeaps(std::size(heaps), heaps);
-	m_CurrentPSO = nullptr;
+	m_CurrentGraphicsPSO = nullptr;
+	m_CurrentComputePSO = nullptr;
 
 	m_DrawCalls = 0;
+	m_DispatchCalls = 0;
 	m_PrimitiveCount = 0;
 
 	m_BeginTimerQueries.clear();
@@ -232,7 +234,7 @@ void st::rhi::dx12::CommandList::PushBarrier(const Barrier& barrier)
 
 void st::rhi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
 {
-	if (!m_CurrentPSO || m_CurrentPSO.get() != pso)
+	if (!m_CurrentGraphicsPSO || m_CurrentGraphicsPSO.get() != pso)
 	{
 		GraphicsPipelineState* impl = checked_cast<GraphicsPipelineState*>(pso);
 
@@ -241,7 +243,23 @@ void st::rhi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
 		m_D3d12Commandlist->SetPipelineState(pso->GetNativeResource());
 		m_D3d12Commandlist->IASetPrimitiveTopology(GetPrimitiveTopology(impl->GetDesc().primTopo, impl->GetDesc().patchControlPoints));
 
-		m_CurrentPSO = static_pointer_cast<IGraphicsPipelineState>(pso->weak_from_this());
+		m_CurrentGraphicsPSO = static_pointer_cast<IGraphicsPipelineState>(pso->weak_from_this());
+		m_CurrentComputePSO = nullptr;
+	}
+}
+
+void st::rhi::dx12::CommandList::SetPipelineState(IComputePipelineState* pso)
+{
+	if (!m_CurrentComputePSO || m_CurrentComputePSO.get() != pso)
+	{
+		ComputePipelineState* impl = checked_cast<ComputePipelineState*>(pso);
+
+		// TODO: Do not always set root signature
+		m_D3d12Commandlist->SetComputeRootSignature(impl->GetD3d12Desc().pRootSignature);
+		m_D3d12Commandlist->SetPipelineState(pso->GetNativeResource());
+
+		m_CurrentComputePSO = static_pointer_cast<IComputePipelineState>(pso->weak_from_this());
+		m_CurrentGraphicsPSO = nullptr;
 	}
 }
 
@@ -280,12 +298,19 @@ void st::rhi::dx12::CommandList::SetBlendFactor(const float4& value)
 	m_D3d12Commandlist->OMSetBlendFactor(&value.x);
 }
 
-void st::rhi::dx12::CommandList::PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes)
+void st::rhi::dx12::CommandList::PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute)
 {
 	assert(IsAligned(sizeBytes, sizeof(uint32_t)));
 	assert(IsAligned(offsetBytes, sizeof(uint32_t)));
 
-	m_D3d12Commandlist->SetGraphicsRoot32BitConstants(0, sizeBytes / 4, data, offsetBytes / 4);
+	if (isCompute)
+	{
+		m_D3d12Commandlist->SetComputeRoot32BitConstants(0, sizeBytes / 4, data, offsetBytes / 4);
+	}
+	else
+	{
+		m_D3d12Commandlist->SetGraphicsRoot32BitConstants(0, sizeBytes / 4, data, offsetBytes / 4);
+	}
 }
 
 void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, 
@@ -340,7 +365,7 @@ void st::rhi::dx12::CommandList::Draw(uint32_t vertexCount)
 	m_D3d12Commandlist->DrawInstanced(vertexCount, 1, 0, 0);
 	
 	++m_DrawCalls;
-	m_PrimitiveCount += GetPrimitiveCount(vertexCount, m_CurrentPSO->GetDesc().primTopo);
+	m_PrimitiveCount += GetPrimitiveCount(vertexCount, m_CurrentGraphicsPSO->GetDesc().primTopo);
 }
 
 void st::rhi::dx12::CommandList::DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount)
@@ -348,7 +373,14 @@ void st::rhi::dx12::CommandList::DrawInstanced(uint32_t vertexCountPerInstance, 
 	m_D3d12Commandlist->DrawInstanced(vertexCountPerInstance, instanceCount, 0, 0);
 
 	++m_DrawCalls;
-	m_PrimitiveCount += GetPrimitiveCount(vertexCountPerInstance, m_CurrentPSO->GetDesc().primTopo) * instanceCount;
+	m_PrimitiveCount += GetPrimitiveCount(vertexCountPerInstance, m_CurrentGraphicsPSO->GetDesc().primTopo) * instanceCount;
+}
+
+void st::rhi::dx12::CommandList::Dispatch(uint32_t threadGroupCountX, uint32_t threadGroupCountY, uint32_t threadGroupCountZ)
+{
+	m_D3d12Commandlist->Dispatch(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+
+	++m_DispatchCalls;
 }
 
 void st::rhi::dx12::CommandList::Discard(IBuffer* buffer)

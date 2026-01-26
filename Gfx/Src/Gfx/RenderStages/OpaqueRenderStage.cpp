@@ -43,7 +43,7 @@ void st::gfx::OpaqueRenderStage::Render()
 	{
 		shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
 
-		commandList->PushConstants(shaderConstants);
+		commandList->PushGraphicsConstants(shaderConstants);
 		commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
 	}
 

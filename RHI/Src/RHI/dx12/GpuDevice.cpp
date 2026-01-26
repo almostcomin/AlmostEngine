@@ -418,6 +418,22 @@ st::rhi::GraphicsPipelineStateOwner st::rhi::dx12::GpuDevice::CreateGraphicsPipe
 	return InsertNewResource<IGraphicsPipelineState>(new GraphicsPipelineState{ d3d12PSO, d3d12Desc, desc, this, debugName });
 }
 
+st::rhi::ComputePipelineStateOwner st::rhi::dx12::GpuDevice::CreateComputePipelineState(const ComputePipelineStateDesc& desc, const std::string& debugName)
+{
+	D3D12_COMPUTE_PIPELINE_STATE_DESC d3d12Desc = {};
+	d3d12Desc.pRootSignature = m_BindlessRootSignature.Get();
+	d3d12Desc.CS = desc.CS ? D3D12_SHADER_BYTECODE{ desc.CS->GetBytecode().data(), desc.CS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
+
+	ComPtr<ID3D12PipelineState> d3d12PSO;
+	HRESULT hr = m_D3d12Device->CreateComputePipelineState(&d3d12Desc, IID_PPV_ARGS(&d3d12PSO));
+	HR_RETURN_NULL(hr);
+
+	auto ws_nmame = ToWide(debugName.c_str());
+	d3d12PSO->SetName(ws_nmame.c_str());
+
+	return InsertNewResource<IComputePipelineState>(new ComputePipelineState{ d3d12PSO, d3d12Desc, this, debugName });
+}
+
 st::rhi::FenceOwner st::rhi::dx12::GpuDevice::CreateFence(uint64_t initialVale, const std::string& debugName)
 {
 	ComPtr<ID3D12Fence> d3d12Fence;

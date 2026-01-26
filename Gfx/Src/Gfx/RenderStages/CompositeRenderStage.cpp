@@ -30,7 +30,7 @@ void st::gfx::CompositeRenderStage::Render()
 	shaderConstants.exposure = m_Exposure;
 	shaderConstants.tonemapping = (uint)m_Tonemapping;
 
-	commandList->PushConstants(shaderConstants);
+	commandList->PushGraphicsConstants(shaderConstants);
 
 	commandList->Draw(3);
 

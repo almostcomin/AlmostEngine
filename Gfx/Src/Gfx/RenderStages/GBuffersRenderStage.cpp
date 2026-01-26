@@ -44,7 +44,7 @@ void st::gfx::GBuffersRenderStage::Render()
 	{
 		shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
 
-		commandList->PushConstants(shaderConstants);
+		commandList->PushGraphicsConstants(shaderConstants);
 		commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
 	}
 

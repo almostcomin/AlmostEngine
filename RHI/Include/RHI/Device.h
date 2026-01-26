@@ -37,6 +37,7 @@ namespace st::rhi
         virtual FramebufferOwner CreateFramebuffer(const FramebufferDesc& desc, const std::string& debugName) = 0;
         virtual CommandListOwner CreateCommandList(const CommandListParams& params, const std::string& debugName) = 0;
         virtual GraphicsPipelineStateOwner CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo, const std::string& debugName) = 0;
+        virtual ComputePipelineStateOwner CreateComputePipelineState(const ComputePipelineStateDesc& desc, const std::string& debugName) = 0;
         virtual FenceOwner CreateFence(uint64_t initialVale, const std::string& debugName) = 0;
         virtual TimerQueryOwner CreateTimerQuery(const std::string& debugName) = 0;
 

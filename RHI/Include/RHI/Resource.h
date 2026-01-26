@@ -19,6 +19,7 @@ namespace st::rhi
 		CommandList,
 		Shader,
 		GraphicsPipelineState,
+		ComputePipelineState,
 		TimerQuery
 	};
 
