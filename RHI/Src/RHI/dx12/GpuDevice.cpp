@@ -541,7 +541,7 @@ st::rhi::GPUBindingHandle st::rhi::dx12::GpuDevice::GetBindingHandle(ITexture* t
 		switch (view)
 		{
 		case TextureShaderView::ShaderResource:
-		case TextureShaderView::UnorderedAcces:
+		case TextureShaderView::UnorderedAccess:
 			return m_ShaderResourceViewHeap.GetGpuHandle(idx).ptr;
 
 		case TextureShaderView::RenderTarget:

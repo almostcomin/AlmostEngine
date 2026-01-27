@@ -31,6 +31,9 @@ private:
 	rhi::ShaderOwner m_BuildHistogramCS;
 	rhi::ComputePipelineStateOwner m_BuildHistogramPSO;
 
+	rhi::ShaderOwner m_AvgLuminanceCS;
+	rhi::ComputePipelineStateOwner m_AvgLuminancePSO;
+
 	rhi::ShaderOwner m_CS;
 	rhi::ComputePipelineStateOwner m_PSO;
 

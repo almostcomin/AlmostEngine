@@ -196,8 +196,8 @@ int SDL_main(int argc, char* argv[])
 	{
 		const auto currentTime = std::chrono::steady_clock::now();
 		const std::chrono::duration<float> elapsed = currentTime - lastTime;
-		const float elapsedMs = elapsed.count() * 1000.0f;
-		uiRS->m_Data.CPUTime = elapsedMs;
+		const float elapsedSec = elapsed.count();
+		uiRS->m_Data.CPUTime = elapsedSec / 1000;
 		uiRS->m_Data.GPUTime = (std::max)(deviceManager->GetGPUFrameTime(), 0.f);
 
 		if (!requestLoadFile.empty())
@@ -322,8 +322,8 @@ int SDL_main(int argc, char* argv[])
 			SDL_Keymod mod = SDL_GetModState();
 			if (mod & SDL_KMOD_SHIFT)
 				cameraTurboSpeed *= 2.f;
-			newPos += camFwd * cameraTurboSpeed.y * elapsedMs * 0.001f;
-			newPos += -camRight * cameraTurboSpeed.x * elapsedMs * 0.001f;
+			newPos += camFwd * cameraTurboSpeed.y * elapsedSec * 0.001f;
+			newPos += -camRight * cameraTurboSpeed.x * elapsedSec * 0.001f;
 
 			camera->SetPosition(newPos);
 		}
@@ -383,9 +383,9 @@ int SDL_main(int argc, char* argv[])
 			renderView->OnWindowSizeChanged();
 		}
 
-		deviceManager->Render([&renderView]()
+		deviceManager->Render([&renderView, elapsedSec]()
 		{
-			renderView->Render();
+			renderView->Render(elapsedSec);
 		});
 
 		fpsFrameCount++;

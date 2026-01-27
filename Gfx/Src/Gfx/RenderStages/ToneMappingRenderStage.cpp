@@ -13,10 +13,20 @@ void st::gfx::ToneMappingRenderStage::Render()
 	st::rhi::TextureHandle inputTexture = m_RenderView->GetTexture("SceneColor");
 	st::rhi::TextureHandle outputTexture = m_RenderView->GetTexture("ToneMapped");
 	st::rhi::BufferHandle histogramBuffer = m_RenderView->GetBuffer("LuminanceHistogram");
+	st::rhi::TextureHandle avgLuminanceTexture = m_RenderView->GetTexture("LuminanceAverage");
 	const uint32_t width = outputTexture->GetDesc().width;
 	const uint32_t height = outputTexture->GetDesc().height;
 	assert(width == inputTexture->GetDesc().width);
 	assert(height == inputTexture->GetDesc().height);
+	
+	/*
+	* Some considerations:
+	* 
+	* logLuminanceRage: rage of luminance in logarithmic space to be captured:
+	*	minLuminance = 0.001	-> log2(0.001) = -9.97
+	*	maxLuminance = 64.0		-> log2(64.0)  = 6.0
+	*	logLuminanceRange = 6.0	-> -10.0 = 16.0
+	*/
 
 	// First pass, build luminance histogram
 	{
@@ -37,12 +47,32 @@ void st::gfx::ToneMappingRenderStage::Render()
 		commandList->EndMarker();
 	}
 
+	// Average luminance
+	{
+		commandList->BeginMarker("Average luminance");
+		commandList->SetPipelineState(m_AvgLuminancePSO.get());
+
+		interop::AvgLuminanceHistogramConstants shaderConstants;
+		shaderConstants.inputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+		shaderConstants.outputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+		shaderConstants.pixelCount = width * height;
+		shaderConstants.minLogLuminance = -10.f;
+		shaderConstants.logLuminanceRange = 12.f;
+		shaderConstants.timeDelta = m_RenderView->GetTimeDelta();
+		shaderConstants.tau = 1.1f;
+
+		commandList->PushComputeConstants(shaderConstants);
+		commandList->Dispatch(1, 1, 1);
+
+		commandList->EndMarker();
+	}
+
 
 	commandList->SetPipelineState(m_PSO.get());
 
 	interop::TonemapConstants shaderConstants = {};
 	shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAcces);
+	shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
 	shaderConstants.exposure = m_Exposure;
 	shaderConstants.tonemapping = (uint)m_Tonemapping;
 
@@ -57,11 +87,15 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 
 	// Create resources
 	{
-		m_RenderView->CreateTexture("ToneMapped", RenderView::TextureResourceType::RenderTarget,
-			RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
 		m_RenderView->CreateBuffer("LuminanceHistogram", rhi::BufferDesc{
 			.shaderUsage = rhi::BufferShaderUsage::ShaderResource | rhi::BufferShaderUsage::UnorderedAccess,
 			.sizeBytes = 256 * sizeof(uint32_t) });
+
+		m_RenderView->CreateTexture("LuminanceAverage", RenderView::TextureResourceType::ShaderResource,
+			1, 1, 1, rhi::Format::R32_FLOAT, true);
+
+		m_RenderView->CreateTexture("ToneMapped", RenderView::TextureResourceType::RenderTarget,
+			RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
 	}
 
 	// Request resources access
@@ -70,6 +104,8 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 		m_RenderView->RequestBufferAccess(this, RenderView::AccessMode::Write, "LuminanceHistogram",
 			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "LuminanceAverage",
+			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ToneMapped",
 			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 	}
@@ -77,7 +113,9 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		
 		m_BuildHistogramCS = shaderFactory->LoadShader("BuildLuminanceHistogram_cs", rhi::ShaderType::Compute);
+		m_AvgLuminanceCS = shaderFactory->LoadShader("AvgLuminanceHistogram_cs", rhi::ShaderType::Compute);
 		m_CS = shaderFactory->LoadShader("ToneMapping_cs", rhi::ShaderType::Compute);
 	}
 
@@ -85,6 +123,8 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 	{
 		m_BuildHistogramPSO = device->CreateComputePipelineState(
 			rhi::ComputePipelineStateDesc{ m_BuildHistogramCS.get_weak() }, "BuildHistogramPSO");
+		m_AvgLuminancePSO = device->CreateComputePipelineState(
+			rhi::ComputePipelineStateDesc{ m_AvgLuminanceCS.get_weak() }, "AverageLuminancePSO");
 		m_PSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ m_CS.get_weak() }, "TonemappingPSO");
 	}
 }
@@ -93,6 +133,9 @@ void st::gfx::ToneMappingRenderStage::OnDetached()
 {
 	m_PSO = nullptr;
 	m_CS = nullptr;
+
+	m_AvgLuminanceCS = nullptr;
+	m_AvgLuminancePSO = nullptr;
 
 	m_BuildHistogramPSO = nullptr;
 	m_BuildHistogramCS = nullptr;

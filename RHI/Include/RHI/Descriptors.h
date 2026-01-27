@@ -11,7 +11,7 @@ constexpr DescriptorIndex c_InvalidDescriptorIndex = ~0u; // Same as INVALID_DES
 enum class TextureShaderView
 {
 	ShaderResource = 0,
-	UnorderedAcces = 1,
+	UnorderedAccess = 1,
 	RenderTarget = 2,
 	DepthStencil = 3,
 
@@ -21,7 +21,7 @@ enum class TextureShaderUsage
 {
 	None = 0x0,
 	ShaderResource = 0x1 << (int)TextureShaderView::ShaderResource,
-	UnorderedAccess = 0x1 << (int)TextureShaderView::UnorderedAcces,
+	UnorderedAccess = 0x1 << (int)TextureShaderView::UnorderedAccess,
 	RenderTarget = 0x1 << (int)TextureShaderView::RenderTarget,
 	DepthStencil = 0x1 << (int)TextureShaderView::DepthStencil
 };

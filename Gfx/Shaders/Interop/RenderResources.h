@@ -156,6 +156,17 @@ namespace interop
         float minLogLuminance;
         float oneOverLogLuminanceRange;
     };
+
+    struct AvgLuminanceHistogramConstants
+    {
+        uint inputHistogramBufferDI;
+        uint outputAvgLuminanceTextureDI;
+        uint pixelCount;
+        float minLogLuminance;
+        float logLuminanceRange;
+        float timeDelta;
+        float tau;
+    };
 }
 
 #endif // __SHADERS_INTEROP_RENDERRESOURCES_H__

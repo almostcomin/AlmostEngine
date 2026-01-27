@@ -51,6 +51,5 @@ void main(uint groupIndex : SV_GroupIndex, uint3 threadID : SV_DispatchThreadID)
     
     GroupMemoryBarrierWithGroupSync(); // ----------------------------
     
-    outputHistogram.InterlockedAdd(groupIndex * 4, HistogramShared[groupIndex]);
-    
+    outputHistogram.InterlockedAdd(groupIndex * 4, HistogramShared[groupIndex]);    
 }

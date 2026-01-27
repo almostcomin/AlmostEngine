@@ -20,8 +20,8 @@ st::rhi::dx12::Texture::Texture(const st::rhi::TextureDesc& desc, ComPtr<ID3D12R
     if (has_flag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
     {
         auto descriptorHeap = gpuDevice->GetShaderResourceViewHeap();
-        m_ShaderViews[(int)TextureShaderView::UnorderedAcces] = descriptorHeap->AllocateDescriptor();
-        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)TextureShaderView::UnorderedAcces]);
+        m_ShaderViews[(int)TextureShaderView::UnorderedAccess] = descriptorHeap->AllocateDescriptor();
+        const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = descriptorHeap->GetCpuHandle(m_ShaderViews[(int)TextureShaderView::UnorderedAccess]);
         CreateUAV(descriptorHandle, desc.format, desc.dimension, AllSubresources);
     }
 }

@@ -116,7 +116,7 @@ public:
 
 	void OnWindowSizeChanged();
 
-	void Render();
+	void Render(float timeDeltaSec);
 
 	size_t GetNumRenderStages() const { return m_RenderStages.size(); }
 	const RenderStageData* GetRenderStage(uint32_t idx) const { return m_RenderStages[idx]; }
@@ -124,6 +124,8 @@ public:
 	TextureViewTicket RequestTextureView(RenderStage* rs, AccessMode accessMode, const std::string& id);
 	void ReleaseTextureView(TextureViewTicket ticket);
 	rhi::TextureHandle GetTextureView(TextureViewTicket ticket);
+
+	float GetTimeDelta() const { return m_TimeDeltaSec; }
 
 	std::string GetName() const { return m_DebugName; }
 	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }
@@ -180,7 +182,7 @@ private:
 	// Request for visualizing render targets
 	std::vector<TextureViewRequest*> m_TexViewRequests;
 
-	int m_NextTimerToUse = 0;
+	float m_TimeDeltaSec = 0.f;
 
 	// True if a renderstage has added or removed
 	bool m_IsDirty;

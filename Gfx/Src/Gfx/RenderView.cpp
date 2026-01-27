@@ -65,7 +65,7 @@ st::rhi::TextureShaderUsage GetTextureShaderUsage(st::gfx::RenderView::TextureRe
 } // anonymous namespace
 
 st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
-	m_IsDirty{ false }, m_DebugName{ debugName }, m_DeviceManager { deviceManager }
+	m_TimeDeltaSec{ 0.f }, m_IsDirty{ false }, m_DebugName{ debugName }, m_DeviceManager{ deviceManager }
 {
 	rhi::CommandListParams params{
 		.queueType = rhi::QueueType::Graphics
@@ -436,7 +436,7 @@ void st::gfx::RenderView::OnWindowSizeChanged()
 	// TODO: Check if we are resized (or changed) the offscreen BB
 }
 
-void st::gfx::RenderView::Render()
+void st::gfx::RenderView::Render(float timeDeltaSec)
 {
 	if (m_IsDirty)
 	{
@@ -446,6 +446,7 @@ void st::gfx::RenderView::Render()
 	UpdateSceneConstantBuffer();
 	UpdateVisibleSet();
 
+	m_TimeDeltaSec = timeDeltaSec;
 	st::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
 	if (frameBuffer)
 	{
