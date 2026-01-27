@@ -21,6 +21,8 @@ namespace st::rhi::dx12
 
 		DescriptorIndex GetShaderViewIndex(BufferShaderView type) override;
 
+		void Swap(IBuffer& other) override;
+
 		void CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, size_t sizeBytes);
 		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);
 		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);

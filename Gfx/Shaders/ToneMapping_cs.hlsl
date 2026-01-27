@@ -20,5 +20,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     
     color.rgb *= Constants.exposure;
     
+    //float z = pow(
+    
     outputTexture[DTid.xy] = color;
 }

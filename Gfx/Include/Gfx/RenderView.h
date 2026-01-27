@@ -41,13 +41,17 @@ public:
 	struct DeclaredTexture
 	{
 		rhi::TextureOwner texture;
-		std::string id;
 		TextureResourceType type;
 		int requestedWidth;
 		int requestedHeight;
 	};
 
-	struct RenderStageTextureDep
+	struct DeclaredBuffer
+	{
+		rhi::BufferOwner buffer;
+	};
+
+	struct RenderStageResourceDep
 	{
 		std::string id;
 		rhi::ResourceState inputState;
@@ -56,9 +60,11 @@ public:
 
 	struct RenderStageData
 	{
-		std::vector<RenderStageTextureDep> reads;
-		std::vector<RenderStageTextureDep> writes;
 		std::shared_ptr<RenderStage> renderStage;
+		std::vector<RenderStageResourceDep> textureReads;
+		std::vector<RenderStageResourceDep> textureWrites;
+		std::vector<RenderStageResourceDep> bufferReads;
+		std::vector<RenderStageResourceDep> bufferWrites;
 		std::vector<rhi::TimerQueryOwner> timerQueries;
 	};
 
@@ -86,18 +92,27 @@ public:
 	st::rhi::DescriptorIndex GetSceneConstantBufferDI();
 	const std::vector<const st::gfx::MeshInstance*>& GetVisibleSet() const { return m_VisibleSet; }
 
+	// Texture creation / release
 	bool CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
 	bool CreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
 	bool CreateTexture(const char* id, TextureResourceType type, int width, int height, int arraySize, rhi::Format format, bool needUAV);
-
 	bool RecreateTexture(const char* id, int width, int height, int arraySize, rhi::Format format);
-
 	bool ReleaseTexture(const char* id);
 
+	// Buffer creation / release
+	bool CreateBuffer(const std::string& id, const rhi::BufferDesc& desc);
+	bool RecreateBuffer(const std::string& id, const rhi::BufferDesc& desc);
+	bool ReleaseBuffer(const std::string& id);
+
+	// Request access
 	bool RequestTextureAccess(RenderStage* rs, AccessMode accessMode, const std::string& id, rhi::ResourceState inputState, rhi::ResourceState outputState);
+	bool RequestBufferAccess(RenderStage* rs, AccessMode accessMode, const std::string& id, rhi::ResourceState inputState, rhi::ResourceState outputState);
 	
+	// Access
 	rhi::TextureHandle GetTexture(const std::string& id) const;
+	rhi::BufferHandle GetBuffer(const std::string& id) const;
 	rhi::DescriptorIndex GetShaderViewIndex(const std::string& id, rhi::TextureShaderView view);
+	rhi::DescriptorIndex GetShaderViewIndex(const std::string& id, rhi::BufferShaderView view);
 
 	void OnWindowSizeChanged();
 
@@ -141,7 +156,7 @@ private:
 	void Refresh();
 
 	std::vector<TextureViewRequest*> GetTexViewRequests(RenderStage* rs, AccessMode accessMode);
-	void UpdateTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode, const std::map<std::string, rhi::ResourceState> resourcesStates);
+	void UpdateRequestedTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode, const std::map<std::string, rhi::ResourceState> resourcesStates);
 
 private:
 
@@ -152,7 +167,9 @@ private:
 	std::vector<st::rhi::CommandListOwner> m_CommandLists;
 
 	std::vector<RenderStageData*> m_RenderStages;
+
 	std::map<std::string, std::unique_ptr<DeclaredTexture>> m_DeclaredTextures;
+	std::map<std::string, std::unique_ptr<DeclaredBuffer>> m_DeclaredBuffers;
 
 	// Visible set for the current camera
 	std::vector<const st::gfx::MeshInstance*> m_VisibleSet;

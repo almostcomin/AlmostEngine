@@ -65,7 +65,7 @@ RSDepResult ShowRSDep(const char* label, const char* value, bool selected, int i
     ImGui::SameLine(0.0f, 40.0f);
 
     float startX = ImGui::GetCursorPosX();
-    float width = 300.0f;
+    float width = 240.0f;
     float height = ImGui::GetTextLineHeightWithSpacing();
     ImVec2 pos = ImGui::GetCursorScreenPos();
 
@@ -912,11 +912,11 @@ void StructureUI::BuildRenderStagesWindow()
         const auto* rs = m_RenderView->GetRenderStage(rs_idx);
         if (ImGui::CollapsingHeader(rs->renderStage->GetDebugName(), ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (!rs->reads.empty())
+            if (!rs->textureReads.empty())
             {
                 ImGui::SeparatorText("Reads");
 
-                for (const auto& dep : rs->reads)
+                for (const auto& dep : rs->textureReads)
                 {
                     bool selected = (m_RenderStageIOHoveredId == dep.id);
 
@@ -932,11 +932,11 @@ void StructureUI::BuildRenderStagesWindow()
                 }
             }
 
-            if (!rs->writes.empty())
+            if (!rs->textureWrites.empty())
             {
                 ImGui::SeparatorText("Writes");
 
-                for (const auto& dep : rs->writes)
+                for (const auto& dep : rs->textureWrites)
                 {
                     bool selected = (m_RenderStageIOHoveredId == dep.id);
 

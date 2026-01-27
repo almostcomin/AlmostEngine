@@ -360,8 +360,8 @@ int SDL_main(int argc, char* argv[])
 				uiRS->m_Data.SunParamsUpdated = false;
 			}
 
-			compositeRS->SetExposure(uiRS->m_Data.exposure);
-			compositeRS->SetTonemapping(uiRS->m_Data.tonemapping);
+			toneMappingRS->SetExposure(uiRS->m_Data.exposure);
+			toneMappingRS->SetTonemapping(uiRS->m_Data.tonemapping);
 		}
 
 		// Update FPS counter

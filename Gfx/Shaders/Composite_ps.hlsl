@@ -27,22 +27,22 @@ float4 main(PS_INPUT input) : SV_Target
     
     if (Constants.colorSpace == COLOR_SPACE_SRGB)
     {
-        sceneColor.rgb *= Constants.exposure;
+/*        
         if (Constants.tonemapping != 0)
         {
             sceneColor.rgb = ACESFilm_HDR(sceneColor.rgb, 1000.0);
         }
-        
+*/        
         // assuming back-buffer is SRGB, do not LinearToSRGB
     }
     else if (Constants.colorSpace == COLOR_SPACE_HDR10_ST2084)
     {
-        sceneColor.rgb *= Constants.exposure;
+/*        
         if (Constants.tonemapping != 0)
         {
             sceneColor.rgb = ACESFilm_HDR(sceneColor.rgb, 1000.0);
         }
-        
+*/      
         // https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12HDR/src/presentPS.hlsl
         const float referenceWhiteNits = 203.0;
         const float st2084max = 10000.0;

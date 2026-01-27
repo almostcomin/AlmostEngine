@@ -24,11 +24,9 @@ void st::gfx::CompositeRenderStage::Render()
 		(float)fb->GetFramebufferInfo().width, (float)fb->GetFramebufferInfo().height }));
 
 	interop::CompositeConstants shaderConstants;
-	shaderConstants.sceneTextureDI = m_RenderView->GetTexture("SceneColor")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.sceneTextureDI = m_RenderView->GetTexture("ToneMapped")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.uiTextureDI = m_RenderView->GetTexture("ImGui")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.colorSpace = (uint)m_RenderView->GetDeviceManager()->GetColorSpace();
-	shaderConstants.exposure = m_Exposure;
-	shaderConstants.tonemapping = (uint)m_Tonemapping;
 
 	commandList->PushGraphicsConstants(shaderConstants);
 
@@ -39,7 +37,7 @@ void st::gfx::CompositeRenderStage::Render()
 
 void st::gfx::CompositeRenderStage::OnAttached()
 {
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneColor",
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "ToneMapped",
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "ImGui",
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);

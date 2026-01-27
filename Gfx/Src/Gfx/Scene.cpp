@@ -82,7 +82,6 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				.memoryAccess = rhi::MemoryAccess::Default,
 				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
 				.sizeBytes = meshInstances.size() * sizeof(interop::InstanceData),
-				.allowUAV = false,
 				.format = rhi::Format::UNKNOWN,
 				.stride = sizeof(interop::InstanceData) };
 
@@ -111,7 +110,6 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				.memoryAccess = rhi::MemoryAccess::Default,
 				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
 				.sizeBytes = meshes.size() * sizeof(interop::MeshData),
-				.allowUAV = false,
 				.format = rhi::Format::UNKNOWN,
 				.stride = sizeof(interop::MeshData) };
 
@@ -150,7 +148,6 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				.memoryAccess = rhi::MemoryAccess::Default,
 				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
 				.sizeBytes = materials.size() * sizeof(interop::MaterialData),
-				.allowUAV = false,
 				.format = rhi::Format::UNKNOWN,
 				.stride = sizeof(interop::MaterialData) };
 

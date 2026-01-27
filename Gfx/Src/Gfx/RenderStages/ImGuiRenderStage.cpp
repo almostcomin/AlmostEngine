@@ -385,7 +385,6 @@ bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_
         desc.memoryAccess = rhi::MemoryAccess::Upload;
         desc.shaderUsage = rhi::BufferShaderUsage::ShaderResource;
         desc.sizeBytes = uint32_t(reallocateSize);
-        desc.allowUAV = false;
         if (indexBuffer)
         {
             //desc.format = rhi::Format::R16_UINT;

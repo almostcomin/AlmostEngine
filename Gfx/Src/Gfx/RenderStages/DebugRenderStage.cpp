@@ -46,13 +46,13 @@ void st::gfx::DebugRenderStage::OnAttached()
 {
 	// Create Framebuffer
 	{
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor",
+		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ToneMapped",
 			rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth",
 			rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("SceneColor"))
+			.AddColorAttachment(m_RenderView->GetTexture("ToneMapped"))
 			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
 		m_FB = m_RenderView->GetDeviceManager()->GetDevice()->CreateFramebuffer(fbDesc, "DebugRenderStage");
 	}
@@ -98,7 +98,7 @@ void st::gfx::DebugRenderStage::OnBackbufferResize()
 	// Re-create fb
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("SceneColor"))
+			.AddColorAttachment(m_RenderView->GetTexture("ToneMapped"))
 			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
 		m_FB = m_RenderView->GetDeviceManager()->GetDevice()->CreateFramebuffer(fbDesc, "DebugRenderStage");
 	}

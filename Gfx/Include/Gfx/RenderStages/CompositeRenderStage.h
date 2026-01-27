@@ -15,9 +15,6 @@ public:
 
 	const char* GetDebugName() const override { return "CompositeRenderStage"; }
 
-	void SetExposure(float v) { m_Exposure = v; }
-	void SetTonemapping(bool v) { m_Tonemapping = v; }
-
 private:
 
 	rhi::ShaderOwner m_PS;
@@ -27,11 +24,6 @@ private:
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
-
-private:
-
-	float m_Exposure = 1.f;
-	bool m_Tonemapping = true;
 };
 
 } // namespace st::gfx

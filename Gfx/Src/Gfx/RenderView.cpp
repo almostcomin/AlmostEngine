@@ -113,7 +113,8 @@ void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<Rend
 	m_RenderStages.reserve(renderStages.size());
 	for (auto& rs : renderStages)
 	{
-		auto rsd = new RenderStageData{ {}, {}, rs, {} };
+		auto rsd = new RenderStageData;
+		rsd->renderStage = rs;
 		rsd->timerQueries.reserve(m_DeviceManager->GetSwapchainBufferCount());
 		for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
 		{
@@ -179,9 +180,8 @@ bool st::gfx::RenderView::CreateTexture(const char* id, TextureResourceType type
 		.format = format,
 		.shaderUsage = GetTextureShaderUsage(type, needUAV) };
 
-	// Created in common state
 	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(type), id);
-	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), id, type, width, height) });
+	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), type, width, height) });
 
 	return true;
 }
@@ -232,7 +232,58 @@ bool st::gfx::RenderView::ReleaseTexture(const char* id)
 	return true;
 }
 
-bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rs, AccessMode accessMode, const std::string& id, rhi::ResourceState inputState, rhi::ResourceState outputState)
+bool st::gfx::RenderView::CreateBuffer(const std::string& id, const rhi::BufferDesc& desc)
+{
+	// Check that texture has not been already created
+	auto it = m_DeclaredBuffers.find(id);
+	if (it != m_DeclaredBuffers.end())
+	{
+		LOG_ERROR("Buffer with id {} already created", id);
+		return false;
+	}
+
+	rhi::BufferOwner buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, id);
+	m_DeclaredBuffers.insert({ id, std::make_unique<DeclaredBuffer>(std::move(buffer)) });
+
+	return true;
+}
+
+bool st::gfx::RenderView::RecreateBuffer(const std::string& id, const rhi::BufferDesc& desc)
+{
+	// Check that texture has not been already created
+	auto it = m_DeclaredBuffers.find(id);
+	if (it == m_DeclaredBuffers.end())
+	{
+		LOG_ERROR("Buffer with id {} does not exists", id);
+		return false;
+	}
+
+	// Create new buffer
+	rhi::BufferOwner newBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, id);
+	rhi::BufferOwner& oldBuffer = it->second->buffer;
+
+	// Swap
+	oldBuffer->Swap(*newBuffer.get());
+
+	return true;
+}
+
+bool st::gfx::RenderView::ReleaseBuffer(const std::string& id)
+{
+	// Check that texture has not been already created
+	auto it = m_DeclaredBuffers.find(id);
+	if (it == m_DeclaredBuffers.end())
+	{
+		LOG_ERROR("Buffer with id {} does not exists", id);
+		return false;
+	}
+
+	m_DeclaredBuffers.erase(it);
+	return true;
+}
+
+bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rs, AccessMode accessMode, const std::string& id,
+	rhi::ResourceState inputState, rhi::ResourceState outputState)
 {
 	// Find render pass deps
 	auto rs_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const RenderStageData* entry) -> bool
@@ -245,28 +296,67 @@ bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rs, AccessMode acces
 		return false;
 	}
 
-	// Remove prev dependencies
-	auto it = std::find_if((*rs_it)->reads.begin(), (*rs_it)->reads.end(), [&id](const RenderStageTextureDep& dep)
-		{ return dep.id == id; });
-	if (it != (*rs_it)->reads.end())
+	// Remove prev dependency if exists
+	auto removeDeps = [&id](std::vector<RenderStageResourceDep>& deps)
 	{
-		(*rs_it)->reads.erase(it);
-	}
+		auto it = std::find_if(deps.begin(), deps.end(), [&id](const RenderStageResourceDep& dep)
+			{ return dep.id == id; });
+		if (it != deps.end())
+		{
+			deps.erase(it);
+		}
+	};
+	removeDeps((*rs_it)->textureReads);
+	removeDeps((*rs_it)->textureWrites);
 
-	it = std::find_if((*rs_it)->writes.begin(), (*rs_it)->writes.end(), [&id](const RenderStageTextureDep& dep)
-		{ return dep.id == id; });
-	if (it != (*rs_it)->writes.end())
-	{
-		(*rs_it)->writes.erase(it);
-	}
-
+	// Add new dependency
 	if (accessMode == AccessMode::Read)
 	{
-		(*rs_it)->reads.emplace_back(id, inputState, outputState);
+		(*rs_it)->textureReads.emplace_back(id, inputState, outputState);
 	}
 	else
 	{
-		(*rs_it)->writes.emplace_back(id, inputState, outputState);
+		(*rs_it)->textureWrites.emplace_back(id, inputState, outputState);
+	}
+
+	return true;
+}
+
+bool st::gfx::RenderView::RequestBufferAccess(RenderStage* rs, AccessMode accessMode, const std::string& id, 
+	rhi::ResourceState inputState, rhi::ResourceState outputState)
+{
+	// Find render pass deps
+	auto rs_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const RenderStageData* entry) -> bool
+		{
+			return entry->renderStage.get() == rs;
+		});
+	if (rs_it == m_RenderStages.end())
+	{
+		LOG_ERROR("Render pass with debug name {} not registered", rs->GetDebugName());
+		return false;
+	}
+
+	// Remove prev dependency if exists
+	auto removeDeps = [&id](std::vector<RenderStageResourceDep>& deps)
+	{
+		auto it = std::find_if(deps.begin(), deps.end(), [&id](const RenderStageResourceDep& dep)
+			{ return dep.id == id; });
+		if (it != deps.end())
+		{
+			deps.erase(it);
+		}
+	};
+	removeDeps((*rs_it)->bufferReads);
+	removeDeps((*rs_it)->bufferWrites);
+
+	// Add new dependency
+	if (accessMode == AccessMode::Read)
+	{
+		(*rs_it)->bufferReads.emplace_back(id, inputState, outputState);
+	}
+	else
+	{
+		(*rs_it)->bufferWrites.emplace_back(id, inputState, outputState);
 	}
 
 	return true;
@@ -282,12 +372,32 @@ st::rhi::TextureHandle st::gfx::RenderView::GetTexture(const std::string& id) co
 	return nullptr;
 }
 
+st::rhi::BufferHandle st::gfx::RenderView::GetBuffer(const std::string& id) const
+{
+	auto buffer_it = m_DeclaredBuffers.find(id);
+	if (buffer_it != m_DeclaredBuffers.end())
+	{
+		return buffer_it->second->buffer.get_weak();
+	}
+	return nullptr;
+}
+
 st::rhi::DescriptorIndex st::gfx::RenderView::GetShaderViewIndex(const std::string& id, rhi::TextureShaderView view)
 {
 	auto tex = GetTexture(id);
 	if (tex)
 	{
 		return tex->GetShaderViewIndex(view);
+	}
+	return rhi::c_InvalidDescriptorIndex;
+}
+
+st::rhi::DescriptorIndex st::gfx::RenderView::GetShaderViewIndex(const std::string& id, rhi::BufferShaderView view)
+{
+	auto buffer = GetBuffer(id);
+	if (buffer)
+	{
+		return buffer->GetShaderViewIndex(view);
 	}
 	return rhi::c_InvalidDescriptorIndex;
 }
@@ -313,7 +423,7 @@ void st::gfx::RenderView::OnWindowSizeChanged()
 				// At least in the case of swapchan BB.
 				m_DeviceManager->GetDevice()->ReleaseQueued(declTex->texture);
 				declTex->texture = m_DeviceManager->GetDevice()->CreateTexture(newDesc, 
-					GetInitialState(declTex->type), declTex->id);
+					GetInitialState(declTex->type), it.first);
 			}
 		}
 
@@ -347,16 +457,18 @@ void st::gfx::RenderView::Render()
 		commandList->PushBarrier(rhi::Barrier::Texture(
 			frameBuffer->GetDesc().ColorAttachments[0].texture.get(), rhi::ResourceState::PRESENT, rhi::ResourceState::RENDERTARGET));
 
-		// Set initial states info
-		std::map<std::string, rhi::ResourceState> resourcesStates;
+		// Set initial textures state
+		std::map<std::string, rhi::ResourceState> texturesState;
 		for (auto& entry : m_DeclaredTextures)
-		{
-			resourcesStates.emplace(entry.first, GetInitialState(entry.second->type));
-		}
+			texturesState.emplace(entry.first, GetInitialState(entry.second->type));
+		// Same for buffers
+		std::map<std::string, rhi::ResourceState> buffersState;
+		for (auto& entry : m_DeclaredBuffers)
+			buffersState.emplace(entry.first, rhi::ResourceState::SHADER_RESOURCE);
 
 		for (auto& rs : m_RenderStages)
 		{
-			UpdateTextureViews(commandList, rs->renderStage.get(), AccessMode::Read, resourcesStates);
+			UpdateRequestedTextureViews(commandList, rs->renderStage.get(), AccessMode::Read, texturesState);
 
 			if (rs->renderStage->IsEnabled())
 			{
@@ -365,21 +477,36 @@ void st::gfx::RenderView::Render()
 				// Entry barriers
 				{
 					std::vector<rhi::Barrier> barriers;
-					auto getBarriers = [&resourcesStates, &barriers, this](const std::vector<RenderStageTextureDep>& deps)
+					auto getTextureBarriers = [&texturesState, &barriers, this](const std::vector<RenderStageResourceDep>& deps)
+					{
+						for (const auto& dep : deps)
 						{
-							for (const auto& dep : deps)
+							auto state_it = texturesState.find(dep.id);
+							if (state_it != texturesState.end() && state_it->second != dep.inputState)
 							{
-								auto state_it = resourcesStates.find(dep.id);
-								if (state_it != resourcesStates.end() && state_it->second != dep.inputState)
-								{
-									barriers.push_back(rhi::Barrier::Texture(
-										GetTexture(dep.id).get(), state_it->second, dep.inputState));
-									state_it->second = dep.inputState;
-								}
+								barriers.push_back(rhi::Barrier::Texture(
+									GetTexture(dep.id).get(), state_it->second, dep.inputState));
+								state_it->second = dep.inputState;
 							}
-						};
-					getBarriers(rs->reads);
-					getBarriers(rs->writes);
+						}
+					};
+					auto getBufferBarriers = [&buffersState, &barriers, this](const std::vector< RenderStageResourceDep>& deps)
+					{
+						for(const auto& dep : deps)
+						{
+							auto state_it = buffersState.find(dep.id);
+							if (state_it != buffersState.end() && state_it->second != dep.inputState)
+							{
+								barriers.push_back(rhi::Barrier::Buffer(
+									GetBuffer(dep.id).get(), state_it->second, dep.inputState));
+								state_it->second = dep.inputState;
+							}
+						}
+					};
+					getTextureBarriers(rs->textureReads);
+					getTextureBarriers(rs->textureWrites);
+					getBufferBarriers(rs->bufferReads);
+					getBufferBarriers(rs->bufferWrites);
 
 					if (!barriers.empty())
 					{
@@ -389,42 +516,72 @@ void st::gfx::RenderView::Render()
 						commandList->PushBarriers(barriers);
 						commandList->EndMarker();
 					}
-				}
+				} // end entry barriers
 
+				// Render
 				rs->renderStage->Render();
+
 				commandList->EndMarker();
 
-				// Update the resource states with the state left by the stage
+				// Update the resource states
 				{
-					auto updateStates = [&resourcesStates, this](const std::vector<RenderStageTextureDep>& deps)
+					auto updateTextureStates = [&texturesState, this](const std::vector<RenderStageResourceDep>& deps)
+					{
+						for (const auto& dep : deps)
 						{
-							for (const auto& dep : deps)
+							auto state_it = texturesState.find(dep.id);
+							if (state_it != texturesState.end() && state_it->second != dep.outputState)
 							{
-								auto state_it = resourcesStates.find(dep.id);
-								if (state_it != resourcesStates.end() && state_it->second != dep.outputState)
-								{
-									state_it->second = dep.outputState;
-								}
+								state_it->second = dep.outputState;
 							}
-						};
-					updateStates(rs->reads);
-					updateStates(rs->writes);
+						}
+					};
+					auto updateBufferStates = [&buffersState, this](const std::vector<RenderStageResourceDep>& deps)
+					{
+						for (const auto& dep : deps)
+						{
+							auto state_it = buffersState.find(dep.id);
+							if (state_it != buffersState.end() && state_it->second != dep.outputState)
+							{
+								state_it->second = dep.outputState;
+							}
+						}
+					};
+					updateTextureStates(rs->textureReads);
+					updateTextureStates(rs->textureWrites);
+					updateBufferStates(rs->bufferReads);
+					updateBufferStates(rs->bufferWrites);
 				}
 			} // if (rs->renderStage->IsEnabled())
 
-			UpdateTextureViews(commandList, rs->renderStage.get(), AccessMode::Write, resourcesStates);
+			UpdateRequestedTextureViews(commandList, rs->renderStage.get(), AccessMode::Write, texturesState);
 		}
 
 		// All the resources need to go back to it initial state
-		for (auto& tex : m_DeclaredTextures)
 		{
-			rhi::ResourceState initialState = GetInitialState(tex.second->type);
-			rhi::ResourceState currentState = resourcesStates.find(tex.first)->second;
-			if (initialState != currentState)
+			std::vector<rhi::Barrier> barriers;
+			for (auto& tex : m_DeclaredTextures)
 			{
-				commandList->PushBarrier(rhi::Barrier::Texture(tex.second->texture.get(), currentState, initialState));
+				rhi::ResourceState initialState = GetInitialState(tex.second->type);
+				rhi::ResourceState currentState = texturesState.find(tex.first)->second;
+				if (initialState != currentState)
+				{
+					barriers.push_back(rhi::Barrier::Texture(tex.second->texture.get(), currentState, initialState));
+				}
 			}
-			
+			for (auto& buffer : m_DeclaredBuffers)
+			{
+				rhi::ResourceState initialState = rhi::ResourceState::SHADER_RESOURCE;
+				rhi::ResourceState currentState = buffersState.find(buffer.first)->second;
+				if (initialState != currentState)
+				{
+					barriers.push_back(rhi::Barrier::Buffer(buffer.second->buffer.get(), currentState, initialState));
+				}
+			}
+			if (!barriers.empty())
+			{
+				commandList->PushBarriers(barriers);
+			}
 		}
 
 		// Back buffer to common so it can be presented
@@ -434,6 +591,7 @@ void st::gfx::RenderView::Render()
 		commandList->EndMarker();
 		commandList->Close();
 
+		// Execute!
 		m_DeviceManager->GetDevice()->ExecuteCommandList(commandList.get(), st::rhi::QueueType::Graphics);
 	}
 	else
@@ -509,7 +667,6 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 			.memoryAccess = rhi::MemoryAccess::Upload,
 			.shaderUsage = rhi::BufferShaderUsage::ConstantBuffer,
 			.sizeBytes = sizeof(interop::Scene),
-			.allowUAV = false,
 			.stride = 0 };
 
 		m_SceneCB = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, "Scene CB");
@@ -606,7 +763,8 @@ std::vector<st::gfx::RenderView::TextureViewRequest*> st::gfx::RenderView::GetTe
 	return ret;
 }
 
-void st::gfx::RenderView::UpdateTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode, const std::map<std::string, rhi::ResourceState> resourcesStates)
+void st::gfx::RenderView::UpdateRequestedTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode, 
+	const std::map<std::string, rhi::ResourceState> texturesState)
 {
 	auto requests = GetTexViewRequests(rs, accessMode);
 	for (auto req : requests)
@@ -647,7 +805,7 @@ void st::gfx::RenderView::UpdateTextureViews(st::rhi::CommandListHandle commandL
 			assert(req->tex);
 		}
 
-		rhi::ResourceState srcTexState = resourcesStates.find(req->id)->second;
+		rhi::ResourceState srcTexState = texturesState.find(req->id)->second;
 
 		rhi::Barrier entryBarriers[] = {
 			rhi::Barrier::Texture(sourceTex.get(), srcTexState, rhi::ResourceState::COPY_SRC),

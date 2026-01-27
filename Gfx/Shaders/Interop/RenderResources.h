@@ -134,8 +134,6 @@ namespace interop
         uint sceneTextureDI;
         uint uiTextureDI;
         uint colorSpace; // st::rhi::ColorSpace
-        float exposure;
-        uint tonemapping;
     };
 
     struct TonemapConstants
@@ -146,6 +144,17 @@ namespace interop
         float shoulder;
         float2 bc;
         float exposure;
+        uint tonemapping;
+    };
+
+    struct BuildLuminanceHistogramConstants
+    {
+        uint inputTextureDI;
+        uint outputHistogramBufferDI; // 256 4-byte (uint32) elements
+        uint2 viewBegin;
+        uint2 viewEnd;
+        float minLogLuminance;
+        float oneOverLogLuminanceRange;
     };
 }
 

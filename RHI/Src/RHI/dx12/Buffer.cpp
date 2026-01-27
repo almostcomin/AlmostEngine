@@ -93,6 +93,16 @@ st::rhi::DescriptorIndex st::rhi::dx12::Buffer::GetShaderViewIndex(BufferShaderV
     return m_ShaderViews[(int)type];
 }
 
+void st::rhi::dx12::Buffer::Swap(IBuffer& other)
+{
+    auto* otherBuffer = st::checked_cast<Buffer*>(&other);
+
+    std::swap(m_Desc, otherBuffer->m_Desc);
+    std::swap(m_mapAddr, otherBuffer->m_mapAddr);
+    std::swap(m_ShaderViews, otherBuffer->m_ShaderViews);
+    std::swap(m_Resource, otherBuffer->m_Resource);
+}
+
 void st::rhi::dx12::Buffer::CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, size_t sizeBytes)
 {
     assert(IsAligned(offsetBytes, (uint32_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));

@@ -15,8 +15,8 @@ namespace
     st::ComPtr<IDxcIncludeHandler> IncludeHandler;
 } // anonymouse namespace
 
-st::Blob st::rhi::ShaderCompiler::Compile(ShaderType shaderType, const st::WeakBlob& srcData, const std::string& includeFolder, const std::string& entryPoint, 
-    bool debugMode)
+st::Blob st::rhi::ShaderCompiler::Compile(const std::string& shaderName, ShaderType shaderType, const st::WeakBlob& srcData, const std::string& includeFolder,
+    const std::string& entryPoint, bool debugMode)
 {
     if (!Utils)
     {
@@ -41,10 +41,12 @@ st::Blob st::rhi::ShaderCompiler::Compile(ShaderType shaderType, const st::WeakB
         }
     }();
 
+    std::wstring wsName = ToWide(shaderName.c_str());
     std::wstring wsEntryPoint = ToWide(entryPoint.c_str());
     std::wstring wsIncludeFolder = ToWide(includeFolder.c_str());
     std::vector<LPCWSTR> compilationArguments = 
     {
+        wsName.c_str(),
         L"-HV",
         L"2021",
         L"-E",

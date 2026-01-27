@@ -210,7 +210,8 @@ st::rhi::BufferOwner st::rhi::dx12::GpuDevice::CreateBuffer(const BufferDesc& de
 	d3d12Desc.SampleDesc.Count = 1;
 	d3d12Desc.SampleDesc.Quality = 0;
 	d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	d3d12Desc.Flags = fixedDesc.allowUAV ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+	d3d12Desc.Flags = (fixedDesc.shaderUsage & BufferShaderUsage::UnorderedAccess) == 0 ?
+		D3D12_RESOURCE_FLAG_NONE : D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	// TODO: D3D12MA
 	D3D12_HEAP_PROPERTIES heapProps = {};

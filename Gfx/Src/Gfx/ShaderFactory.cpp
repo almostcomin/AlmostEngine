@@ -64,7 +64,7 @@ st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const std::string& name,
 
 				LOG_INFO("Compiling shader '{}'...", srcPath.string());
 				auto startTime = std::chrono::steady_clock::now();
-				byteCode = st::rhi::ShaderCompiler::Compile(shaderType, st::WeakBlob{ *readResult }, SHADERS_SRC_FOLDER, "main", true);
+				byteCode = st::rhi::ShaderCompiler::Compile(srcPath.filename().string(), shaderType, st::WeakBlob{ *readResult }, SHADERS_SRC_FOLDER, "main", true);
 				auto elapsed = std::chrono::steady_clock::now() - startTime;
 
 				if (byteCode)
