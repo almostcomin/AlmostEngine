@@ -28,8 +28,11 @@ public:
 	rhi::GraphicsPipelineStateOwner CreateBlitPSO(const rhi::FramebufferInfo& fbInfo, const rhi::ShaderHandle& VS, const rhi::ShaderHandle& PS, 
 		const std::string debugName);
 
+	rhi::ComputePipelineStateHandle GetClearBufferPSO() { return m_ClearBufferPSO.get_weak(); }
+
 	rhi::ShaderHandle GetBlitVS() const { return m_BlitVS.get_weak(); }
 	rhi::ShaderHandle GetBlitPS() const { return m_BlitPS.get_weak(); }
+	rhi::ShaderHandle GetClearBufferCS() const { return m_ClearBufferCS.get_weak(); }
 
 private:
 
@@ -38,8 +41,10 @@ private:
 
 	rhi::ShaderOwner m_BlitVS;
 	rhi::ShaderOwner m_BlitPS;
-
 	rhi::GraphicsPipelineStateDesc m_BlitPSODesc;
+
+	rhi::ShaderOwner m_ClearBufferCS;
+	rhi::ComputePipelineStateOwner m_ClearBufferPSO;
 };
 
 } // namespace st::gfx

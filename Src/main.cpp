@@ -21,7 +21,7 @@
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
-#include "StructureUI.h"
+#include "UI/StructureUI.h"
 #include <thread>
 #include <sstream>
 #include <iomanip>
@@ -184,6 +184,8 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_Data.ShadowmapSize = shadowmapRS->GetSize();
 	uiRS->m_Data.AmbientParams = scene->GetAmbientParams();
 	uiRS->m_Data.SunParams = scene->GetSunParams();
+	uiRS->m_Data.minLogLuminance = toneMappingRS->GetMinLogLuminance();
+	uiRS->m_Data.logLuminanceRange = toneMappingRS->GetLogLuminanceRange();
 
 	// Main loop
 
@@ -322,8 +324,8 @@ int SDL_main(int argc, char* argv[])
 			SDL_Keymod mod = SDL_GetModState();
 			if (mod & SDL_KMOD_SHIFT)
 				cameraTurboSpeed *= 2.f;
-			newPos += camFwd * cameraTurboSpeed.y * elapsedSec * 0.001f;
-			newPos += -camRight * cameraTurboSpeed.x * elapsedSec * 0.001f;
+			newPos += camFwd * cameraTurboSpeed.y * elapsedSec;
+			newPos += -camRight * cameraTurboSpeed.x * elapsedSec;
 
 			camera->SetPosition(newPos);
 		}
@@ -362,6 +364,8 @@ int SDL_main(int argc, char* argv[])
 
 			toneMappingRS->SetExposure(uiRS->m_Data.exposure);
 			toneMappingRS->SetTonemapping(uiRS->m_Data.tonemapping);
+			toneMappingRS->SetMinLogLuminance(uiRS->m_Data.minLogLuminance);
+			toneMappingRS->SetLogLuminanceRange(uiRS->m_Data.logLuminanceRange);
 		}
 
 		// Update FPS counter

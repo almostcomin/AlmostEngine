@@ -10,7 +10,7 @@ st::rhi::dx12::Buffer::Buffer(const BufferDesc& desc, ID3D12Resource* buffer, De
     m_ShaderViews{ c_InvalidDescriptorIndex, c_InvalidDescriptorIndex, c_InvalidDescriptorIndex },
     m_Resource { buffer }
 {
-    if (desc.memoryAccess == MemoryAccess::Upload)
+    if (desc.memoryAccess == MemoryAccess::Upload || desc.memoryAccess == MemoryAccess::Readback)
     {
         // always mapped
         m_Resource->Map(0, nullptr, (void**)&m_mapAddr);

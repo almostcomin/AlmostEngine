@@ -5,6 +5,13 @@
 
 namespace interop
 {
+    struct ClearBufferConstants
+    {
+        uint32_t bufferDI;
+        uint32_t bufferElementCount; // uints
+        uint32_t clearValue;
+    };
+
     // There is a max limit to the number of lights in the engine.
     // Index 0 of both the light buffer will be
     // reserved for directional light.

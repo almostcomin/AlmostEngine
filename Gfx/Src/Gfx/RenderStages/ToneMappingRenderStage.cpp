@@ -2,11 +2,20 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
+#include "Gfx/CommonResources.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
+st::gfx::ToneMappingRenderStage::ToneMappingRenderStage()
+{
+	// [-10..+2] log range
+	m_MinLogLuminance = -10.f;			// exp2(-10) = 0.0009765625 -> min luminance
+	m_LogLuminanceRange = 12;			// exp2(-10 + 12) = exp2(2) = 4 -> max luminance
+}
+
 void st::gfx::ToneMappingRenderStage::Render()
 {
+	CommonResources* commonResources = m_RenderView->GetDeviceManager()->GetCommonResources();
 	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 	auto commandList = m_RenderView->GetCommandList();
 
@@ -19,6 +28,23 @@ void st::gfx::ToneMappingRenderStage::Render()
 	assert(width == inputTexture->GetDesc().width);
 	assert(height == inputTexture->GetDesc().height);
 	
+	// Clear luminance histogram buffer
+	{
+		commandList->BeginMarker("Clear histogram");
+		commandList->SetPipelineState(commonResources->GetClearBufferPSO().get());
+
+		interop::ClearBufferConstants shaderConstants;
+		shaderConstants.bufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+		const uint32_t elemCount = histogramBuffer->GetDesc().sizeBytes / 4;
+		shaderConstants.bufferElementCount = elemCount;
+		shaderConstants.clearValue = 0;
+
+		commandList->PushComputeConstants(shaderConstants);
+		commandList->Dispatch((elemCount + 255) / 256, 1, 1);
+
+		commandList->EndMarker();
+	}
+
 	/*
 	* Some considerations:
 	* 
@@ -31,6 +57,7 @@ void st::gfx::ToneMappingRenderStage::Render()
 	// First pass, build luminance histogram
 	{
 		commandList->BeginMarker("Build histogram");		
+		commandList->PushBarrier(rhi::Barrier::Memory(histogramBuffer.get()));
 		commandList->SetPipelineState(m_BuildHistogramPSO.get());
 
 		interop::BuildLuminanceHistogramConstants shaderConstants;
@@ -38,8 +65,8 @@ void st::gfx::ToneMappingRenderStage::Render()
 		shaderConstants.outputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
 		shaderConstants.viewBegin = uint2{ 0 };
 		shaderConstants.viewEnd = uint2{ outputTexture->GetDesc().width, outputTexture->GetDesc().height };
-		shaderConstants.minLogLuminance = -10.f;
-		shaderConstants.oneOverLogLuminanceRange = 1.f / 12;
+		shaderConstants.minLogLuminance = m_MinLogLuminance;
+		shaderConstants.oneOverLogLuminanceRange = 1.f / m_LogLuminanceRange;
 
 		commandList->PushComputeConstants(shaderConstants);
 		commandList->Dispatch((width + 15)/ 16, (height + 15) / 16, 1);
@@ -50,14 +77,15 @@ void st::gfx::ToneMappingRenderStage::Render()
 	// Average luminance
 	{
 		commandList->BeginMarker("Average luminance");
+		commandList->PushBarrier(rhi::Barrier::Memory(histogramBuffer.get()));
 		commandList->SetPipelineState(m_AvgLuminancePSO.get());
 
 		interop::AvgLuminanceHistogramConstants shaderConstants;
 		shaderConstants.inputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
 		shaderConstants.outputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
 		shaderConstants.pixelCount = width * height;
-		shaderConstants.minLogLuminance = -10.f;
-		shaderConstants.logLuminanceRange = 12.f;
+		shaderConstants.minLogLuminance = m_MinLogLuminance;
+		shaderConstants.logLuminanceRange = m_LogLuminanceRange;
 		shaderConstants.timeDelta = m_RenderView->GetTimeDelta();
 		shaderConstants.tau = 1.1f;
 

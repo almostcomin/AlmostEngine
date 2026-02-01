@@ -5,6 +5,8 @@
 #include <functional>
 #include "Core/Memory.h"
 
+struct MemoryEditor;
+
 namespace st::gfx
 {
 	class SceneGraphNode;
@@ -35,9 +37,12 @@ public:
 
 		float exposure = 1.f;
 		bool tonemapping = true;
+		float minLogLuminance = -10.f;
+		float logLuminanceRange = 12.f;
 	};
 
 	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::DeviceManager* deviceManager);
+	~StructureUI();
 
 	void BuildUI() override;
 
@@ -68,6 +73,15 @@ private:
 		bool firstShow = true;
 	};
 
+	struct RenderStageBufferView
+	{
+		st::gfx::RenderStage* renderStage;
+		st::gfx::RenderView::AccessMode accessMode;
+		std::string id;
+		st::gfx::RenderView::TextureViewTicket ticket;
+		std::unique_ptr<MemoryEditor> memEditor;
+	};
+
 private:
 
 	void BuildMainMenu();
@@ -78,11 +92,15 @@ private:
 	void BuildSceneWindow(bool* p_open);
 	void BuildResourcesWindow(bool* p_open);
 	void BuildRenderStagesWindow();
+	void BuildRSViews();
+
 	bool BuildRSTexView(RenderStageTextureView* rsTexView);
+	bool BuildRSBufferView(RenderStageBufferView* rsBufferView);
 
 	void BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf);
 
 	void AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id);
+	void AddRenderStageBufferView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id);
 
 	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
 	std::string SaveFileNativeDialog(const std::string& filename);
@@ -106,4 +124,6 @@ private:
 	std::string m_RenderStageIOHoveredId;
 
 	std::vector<RenderStageTextureView> m_RSTextureViews;
+	std::vector<RenderStageBufferView> m_RSBufferViews;
+	st::gfx::RenderView::TextureViewTicket m_RSViewFocus;
 };

@@ -82,6 +82,8 @@ public:
 	virtual void CopyTextureToTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& dstSubresources,
 		ITexture* srcTexture, const rhi::TextureSubresourceSet& srcSubresources) = 0;
 
+	virtual void CopyBufferToBuffer(IBuffer* dstBuffer, IBuffer* srcBuffer) = 0;
+
 	virtual void PushBarriers(std::span<const Barrier> barriers) = 0;
 	virtual void PushBarrier(const Barrier& barrier) = 0;
 

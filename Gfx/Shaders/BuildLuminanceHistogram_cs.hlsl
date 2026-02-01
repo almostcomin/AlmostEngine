@@ -45,11 +45,11 @@ void main(uint groupIndex : SV_GroupIndex, uint3 threadID : SV_DispatchThreadID)
     if (valid)
     {
         float3 color = inputTexture[pixelPos].xyz;
-        uint binIdx = ColorToHistogramBin(color * 10.0);
+        uint binIdx = ColorToHistogramBin(color);
         InterlockedAdd(HistogramShared[binIdx], 1);
     }
     
     GroupMemoryBarrierWithGroupSync(); // ----------------------------
     
-    outputHistogram.InterlockedAdd(groupIndex * 4, HistogramShared[groupIndex]);    
+    outputHistogram.InterlockedAdd(groupIndex * 4, HistogramShared[groupIndex]);
 }

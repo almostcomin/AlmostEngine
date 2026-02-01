@@ -146,6 +146,18 @@ void st::rhi::dx12::CommandList::CopyTextureToTexture(ITexture* dstTexture, cons
 	m_D3d12Commandlist->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 }
 
+void st::rhi::dx12::CommandList::CopyBufferToBuffer(IBuffer* dstBuffer, IBuffer* srcBuffer)
+{
+	const auto& dstDesc = dstBuffer->GetDesc();
+	const auto& srcDesc = srcBuffer->GetDesc();
+	assert(dstDesc.sizeBytes == srcDesc.sizeBytes);
+
+	m_D3d12Commandlist->CopyBufferRegion(
+		dstBuffer->GetNativeResource(), 0,
+		srcBuffer->GetNativeResource(), 0,
+		dstDesc.sizeBytes);
+}
+
 void st::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers)
 {
 	std::vector<D3D12_RESOURCE_BARRIER> d3d12Barriers;

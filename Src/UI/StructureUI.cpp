@@ -15,6 +15,7 @@
 #include <SDL3/SDL.h>
 #include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
 #include <sstream>
+#include "imgui_memory_editor.h"
 
 namespace
 {
@@ -61,11 +62,11 @@ RSDepResult ShowRSDep(const char* label, const char* value, bool selected, int i
     ImGui::PushID(id);
 
     // Label
-    ImGui::TextUnformatted(label);
-    ImGui::SameLine(0.0f, 40.0f);
-
     float startX = ImGui::GetCursorPosX();
-    float width = 240.0f;
+    ImGui::TextUnformatted(label);
+    ImGui::SameLine(90.0f);
+
+    float width = 160.0f;
     float height = ImGui::GetTextLineHeightWithSpacing();
     ImVec2 pos = ImGui::GetCursorScreenPos();
 
@@ -83,7 +84,7 @@ RSDepResult ShowRSDep(const char* label, const char* value, bool selected, int i
     ImGui::TextUnformatted(value);
 
     // Button
-    ImGui::SameLine(startX + width + 8.0f);
+    ImGui::SameLine(startX + 90.f + width + 8.0f);
     ret.clicked = ImGui::Button("...", ImVec2(24, 0));
 
     ImGui::PopID();
@@ -314,6 +315,9 @@ StructureUI::StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* w
     }
 }
 
+StructureUI::~StructureUI()
+{}
+
 void StructureUI::BuildUI()
 {
     if (!m_Data.ShowUI)
@@ -348,18 +352,7 @@ void StructureUI::BuildUI()
     if (m_ShowRenderStages)
         BuildRenderStagesWindow();
 
-    for (auto it = m_RSTextureViews.begin(); it != m_RSTextureViews.end();)
-    {
-        if (BuildRSTexView(&(*it)))
-        {
-            it++;
-        }
-        else
-        {
-            m_RenderView->ReleaseTextureView(it->ticket);
-            it = m_RSTextureViews.erase(it);
-        }        
-    }
+    BuildRSViews();
 }
 
 void StructureUI::OnSceneChanged()
@@ -692,10 +685,18 @@ void StructureUI::BuildSettingsWindow()
         m_Data.AmbientParamsUpdated |= ImGui::ColorEdit3("Ground Color", &m_Data.AmbientParams.GroundColor.x, ImGuiColorEditFlags_Float);
     }
 
-    if (ImGui::CollapsingHeader("Postprocess"))
+    if (ImGui::CollapsingHeader("Tonemapping"))
     {
+        const float minLogLuminance = -20.f;
+        const float maxLogLuminance = 0.f;
+        ImGui::SliderScalar("Min luminance", ImGuiDataType_Float, &m_Data.minLogLuminance, &minLogLuminance, &maxLogLuminance, "%.3f");
+
+        const float minLogRange = 0.f;
+        const float maxLogRange = 24.f;
+        ImGui::SliderScalar("Max luminance", ImGuiDataType_Float, &m_Data.logLuminanceRange, &minLogRange, &maxLogRange, "%.3f");
+
         ImGui::SliderFloat("Exposure", &m_Data.exposure, 0.f, 10.f);
-        ImGui::Checkbox("Tonemapping", &m_Data.tonemapping);
+        //ImGui::Checkbox("Tonemapping", &m_Data.tonemapping);
     }
 
     ImGui::End();
@@ -898,7 +899,10 @@ void StructureUI::BuildResourcesWindow(bool* p_open)
 
 void StructureUI::BuildRenderStagesWindow()
 {
-    ImGui::SetNextWindowSize(ImVec2(400, 800), ImGuiCond_Once);
+    float parentHeight = ImGui::GetIO().DisplaySize.y;
+    float windowHeight = parentHeight * 0.9f;
+
+    ImGui::SetNextWindowSize(ImVec2(320, windowHeight), ImGuiCond_Once);
     if (!ImGui::Begin(m_RenderView->GetName().c_str(), &m_ShowRenderStages, ImGuiWindowFlags_None))
     {
         ImGui::End();
@@ -912,50 +916,86 @@ void StructureUI::BuildRenderStagesWindow()
         const auto* rs = m_RenderView->GetRenderStage(rs_idx);
         if (ImGui::CollapsingHeader(rs->renderStage->GetDebugName(), ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (!rs->textureReads.empty())
+            auto addDep = [this, &newHoveredId, &propid, rs](const std::vector<st::gfx::RenderView::RenderStageResourceDep>& deps, bool isWrite, bool isBuffer)
+            {
+                for (const auto& dep : deps)
+                {
+                    bool selected = (m_RenderStageIOHoveredId == dep.id);
+
+                    RSDepResult result = ShowRSDep(isBuffer ? "BUFFER" : "TEXTURE", dep.id.c_str(), selected, propid++);
+                    if (result.hovered)
+                    {
+                        newHoveredId = dep.id;
+                    }
+                    if (result.clicked)
+                    {
+                        if(isBuffer)
+                            AddRenderStageBufferView(rs->renderStage.get(), isWrite ? st::gfx::RenderView::AccessMode::Write : st::gfx::RenderView::AccessMode::Read, dep.id);
+                        else
+                            AddRenderStageTextureView(rs->renderStage.get(), isWrite ? st::gfx::RenderView::AccessMode::Write : st::gfx::RenderView::AccessMode::Read, dep.id);
+                    }
+                }
+            };
+
+            if (!rs->textureReads.empty() || !rs->bufferReads.empty())
             {
                 ImGui::SeparatorText("Reads");
-
-                for (const auto& dep : rs->textureReads)
-                {
-                    bool selected = (m_RenderStageIOHoveredId == dep.id);
-
-                    RSDepResult result = ShowRSDep("id", dep.id.c_str(), selected, propid++);
-                    if (result.hovered)
-                    {
-                        newHoveredId = dep.id;
-                    }
-                    if (result.clicked)
-                    {
-                        AddRenderStageTextureView(rs->renderStage.get(), st::gfx::RenderView::AccessMode::Read, dep.id);
-                    }
-                }
+                addDep(rs->textureReads, false, false);
+                addDep(rs->bufferReads, false, true);
             }
 
-            if (!rs->textureWrites.empty())
+            if (!rs->textureWrites.empty() || !rs->bufferWrites.empty())
             {
                 ImGui::SeparatorText("Writes");
-
-                for (const auto& dep : rs->textureWrites)
-                {
-                    bool selected = (m_RenderStageIOHoveredId == dep.id);
-
-                    RSDepResult result = ShowRSDep("id", dep.id.c_str(), selected, propid++);
-                    if (result.hovered)
-                    {
-                        newHoveredId = dep.id;
-                    }
-                    if (result.clicked)
-                    {
-                        AddRenderStageTextureView(rs->renderStage.get(), st::gfx::RenderView::AccessMode::Write, dep.id);
-                    }
-                }
+                addDep(rs->textureWrites, true, false);
+                addDep(rs->bufferWrites, true, true);
             }
         }
     }
     m_RenderStageIOHoveredId = newHoveredId;
 
     ImGui::End();
+}
+
+void StructureUI::BuildRSViews()
+{
+    for (auto it = m_RSTextureViews.begin(); it != m_RSTextureViews.end();)
+    {
+        if (m_RSViewFocus == it->ticket)
+        {
+            ImGui::SetNextWindowFocus();
+        }
+
+        if (BuildRSTexView(&(*it)))
+        {
+            it++;
+        }
+        else
+        {
+            m_RenderView->ReleaseTextureView(it->ticket);
+            it = m_RSTextureViews.erase(it);
+        }
+    }
+
+    for (auto it = m_RSBufferViews.begin(); it != m_RSBufferViews.end();)
+    {
+        if (m_RSViewFocus == it->ticket)
+        {
+            ImGui::SetNextWindowFocus();
+        }
+
+        if (BuildRSBufferView(&(*it)))
+        {
+            it++;
+        }
+        else
+        {
+            m_RenderView->ReleaseBufferView(it->ticket);
+            it = m_RSBufferViews.erase(it);
+        }
+    }
+
+    m_RSViewFocus = nullptr;
 }
 
 bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)
@@ -1104,6 +1144,29 @@ bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)
     return isOpen;
 }
 
+bool StructureUI::BuildRSBufferView(RenderStageBufferView* rsBufferView)
+{
+    bool isOpen = true;
+    st::rhi::BufferHandle buffer = m_RenderView->GetBufferView(rsBufferView->ticket);
+    if (!buffer)
+        return isOpen;
+
+    std::stringstream title;
+    title << rsBufferView->renderStage->GetDebugName() << " - ";
+    if (rsBufferView->accessMode == st::gfx::RenderView::AccessMode::Read)
+        title << "Read";
+    else
+        title << "Write";
+    title << " - " << rsBufferView->id.c_str();
+    std::string titleStr = title.str();
+
+    void* dataPtr = buffer->Map();
+    rsBufferView->memEditor->DrawWindow(titleStr.c_str(), dataPtr, buffer->GetDesc().sizeBytes);
+    buffer->Unmap();
+
+    return rsBufferView->memEditor->Open;
+}
+
 void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
 {
     const auto& mesh = leaf->GetMesh();
@@ -1210,14 +1273,31 @@ void StructureUI::AddRenderStageTextureView(st::gfx::RenderStage* renderStage, s
     {
         if (entry.renderStage == renderStage && entry.accessMode == accessMode && entry.id == id)
         {
-            // TODO: focus
+            m_RSViewFocus = entry.ticket;
             return;
         }
     }
 
     auto ticket = m_RenderView->RequestTextureView(renderStage, accessMode, id);
-
     m_RSTextureViews.emplace_back(renderStage, accessMode, id, ticket);
+}
+
+void StructureUI::AddRenderStageBufferView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id)
+{
+    // Check if it already exists
+    for (auto& entry : m_RSBufferViews)
+    {
+        if (entry.renderStage == renderStage && entry.accessMode == accessMode && entry.id == id)
+        {
+            m_RSViewFocus = entry.ticket;
+            return;
+        }
+    }
+
+    auto ticket = m_RenderView->RequestBufferView(renderStage, accessMode, id);
+    MemoryEditor* memEditor = new MemoryEditor;
+    memEditor->ReadOnly = true;
+    m_RSBufferViews.emplace_back(renderStage, accessMode, id, ticket, std::unique_ptr<MemoryEditor>{ memEditor });
 }
 
 std::string StructureUI::OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters)

@@ -13,10 +13,16 @@ public:
 
 public:
 
-	ToneMappingRenderStage() = default;
+	ToneMappingRenderStage();
 
 	void SetExposure(float v) { m_Exposure = v; }
 	void SetTonemapping(bool v) { m_Tonemapping = v; }
+
+	float GetMinLogLuminance() const { return m_MinLogLuminance; }
+	float GetLogLuminanceRange() const { return m_LogLuminanceRange; }
+
+	void SetMinLogLuminance(float v) { m_MinLogLuminance = v; }
+	void SetLogLuminanceRange(float v) { m_LogLuminanceRange = v; }
 
 	const char* GetDebugName() const override { return "ToneMappingRenderStage"; }
 
@@ -39,6 +45,9 @@ private:
 
 	float m_Exposure = 1.f;
 	bool m_Tonemapping = true;
+
+	float m_MinLogLuminance;
+	float m_LogLuminanceRange;
 };
 
 } // namespace st::gfx

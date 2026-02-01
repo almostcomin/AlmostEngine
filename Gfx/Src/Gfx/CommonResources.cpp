@@ -7,6 +7,7 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 {
 	m_BlitVS = m_ShaderFactory->LoadShader("Blit_vs", rhi::ShaderType::Vertex);
 	m_BlitPS = m_ShaderFactory->LoadShader("Blit_ps", rhi::ShaderType::Pixel);
+	m_ClearBufferCS = m_ShaderFactory->LoadShader("ClearBuffer_cs", rhi::ShaderType::Compute);
 
 	// Create blit PSO desc
 	{
@@ -37,6 +38,12 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 			.depthStencilState = depthStencilState,
 			.rasterState = rasterState,
 		};
+	}
+
+	// Compute ClearBuffer PSO
+	{
+		m_ClearBufferPSO = m_Device->CreateComputePipelineState(
+			rhi::ComputePipelineStateDesc{ m_ClearBufferCS.get_weak() }, "ClearBufferPSO");
 	}
 }
 

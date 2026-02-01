@@ -470,6 +470,7 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 		for (auto& rs : m_RenderStages)
 		{
 			UpdateRequestedTextureViews(commandList, rs->renderStage.get(), AccessMode::Read, texturesState);
+			UpdateRequestedBufferViews(commandList, rs->renderStage.get(), AccessMode::Read, buffersState);
 
 			if (rs->renderStage->IsEnabled())
 			{
@@ -556,6 +557,7 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 			} // if (rs->renderStage->IsEnabled())
 
 			UpdateRequestedTextureViews(commandList, rs->renderStage.get(), AccessMode::Write, texturesState);
+			UpdateRequestedBufferViews(commandList, rs->renderStage.get(), AccessMode::Write, buffersState);
 		}
 
 		// All the resources need to go back to it initial state
@@ -617,6 +619,22 @@ st::gfx::RenderView::TextureViewTicket st::gfx::RenderView::RequestTextureView(R
 	return ticket;
 }
 
+st::gfx::RenderView::BufferViewTicket st::gfx::RenderView::RequestBufferView(RenderStage* rs, AccessMode accessMode, const std::string& id)
+{
+	for (auto& entry : m_BufferViewRequests)
+	{
+		if (entry->rs == rs && entry->accessMode == accessMode && entry->id == id)
+		{
+			++entry->refCount;
+			return entry;
+		}
+	}
+
+	auto* ticket = new BufferViewRequest{ rs, accessMode, id, 1 };
+	m_BufferViewRequests.push_back(ticket);
+	return ticket;
+}
+
 void st::gfx::RenderView::ReleaseTextureView(TextureViewTicket ticket)
 {
 	auto it = std::find(m_TexViewRequests.begin(), m_TexViewRequests.end(), ticket);
@@ -630,6 +648,19 @@ void st::gfx::RenderView::ReleaseTextureView(TextureViewTicket ticket)
 	}
 }
 
+void st::gfx::RenderView::ReleaseBufferView(BufferViewTicket ticket)
+{
+	auto it = std::find(m_BufferViewRequests.begin(), m_BufferViewRequests.end(), ticket);
+	if (it != m_BufferViewRequests.end())
+	{
+		if (--((*it)->refCount) == 0)
+		{
+			delete* it;
+			m_BufferViewRequests.erase(it);
+		}
+	}
+}
+
 st::rhi::TextureHandle st::gfx::RenderView::GetTextureView(TextureViewTicket ticket)
 {
 	auto it = std::find(m_TexViewRequests.begin(), m_TexViewRequests.end(), ticket);
@@ -637,6 +668,15 @@ st::rhi::TextureHandle st::gfx::RenderView::GetTextureView(TextureViewTicket tic
 		return nullptr;
 
 	return (*it)->tex.get_weak();
+}
+
+st::rhi::BufferHandle st::gfx::RenderView::GetBufferView(BufferViewTicket ticket)
+{
+	auto it = std::find(m_BufferViewRequests.begin(), m_BufferViewRequests.end(), ticket);
+	if (it == m_BufferViewRequests.end())
+		return nullptr;
+
+	return (*it)->buffer.get_weak();
 }
 
 void st::gfx::RenderView::Refresh()
@@ -765,7 +805,7 @@ std::vector<st::gfx::RenderView::TextureViewRequest*> st::gfx::RenderView::GetTe
 }
 
 void st::gfx::RenderView::UpdateRequestedTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode, 
-	const std::map<std::string, rhi::ResourceState> texturesState)
+	const std::map<std::string, rhi::ResourceState> resourceStates)
 {
 	auto requests = GetTexViewRequests(rs, accessMode);
 	for (auto req : requests)
@@ -778,7 +818,7 @@ void st::gfx::RenderView::UpdateRequestedTextureViews(st::rhi::CommandListHandle
 		if (!sourceTex)
 			continue;
 
-		rhi::TextureDesc sourceTexDesc = sourceTex->GetDesc();
+		const rhi::TextureDesc& sourceTexDesc = sourceTex->GetDesc();
 
 		// Create the target texture if does not exists
 		// TODO: If the source texture changed (resized for example) we need to re-create de texture
@@ -806,7 +846,7 @@ void st::gfx::RenderView::UpdateRequestedTextureViews(st::rhi::CommandListHandle
 			assert(req->tex);
 		}
 
-		rhi::ResourceState srcTexState = texturesState.find(req->id)->second;
+		rhi::ResourceState srcTexState = resourceStates.find(req->id)->second;
 
 		rhi::Barrier entryBarriers[] = {
 			rhi::Barrier::Texture(sourceTex.get(), srcTexState, rhi::ResourceState::COPY_SRC),
@@ -818,6 +858,74 @@ void st::gfx::RenderView::UpdateRequestedTextureViews(st::rhi::CommandListHandle
 		rhi::Barrier exitBarriers[] = {
 			rhi::Barrier::Texture(sourceTex.get(), rhi::ResourceState::COPY_SRC, srcTexState),
 			rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE) };
+		commandList->PushBarriers(exitBarriers);
+	}
+}
+
+std::vector<st::gfx::RenderView::BufferViewRequest*> st::gfx::RenderView::GetBufferViewRequests(RenderStage* rs, AccessMode accessMode)
+{
+	std::vector<st::gfx::RenderView::BufferViewRequest*> ret;
+	for (auto& entry : m_BufferViewRequests)
+	{
+		if (entry->rs == rs && entry->accessMode == accessMode)
+		{
+			ret.push_back(entry);
+		}
+	}
+	return ret;
+}
+
+void st::gfx::RenderView::UpdateRequestedBufferViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode,
+	const std::map<std::string, rhi::ResourceState> resourceStates)
+{
+	auto requests = GetBufferViewRequests(rs, accessMode);
+	for (auto req : requests)
+	{
+		auto it = m_DeclaredBuffers.find(req->id);
+		if (it == m_DeclaredBuffers.end())
+			continue;
+
+		rhi::BufferHandle srcBuffer = it->second->buffer.get_weak();
+		if (!srcBuffer)
+			continue;
+
+		// Create the target buffer if does not exists
+		// TODO: If the source buffer changed we need to re-create it
+		if (!req->buffer)
+		{
+			const rhi::BufferDesc& srcBufferDesc = srcBuffer->GetDesc();
+
+			rhi::BufferDesc desc{
+				.memoryAccess = rhi::MemoryAccess::Readback,
+				.shaderUsage = rhi::BufferShaderUsage::None,
+				.sizeBytes = srcBufferDesc.sizeBytes,
+				.format = rhi::Format::UNKNOWN,
+				.stride = 0 };
+
+			std::stringstream debugName;
+			debugName << rs->GetDebugName() << " - ";
+			if (accessMode == st::gfx::RenderView::AccessMode::Read)
+				debugName << "Read";
+			else
+				debugName << "Write";
+			debugName << " - " << srcBuffer->GetDebugName();
+
+			req->buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COMMON, debugName.str().c_str());
+			assert(req->buffer);
+		}
+
+		rhi::ResourceState srcBufferState = resourceStates.find(req->id)->second;
+
+		rhi::Barrier entryBarriers[] = {
+			rhi::Barrier::Buffer(srcBuffer.get(), srcBufferState, rhi::ResourceState::COPY_SRC),
+			rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST) };
+		commandList->PushBarriers(entryBarriers);
+
+		commandList->CopyBufferToBuffer(req->buffer.get(), srcBuffer.get());
+
+		rhi::Barrier exitBarriers[] = {
+			rhi::Barrier::Buffer(srcBuffer.get(), rhi::ResourceState::COPY_SRC, srcBufferState),
+			rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON) };
 		commandList->PushBarriers(exitBarriers);
 	}
 }

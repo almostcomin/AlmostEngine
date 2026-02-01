@@ -24,6 +24,7 @@ class RenderView : public st::enable_weak_from_this<RenderView>, private st::non
 public:
 
 	using TextureViewTicket = void*;
+	using BufferViewTicket = void*;
 
 	enum AccessMode
 	{
@@ -122,8 +123,11 @@ public:
 	const RenderStageData* GetRenderStage(uint32_t idx) const { return m_RenderStages[idx]; }
 
 	TextureViewTicket RequestTextureView(RenderStage* rs, AccessMode accessMode, const std::string& id);
+	BufferViewTicket RequestBufferView(RenderStage* rs, AccessMode accessMode, const std::string& id);
 	void ReleaseTextureView(TextureViewTicket ticket);
+	void ReleaseBufferView(BufferViewTicket ticket);
 	rhi::TextureHandle GetTextureView(TextureViewTicket ticket);
+	rhi::BufferHandle GetBufferView(BufferViewTicket ticket);
 
 	float GetTimeDelta() const { return m_TimeDeltaSec; }
 
@@ -148,9 +152,13 @@ private:
 		rhi::TextureOwner tex;
 	};
 
-	struct RenderStageInFrameData
+	struct BufferViewRequest
 	{
-		
+		RenderStage* rs;
+		AccessMode accessMode;
+		std::string id;
+		int refCount;
+		rhi::BufferOwner buffer;
 	};
 
 private:
@@ -158,7 +166,12 @@ private:
 	void Refresh();
 
 	std::vector<TextureViewRequest*> GetTexViewRequests(RenderStage* rs, AccessMode accessMode);
-	void UpdateRequestedTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode, const std::map<std::string, rhi::ResourceState> resourcesStates);
+	void UpdateRequestedTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode,
+		const std::map<std::string, rhi::ResourceState> resourceStates);
+
+	std::vector<BufferViewRequest*> GetBufferViewRequests(RenderStage* rs, AccessMode accessMode);
+	void UpdateRequestedBufferViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode,
+		const std::map<std::string, rhi::ResourceState> resourceStates);
 
 private:
 
@@ -179,8 +192,9 @@ private:
 	// Scene constant buffer, set at begin frame, no changes during frame render
 	st::rhi::BufferOwner m_SceneCB;
 
-	// Request for visualizing render targets
+	// Living requests for visualizing resources
 	std::vector<TextureViewRequest*> m_TexViewRequests;
+	std::vector<BufferViewRequest*> m_BufferViewRequests;
 
 	float m_TimeDeltaSec = 0.f;
 
