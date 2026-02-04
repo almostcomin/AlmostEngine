@@ -94,12 +94,12 @@ bool st::gfx::dx12::DeviceManager::EnumerateAdapters(std::vector<AdapterInfo>& o
     return true;
 }
 
-bool st::gfx::dx12::DeviceManager::BeginFrame()
+uint64_t st::gfx::dx12::DeviceManager::BeginFrame()
 {
     auto bufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-    WaitForSingleObject(m_FrameFenceEvents[bufferIndex], INFINITE);
+    WaitForSingleObject(m_FrameFenceEvents[bufferIndex].first, INFINITE);
 
-    return true;
+    return m_FrameFenceEvents[bufferIndex].second;
 }
 
 bool st::gfx::dx12::DeviceManager::Present()
@@ -113,11 +113,12 @@ bool st::gfx::dx12::DeviceManager::Present()
     HRESULT result = m_SwapChain->Present(m_DeviceParams.VSyncEnabled ? 1 : 0, presentFlags);
     assert(SUCCEEDED(result));
 
-    ResetEvent(m_FrameFenceEvents[bufferIndex]);
-    m_FrameFence->SetEventOnCompletion(m_FrameCount, m_FrameFenceEvents[bufferIndex]);
-    m_GraphicsQueue->Signal(m_FrameFence.Get(), m_FrameCount);
+    ResetEvent(m_FrameFenceEvents[bufferIndex].first);
+    m_FrameFence->SetEventOnCompletion(m_FrameIndex, m_FrameFenceEvents[bufferIndex].first);
+    m_FrameFenceEvents[bufferIndex].second = m_FrameIndex;
+    m_GraphicsQueue->Signal(m_FrameFence.Get(), m_FrameIndex);
 
-    m_FrameCount++;
+    m_FrameIndex++; // Next frame
     m_Device->NextFrame();
 
     return SUCCEEDED(result);
@@ -152,8 +153,8 @@ void st::gfx::dx12::DeviceManager::InternalShutdown()
 
     for (auto fenceEvent : m_FrameFenceEvents)
     {
-        WaitForSingleObject(fenceEvent, INFINITE);
-        CloseHandle(fenceEvent);
+        WaitForSingleObject(fenceEvent.first, INFINITE);
+        CloseHandle(fenceEvent.first);
     }
     m_FrameFenceEvents.clear();
 
@@ -384,7 +385,7 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
 
     for (UINT bufferIndex = 0; bufferIndex < m_SwapChainDesc.BufferCount; bufferIndex++)
     {
-        m_FrameFenceEvents.push_back(CreateEvent(nullptr, true, true, nullptr));
+        m_FrameFenceEvents.push_back({ CreateEvent(nullptr, true, true, nullptr), 0 });
     }
 
     return true;
@@ -481,7 +482,7 @@ void st::gfx::dx12::DeviceManager::ReleaseRenderTargets()
 
     // Set the events so that WaitForSingleObject in OneFrame will not hang later
     for (auto e : m_FrameFenceEvents)
-        SetEvent(e);
+        SetEvent(e.first);
 
     // Release the old buffers because ResizeBuffers requires that
     for (auto& texture : m_SwapChainBuffers)

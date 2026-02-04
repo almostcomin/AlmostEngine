@@ -3,6 +3,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/CommonResources.h"
+#include "Gfx/UploadBuffer.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
@@ -13,10 +14,32 @@ st::gfx::ToneMappingRenderStage::ToneMappingRenderStage()
 	m_LogLuminanceRange = 12;			// exp2(-10 + 12) = exp2(2) = 4 -> max luminance
 }
 
+st::gfx::ToneMappingRenderStage::Stats st::gfx::ToneMappingRenderStage::GetStats()
+{
+	Stats result = {};
+
+	const auto* ptr = (interop::TonemappingStatsBuffer*)m_StatsBufferReadBack->Map();
+
+	result.minLuminance = ptr->minLuminance;
+	result.maxLuminance = ptr->maxLuminance;
+
+	m_StatsBufferReadBack->Unmap();
+
+	st::rhi::TextureHandle outputTexture = m_RenderView->GetTexture("ToneMapped");
+	const uint32_t width = outputTexture->GetDesc().width;
+	const uint32_t height = outputTexture->GetDesc().height;
+
+	result.totalPixels = width * height;
+
+	return result;
+}
+
 void st::gfx::ToneMappingRenderStage::Render()
 {
 	CommonResources* commonResources = m_RenderView->GetDeviceManager()->GetCommonResources();
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
+	rhi::Device* device = deviceManager->GetDevice();
 	auto commandList = m_RenderView->GetCommandList();
 
 	st::rhi::TextureHandle inputTexture = m_RenderView->GetTexture("SceneColor");
@@ -28,6 +51,22 @@ void st::gfx::ToneMappingRenderStage::Render()
 	assert(width == inputTexture->GetDesc().width);
 	assert(height == inputTexture->GetDesc().height);
 	
+	// Init stats buffer
+	{
+		commandList->BeginMarker("Init stats");
+
+		auto [initialStats, offset] = uploadBuffer->RequestSpaceForBufferDataUpload<interop::TonemappingStatsBuffer>();
+
+		initialStats->minLuminance = FLT_MAX;
+		initialStats->maxLuminance = 0.0f;
+
+		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST));
+		commandList->CopyBufferToBuffer(m_StatsBuffer.get(), 0, uploadBuffer->GetBuffer().get(), offset, sizeof(interop::TonemappingStatsBuffer));
+		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::UNORDERED_ACCESS));
+
+		commandList->EndMarker();
+	}
+
 	// Clear luminance histogram buffer
 	{
 		commandList->BeginMarker("Clear histogram");
@@ -63,6 +102,7 @@ void st::gfx::ToneMappingRenderStage::Render()
 		interop::BuildLuminanceHistogramConstants shaderConstants;
 		shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 		shaderConstants.outputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+		shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
 		shaderConstants.viewBegin = uint2{ 0 };
 		shaderConstants.viewEnd = uint2{ outputTexture->GetDesc().width, outputTexture->GetDesc().height };
 		shaderConstants.minLogLuminance = m_MinLogLuminance;
@@ -95,17 +135,38 @@ void st::gfx::ToneMappingRenderStage::Render()
 		commandList->EndMarker();
 	}
 
+	// Tone mapping
+	{
+		commandList->BeginMarker("Tonemapping");
 
-	commandList->SetPipelineState(m_PSO.get());
+		commandList->PushBarrier(
+			rhi::Barrier::Texture(avgLuminanceTexture.get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
 
-	interop::TonemapConstants shaderConstants = {};
-	shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
-	shaderConstants.exposure = m_Exposure;
-	shaderConstants.tonemapping = (uint)m_Tonemapping;
+		commandList->SetPipelineState(m_PSO.get());
 
-	commandList->PushComputeConstants(shaderConstants);
-	commandList->Dispatch((width + 7) / 8, (height + 7) / 8, 1);	
+		interop::TonemapConstants shaderConstants = {};
+		shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+		shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+		shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+		shaderConstants.exposure = m_Exposure;
+		shaderConstants.tonemapping = (uint)m_Tonemapping;
+
+		commandList->PushComputeConstants(shaderConstants);
+		commandList->Dispatch((width + 7) / 8, (height + 7) / 8, 1);
+
+		commandList->EndMarker();
+	}
+
+	// Retrieve stats
+	{
+		commandList->PushBarrier(rhi::Barrier::Memory(m_StatsBuffer.get()));
+		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::COPY_SRC));
+		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBufferReadBack.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST));
+		
+		commandList->CopyBufferToBuffer(m_StatsBufferReadBack.get(), 0, m_StatsBuffer.get(), 0, sizeof(interop::TonemappingStatsBuffer));
+		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBufferReadBack.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON));
+		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COPY_SRC, rhi::ResourceState::COMMON));
+	}
 }
 
 void st::gfx::ToneMappingRenderStage::OnAttached()
@@ -133,7 +194,7 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 		m_RenderView->RequestBufferAccess(this, RenderView::AccessMode::Write, "LuminanceHistogram",
 			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "LuminanceAverage",
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE);
 		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ToneMapped",
 			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 	}
@@ -154,6 +215,30 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 		m_AvgLuminancePSO = device->CreateComputePipelineState(
 			rhi::ComputePipelineStateDesc{ m_AvgLuminanceCS.get_weak() }, "AverageLuminancePSO");
 		m_PSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ m_CS.get_weak() }, "TonemappingPSO");
+	}
+
+	// Stats
+	{
+		{
+			auto desc = rhi::BufferDesc{
+				.memoryAccess = rhi::MemoryAccess::Default,
+				.shaderUsage = rhi::BufferShaderUsage::UnorderedAccess,
+				.sizeBytes = sizeof(interop::TonemappingStatsBuffer),
+				.format = rhi::Format::UNKNOWN,
+				.stride = 0 };
+
+			m_StatsBuffer = device->CreateBuffer(desc, rhi::ResourceState::COMMON, "TonemappingStats");
+		}
+		{
+			auto desc = rhi::BufferDesc{
+				.memoryAccess = rhi::MemoryAccess::Readback,
+				.shaderUsage = rhi::BufferShaderUsage::None,
+				.sizeBytes = sizeof(interop::TonemappingStatsBuffer),
+				.format = rhi::Format::UNKNOWN,
+				.stride = 0 };
+
+			m_StatsBufferReadBack = device->CreateBuffer(desc, rhi::ResourceState::COMMON, "TonemappingStatsRB");
+		}
 	}
 }
 

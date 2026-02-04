@@ -13,6 +13,7 @@ namespace st::gfx
 	class MeshInstance;
 	class DeviceManager;
 	class ShadowmapRenderStage;
+	class ToneMappingRenderStage;
 };
 
 class StructureUI : public st::gfx::ImGuiRenderStage
@@ -41,7 +42,8 @@ public:
 		float logLuminanceRange = 12.f;
 	};
 
-	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::DeviceManager* deviceManager);
+	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::ToneMappingRenderStage* tonemappingRS, 
+		st::gfx::DeviceManager* deviceManager);
 	~StructureUI();
 
 	void BuildUI() override;
@@ -78,7 +80,7 @@ private:
 		st::gfx::RenderStage* renderStage;
 		st::gfx::RenderView::AccessMode accessMode;
 		std::string id;
-		st::gfx::RenderView::TextureViewTicket ticket;
+		st::gfx::RenderView::BufferViewTicket ticket;
 		std::unique_ptr<MemoryEditor> memEditor;
 	};
 
@@ -93,6 +95,7 @@ private:
 	void BuildResourcesWindow(bool* p_open);
 	void BuildRenderStagesWindow();
 	void BuildRSViews();
+	void BuildLumnincaHistogram();
 
 	bool BuildRSTexView(RenderStageTextureView* rsTexView);
 	bool BuildRSBufferView(RenderStageBufferView* rsBufferView);
@@ -126,4 +129,9 @@ private:
 	std::vector<RenderStageTextureView> m_RSTextureViews;
 	std::vector<RenderStageBufferView> m_RSBufferViews;
 	st::gfx::RenderView::TextureViewTicket m_RSViewFocus;
+
+	bool m_ShowLuminanceHistogram;
+	st::gfx::RenderView::BufferViewTicket m_LumHistogramBufferTicket;
+	int m_LumHistogramMode = 0;
+	st::gfx::ToneMappingRenderStage* m_TonemappingRS;
 };

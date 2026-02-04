@@ -146,16 +146,17 @@ void st::rhi::dx12::CommandList::CopyTextureToTexture(ITexture* dstTexture, cons
 	m_D3d12Commandlist->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 }
 
-void st::rhi::dx12::CommandList::CopyBufferToBuffer(IBuffer* dstBuffer, IBuffer* srcBuffer)
+void st::rhi::dx12::CommandList::CopyBufferToBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, uint64_t size)
 {
 	const auto& dstDesc = dstBuffer->GetDesc();
 	const auto& srcDesc = srcBuffer->GetDesc();
-	assert(dstDesc.sizeBytes == srcDesc.sizeBytes);
+	assert(dstOffset + size <= dstDesc.sizeBytes);
+	assert(srcOffset + size <= srcDesc.sizeBytes);
 
 	m_D3d12Commandlist->CopyBufferRegion(
-		dstBuffer->GetNativeResource(), 0,
-		srcBuffer->GetNativeResource(), 0,
-		dstDesc.sizeBytes);
+		dstBuffer->GetNativeResource(), dstOffset,
+		srcBuffer->GetNativeResource(), srcOffset,
+		size);
 }
 
 void st::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers)
@@ -314,6 +315,7 @@ void st::rhi::dx12::CommandList::PushConstants(const void* data, size_t sizeByte
 {
 	assert(IsAligned(sizeBytes, sizeof(uint32_t)));
 	assert(IsAligned(offsetBytes, sizeof(uint32_t)));
+	assert(sizeBytes < 64 * sizeof(uint32_t));
 
 	if (isCompute)
 	{

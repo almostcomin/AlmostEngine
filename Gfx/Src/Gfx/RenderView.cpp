@@ -921,7 +921,7 @@ void st::gfx::RenderView::UpdateRequestedBufferViews(st::rhi::CommandListHandle 
 			rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST) };
 		commandList->PushBarriers(entryBarriers);
 
-		commandList->CopyBufferToBuffer(req->buffer.get(), srcBuffer.get());
+		commandList->CopyBufferToBuffer(req->buffer.get(), 0, srcBuffer.get(), 0, req->buffer->GetDesc().sizeBytes);
 
 		rhi::Barrier exitBarriers[] = {
 			rhi::Barrier::Buffer(srcBuffer.get(), rhi::ResourceState::COPY_SRC, srcBufferState),

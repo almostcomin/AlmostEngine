@@ -5,7 +5,7 @@
 
 namespace interop
 {
-    ConstantBufferStruct ImGUI_CB
+    struct ImGUI_CB
     {
         float2 invDisplaySize;
         uint indexBuffer;

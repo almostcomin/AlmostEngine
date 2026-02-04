@@ -15,6 +15,7 @@ namespace st::gfx
     class DataUploader;
     class TextureCache;
     class CommonResources;
+    class UploadBuffer;
 }
 
 namespace st::rhi
@@ -94,7 +95,10 @@ public:
 
     virtual bool EnumerateAdapters(std::vector<AdapterInfo>& outAdapters) = 0;
 
-    virtual bool BeginFrame() = 0;
+    // Begin frame checks for the completion of the next frame index and waits for it if needed
+    // It does not update frameCount. That is done after present.
+    // Returns the frame index completed.
+    virtual uint64_t BeginFrame() = 0;
     virtual bool Present() = 0;
 
     virtual void ReportLiveObjects() = 0;
@@ -119,8 +123,9 @@ public:
     st::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
     st::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }
     st::gfx::CommonResources* GetCommonResources() { return m_CommonResources.get(); }
+    st::gfx::UploadBuffer* GetUploadBuffer() { return m_UploadBuffer.get(); }
 
-    uint64_t GetFrameCount() const { return m_FrameCount; }
+    uint64_t GetFrameIndex() const { return m_FrameIndex; }
     uint32_t GetSwapchainBufferCount() const { return m_SwapChainFramebuffers.size(); }
     uint32_t GetFrameModuleIndex() const;
 
@@ -136,7 +141,10 @@ protected:
 
     DeviceParams m_DeviceParams;
 
-    uint64_t m_FrameCount = 1;
+    // Starts with one to avoid potential issues
+    // To be updated by backend implementations
+    uint64_t m_FrameIndex = 1;
+
     std::vector<st::rhi::FramebufferOwner> m_SwapChainFramebuffers;
 
     uint32_t m_BackBufferWidth = 0;
@@ -156,11 +164,13 @@ private:
     std::unique_ptr<st::gfx::DataUploader> m_DataUploader;
     std::unique_ptr<st::gfx::TextureCache> m_TextureCache;
     std::unique_ptr<st::gfx::CommonResources> m_CommonResources;
+    std::unique_ptr<st::gfx::UploadBuffer> m_UploadBuffer;
 
     static const uint32_t QueuedFramesCount = 3;
     rhi::TimerQueryOwner m_FrameTimers[QueuedFramesCount];
     int m_NextTimerToUse = 0;
 
+    // Begin & End command
     std::vector<rhi::CommandListOwner> m_BeginCommandLists;
     std::vector<rhi::CommandListOwner> m_EndCommandLists;
 };

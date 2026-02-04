@@ -17,7 +17,7 @@ public:
 	// Can be called before Init to get a list of available adapters.
 	bool EnumerateAdapters(std::vector<AdapterInfo>& outAdapters) override;
 
-	bool BeginFrame() override;
+	uint64_t BeginFrame() override;
 	bool Present() override;
 
 	glm::ivec2 GetWindowDimensions() const override;
@@ -61,7 +61,7 @@ private:
 	std::vector<st::rhi::TextureOwner> m_SwapChainBuffers;
 
 	ComPtr<ID3D12Fence>				m_FrameFence;
-	std::vector<HANDLE>				m_FrameFenceEvents;
+	std::vector<std::pair<HANDLE, uint64_t>> m_FrameFenceEvents;
 
 	DXGI_COLOR_SPACE_TYPE		m_DxgiColorSpace;
 

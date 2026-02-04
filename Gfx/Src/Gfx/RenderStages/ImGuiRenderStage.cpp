@@ -56,13 +56,13 @@ void st::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
 
 st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentVB()
 {
-    uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
+    uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameIndex();
     return m_VertexBuffer[currentFrameIdx % 3];
 }
 
 st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentIB()
 {
-    uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameCount();
+    uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameIndex();
     return m_IndexBuffer[currentFrameIdx % 3];
 }
 

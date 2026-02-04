@@ -9,7 +9,10 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/Camera.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
+#include "Gfx/RenderStages/ToneMappingRenderStage.h"
+#include "Core/Log.h"
 #include "RHI/Device.h"
+#include "RHI/Buffer.h"
 #include <format>
 #include <Windows.h>
 #include <SDL3/SDL.h>
@@ -298,7 +301,7 @@ void BuildTexture(const st::gfx::LoadedTexture& diffuseTex)
 } // anonymous namespace
 
 StructureUI::StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, 
-                         st::gfx::DeviceManager* deviceManager) :
+                         st::gfx::ToneMappingRenderStage* tonemappingRS, st::gfx::DeviceManager* deviceManager) :
     m_Window{ window },
     m_DeviceManager{ deviceManager },
     m_RenderView{ renderView },
@@ -307,7 +310,10 @@ StructureUI::StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* w
     m_SelectedNode{ nullptr },
     m_ShowResourcesWindow{ false },
     m_ShowRenderStages{ false },
-    m_ShadowmapRS{ shadowmapRS }
+    m_ShadowmapRS{ shadowmapRS },
+    m_ShowLuminanceHistogram{ false },
+    m_LumHistogramBufferTicket{ nullptr },
+    m_TonemappingRS{ tonemappingRS }
 {
     if (m_ShadowmapRS)
     {
@@ -353,6 +359,7 @@ void StructureUI::BuildUI()
         BuildRenderStagesWindow();
 
     BuildRSViews();
+    BuildLumnincaHistogram();
 }
 
 void StructureUI::OnSceneChanged()
@@ -689,14 +696,21 @@ void StructureUI::BuildSettingsWindow()
     {
         const float minLogLuminance = -20.f;
         const float maxLogLuminance = 0.f;
-        ImGui::SliderScalar("Min luminance", ImGuiDataType_Float, &m_Data.minLogLuminance, &minLogLuminance, &maxLogLuminance, "%.3f");
+        ImGui::SliderScalar("Min log luminance", ImGuiDataType_Float, &m_Data.minLogLuminance, &minLogLuminance, &maxLogLuminance, "%.3f");
 
         const float minLogRange = 0.f;
-        const float maxLogRange = 24.f;
-        ImGui::SliderScalar("Max luminance", ImGuiDataType_Float, &m_Data.logLuminanceRange, &minLogRange, &maxLogRange, "%.3f");
+        const float maxLogRange = 36.f;
+        ImGui::SliderScalar("Log luminance range", ImGuiDataType_Float, &m_Data.logLuminanceRange, &minLogRange, &maxLogRange, "%.3f");
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+        const float minLum = exp2(m_Data.minLogLuminance);
+        const float maxLum = minLum * std::exp2(m_Data.logLuminanceRange);
+        ImGui::Text("Luminance [%1.6f .. %1.6f]", minLum, maxLum);
+        ImGui::PopStyleColor();
 
         ImGui::SliderFloat("Exposure", &m_Data.exposure, 0.f, 10.f);
         //ImGui::Checkbox("Tonemapping", &m_Data.tonemapping);
+        m_ShowLuminanceHistogram |= ImGui::Button("View Histogram");
     }
 
     ImGui::End();
@@ -996,6 +1010,80 @@ void StructureUI::BuildRSViews()
     }
 
     m_RSViewFocus = nullptr;
+}
+
+void StructureUI::BuildLumnincaHistogram()
+{
+    if (!m_ShowLuminanceHistogram)
+        return;
+
+    if (m_LumHistogramBufferTicket == nullptr)
+    {
+        m_LumHistogramBufferTicket = m_RenderView->RequestBufferView(m_TonemappingRS, st::gfx::RenderView::AccessMode::Write, "LuminanceHistogram");
+    }
+    if (!m_LumHistogramBufferTicket)
+    {
+        LOG_ERROR("Failed to requesting histogram buffer ticketr");
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2{ 480, 160 }, ImGuiCond_Once);
+    if (!ImGui::Begin("Luminance histogram", &m_ShowLuminanceHistogram, ImGuiWindowFlags_None))
+    {
+        ImGui::End();
+        if (!m_ShowLuminanceHistogram)
+        {
+            m_RenderView->ReleaseBufferView(m_LumHistogramBufferTicket);
+            m_LumHistogramBufferTicket = nullptr;
+        }
+        return;
+    }
+
+    st::gfx::ToneMappingRenderStage::Stats stats = m_TonemappingRS->GetStats();
+
+    st::rhi::TextureHandle toneMappedTex = m_RenderView->GetTexture("ToneMapped");
+    assert(toneMappedTex);
+
+    st::rhi::BufferHandle buffer = m_RenderView->GetBufferView(m_LumHistogramBufferTicket);
+    if (buffer)
+    {
+        void* data_ptr = buffer->Map();
+        auto getValueLog2 = [](void* data, int idx) -> float
+        {
+            uint32_t* arr = (uint32_t*)data;
+            return log2f((float)arr[idx] + 1.0f);
+        };
+        auto getValueLinear = [](void* data, int idx) -> float
+            {
+                uint32_t* arr = (uint32_t*)data;
+                return (float)arr[idx];
+            };
+
+        ImVec2 size = ImGui::GetContentRegionAvail();
+        size.y -= ImGui::GetFrameHeightWithSpacing();
+        if (m_LumHistogramMode == 0)
+        {
+            ImGui::PlotHistogram("##LuminanceHistogram",
+                getValueLog2, data_ptr, buffer->GetDesc().sizeBytes / 4, 0, nullptr, 0.f, log2f(stats.totalPixels), size);
+        }
+        else
+        {
+            ImGui::PlotHistogram("##LuminanceHistogram",
+                getValueLinear, data_ptr, buffer->GetDesc().sizeBytes / 4, 0, nullptr, 0.f, stats.totalPixels, size);
+        }
+
+        buffer->Unmap();
+
+        if (ImGui::RadioButton("Log2", m_LumHistogramMode == 0)) 
+            m_LumHistogramMode = 0;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Linear", m_LumHistogramMode == 1))
+            m_LumHistogramMode = 1;
+        ImGui::SameLine();
+        ImGui::Text("Min lum: %1.3f | Max lum: %1.3f", stats.minLuminance, stats.maxLuminance);
+    }
+
+    ImGui::End();
 }
 
 bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)

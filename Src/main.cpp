@@ -161,7 +161,7 @@ int SDL_main(int argc, char* argv[])
 	std::string requestLoadFile;
 	bool requestClose = false;
 	bool requestQuit = false;
-	std::shared_ptr<StructureUI> uiRS{ new StructureUI{ renderView.get_weak(), window, shadowmapRS.get(), deviceManager.get() }};
+	std::shared_ptr<StructureUI> uiRS{ new StructureUI{ renderView.get_weak(), window, shadowmapRS.get(), toneMappingRS.get(), deviceManager.get() }};
 	uiRS->m_RequestLoadFile = [&requestLoadFile](const char* filename) { requestLoadFile = filename; };
 	uiRS->m_RequestClose = [&requestClose] { requestClose = true; };
 	uiRS->m_RequestQuit = [&requestQuit] { requestQuit = true; };

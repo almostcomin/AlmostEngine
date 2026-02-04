@@ -125,7 +125,7 @@ private: /* */
 		SignalEmitter Signal;
 		UploadTicket Ticket;
 	};
-	RingBuffer<InFlightCommandListEntry, 256> m_InFlightCommandLists;
+	RingBuffer<InFlightCommandListEntry, 1024> m_InFlightCommandLists;
 	std::mutex m_InFlightCommandListsMutex;
 
 	uint64_t m_CommitCount;

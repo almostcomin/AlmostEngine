@@ -11,6 +11,13 @@ public:
 
 	static constexpr int c_NumHistogramBins = 256;
 
+	struct Stats
+	{
+		float minLuminance;
+		float maxLuminance;
+		float totalPixels;
+	};
+
 public:
 
 	ToneMappingRenderStage();
@@ -25,6 +32,8 @@ public:
 	void SetLogLuminanceRange(float v) { m_LogLuminanceRange = v; }
 
 	const char* GetDebugName() const override { return "ToneMappingRenderStage"; }
+
+	Stats GetStats();
 
 private:
 
@@ -48,6 +57,9 @@ private:
 
 	float m_MinLogLuminance;
 	float m_LogLuminanceRange;
+
+	rhi::BufferOwner m_StatsBuffer;
+	rhi::BufferOwner m_StatsBufferReadBack;
 };
 
 } // namespace st::gfx

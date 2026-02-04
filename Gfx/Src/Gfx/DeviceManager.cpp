@@ -6,6 +6,7 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/TextureCache.h"
 #include "Gfx/CommonResources.h"
+#include "Gfx/UploadBuffer.h"
 #include "RHI/Device.h"
 #include "RHI/TimerQuery.h"
 
@@ -35,6 +36,7 @@ bool st::gfx::DeviceManager::Init(const DeviceParams& params)
 		m_DataUploader = std::make_unique<st::gfx::DataUploader>(m_Device.get());
 		m_TextureCache = std::make_unique<st::gfx::TextureCache>(m_Device.get(), m_DataUploader.get());
 		m_CommonResources = std::make_unique<st::gfx::CommonResources>(m_ShaderFactory.get(), m_Device.get());
+		m_UploadBuffer = std::make_unique<st::gfx::UploadBuffer>(m_FrameIndex, 1024 * 1024, m_Device.get());
 
 		for (uint32_t i = 0; i < QueuedFramesCount; ++i)
 		{
@@ -136,7 +138,11 @@ void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 
 	if (IsWindowVisible())
 	{
-		BeginFrame();
+		uint64_t completedFrameIdx = BeginFrame();
+		if (completedFrameIdx != 0) // FrameIndex 0 is a fake frame
+		{
+			m_UploadBuffer->OnFrameCompleted(completedFrameIdx);
+		}
 
 		// Begin time query
 		{
@@ -169,14 +175,16 @@ void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 
 		bool presentOk = Present();
 		assert(presentOk);
+
+		m_UploadBuffer->OnNextFrame();
 	}
 
-	m_TextureCache->Update(); // Data uploader so it updates the state of the textures
+	m_TextureCache->Update(); 
 }
 
 uint32_t st::gfx::DeviceManager::GetFrameModuleIndex() const
 {
-	return m_FrameCount % m_SwapChainFramebuffers.size();
+	return m_FrameIndex % m_SwapChainFramebuffers.size();
 }
 
 float st::gfx::DeviceManager::GetGPUFrameTime()

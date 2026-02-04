@@ -27,7 +27,7 @@ void ShadeSurface(LightConstants light, MaterialSample surfaceMaterial, float3 s
     {
         lightIncident = light.direction;
         halfAngularSize = light.angularSizeOrInvRange / 2;
-        irradiance = light.intensity;        
+        irradiance = light.intensity;
     }
     else //if(light.lighType == LighType_Point || light.lighType == LighType_Spot)
     {

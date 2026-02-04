@@ -146,6 +146,7 @@ namespace interop
     struct TonemapConstants
     {
         uint inputTextureDI;
+        uint inputAvgLuminanceTextureDI; // 1x1 R32
         uint outputTextureDI;
         float contrast;
         float shoulder;
@@ -158,6 +159,8 @@ namespace interop
     {
         uint inputTextureDI;
         uint outputHistogramBufferDI; // 256 4-byte (uint32) elements
+        uint outputStatsBufferDI;
+        uint _padding;
         uint2 viewBegin;
         uint2 viewEnd;
         float minLogLuminance;
@@ -173,6 +176,12 @@ namespace interop
         float logLuminanceRange;
         float timeDelta;
         float tau;
+    };
+
+    struct TonemappingStatsBuffer
+    {
+        float minLuminance;
+        float maxLuminance;
     };
 }
 

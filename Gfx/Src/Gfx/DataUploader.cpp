@@ -34,7 +34,7 @@ st::gfx::DataUploader::~DataUploader()
 	// Finish async thread
 	{
 		m_AsyncShutdown = true;
-		m_InFlightCommandListsCV.notify_one();
+		m_InFlightCommandListsCV.notify_all();
 		m_ProcessInFlightCommandsThread.join();
 	}
 
@@ -302,7 +302,12 @@ st::SignalListener st::gfx::DataUploader::FinishCommandList(rhi::CommandListOwne
 
 	st::SignalListener signal;
 	{
-		std::lock_guard lock{ m_InFlightCommandListsMutex };
+		std::unique_lock lock{ m_InFlightCommandListsMutex };
+
+		m_InFlightCommandListsCV.wait(lock, [&]
+		{
+			return !m_InFlightCommandLists.Full();
+		});
 
 		m_Device->ExecuteCommandList(commandList.get(), rhi::QueueType::Graphics, m_CommitFence.get(), m_CommitCount);
 
@@ -312,7 +317,7 @@ st::SignalListener st::gfx::DataUploader::FinishCommandList(rhi::CommandListOwne
 		signal = m_InFlightCommandLists.Back().Signal.GetListener();
 		++m_CommitCount;
 	}
-	m_InFlightCommandListsCV.notify_one();
+	m_InFlightCommandListsCV.notify_all();
 
 	return signal;
 }
@@ -375,6 +380,7 @@ void st::gfx::DataUploader::AsyncUpdate()
 				completedOnes.push_back(m_InFlightCommandLists.Pop().value());
 			}
 
+			m_InFlightCommandListsCV.notify_all();
 			lock.unlock();
 
 			for (auto& c : completedOnes)

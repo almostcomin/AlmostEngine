@@ -16,7 +16,7 @@ void main(uint groupIndex : SV_GroupIndex)
     RWByteAddressBuffer inputHistogram = ResourceDescriptorHeap[Constants.inputHistogramBufferDI];
     RWTexture2D<float> luminanceOutput = ResourceDescriptorHeap[Constants.outputAvgLuminanceTextureDI];
     
-    float countForThisBin = (float)luminanceOutput.Load(groupIndex * 4);
+    float countForThisBin = (float)inputHistogram.Load(groupIndex * 4);
     HistogramShared[groupIndex] = countForThisBin * (float)groupIndex;
     
     GroupMemoryBarrierWithGroupSync();
@@ -34,8 +34,13 @@ void main(uint groupIndex : SV_GroupIndex)
 
     if (groupIndex == 0)
     {
-        float weightedLogAverage = (HistogramShared[0].x / max((float)Constants.pixelCount - countForThisBin, 1.0)) - 1.0;
-        float weightedAverageLuminance = exp2(((weightedLogAverage / 254.0) * Constants.logLuminanceRange) + Constants.minLogLuminance);
+        // HistogramShared[0] = SUM(count_i * i)
+        // countForThisBin = cpunt of bin 0, discarded pixels
+        // Substract 1 because bin 0 is ignored
+        float avgBin = (HistogramShared[0] / max((float)Constants.pixelCount - countForThisBin, 1.0)) - 1.0;
+        // avgBin = index of average bin 
+        
+        float weightedAverageLuminance = exp2(((avgBin / 254.0) * Constants.logLuminanceRange) + Constants.minLogLuminance);
         float luminanceLastFrame = luminanceOutput[uint2(0, 0)];
         float adaptedLuminance = luminanceLastFrame + (weightedAverageLuminance - luminanceLastFrame) * (1 - exp(-Constants.timeDelta * Constants.tau));
         luminanceOutput[uint2(0, 0)] = adaptedLuminance;
