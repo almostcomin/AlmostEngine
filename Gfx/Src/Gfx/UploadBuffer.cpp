@@ -89,17 +89,17 @@ std::pair<void*, uint64_t> st::gfx::UploadBuffer::RequestSpace(size_t size, size
 	return { m_BufferStartPtr + alignedStart, alignedStart };
 }
 
-void st::gfx::UploadBuffer::OnNextFrame()
+void st::gfx::UploadBuffer::OnNextFrame(uint64_t frameIndex)
 {
 	m_FrameInfos.Push({ m_CurrentFrameIdx, m_Tail });
-	++m_CurrentFrameIdx;
+	m_CurrentFrameIdx = frameIndex;
 }
 
 void st::gfx::UploadBuffer::OnFrameCompleted(uint64_t frameIdx)
 {
-	assert(!m_FrameInfos.Empty());
-	assert(m_FrameInfos.Front().FrameIdx == frameIdx);
-
-	m_Head = m_FrameInfos.Front().BufferPos;
-	m_FrameInfos.Pop();
+	while (!m_FrameInfos.Empty() && m_FrameInfos.Front().FrameIdx <= frameIdx)
+	{
+		m_Head = m_FrameInfos.Front().BufferPos;
+		m_FrameInfos.Pop();
+	}
 }

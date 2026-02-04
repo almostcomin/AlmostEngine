@@ -14,7 +14,7 @@ float3 HDRHighlightRolloff(float3 x, float knee, float maxNits)
 ConstantBuffer<interop::TonemapConstants> Constants : register(b0);
 
 [RootSignature(BindlessRootSignature)]
-[numthreads(8, 8, 1)]
+[numthreads(16, 16, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
     Texture2D<float4> inputTexture = ResourceDescriptorHeap[Constants.inputTextureDI];
@@ -29,8 +29,10 @@ void main(uint3 DTid : SV_DispatchThreadID)
     
     // 1. Exposure adjustment
     float avgLuminance = avgLuminanceTexture[uint2(0, 0)];
-    float exposureAdjustment = Constants.exposure / max(avgLuminance, 0.0001);
-    float4 color = inputTexture[DTid.xy];        
+    // Constants.middleGray is a multiplier of paper white, typically around 0.18
+    // For instance, if paper white is 200 nits, 0.18 * 200 = 36 nits.
+    float exposureAdjustment = Constants.middleGray / max(avgLuminance, 0.001);
+    float4 color = inputTexture[DTid.xy];
     color.rgb *= exposureAdjustment;
         
     // 2. Soft rolloff on highlights

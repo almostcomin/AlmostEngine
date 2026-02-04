@@ -85,7 +85,14 @@ public:
 	virtual void CopyBufferToBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, uint64_t size) = 0;
 
 	virtual void PushBarriers(std::span<const Barrier> barriers) = 0;
-	virtual void PushBarrier(const Barrier& barrier) = 0;
+	void PushBarriers(std::initializer_list<Barrier> barriers)
+	{
+		PushBarriers(std::span<const Barrier>(barriers.begin(), barriers.size()));
+	}
+	virtual void PushBarrier(const Barrier& barrier)
+	{
+		PushBarriers(std::span{ &barrier, 1 });
+	}
 
 	virtual void SetPipelineState(IGraphicsPipelineState* pso) = 0;
 	virtual void SetPipelineState(IComputePipelineState* pso) = 0;

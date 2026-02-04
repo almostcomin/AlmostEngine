@@ -24,9 +24,11 @@ public:
 	CommonResources(ShaderFactory* shaderFactory, rhi::Device* device);
 	~CommonResources();
 
-	rhi::GraphicsPipelineStateOwner CreateBlitPSO(const rhi::FramebufferInfo& fbInfo);
-	rhi::GraphicsPipelineStateOwner CreateBlitPSO(const rhi::FramebufferInfo& fbInfo, const rhi::ShaderHandle& VS, const rhi::ShaderHandle& PS, 
+	rhi::GraphicsPipelineStateOwner CreateBlitGraphicsPSO(const rhi::FramebufferInfo& fbInfo);
+	rhi::GraphicsPipelineStateOwner CreateBlitGraphicsPSO(const rhi::FramebufferInfo& fbInfo, const rhi::ShaderHandle& VS, const rhi::ShaderHandle& PS,
 		const std::string debugName);
+
+	rhi::ComputePipelineStateHandle GetBlitComputePSO() { return m_BlitComputePSO.get_weak(); }
 
 	rhi::ComputePipelineStateHandle GetClearBufferPSO() { return m_ClearBufferPSO.get_weak(); }
 
@@ -41,7 +43,10 @@ private:
 
 	rhi::ShaderOwner m_BlitVS;
 	rhi::ShaderOwner m_BlitPS;
-	rhi::GraphicsPipelineStateDesc m_BlitPSODesc;
+	rhi::GraphicsPipelineStateDesc m_BlitGraphicsPSODesc;
+
+	rhi::ShaderOwner m_BlitCS;
+	rhi::ComputePipelineStateOwner m_BlitComputePSO;
 
 	rhi::ShaderOwner m_ClearBufferCS;
 	rhi::ComputePipelineStateOwner m_ClearBufferPSO;

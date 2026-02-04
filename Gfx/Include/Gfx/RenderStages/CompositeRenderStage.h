@@ -13,9 +13,14 @@ public:
 
 	CompositeRenderStage() = default;
 
+	float GetPaperWhiteNits() const { return m_PaperWhiteNits; }
+	void SetPaperWhiteNits(float v) { m_PaperWhiteNits = v; }
+
 	const char* GetDebugName() const override { return "CompositeRenderStage"; }
 
 private:
+
+	float m_PaperWhiteNits = 203.f;
 
 	rhi::ShaderOwner m_PS;
 	rhi::GraphicsPipelineStateOwner m_PSO;

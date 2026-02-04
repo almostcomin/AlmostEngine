@@ -36,8 +36,9 @@ public:
 		st::gfx::Scene::SunParams SunParams;
 		bool SunParamsUpdated = false;
 
-		float exposure = 1.f;
-		bool tonemapping = true;
+		float middleGrayNits = 0.18f;
+		float paperWhiteNits = 203.f;
+		bool tonemappingEnabled = true;
 		float minLogLuminance = -10.f;
 		float logLuminanceRange = 12.f;
 	};

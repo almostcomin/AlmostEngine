@@ -176,7 +176,7 @@ void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 		bool presentOk = Present();
 		assert(presentOk);
 
-		m_UploadBuffer->OnNextFrame();
+		m_UploadBuffer->OnNextFrame(m_FrameIndex);
 	}
 
 	m_TextureCache->Update(); 

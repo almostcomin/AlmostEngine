@@ -694,6 +694,8 @@ void StructureUI::BuildSettingsWindow()
 
     if (ImGui::CollapsingHeader("Tonemapping"))
     {
+        ImGui::Checkbox("Enabled", &m_Data.tonemappingEnabled);
+
         const float minLogLuminance = -20.f;
         const float maxLogLuminance = 0.f;
         ImGui::SliderScalar("Min log luminance", ImGuiDataType_Float, &m_Data.minLogLuminance, &minLogLuminance, &maxLogLuminance, "%.3f");
@@ -708,8 +710,9 @@ void StructureUI::BuildSettingsWindow()
         ImGui::Text("Luminance [%1.6f .. %1.6f]", minLum, maxLum);
         ImGui::PopStyleColor();
 
-        ImGui::SliderFloat("Exposure", &m_Data.exposure, 0.f, 10.f);
-        //ImGui::Checkbox("Tonemapping", &m_Data.tonemapping);
+        ImGui::SliderFloat("Middle Gray Nits", &m_Data.middleGrayNits, 0.f, 1000.f);
+        ImGui::SliderFloat("Paper White Nits", &m_Data.paperWhiteNits, 0.f, 1000.f);
+
         m_ShowLuminanceHistogram |= ImGui::Button("View Histogram");
     }
 
@@ -1027,7 +1030,7 @@ void StructureUI::BuildLumnincaHistogram()
         return;
     }
 
-    ImGui::SetNextWindowSize(ImVec2{ 480, 160 }, ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2{ 600, 200 }, ImGuiCond_Once);
     if (!ImGui::Begin("Luminance histogram", &m_ShowLuminanceHistogram, ImGuiWindowFlags_None))
     {
         ImGui::End();
@@ -1080,7 +1083,7 @@ void StructureUI::BuildLumnincaHistogram()
         if (ImGui::RadioButton("Linear", m_LumHistogramMode == 1))
             m_LumHistogramMode = 1;
         ImGui::SameLine();
-        ImGui::Text("Min lum: %1.3f | Max lum: %1.3f", stats.minLuminance, stats.maxLuminance);
+        ImGui::Text("| Min: %1.3f | Max: %1.3f | Avg: %1.3f | Bin: %1.1f", stats.minLuminance, stats.maxLuminance, stats.avgLuminance, stats.avgBin);
     }
 
     ImGui::End();

@@ -15,6 +15,8 @@ public:
 	{
 		float minLuminance;
 		float maxLuminance;
+		float avgLuminance;
+		float avgBin;
 		float totalPixels;
 	};
 
@@ -22,9 +24,11 @@ public:
 
 	ToneMappingRenderStage();
 
-	void SetExposure(float v) { m_Exposure = v; }
-	void SetTonemapping(bool v) { m_Tonemapping = v; }
+	void SetTonemappingEnabled(bool v) { m_Tonemapping = v; }
 
+	void SetSceneMiddleGray(float v) { m_SceneMiddleGray = v; }
+	float GetSceneMiddleGray() const { return m_SceneMiddleGray; }
+	
 	float GetMinLogLuminance() const { return m_MinLogLuminance; }
 	float GetLogLuminanceRange() const { return m_LogLuminanceRange; }
 
@@ -49,10 +53,10 @@ private:
 	rhi::ShaderOwner m_AvgLuminanceCS;
 	rhi::ComputePipelineStateOwner m_AvgLuminancePSO;
 
-	rhi::ShaderOwner m_CS;
-	rhi::ComputePipelineStateOwner m_PSO;
+	rhi::ShaderOwner m_TonemappingCS;
+	rhi::ComputePipelineStateOwner m_TonemappingPSO;
 
-	float m_Exposure = 1.f;
+	float m_SceneMiddleGray = 0.18f;
 	bool m_Tonemapping = true;
 
 	float m_MinLogLuminance;

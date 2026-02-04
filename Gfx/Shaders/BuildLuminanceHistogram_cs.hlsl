@@ -16,7 +16,7 @@ float GetLuminance(float3 color)
 
 uint LuminanceToHistogramBin(float luminance)
 {
-    if (luminance < 0.0001)
+    if (luminance < 0.001)
     {
         return 0;
     }

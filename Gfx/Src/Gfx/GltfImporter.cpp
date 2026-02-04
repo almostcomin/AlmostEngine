@@ -710,8 +710,11 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
     else
     {
         // generate the indices
+        const uint32_t indexCount = positions.count;
+        out_indexData = st::Blob{ (char*)malloc(indexCount * sizeof(T)), indexCount * sizeof(T) };
         T* indexDst = (T*)out_indexData.data();
-        for (size_t i_idx = 0; i_idx < prim.indices->count; i_idx++)
+
+        for (size_t i_idx = 0; i_idx < indexCount; i_idx++)
         {
             *indexDst = (T)i_idx;
             indexDst++;

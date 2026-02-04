@@ -20,13 +20,11 @@ void st::gfx::CompositeRenderStage::Render()
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
-		(float)fb->GetFramebufferInfo().width, (float)fb->GetFramebufferInfo().height }));
-
 	interop::CompositeConstants shaderConstants;
 	shaderConstants.sceneTextureDI = m_RenderView->GetTexture("ToneMapped")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.uiTextureDI = m_RenderView->GetTexture("ImGui")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
 	shaderConstants.colorSpace = (uint)m_RenderView->GetDeviceManager()->GetColorSpace();
+	shaderConstants.paperWhiteNits = m_PaperWhiteNits;
 
 	commandList->PushGraphicsConstants(shaderConstants);
 
@@ -51,7 +49,7 @@ void st::gfx::CompositeRenderStage::OnAttached()
 	// Create PSO
 	{
 		st::gfx::CommonResources* commonResurces = m_RenderView->GetDeviceManager()->GetCommonResources();
-		m_PSO = commonResurces->CreateBlitPSO(
+		m_PSO = commonResurces->CreateBlitGraphicsPSO(
 			m_RenderView->GetFramebuffer()->GetFramebufferInfo(),
 			commonResurces->GetBlitVS(),
 			m_PS.get_weak(),
@@ -72,7 +70,7 @@ void st::gfx::CompositeRenderStage::OnBackbufferResize()
 	// Recreate PSO
 	{
 		st::gfx::CommonResources* commonResurces = m_RenderView->GetDeviceManager()->GetCommonResources();
-		m_PSO = commonResurces->CreateBlitPSO(
+		m_PSO = commonResurces->CreateBlitGraphicsPSO(
 			m_RenderView->GetFramebuffer()->GetFramebufferInfo(),
 			commonResurces->GetBlitVS(),
 			m_PS.get_weak(),

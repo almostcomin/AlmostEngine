@@ -37,6 +37,12 @@ constexpr bool IsAligned(T value, T alignment)
     return (value % alignment) == T(0);
 }
 
+template<typename T>
+constexpr T DivRoundUp(T value, T top)
+{
+    return (value + top - T(1)) / top;
+}
+
 inline uint32_t NextPowerOf2(uint32_t v)
 {
     // https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2

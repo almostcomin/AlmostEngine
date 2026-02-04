@@ -184,6 +184,9 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_Data.ShadowmapSize = shadowmapRS->GetSize();
 	uiRS->m_Data.AmbientParams = scene->GetAmbientParams();
 	uiRS->m_Data.SunParams = scene->GetSunParams();
+	uiRS->m_Data.middleGrayNits = toneMappingRS->GetSceneMiddleGray() * compositeRS->GetPaperWhiteNits();
+	uiRS->m_Data.paperWhiteNits = compositeRS->GetPaperWhiteNits();
+
 	uiRS->m_Data.minLogLuminance = toneMappingRS->GetMinLogLuminance();
 	uiRS->m_Data.logLuminanceRange = toneMappingRS->GetLogLuminanceRange();
 
@@ -362,8 +365,9 @@ int SDL_main(int argc, char* argv[])
 				uiRS->m_Data.SunParamsUpdated = false;
 			}
 
-			toneMappingRS->SetExposure(uiRS->m_Data.exposure);
-			toneMappingRS->SetTonemapping(uiRS->m_Data.tonemapping);
+			// Scene middlegray is middle_gray_nits / paper_white_nits
+			toneMappingRS->SetSceneMiddleGray(uiRS->m_Data.middleGrayNits / uiRS->m_Data.paperWhiteNits);
+			toneMappingRS->SetTonemappingEnabled(uiRS->m_Data.tonemappingEnabled);
 			toneMappingRS->SetMinLogLuminance(uiRS->m_Data.minLogLuminance);
 			toneMappingRS->SetLogLuminanceRange(uiRS->m_Data.logLuminanceRange);
 		}

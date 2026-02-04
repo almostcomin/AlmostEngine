@@ -22,6 +22,8 @@ st::gfx::ToneMappingRenderStage::Stats st::gfx::ToneMappingRenderStage::GetStats
 
 	result.minLuminance = ptr->minLuminance;
 	result.maxLuminance = ptr->maxLuminance;
+	result.avgLuminance = ptr->avgLuminance;
+	result.avgBin = ptr->avgBin;
 
 	m_StatsBufferReadBack->Unmap();
 
@@ -51,121 +53,150 @@ void st::gfx::ToneMappingRenderStage::Render()
 	assert(width == inputTexture->GetDesc().width);
 	assert(height == inputTexture->GetDesc().height);
 	
-	// Init stats buffer
+	if (!m_Tonemapping)
 	{
-		commandList->BeginMarker("Init stats");
-
-		auto [initialStats, offset] = uploadBuffer->RequestSpaceForBufferDataUpload<interop::TonemappingStatsBuffer>();
-
-		initialStats->minLuminance = FLT_MAX;
-		initialStats->maxLuminance = 0.0f;
-
-		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST));
-		commandList->CopyBufferToBuffer(m_StatsBuffer.get(), 0, uploadBuffer->GetBuffer().get(), offset, sizeof(interop::TonemappingStatsBuffer));
-		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::UNORDERED_ACCESS));
-
-		commandList->EndMarker();
-	}
-
-	// Clear luminance histogram buffer
-	{
-		commandList->BeginMarker("Clear histogram");
-		commandList->SetPipelineState(commonResources->GetClearBufferPSO().get());
-
-		interop::ClearBufferConstants shaderConstants;
-		shaderConstants.bufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
-		const uint32_t elemCount = histogramBuffer->GetDesc().sizeBytes / 4;
-		shaderConstants.bufferElementCount = elemCount;
-		shaderConstants.clearValue = 0;
-
+		commandList->SetPipelineState(commonResources->GetBlitComputePSO().get());
+		
+		interop::BlitComputeConstants shaderConstants;
+		shaderConstants.srcTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+		shaderConstants.dstTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+		shaderConstants.viewBegin = float2{ 0, 0 };
+		shaderConstants.viewEnd = float2{ width, height };
 		commandList->PushComputeConstants(shaderConstants);
-		commandList->Dispatch((elemCount + 255) / 256, 1, 1);
 
-		commandList->EndMarker();
-	}
+		commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
 
-	/*
-	* Some considerations:
-	* 
-	* logLuminanceRage: rage of luminance in logarithmic space to be captured:
-	*	minLuminance = 0.001	-> log2(0.001) = -9.97
-	*	maxLuminance = 64.0		-> log2(64.0)  = 6.0
-	*	logLuminanceRange = 6.0	-> -10.0 = 16.0
-	*/
-
-	// First pass, build luminance histogram
-	{
-		commandList->BeginMarker("Build histogram");		
-		commandList->PushBarrier(rhi::Barrier::Memory(histogramBuffer.get()));
-		commandList->SetPipelineState(m_BuildHistogramPSO.get());
-
-		interop::BuildLuminanceHistogramConstants shaderConstants;
-		shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-		shaderConstants.outputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
-		shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
-		shaderConstants.viewBegin = uint2{ 0 };
-		shaderConstants.viewEnd = uint2{ outputTexture->GetDesc().width, outputTexture->GetDesc().height };
-		shaderConstants.minLogLuminance = m_MinLogLuminance;
-		shaderConstants.oneOverLogLuminanceRange = 1.f / m_LogLuminanceRange;
-
-		commandList->PushComputeConstants(shaderConstants);
-		commandList->Dispatch((width + 15)/ 16, (height + 15) / 16, 1);
-
-		commandList->EndMarker();
-	}
-
-	// Average luminance
-	{
-		commandList->BeginMarker("Average luminance");
-		commandList->PushBarrier(rhi::Barrier::Memory(histogramBuffer.get()));
-		commandList->SetPipelineState(m_AvgLuminancePSO.get());
-
-		interop::AvgLuminanceHistogramConstants shaderConstants;
-		shaderConstants.inputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
-		shaderConstants.outputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
-		shaderConstants.pixelCount = width * height;
-		shaderConstants.minLogLuminance = m_MinLogLuminance;
-		shaderConstants.logLuminanceRange = m_LogLuminanceRange;
-		shaderConstants.timeDelta = m_RenderView->GetTimeDelta();
-		shaderConstants.tau = 1.1f;
-
-		commandList->PushComputeConstants(shaderConstants);
-		commandList->Dispatch(1, 1, 1);
-
-		commandList->EndMarker();
-	}
-
-	// Tone mapping
-	{
-		commandList->BeginMarker("Tonemapping");
-
+		// Since we are not gonna do the tonemapping we have to do this transition here
+		// to keep validation happy
 		commandList->PushBarrier(
 			rhi::Barrier::Texture(avgLuminanceTexture.get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
-
-		commandList->SetPipelineState(m_PSO.get());
-
-		interop::TonemapConstants shaderConstants = {};
-		shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-		shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-		shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
-		shaderConstants.exposure = m_Exposure;
-		shaderConstants.tonemapping = (uint)m_Tonemapping;
-
-		commandList->PushComputeConstants(shaderConstants);
-		commandList->Dispatch((width + 7) / 8, (height + 7) / 8, 1);
-
-		commandList->EndMarker();
 	}
-
-	// Retrieve stats
+	else
 	{
-		commandList->PushBarrier(rhi::Barrier::Memory(m_StatsBuffer.get()));
-		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::COPY_SRC));
-		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBufferReadBack.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST));
-		
-		commandList->CopyBufferToBuffer(m_StatsBufferReadBack.get(), 0, m_StatsBuffer.get(), 0, sizeof(interop::TonemappingStatsBuffer));
-		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBufferReadBack.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON));
-		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COPY_SRC, rhi::ResourceState::COMMON));
+		// Init stats buffer
+		{
+			commandList->BeginMarker("Init stats");
+
+			auto [initialStats, offset] = uploadBuffer->RequestSpaceForBufferDataUpload<interop::TonemappingStatsBuffer>();
+
+			initialStats->minLuminance = FLT_MAX;
+			initialStats->maxLuminance = 0.f;
+			initialStats->avgLuminance = 0.f;
+			initialStats->avgBin = 0.f;
+
+			commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST));
+			commandList->CopyBufferToBuffer(m_StatsBuffer.get(), 0, uploadBuffer->GetBuffer().get(), offset, sizeof(interop::TonemappingStatsBuffer));
+			commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::UNORDERED_ACCESS));
+
+			commandList->EndMarker();
+		}
+
+		// Clear luminance histogram buffer
+		{
+			commandList->BeginMarker("Clear histogram");
+			commandList->SetPipelineState(commonResources->GetClearBufferPSO().get());
+
+			interop::ClearBufferConstants shaderConstants;
+			shaderConstants.bufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+			const uint32_t elemCount = histogramBuffer->GetDesc().sizeBytes / 4;
+			shaderConstants.bufferElementCount = elemCount;
+			shaderConstants.clearValue = 0;
+
+			commandList->PushComputeConstants(shaderConstants);
+			commandList->Dispatch((elemCount + 255) / 256, 1, 1);
+
+			commandList->EndMarker();
+		}
+
+		/*
+		* Some considerations:
+		*
+		* logLuminanceRage: rage of luminance in logarithmic space to be captured:
+		*	minLuminance = 0.001	-> log2(0.001) = -9.97
+		*	maxLuminance = 64.0		-> log2(64.0)  = 6.0
+		*	logLuminanceRange = 6.0	-> -10.0 = 16.0
+		*/
+
+		// First pass, build luminance histogram
+		{
+			commandList->BeginMarker("Build histogram");
+			commandList->PushBarrier(rhi::Barrier::Memory(histogramBuffer.get()));
+			commandList->SetPipelineState(m_BuildHistogramPSO.get());
+
+			interop::BuildLuminanceHistogramConstants shaderConstants;
+			shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+			shaderConstants.outputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+			shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+			shaderConstants.viewBegin = uint2{ 0 };
+			shaderConstants.viewEnd = uint2{ outputTexture->GetDesc().width, outputTexture->GetDesc().height };
+			shaderConstants.minLogLuminance = m_MinLogLuminance;
+			shaderConstants.oneOverLogLuminanceRange = 1.f / m_LogLuminanceRange;
+
+			commandList->PushComputeConstants(shaderConstants);
+			commandList->Dispatch((width + 15) / 16, (height + 15) / 16, 1);
+
+			commandList->EndMarker();
+		}
+
+		// Average luminance
+		{
+			commandList->BeginMarker("Average luminance");
+
+			commandList->PushBarriers({
+				rhi::Barrier::Memory(histogramBuffer.get()),
+				rhi::Barrier::Memory(m_StatsBuffer.get()) });
+
+			commandList->SetPipelineState(m_AvgLuminancePSO.get());
+
+			interop::AvgLuminanceHistogramConstants shaderConstants;
+			shaderConstants.inputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+			shaderConstants.outputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+			shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+			shaderConstants.pixelCount = width * height;
+			shaderConstants.minLogLuminance = m_MinLogLuminance;
+			shaderConstants.logLuminanceRange = m_LogLuminanceRange;
+			shaderConstants.timeDelta = m_RenderView->GetTimeDelta();
+			shaderConstants.tau = 0.5f;
+
+			commandList->PushComputeConstants(shaderConstants);
+			commandList->Dispatch(1, 1, 1);
+
+			commandList->EndMarker();
+		}
+
+		// Tone mapping
+		{
+			commandList->BeginMarker("Tonemapping");
+
+			commandList->PushBarrier(
+				rhi::Barrier::Texture(avgLuminanceTexture.get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
+
+			commandList->SetPipelineState(m_TonemappingPSO.get());
+
+			interop::TonemapConstants shaderConstants = {};
+			shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+			shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+			shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+			shaderConstants.middleGray = m_SceneMiddleGray;
+
+			commandList->PushComputeConstants(shaderConstants);
+			commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
+
+			commandList->EndMarker();
+		}
+
+		// Retrieve stats
+		{
+			commandList->PushBarriers({
+				rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::COPY_SRC),
+				rhi::Barrier::Buffer(m_StatsBufferReadBack.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST) });
+
+			commandList->CopyBufferToBuffer(m_StatsBufferReadBack.get(), 0, m_StatsBuffer.get(), 0, sizeof(interop::TonemappingStatsBuffer));
+
+			commandList->PushBarriers({
+				rhi::Barrier::Buffer(m_StatsBufferReadBack.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON),
+				rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COPY_SRC, rhi::ResourceState::COMMON) });
+		}
 	}
 }
 
@@ -205,16 +236,16 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 		
 		m_BuildHistogramCS = shaderFactory->LoadShader("BuildLuminanceHistogram_cs", rhi::ShaderType::Compute);
 		m_AvgLuminanceCS = shaderFactory->LoadShader("AvgLuminanceHistogram_cs", rhi::ShaderType::Compute);
-		m_CS = shaderFactory->LoadShader("ToneMapping_cs", rhi::ShaderType::Compute);
+		m_TonemappingCS = shaderFactory->LoadShader("ToneMapping_cs", rhi::ShaderType::Compute);
 	}
 
-	// Create PSO
+	// Create PSOs
 	{
 		m_BuildHistogramPSO = device->CreateComputePipelineState(
 			rhi::ComputePipelineStateDesc{ m_BuildHistogramCS.get_weak() }, "BuildHistogramPSO");
 		m_AvgLuminancePSO = device->CreateComputePipelineState(
 			rhi::ComputePipelineStateDesc{ m_AvgLuminanceCS.get_weak() }, "AverageLuminancePSO");
-		m_PSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ m_CS.get_weak() }, "TonemappingPSO");
+		m_TonemappingPSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ m_TonemappingCS.get_weak() }, "TonemappingPSO");
 	}
 
 	// Stats
@@ -225,7 +256,7 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 				.shaderUsage = rhi::BufferShaderUsage::UnorderedAccess,
 				.sizeBytes = sizeof(interop::TonemappingStatsBuffer),
 				.format = rhi::Format::UNKNOWN,
-				.stride = 0 };
+				.stride = sizeof(interop::TonemappingStatsBuffer) };
 
 			m_StatsBuffer = device->CreateBuffer(desc, rhi::ResourceState::COMMON, "TonemappingStats");
 		}
@@ -244,8 +275,8 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 
 void st::gfx::ToneMappingRenderStage::OnDetached()
 {
-	m_PSO = nullptr;
-	m_CS = nullptr;
+	m_TonemappingPSO = nullptr;
+	m_TonemappingCS = nullptr;
 
 	m_AvgLuminanceCS = nullptr;
 	m_AvgLuminancePSO = nullptr;

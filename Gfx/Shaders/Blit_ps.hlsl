@@ -1,7 +1,7 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 
-ConstantBuffer<interop::BlitConstants> Constants : register(b0);
+ConstantBuffer<interop::BlitGraphicsConstants> Constants : register(b0);
 
 struct PS_INPUT
 {

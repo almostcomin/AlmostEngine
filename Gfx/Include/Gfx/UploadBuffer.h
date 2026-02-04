@@ -27,7 +27,7 @@ public:
 	std::pair<void*, uint64_t> RequestSpaceForTextureDataUpload(size_t size);
 	std::pair<void*, uint64_t> RequestSpace(size_t size, size_t alignment);
 
-	void OnNextFrame();
+	void OnNextFrame(uint64_t frameIndex);
 	void OnFrameCompleted(uint64_t frameIdx);
 
 	rhi::BufferHandle GetBuffer() { return m_Buffer.get_weak(); }

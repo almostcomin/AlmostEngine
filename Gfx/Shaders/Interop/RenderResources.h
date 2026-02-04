@@ -12,6 +12,19 @@ namespace interop
         uint32_t clearValue;
     };
 
+    struct BlitGraphicsConstants
+    {
+        uint textureDI;
+    };
+
+    struct BlitComputeConstants
+    {
+        uint srcTextureDI;
+        uint dstTextureDI;
+        uint2 viewBegin;
+        uint2 viewEnd;
+    };
+
     // There is a max limit to the number of lights in the engine.
     // Index 0 of both the light buffer will be
     // reserved for directional light.
@@ -119,11 +132,6 @@ namespace interop
         uint GBuffer3DI;
     };
 
-    struct BlitConstants
-    {
-        uint textureDI;
-    };
-
     struct DebugStage
     {
         uint sceneDI;
@@ -141,6 +149,7 @@ namespace interop
         uint sceneTextureDI;
         uint uiTextureDI;
         uint colorSpace; // st::rhi::ColorSpace
+        float paperWhiteNits;
     };
 
     struct TonemapConstants
@@ -151,8 +160,7 @@ namespace interop
         float contrast;
         float shoulder;
         float2 bc;
-        float exposure;
-        uint tonemapping;
+        float middleGray;
     };
 
     struct BuildLuminanceHistogramConstants
@@ -171,6 +179,7 @@ namespace interop
     {
         uint inputHistogramBufferDI;
         uint outputAvgLuminanceTextureDI;
+        uint outputStatsBufferDI;
         uint pixelCount;
         float minLogLuminance;
         float logLuminanceRange;
@@ -182,6 +191,8 @@ namespace interop
     {
         float minLuminance;
         float maxLuminance;
+        float avgLuminance;
+        float avgBin;
     };
 }
 

@@ -240,11 +240,6 @@ void st::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers)
 	}
 }
 
-void st::rhi::dx12::CommandList::PushBarrier(const Barrier& barrier)
-{
-	PushBarriers(std::span{ &barrier, 1 });
-}
-
 void st::rhi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
 {
 	if (!m_CurrentGraphicsPSO || m_CurrentGraphicsPSO.get() != pso)
@@ -366,6 +361,10 @@ void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const s
 	}
 
 	m_D3d12Commandlist->BeginRenderPass(fb->RTVs.size(), RTVs, fb->DSV == c_InvalidDescriptorIndex ? nullptr : &DSV, flags);
+
+	// Set fullscreen viewport
+	SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
+		(float)fb->GetFramebufferInfo().width, (float)fb->GetFramebufferInfo().height }));
 }
 
 void st::rhi::dx12::CommandList::EndRenderPass()
