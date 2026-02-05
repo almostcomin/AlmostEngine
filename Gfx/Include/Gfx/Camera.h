@@ -24,6 +24,8 @@ public:
 	void SetForward(const float3& dir);
 	void LookAt(const float3& pos);
 	
+	void SetUpRef(const float3& v);
+
 	void SetVerticalFov(float vFov);
 	void SetAspect(float aspect);
 	void SetZNear(float zNear);
@@ -37,6 +39,7 @@ public:
 	const float3& GetForward() const { return m_Forward; }
 	const float3& GetRight() const { return m_Right; }
 	const float3& GetUp() const { return m_Up; }
+	const float3& GetUpRef() const { return m_UpRef; }
 	float GetVerticalFOV() const { return m_VerticalFov; }
 	float GetZNear() const { return m_zNear; }
 
@@ -44,6 +47,14 @@ public:
 	const float4x4& GetProjectionMatrix();
 	float4x4 GetViewProjectionMatrix();
 	const st::math::frustum3f& GetFrustum();
+
+	float GetYaw() const;
+	float GetPitch() const;
+	float GetRoll() const;
+
+	void SetYaw(float yaw);
+	void SetPitch(float pich);
+	void SetRoll(float roll);
 
 private:
 
@@ -61,6 +72,8 @@ private:
 	float3 m_Forward;
 	float3 m_Up;
 	float3 m_Right;
+
+	float3 m_UpRef;
 
 	float m_VerticalFov;
 	float m_zNear;

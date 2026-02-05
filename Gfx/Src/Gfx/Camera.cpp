@@ -7,6 +7,7 @@ st::gfx::Camera::Camera() :
 	m_Forward{ 0.f, 0.f, -1.f }, // Right-hand
 	m_Up{ 0.f, 1.f, 0.f },
 	m_Right{ 1.f, 0.f, 0.f },
+	m_UpRef{ 0.f, 1.f, 0.f },
 	m_VerticalFov{ glm::radians(60.f) },
 	m_Aspect{ 1.f },
 	m_zNear{ 0.1f },
@@ -25,7 +26,17 @@ void st::gfx::Camera::SetForward(const float3& dir)
 {
 	m_Forward = glm::normalize(dir);
 
-	m_Right = glm::normalize(glm::cross(m_Forward, float3{ 0.f, 1.f, 0.f }));
+	m_Right = glm::normalize(glm::cross(m_Forward, m_UpRef));
+	m_Up = glm::cross(m_Right, m_Forward);
+
+	m_IsDirty = true;
+}
+
+void st::gfx::Camera::SetUpRef(const float3& v)
+{
+	m_UpRef = glm::normalize(v);
+
+	m_Right = glm::normalize(glm::cross(m_Forward, m_UpRef));
 	m_Up = glm::cross(m_Right, m_Forward);
 
 	m_IsDirty = true;
@@ -101,6 +112,63 @@ const st::math::frustum3f& st::gfx::Camera::GetFrustum()
 {
 	UpdateMatrices();
 	return m_Frustum;
+}
+
+float st::gfx::Camera::GetYaw() const
+{
+	return atan2(m_Forward.x, -m_Forward.z);
+}
+
+float st::gfx::Camera::GetPitch() const
+{
+	return asinf(m_Forward.y);
+}
+
+float st::gfx::Camera::GetRoll() const
+{
+	float3 rightNoRoll = glm::normalize(glm::cross(float3{ 0.f, 1.f, 0.f }, m_Forward));
+	float3 upNoRoll = glm::cross(m_Forward, rightNoRoll);
+	return atan2f(
+		glm::dot(glm::cross(upNoRoll, m_UpRef), m_Forward),
+		glm::dot(upNoRoll, m_UpRef));
+}
+
+void st::gfx::Camera::SetYaw(float yaw)
+{
+	float pitch = GetPitch();
+
+	float3 newForward;
+	newForward.x = cos(pitch) * sin(yaw);
+	newForward.y = sin(pitch);
+	newForward.z = cos(pitch) * cos(yaw);
+	newForward.z *= -1.f;
+
+	SetForward(newForward);
+}
+
+void st::gfx::Camera::SetPitch(float pitch)
+{
+	float yaw = GetYaw();
+
+	float3 newForward;
+	newForward.x = cos(pitch) * sin(yaw);
+	newForward.y = sin(pitch);
+	newForward.z = cos(pitch) * cos(yaw);
+	newForward.z *= -1.f;
+
+	SetForward(newForward);
+}
+
+void st::gfx::Camera::SetRoll(float roll)
+{
+	float3 right = glm::normalize(glm::cross(float3{ 0.f, 1.f, 0.f }, m_Forward));
+	float3 baseUp = float3{ 0.f, 1.f, 0.f };// glm::cross(m_Forward, right);
+
+	float c = cosf(roll);
+	float s = -sinf(roll);
+	float3 newUp = baseUp * c + m_Right * s;
+
+	SetUpRef(newUp);
 }
 
 void st::gfx::Camera::UpdateMatrices()

@@ -39,12 +39,12 @@ public:
 
 protected:
 
-private:
-
 	void Render() override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
+
+private:
 
 	bool Init();
 	void Release();

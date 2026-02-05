@@ -37,8 +37,6 @@ protected:
 
 	st::weak<RenderView> m_RenderView;
 
-private:
-
 	virtual void Render() = 0;
 	virtual void OnAttached() {};
 	virtual void OnDetached() {};

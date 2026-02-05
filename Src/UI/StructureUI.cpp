@@ -162,62 +162,6 @@ void TextAlignedRight(float rightPos, const char* fmt, ...)
     ImGui::TextUnformatted(buffer);
 }
 
-bool Float3Widget(const char* label, float3& value, bool editable)
-{
-    const ImGuiStyle& style = ImGui::GetStyle();
-    float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
-    float labelWidth = 0.0f;
-    int numElements = 3;
-    if (label != nullptr)
-    {        
-        numElements = 4;
-        labelWidth = availWidth / numElements;
-    }
-    float itemWidth = availWidth / numElements;
-
-    bool modified = false;
-
-    ImGui::PushID(label ? label : "vec3");
-
-    ImGui::SetCursorPosX(style.ItemSpacing.x);
-
-    // Label
-    if (label != nullptr)
-    {
-        TextAlignedRight(itemWidth, label);
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(itemWidth + style.ItemSpacing.x);
-    }
-
-    ImGuiInputTextFlags flags = ImGuiInputTextFlags_None;
-    if (!editable)
-        flags |= ImGuiInputTextFlags_ReadOnly;
-
-    // Component x
-    ImGui::PushID("x");
-    ImGui::SetNextItemWidth(itemWidth);
-    modified = ImGui::InputFloat("##x", &value.x, 0.f, 0.f, "%.3f", flags) || modified;
-    ImGui::PopID();
-    ImGui::SameLine();
-
-    // Component y
-    ImGui::PushID("y");
-    ImGui::SetNextItemWidth(itemWidth);
-    modified = ImGui::InputFloat("##y", &value.y, 0.f, 0.f, "%.3f", flags) || modified;
-    ImGui::PopID();
-    ImGui::SameLine();
-
-    // Component z
-    ImGui::PushID("z");
-    ImGui::SetNextItemWidth(itemWidth);
-    modified = ImGui::InputFloat("##z", &value.z, 0.f, 0.f, "%.3f", flags) || modified;
-    ImGui::PopID();
-
-    ImGui::PopID();
-
-    return modified;
-}
-
 const char* GetTextureDimensionText(st::rhi::TextureDimension dim)
 {
     switch (dim)
@@ -556,7 +500,7 @@ void StructureUI::BuildSettingsWindow()
 {
     ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
 
-    if (!ImGui::Begin("Scene view", &m_ShowSettings, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Settings", &m_ShowSettings, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
@@ -571,62 +515,50 @@ void StructureUI::BuildSettingsWindow()
 
         // Position
         float3 pos = camera->GetPosition();
-        if (Float3Widget("Position", pos, true))
+        if (ImGui::InputFloat3("Position", (float*)&pos))
         {
             camera->SetPosition(pos);
         }
 
         // Direction
-        float3 dir = camera->GetForward();
-        if (Float3Widget("Direction", dir, true))
+        float yaw = camera->GetYaw();
+        float pitch = camera->GetPitch();
+        float roll = camera->GetRoll();
+
+        if (ImGui::SliderAngle("Yaw", &yaw, -180.0f, 180.0f))
+            camera->SetYaw(yaw);
+        if (ImGui::SliderAngle("Pitch", &pitch, -90.0f, 90))
+            camera->SetPitch(pitch);
+        if (ImGui::SliderAngle("Roll", &roll, -180, 180.f))
+            camera->SetRoll(roll);
+
+        // FOV
+        float fov = camera->GetVerticalFOV();
+        if (ImGui::SliderAngle("FOV", &fov, 0.f, 180.f))
         {
-            dir = glm::normalize(dir);
-            camera->SetForward(dir);
+            camera->SetVerticalFov(fov);
         }
 
         // 3 elements in a row
-        float itemWidth = availWidth / 6;
-
-        // FOV
-        TextAlignedRight(itemWidth + style.ItemSpacing.x, "FOV");
-        ImGui::SameLine();
-
-        float fov = glm::degrees(camera->GetVerticalFOV());
-        ImGui::PushID("fov");
-        ImGui::SetNextItemWidth(itemWidth);
-        if (ImGui::InputFloat("##fov", &fov, 0.f, 0.f, "%.3f", 0))
-        {
-            camera->SetVerticalFov(glm::radians(fov));
-        }
-        ImGui::PopID();
-        ImGui::SameLine();
+        float itemWidth = availWidth / 4;
 
         // Near plane
-        TextAlignedRight(itemWidth * 3 + style.ItemSpacing.x, "Near");
-        ImGui::SameLine();
-
-        float znear = camera->GetZNear();
-        ImGui::PushID("z-near");
         ImGui::SetNextItemWidth(itemWidth);
-        if (ImGui::InputFloat("##znear", &znear, 0.f, 0.f, "%.3f", 0))
+        float znear = camera->GetZNear();
+        if (ImGui::InputFloat("Near", &znear, 0.f, 0.f, "%.3f", 0))
         {
             camera->SetZNear(znear);
         }
-        ImGui::PopID();
-        ImGui::SameLine();
 
         // Speed
-        TextAlignedRight(itemWidth * 5 + style.ItemSpacing.x * 2, "Speed");
         ImGui::SameLine();
-
-        float speed = m_Data.CameraSpeed;
-        ImGui::PushID("camspeed");
         ImGui::SetNextItemWidth(itemWidth);
-        if (ImGui::InputFloat("##camspeed", &speed, 0.f, 0.f, "%.3f", 0))
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + itemWidth / 2.f);
+        float speed = m_Data.CameraSpeed;
+        if (ImGui::InputFloat("Speed", &speed, 0.f, 0.f, "%.3f", 0))
         {
             m_Data.CameraSpeed = speed;
         }
-        ImGui::PopID();
     }
 
     if (ImGui::CollapsingHeader("Debug view", ImGuiTreeNodeFlags_None))
