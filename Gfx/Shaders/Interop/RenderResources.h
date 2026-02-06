@@ -161,6 +161,7 @@ namespace interop
         float shoulder;
         float2 bc;
         float middleGray;
+        float sdrExposureBias;
     };
 
     struct BuildLuminanceHistogramConstants

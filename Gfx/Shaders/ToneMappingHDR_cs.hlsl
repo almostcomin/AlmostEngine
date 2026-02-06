@@ -1,7 +1,6 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 
-// Solo actúa por encima de un "knee", por debajo es completamente lineal
 float3 HDRHighlightRolloff(float3 x, float knee, float maxNits)
 {
     float3 result;

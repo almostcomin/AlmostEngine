@@ -130,12 +130,6 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 
 void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 {
-	// Check window resize
-	if (UpdateWindowSize())
-	{
-		//renderPassManager->OnBackbufferResize(deviceManager->GetWindowDimensions());
-	}
-
 	if (IsWindowVisible())
 	{
 		uint64_t completedFrameIdx = BeginFrame();

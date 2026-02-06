@@ -24,11 +24,14 @@ public:
 
 	ToneMappingRenderStage();
 
-	void SetTonemappingEnabled(bool v) { m_Tonemapping = v; }
+	void SetTonemappingEnabled(bool v) { m_TonemappingEnabled = v; }
 
 	void SetSceneMiddleGray(float v) { m_SceneMiddleGray = v; }
 	float GetSceneMiddleGray() const { return m_SceneMiddleGray; }
 	
+	void SetSDRExposureBias(float v) { m_sdrExposureBias = v; }
+	float GetSDRExposureBias() const { return m_sdrExposureBias; }
+
 	float GetMinLogLuminance() const { return m_MinLogLuminance; }
 	float GetLogLuminanceRange() const { return m_LogLuminanceRange; }
 
@@ -45,6 +48,9 @@ private:
 	void OnAttached() override;
 	void OnDetached() override;
 
+	void TonemapHDR();
+	void TonemapSDR();
+
 private:
 
 	rhi::ShaderOwner m_BuildHistogramCS;
@@ -53,11 +59,15 @@ private:
 	rhi::ShaderOwner m_AvgLuminanceCS;
 	rhi::ComputePipelineStateOwner m_AvgLuminancePSO;
 
-	rhi::ShaderOwner m_TonemappingCS;
-	rhi::ComputePipelineStateOwner m_TonemappingPSO;
+	rhi::ShaderOwner m_TonemappingSDR_CS;
+	rhi::ComputePipelineStateOwner m_TonemappingSDR_PSO;
 
+	rhi::ShaderOwner m_TonemappingHDR_CS;
+	rhi::ComputePipelineStateOwner m_TonemappingHDR_PSO;
+
+	bool m_TonemappingEnabled = true;
 	float m_SceneMiddleGray = 0.18f;
-	bool m_Tonemapping = true;
+	float m_sdrExposureBias = 0.8f;
 
 	float m_MinLogLuminance;
 	float m_LogLuminanceRange;

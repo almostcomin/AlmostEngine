@@ -36,11 +36,12 @@ public:
 		st::gfx::Scene::SunParams SunParams;
 		bool SunParamsUpdated = false;
 
+		bool tonemappingEnabled = true;
 		float middleGrayNits = 0.18f;
 		float paperWhiteNits = 203.f;
-		bool tonemappingEnabled = true;
 		float minLogLuminance = -10.f;
 		float logLuminanceRange = 12.f;
+		float sdrExposureBias = 0.5f;
 	};
 
 	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::ToneMappingRenderStage* tonemappingRS, 

@@ -626,7 +626,18 @@ void StructureUI::BuildSettingsWindow()
 
     if (ImGui::CollapsingHeader("Tonemapping"))
     {
+        st::rhi::ColorSpace colorSpace = m_DeviceManager->GetColorSpace();
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+        ImGui::Text("Color Space: %s", colorSpace == st::rhi::ColorSpace::HDR10_ST2084 ? "HDR10" : "SDR");
+        ImGui::PopStyleColor();
+
+        ImGui::SameLine(0.f, availWidth / 8);
         ImGui::Checkbox("Enabled", &m_Data.tonemappingEnabled);
+
+        ImGui::Separator();
+
+        // Luminance
 
         const float minLogLuminance = -20.f;
         const float maxLogLuminance = 0.f;
@@ -642,10 +653,20 @@ void StructureUI::BuildSettingsWindow()
         ImGui::Text("Luminance [%1.6f .. %1.6f]", minLum, maxLum);
         ImGui::PopStyleColor();
 
+        ImGui::Spacing();
+
         ImGui::SliderFloat("Middle Gray Nits", &m_Data.middleGrayNits, 0.f, 1000.f);
         ImGui::SliderFloat("Paper White Nits", &m_Data.paperWhiteNits, 0.f, 1000.f);
 
+        ImGui::Spacing();
+
         m_ShowLuminanceHistogram |= ImGui::Button("View Histogram");
+        
+        ImGui::Separator();
+
+        const float minExposureBias = 0.f;
+        const float maxExposureBias = 1.f;
+        ImGui::SliderScalar("SDR Exposure Bias", ImGuiDataType_Float, &m_Data.sdrExposureBias, &minExposureBias, &maxExposureBias, "%.3f");
     }
 
     ImGui::End();

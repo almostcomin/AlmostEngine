@@ -186,7 +186,7 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_Data.SunParams = scene->GetSunParams();
 	uiRS->m_Data.middleGrayNits = toneMappingRS->GetSceneMiddleGray() * compositeRS->GetPaperWhiteNits();
 	uiRS->m_Data.paperWhiteNits = compositeRS->GetPaperWhiteNits();
-
+	uiRS->m_Data.sdrExposureBias = toneMappingRS->GetSDRExposureBias();
 	uiRS->m_Data.minLogLuminance = toneMappingRS->GetMinLogLuminance();
 	uiRS->m_Data.logLuminanceRange = toneMappingRS->GetLogLuminanceRange();
 
@@ -366,10 +366,11 @@ int SDL_main(int argc, char* argv[])
 			}
 
 			// Scene middlegray is middle_gray_nits / paper_white_nits
-			toneMappingRS->SetSceneMiddleGray(uiRS->m_Data.middleGrayNits / uiRS->m_Data.paperWhiteNits);
 			toneMappingRS->SetTonemappingEnabled(uiRS->m_Data.tonemappingEnabled);
+			toneMappingRS->SetSceneMiddleGray(uiRS->m_Data.middleGrayNits / uiRS->m_Data.paperWhiteNits);
 			toneMappingRS->SetMinLogLuminance(uiRS->m_Data.minLogLuminance);
 			toneMappingRS->SetLogLuminanceRange(uiRS->m_Data.logLuminanceRange);
+			toneMappingRS->SetSDRExposureBias(uiRS->m_Data.sdrExposureBias);
 		}
 
 		// Update FPS counter
@@ -385,8 +386,8 @@ int SDL_main(int argc, char* argv[])
 
 		if (deviceManager->UpdateWindowSize())
 		{
-			SDL_GetWindowSize(window, (int*)&windowWidth, (int*)&windowHeight);
-			camera->SetAspect((float)windowWidth / windowHeight);
+			float2 newSize = deviceManager->GetWindowDimensions();
+			camera->SetAspect(newSize.x / newSize.y);
 
 			renderView->OnWindowSizeChanged();
 		}

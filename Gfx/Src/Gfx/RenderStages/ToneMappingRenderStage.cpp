@@ -38,8 +38,8 @@ st::gfx::ToneMappingRenderStage::Stats st::gfx::ToneMappingRenderStage::GetStats
 
 void st::gfx::ToneMappingRenderStage::Render()
 {
-	CommonResources* commonResources = m_RenderView->GetDeviceManager()->GetCommonResources();
 	DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	CommonResources* commonResources = deviceManager->GetCommonResources();
 	UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
 	rhi::Device* device = deviceManager->GetDevice();
 	auto commandList = m_RenderView->GetCommandList();
@@ -53,7 +53,7 @@ void st::gfx::ToneMappingRenderStage::Render()
 	assert(width == inputTexture->GetDesc().width);
 	assert(height == inputTexture->GetDesc().height);
 	
-	if (!m_Tonemapping)
+	if (!m_TonemappingEnabled)
 	{
 		commandList->SetPipelineState(commonResources->GetBlitComputePSO().get());
 		
@@ -165,24 +165,16 @@ void st::gfx::ToneMappingRenderStage::Render()
 		}
 
 		// Tone mapping
+		switch (deviceManager->GetColorSpace())
 		{
-			commandList->BeginMarker("Tonemapping");
-
-			commandList->PushBarrier(
-				rhi::Barrier::Texture(avgLuminanceTexture.get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
-
-			commandList->SetPipelineState(m_TonemappingPSO.get());
-
-			interop::TonemapConstants shaderConstants = {};
-			shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-			shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-			shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
-			shaderConstants.middleGray = m_SceneMiddleGray;
-
-			commandList->PushComputeConstants(shaderConstants);
-			commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
-
-			commandList->EndMarker();
+		case rhi::ColorSpace::SRGB:
+			TonemapSDR();
+			break;
+		case rhi::ColorSpace::HDR10_ST2084:
+			TonemapHDR();
+			break;
+		default:
+			assert(0);
 		}
 
 		// Retrieve stats
@@ -236,7 +228,8 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 		
 		m_BuildHistogramCS = shaderFactory->LoadShader("BuildLuminanceHistogram_cs", rhi::ShaderType::Compute);
 		m_AvgLuminanceCS = shaderFactory->LoadShader("AvgLuminanceHistogram_cs", rhi::ShaderType::Compute);
-		m_TonemappingCS = shaderFactory->LoadShader("ToneMapping_cs", rhi::ShaderType::Compute);
+		m_TonemappingSDR_CS = shaderFactory->LoadShader("ToneMappingSDR_cs", rhi::ShaderType::Compute);
+		m_TonemappingHDR_CS = shaderFactory->LoadShader("ToneMappingHDR_cs", rhi::ShaderType::Compute);
 	}
 
 	// Create PSOs
@@ -245,7 +238,8 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 			rhi::ComputePipelineStateDesc{ m_BuildHistogramCS.get_weak() }, "BuildHistogramPSO");
 		m_AvgLuminancePSO = device->CreateComputePipelineState(
 			rhi::ComputePipelineStateDesc{ m_AvgLuminanceCS.get_weak() }, "AverageLuminancePSO");
-		m_TonemappingPSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ m_TonemappingCS.get_weak() }, "TonemappingPSO");
+		m_TonemappingSDR_PSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ m_TonemappingSDR_CS.get_weak() }, "TonemappingSDR_PSO");
+		m_TonemappingHDR_PSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ m_TonemappingHDR_CS.get_weak() }, "TonemappingHDR_PSO");
 	}
 
 	// Stats
@@ -275,12 +269,73 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 
 void st::gfx::ToneMappingRenderStage::OnDetached()
 {
-	m_TonemappingPSO = nullptr;
-	m_TonemappingCS = nullptr;
+	m_TonemappingHDR_PSO = nullptr;
+	m_TonemappingHDR_CS = nullptr;
+
+	m_TonemappingSDR_PSO = nullptr;
+	m_TonemappingSDR_CS = nullptr;
 
 	m_AvgLuminanceCS = nullptr;
 	m_AvgLuminancePSO = nullptr;
 
 	m_BuildHistogramPSO = nullptr;
 	m_BuildHistogramCS = nullptr;
+}
+
+void st::gfx::ToneMappingRenderStage::TonemapHDR()
+{
+	auto commandList = m_RenderView->GetCommandList();
+	st::rhi::TextureHandle avgLuminanceTexture = m_RenderView->GetTexture("LuminanceAverage");
+	st::rhi::TextureHandle inputTexture = m_RenderView->GetTexture("SceneColor");
+	st::rhi::TextureHandle outputTexture = m_RenderView->GetTexture("ToneMapped");
+	const uint32_t width = outputTexture->GetDesc().width;
+	const uint32_t height = outputTexture->GetDesc().height;
+
+	commandList->BeginMarker("Tonemapping HDR");
+
+	commandList->PushBarrier(
+		rhi::Barrier::Texture(avgLuminanceTexture.get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
+
+	commandList->SetPipelineState(m_TonemappingHDR_PSO.get());
+
+	interop::TonemapConstants shaderConstants = {};
+	shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+	shaderConstants.middleGray = m_SceneMiddleGray;
+	shaderConstants.sdrExposureBias = m_sdrExposureBias;
+
+	commandList->PushComputeConstants(shaderConstants);
+	commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
+
+	commandList->EndMarker();
+}
+
+void st::gfx::ToneMappingRenderStage::TonemapSDR()
+{
+	auto commandList = m_RenderView->GetCommandList();
+	st::rhi::TextureHandle avgLuminanceTexture = m_RenderView->GetTexture("LuminanceAverage");
+	st::rhi::TextureHandle inputTexture = m_RenderView->GetTexture("SceneColor");
+	st::rhi::TextureHandle outputTexture = m_RenderView->GetTexture("ToneMapped");
+	const uint32_t width = outputTexture->GetDesc().width;
+	const uint32_t height = outputTexture->GetDesc().height;
+
+	commandList->BeginMarker("Tonemapping SDR");
+
+	commandList->PushBarrier(
+		rhi::Barrier::Texture(avgLuminanceTexture.get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
+
+	commandList->SetPipelineState(m_TonemappingSDR_PSO.get());
+
+	interop::TonemapConstants shaderConstants = {};
+	shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+	shaderConstants.middleGray = m_SceneMiddleGray;
+	shaderConstants.sdrExposureBias = m_sdrExposureBias;
+
+	commandList->PushComputeConstants(shaderConstants);
+	commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
+
+	commandList->EndMarker();
 }
