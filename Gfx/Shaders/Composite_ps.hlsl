@@ -1,7 +1,6 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 #include "Color.hlsli"
-#include "ACES.hlsli"
 
 // These values must match the st::rhi::ColorSpace enum
 #define COLOR_SPACE_SRGB            0

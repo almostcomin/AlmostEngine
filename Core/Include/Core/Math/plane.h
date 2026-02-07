@@ -5,26 +5,28 @@
 namespace st::math
 {
 
-template<typename T>
-struct plane3
+template<typename T, int n>
+struct plane
 {
-	using vec_t = glm::vec<3, T, glm::defaultp>;
+	static_assert(n > 1);
+
+	using vec_t = glm::vec<n, T, glm::defaultp>;
 
 	vec_t normal;	// normal
 	T d;			// independent value
 
-	plane3() = default;
+	plane() = default;
 
 	// Construct from normal and point
-	plane3(const vec_t& n, const vec_t& p)
+	plane(const vec_t& n, const vec_t& p)
 	{
 		normal = glm::normalize(n);
 		d = -glm::dot(normal, p);
 	}
 
-	plane3(const vec_t& n, T dVal) : normal{ n }, d{ dVal } {}
+	plane(const vec_t& n, T dVal) : normal{ n }, d{ dVal } {}
 
-	plane3(const glm::vec<4, T, glm::defaultp>& xyzd)
+	plane(const glm::vec<n + 1, T, glm::defaultp>& xyzd)
 	{
 		normal = vec_t{ xyzd.x, xyzd.y, xyzd.z };
 		d = xyzd.w;
@@ -46,6 +48,7 @@ struct plane3
 	}
 };
 
-using plane3f = plane3<float>;
+using plane2f = plane<float, 2>;
+using plane3f = plane<float, 3>;
 
 } // namespace st::math

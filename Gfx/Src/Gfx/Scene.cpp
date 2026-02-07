@@ -190,6 +190,15 @@ void st::gfx::Scene::Update()
 	}
 }
 
+const st::math::aabox3f st::gfx::Scene::GetWorldBounds() const
+{
+	if (m_SceneGraph && m_SceneGraph->GetRoot() && m_SceneGraph->GetRoot()->HasBounds())
+	{
+		return m_SceneGraph->GetRoot()->GetWorldBounds();
+	}
+	return math::aabox3f::get_empty();
+}
+
 st::rhi::DescriptorIndex st::gfx::Scene::GetInstancesBufferDI() const
 {
 	return m_InstancesBuffer ? m_InstancesBuffer->GetShaderViewIndex(st::rhi::BufferShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;

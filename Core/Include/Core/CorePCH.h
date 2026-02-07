@@ -12,6 +12,7 @@
 #include <array>
 #include <cassert>
 #include <filesystem>
+#include <span>
 
 #if _WIN32
 

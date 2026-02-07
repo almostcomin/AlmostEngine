@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Math/glm_config.h"
+#include "Core/Math/plane.h"
 
 namespace st::math
 {
@@ -31,6 +32,11 @@ struct aabox
         min = vec_t{ std::numeric_limits<T>::max() };
         max = vec_t{ std::numeric_limits<T>::lowest() };
         return *this;
+    }
+
+    bool valid() const
+    {
+        return max.x >= min.x && max.y >= min.y && max.z >= min.z;
     }
 
     vec_t center() const
@@ -73,7 +79,19 @@ struct aabox
         return result;
     }
 
-    static const aabox<T, n>& empty()
+    // Returns true if inside (direction of the normal) or overlaps the plane
+    template<typename T>
+    bool test(const plane<T, 3>& _plane) const
+    {
+        glm::vec3 p{
+            _plane.normal.x >= 0.f ? max.x : min.x,
+            _plane.normal.y >= 0.f ? max.y : min.y,
+            _plane.normal.z >= 0.f ? max.z : min.z };
+
+        return _plane.distance(p) >= 0.f;
+    };
+
+    static const aabox<T, n>& get_empty()
     {
         static aabox emptyBBox{ InitEmpty };
         return emptyBBox;

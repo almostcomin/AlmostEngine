@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Math/plane.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderView.h"
 #include <functional>

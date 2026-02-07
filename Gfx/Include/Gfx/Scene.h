@@ -41,6 +41,9 @@ namespace st::gfx
 		~Scene();
 
 		void SetSceneGraph(unique<SceneGraph>&& graph);
+		weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
+
+		const math::aabox3f GetWorldBounds() const;
 
 		const AmbientParams& GetAmbientParams() const { return m_AmbientParams; }
 		void SetAmbientParams(const AmbientParams& v) { m_AmbientParams = v; }
@@ -55,9 +58,8 @@ namespace st::gfx
 		// Resturs the index in the instances buffer (GetInstancesBufferDI) of the pInstance instance
 		int GetInstanceIndex(const st::gfx::MeshInstance* pInstance);
 
+		// Updates scene graph
 		void Update();
-
-		weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
 
 	private:
 

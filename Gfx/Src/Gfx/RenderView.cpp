@@ -443,8 +443,9 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 		Refresh();
 	}
 
+	UpdateCameraVisibleSet();
+	UpdateShadowmapData();
 	UpdateSceneConstantBuffer();
-	UpdateVisibleSet();
 
 	m_TimeDeltaSec = timeDeltaSec;
 	st::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
@@ -740,7 +741,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->sunIrradiance = sunParams.Irradiance;
 		sceneShaderConstant->sunColor = float4{ sunParams.Color, 0.f };
 		sceneShaderConstant->sunAngularSizeRad = glm::radians(sunParams.AngularSizeDeg);
-		sceneShaderConstant->sunWorldToClipMatrix = GetSunWoldToClipMatrix(sunDir);
+		sceneShaderConstant->sunWorldToClipMatrix = m_SunWoldToClipMatrix;
 
 		// Ambient 
 		const Scene::AmbientParams& ambientParams = m_Scene->GetAmbientParams();
@@ -762,32 +763,93 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	m_SceneCB->Unmap();
 }
 
-void st::gfx::RenderView::UpdateVisibleSet()
+void st::gfx::RenderView::UpdateCameraVisibleSet()
 {
-	m_VisibleSet.clear();
+	m_CameraVisibleSet.clear();
+	m_CameraVisibleBounds.reset();
 	if (!m_Camera || !m_Scene || !m_Scene->GetSceneGraph())
 		return;
 
-	const auto& frustum = m_Camera->GetFrustum();
-	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
-	while (walker)
+	m_CameraVisibleSet = GetVisibleSet(m_Camera->GetFrustum().get_planes(), &m_CameraVisibleBounds);
+}
+
+void st::gfx::RenderView::UpdateShadowmapData()
+{
+	m_SunVisibleSet.clear();
+	m_SunWoldToClipMatrix = {};
+
+	if (!m_CameraVisibleBounds.valid())
+		return;
+
+	const Scene::SunParams& sunParams = m_Scene->GetSunParams();
+	const float3 sunDir = st::ElevationAzimuthRadToDir(
+		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
+
+	const st::math::aabox3f& worldBounds = m_Scene->GetWorldBounds();
+	const st::math::aabox3f& visibleSceneBounds = m_CameraVisibleBounds;
+	const float3 worldCenter = worldBounds.center();
+	const float3 worldExtents = worldBounds.extents();
+
+	// View matrix
+	const float3 sunPos = worldCenter - (sunDir * glm::length(worldExtents) / 2.f);
+	const float3 sunUp = fabs(glm::dot(sunDir, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
+	const float4x4 sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
+
+	// Transform scene (visible set) bounds to local camera axis
+	auto sceneBoundsSun = visibleSceneBounds.transform(sunViewMatrix);
+	assert(sceneBoundsSun.min.z <= 0.f); // Note that front is -z
+	assert(sceneBoundsSun.max.z <= 0.f);
+	assert(sceneBoundsSun.min.z <= sceneBoundsSun.max.z);
+
+	// Extends the bounds depth to the direction of the sun top cover entire scene
 	{
-		auto node = *walker;
-		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && frustum.check(node->GetWorldBounds()))
-		{
-			auto leaf = node->GetLeaf();
-			if (leaf)
-			{
-				const auto* meshInstance = st::checked_cast<const st::gfx::MeshInstance*>(leaf.get());
-				assert(meshInstance);
-				m_VisibleSet.push_back(meshInstance);
-			}
-			walker.Next();
-		}
-		else
-		{
-			walker.NextSibling();
-		}
+		auto worldBoundsSun = worldBounds.transform(sunViewMatrix);
+		assert(worldBoundsSun.min.z <= 0.f);
+		assert(worldBoundsSun.max.z <= 0.f);
+		assert(worldBoundsSun.min.z <= sceneBoundsSun.max.z);
+
+		sceneBoundsSun.min.z = worldBoundsSun.min.z;
+		sceneBoundsSun.max.z = worldBoundsSun.max.z;
+	}
+
+	// Calc projection matrix
+
+	float zNear = -sceneBoundsSun.max.z;
+	float zFar = -sceneBoundsSun.min.z;
+	assert(zNear >= 0.0f);
+	assert(zFar >= zNear);
+
+	const float4x4 sunProjMatrix = BuildOrthoInvZ(
+		sceneBoundsSun.min.x, sceneBoundsSun.max.x, sceneBoundsSun.min.y, sceneBoundsSun.max.y, zNear, zFar);
+
+#ifdef _DEBUG
+	//*** TEST
+	{
+		float4 pNear = sunProjMatrix * float4{ 0.f, 0.f, -zNear, 1.f };
+		float4 pFar = sunProjMatrix * float4{ 0.f, 0.f, -zFar, 1.f };
+		float zn = pNear.z / pNear.w;
+		float zf = pFar.z / pFar.w;
+		assert(zn > zf);
+		// Ortho proj, W is 1, so p.w should be 1
+		assert(AlmostEqual(zn, 1.f) && AlmostEqual(pFar.z, 0.f));
+		assert(AlmostEqual(zf, 0.f) && AlmostEqual(pFar.w, 1.f));
+	}
+#endif
+
+	m_SunWoldToClipMatrix = sunProjMatrix * sunViewMatrix;
+
+	{
+		math::aabox3f aabb = sceneBoundsSun.transform(glm::inverse(sunViewMatrix));
+		std::vector<math::plane3f> sunClipPlanes{
+			{{ 1.f, 0.f, 0.f }, -aabb.min.x },	// left
+			{{ -1.f, 0.f, 0.f }, aabb.max.x },	// right
+			{{ 0.f, -1.f, 0.f }, aabb.max.y },	// top
+			{{ 0.f, 1.f, 0.f }, -aabb.min.y },	// bottom
+			{{ 0.f, 0.f, 1.f }, -aabb.min.z },	// near
+			{{ 0.f, 0.f, -1.f }, aabb.max.z },	// far		
+		};
+
+		m_SunVisibleSet = GetVisibleSet(sunClipPlanes);
 	}
 }
 
@@ -930,61 +992,49 @@ void st::gfx::RenderView::UpdateRequestedBufferViews(st::rhi::CommandListHandle 
 	}
 }
 
-float4x4 st::gfx::RenderView::GetSunWoldToClipMatrix(const float3& sunDir)
+std::vector<const st::gfx::MeshInstance*> st::gfx::RenderView::GetVisibleSet(
+	const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds) const
 {
-	const Scene::SunParams& sunParams = m_Scene->GetSunParams();
+	std::vector<const st::gfx::MeshInstance*> result;
+	if (opt_outBounds)
+		opt_outBounds->reset();
 
-	const st::math::aabox3f sceneBounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds();
-	const float3 sceneCenter = sceneBounds.center();
-	const float3 sceneExtents = sceneBounds.extents();
-	const float3 sunPos = sceneCenter - (sunDir * glm::length(sceneExtents) / 2.f);
+	if (!m_Scene || !m_Scene->GetSceneGraph())
+		return result;
 
-	const float3 sunUp = fabs(glm::dot(sunDir, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
-	const float4x4 sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
-
-	float3 corners[8] = {
-		{sceneBounds.min.x, sceneBounds.min.y, sceneBounds.min.z},
-		{sceneBounds.max.x, sceneBounds.min.y, sceneBounds.min.z},
-		{sceneBounds.min.x, sceneBounds.max.y, sceneBounds.min.z},
-		{sceneBounds.max.x, sceneBounds.max.y, sceneBounds.min.z},
-		{sceneBounds.min.x, sceneBounds.min.y, sceneBounds.max.z},
-		{sceneBounds.max.x, sceneBounds.min.y, sceneBounds.max.z},
-		{sceneBounds.min.x, sceneBounds.max.y, sceneBounds.max.z},
-		{sceneBounds.max.x, sceneBounds.max.y, sceneBounds.max.z},
+	auto boundsVisible = [&planes](const math::aabox3f bounds) -> bool
+	{
+		for (const auto& plane : planes)
+		{
+			if (!bounds.test(plane))
+				return false;
+		}
+		return true;
 	};
-	float3 min_v{ FLT_MAX };
-	float3 max_v{ -FLT_MAX };
-	for (int i = 0; i < 8; ++i)
+
+	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
+	while (walker)
 	{
-		float4 v = sunViewMatrix * float4(corners[i], 1.0f);
-		min_v.x = std::min(min_v.x, v.x);
-		min_v.y = std::min(min_v.y, v.y);
-		min_v.z = std::min(min_v.z, v.z);
-		max_v.x = std::max(max_v.x, v.x);
-		max_v.y = std::max(max_v.y, v.y);
-		max_v.z = std::max(max_v.z, v.z);
+		auto node = *walker;
+		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && boundsVisible(node->GetWorldBounds()))
+		{
+			auto leaf = node->GetLeaf();
+			if (leaf)
+			{
+				const auto* meshInstance = st::checked_cast<const st::gfx::MeshInstance*>(leaf.get());
+				assert(meshInstance);
+
+				result.push_back(meshInstance);
+				if(opt_outBounds)
+					opt_outBounds->merge(node->GetWorldBounds());
+			}
+			walker.Next();
+		}
+		else
+		{
+			walker.NextSibling();
+		}
 	}
-	assert(max_v.z > min_v.z);
-	float zNear = -max_v.z;
-	float zFar = -min_v.z;
-	assert(zNear >= 0.0f);
-	assert(zFar >= zNear);
 
-	const float4x4 sunProjMatrix = BuildOrthoInvZ(min_v.x, max_v.x, min_v.y, max_v.y, zNear, zFar);
-
-#ifdef _DEBUG
-	//*** TEST
-	{
-		float4 pNear = sunProjMatrix * float4{ 0.f, 0.f, -zNear, 1.f };
-		float4 pFar = sunProjMatrix * float4{ 0.f, 0.f, -zFar, 1.f };
-		float zn = pNear.z / pNear.w;
-		float zf = pFar.z / pFar.w;
-		assert(zn > zf);
-		// Ortho proj, W is 1, so p.w should be 1
-		assert(AlmostEqual(zn, 1.f) && AlmostEqual(pFar.z, 0.f));
-		assert(AlmostEqual(zf, 0.f) && AlmostEqual(pFar.w, 1.f));
-	}
-#endif
-
-	return sunProjMatrix * sunViewMatrix;
+	return result;
 }

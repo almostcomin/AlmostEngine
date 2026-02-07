@@ -29,7 +29,7 @@ public:
 	virtual ~SceneGraphLeaf() {}
 
 	virtual bool HasBounds() const = 0;
-	virtual const st::math::aabox3f& GetBounds() const { return st::math::aabox3f::empty(); }
+	virtual const st::math::aabox3f& GetBounds() const { return st::math::aabox3f::get_empty(); }
 	virtual SceneContentFlags GetContentFlags() const { return st::gfx::SceneContentFlags::None; }
 	virtual Type GetType() const = 0;
 

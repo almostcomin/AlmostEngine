@@ -17,5 +17,5 @@ bool st::gfx::MeshInstance::HasBounds() const
 
 const st::math::aabox3f& st::gfx::MeshInstance::GetBounds() const
 {
-	return m_Mesh ? m_Mesh->GetBounds() : st::math::aabox3f::empty();
+	return m_Mesh ? m_Mesh->GetBounds() : st::math::aabox3f::get_empty();
 }

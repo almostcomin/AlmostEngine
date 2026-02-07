@@ -1,13 +1,13 @@
 #pragma once
-#include <memory>
+
 #include "Core/Common.h"
 #include "Core/Memory.h"
+#include "Core/Math/plane.h"
 #include "RHI/Framebuffer.h"
 #include "RHI/CommandList.h"
 #include "RHI/Buffer.h"
 #include "RHI/TimerQuery.h"
 #include "Gfx/Scene.h"
-#include <map>
 
 namespace st::gfx
 {
@@ -91,7 +91,9 @@ public:
 	st::rhi::TextureHandle GetBackBuffer(int idx = 0);
 	st::rhi::CommandListHandle GetCommandList();
 	st::rhi::DescriptorIndex GetSceneConstantBufferDI();
-	const std::vector<const st::gfx::MeshInstance*>& GetVisibleSet() const { return m_VisibleSet; }
+	
+	const std::vector<const st::gfx::MeshInstance*>& GetCameraVisibleSet() const { return m_CameraVisibleSet; }
+	const std::vector<const st::gfx::MeshInstance*>& GetSunVisibleSet() const { return m_SunVisibleSet; }
 
 	// Texture creation / release
 	bool CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
@@ -138,8 +140,10 @@ private:
 
 	void ClearRenderStages();
 	void UpdateSceneConstantBuffer();
-	void UpdateVisibleSet();
-	float4x4 GetSunWoldToClipMatrix(const float3& sunDir);
+	void UpdateCameraVisibleSet();
+	void UpdateShadowmapData();
+
+	std::vector<const st::gfx::MeshInstance*> GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
 
 private:
 
@@ -187,7 +191,12 @@ private:
 	std::map<std::string, std::unique_ptr<DeclaredBuffer>> m_DeclaredBuffers;
 
 	// Visible set for the current camera
-	std::vector<const st::gfx::MeshInstance*> m_VisibleSet;
+	std::vector<const st::gfx::MeshInstance*> m_CameraVisibleSet;
+	math::aabox3f m_CameraVisibleBounds;
+
+	// Visible set for the sun (for shadowmapping)
+	std::vector<const st::gfx::MeshInstance*> m_SunVisibleSet;
+	float4x4 m_SunWoldToClipMatrix;
 
 	// Scene constant buffer, set at begin frame, no changes during frame render
 	st::rhi::BufferOwner m_SceneCB;

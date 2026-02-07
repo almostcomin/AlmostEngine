@@ -41,6 +41,11 @@ struct frustum3f
         planes[bottom_plane] = st::math::plane3f{ row3 + row1 };
     }
 
+    std::span<const plane3f, PLANE_COUNT> get_planes() const
+    {
+        return std::span<const plane3f, PLANE_COUNT>(planes);
+    }
+
     bool check(const glm::vec3& p) const
     {
         for (int i = 0; i < PLANE_COUNT; ++i)
@@ -51,17 +56,11 @@ struct frustum3f
         return true;
     }
 
-    bool check(const st::math::aabox3f& b) const
+    bool test(const st::math::aabox3f& b) const
     {
         for (int i = 0; i < PLANE_COUNT; ++i)
         {
-            glm::vec3 p{
-                planes[i].normal.x >= 0.f ? b.max.x : b.min.x,
-                planes[i].normal.y >= 0.f ? b.max.y : b.min.y,
-                planes[i].normal.z >= 0.f ? b.max.z : b.min.z };
-            
-            auto d = planes[i].distance(p);
-            if (d < 0.f)
+            if(!b.test(planes[i]))
                 return false;
         }
         return true;
