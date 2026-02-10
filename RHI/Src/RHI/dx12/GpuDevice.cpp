@@ -317,7 +317,7 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 		DescriptorIndex index = m_RenderTargetViewHeap.AllocateDescriptor();
 
 		const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_RenderTargetViewHeap.GetCpuHandle(index);
-		texture->CreateRTV(descriptorHandle, attachment.format, attachment.subresources);
+		CreateRTV(texture, descriptorHandle, attachment.format, attachment.subresources);
 
 		fb->RTVs.push_back(index);
 
@@ -334,7 +334,7 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 		DescriptorIndex index = m_DepthStencilViewHeap.AllocateDescriptor();
 
 		const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_DepthStencilViewHeap.GetCpuHandle(index);
-		texture->CreateDSV(descriptorHandle, desc.DepthAttachment.subresources, desc.DepthAttachment.isReadOnly);
+		CreateDSV(texture, descriptorHandle, desc.DepthAttachment.subresources, desc.DepthAttachment.isReadOnly);
 
 		fb->DSV = index;
 
@@ -485,12 +485,22 @@ st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetCopyableRequirements(c
 	return StorageRequirements{ .size = desc.sizeBytes, .alignment = GetCopyDataAlignment(CopyMethod::Buffer2Buffer) };
 }
 
-st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetCopyableRequirements(const TextureDesc& desc)
+st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetCopyableRequirements(const TextureDesc& desc, const rhi::TextureSubresourceSet& subresources)
 {
 	st::rhi::StorageRequirements ret = {};
 	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
 
-	m_D3d12Device->GetCopyableFootprints(&d3d12Desc, 0, d3d12Desc.MipLevels * d3d12Desc.DepthOrArraySize, 0, nullptr, nullptr, nullptr, &ret.size);
+	uint32_t firstSubresource = D3D12CalcSubresource(
+		subresources.baseMipLevel,
+		subresources.baseArraySlice,
+		0, // PlaneSlice
+		desc.mipLevels,
+		desc.arraySize
+	);
+
+	uint32_t numSubresources = subresources.GetNumMipLevels(desc) * subresources.GetNumArraySlices(desc);
+
+	m_D3d12Device->GetCopyableFootprints(&d3d12Desc, firstSubresource, numSubresources, 0, nullptr, nullptr, nullptr, &ret.size);
 	ret.alignment = GetCopyDataAlignment(CopyMethod::Buffer2Texture);
 
 	return ret;
@@ -533,7 +543,153 @@ size_t st::rhi::dx12::GpuDevice::GetCopyDataAlignment(CopyMethod method)
 	}
 }
 
-st::rhi::GPUBindingHandle st::rhi::dx12::GpuDevice::GetBindingHandle(ITexture* tex, TextureShaderView view)
+st::rhi::TextureSampledView st::rhi::dx12::GpuDevice::CreateTextureSampledView(ITexture* texture, const TextureSubresourceSet& subresources,
+	Format format, TextureDimension dimension)
+{
+	const auto& desc = texture->GetDesc();
+
+	if (!has_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
+	{
+		LOG_ERROR("Can't create SRV: Texture not create with TextureShaderUsage::ShaderResource");
+		return {};
+	}
+	st::rhi::DescriptorIndex di = m_ShaderResourceViewHeap.AllocateDescriptor();
+	assert(di != c_InvalidDescriptorIndex);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_ShaderResourceViewHeap.GetCpuHandle(di);
+	CreateSRV(texture, descriptorHandle, format, subresources, dimension);
+
+	return TextureSampledView{ di };
+}
+
+st::rhi::TextureStorageView st::rhi::dx12::GpuDevice::CreateTextureStorageView(ITexture* texture, const TextureSubresourceSet& subresources,
+	Format format, TextureDimension dimension)
+{
+	const auto& desc = texture->GetDesc();
+
+	if (!has_flag(desc.shaderUsage, TextureShaderUsage::Storage))
+	{
+		LOG_ERROR("Can't create UAV: Texture not create with TextureShaderUsage::UnorderedAccess");
+		return {};
+	}
+	st::rhi::DescriptorIndex di = m_ShaderResourceViewHeap.AllocateDescriptor();
+	assert(di != c_InvalidDescriptorIndex);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_ShaderResourceViewHeap.GetCpuHandle(di);
+	CreateUAV(texture, descriptorHandle, format, subresources, dimension);
+
+	return TextureStorageView{ di };
+}
+
+st::rhi::TextureColorTargetView st::rhi::dx12::GpuDevice::CreateTextureColorTargetView(ITexture* texture, Format format, TextureSubresourceSet subresources)
+{
+	const auto& desc = texture->GetDesc();
+
+	if (!has_flag(desc.shaderUsage, TextureShaderUsage::ColorTarget))
+	{
+		LOG_ERROR("Can't create UAV: Texture not create with TextureShaderUsage::UnorderedAccess");
+		return {};
+	}
+	st::rhi::DescriptorIndex di = m_RenderTargetViewHeap.AllocateDescriptor();
+	assert(di != c_InvalidDescriptorIndex);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_RenderTargetViewHeap.GetCpuHandle(di);
+	CreateRTV(texture, descriptorHandle, format, subresources);
+
+	return TextureColorTargetView{ di };
+}
+
+st::rhi::TextureDepthTargetView st::rhi::dx12::GpuDevice::CreateTextureDepthTargetView(ITexture* texture, TextureSubresourceSet subresources, bool isReadOnly)
+{
+	const auto& desc = texture->GetDesc();
+
+	if (!has_flag(desc.shaderUsage, TextureShaderUsage::DepthTarget))
+	{
+		LOG_ERROR("Can't create UAV: Texture not create with TextureShaderUsage::UnorderedAccess");
+		return {};
+	}
+	st::rhi::DescriptorIndex di = m_DepthStencilViewHeap.AllocateDescriptor();
+	assert(di != c_InvalidDescriptorIndex);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_DepthStencilViewHeap.GetCpuHandle(di);
+	CreateDSV(texture, descriptorHandle, subresources, isReadOnly);
+
+	return TextureDepthTargetView{ di };
+}
+
+void st::rhi::dx12::GpuDevice::ReleaseTextureSampledView(TextureSampledView& v, bool immediate)
+{
+	if (v.IsValid())
+	{
+		if (immediate)
+		{
+			m_ShaderResourceViewHeap.ReleaseDescriptor(v.GetIdx());
+		}
+		else
+		{
+			std::scoped_lock lock{ m_StaleDescriptorsMutex };
+			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
+				v.GetIdx(), TextureViewType::Sampled);
+		}
+		v.Invalidate();
+	}
+}
+
+void st::rhi::dx12::GpuDevice::ReleaseTextureStorageView(TextureStorageView& v, bool immediate)
+{
+	if (v.IsValid())
+	{
+		if (immediate)
+		{
+			m_ShaderResourceViewHeap.ReleaseDescriptor(v.GetIdx());
+		}
+		else
+		{
+			std::scoped_lock lock{ m_StaleDescriptorsMutex };
+			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
+				v.GetIdx(), TextureViewType::Storage);
+		}
+		v.Invalidate();
+	}
+}
+
+void st::rhi::dx12::GpuDevice::ReleaseTextureColorTargetView(TextureColorTargetView& v, bool immediate)
+{
+	if (v.IsValid())
+	{
+		if (immediate)
+		{
+			m_RenderTargetViewHeap.ReleaseDescriptor(v.GetIdx());
+		}
+		else
+		{
+			std::scoped_lock lock{ m_StaleDescriptorsMutex };
+			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
+				v.GetIdx(), TextureViewType::ColorTarget);
+		}
+		v.Invalidate();
+	}
+}
+
+void st::rhi::dx12::GpuDevice::ReleaseTextureDepthTargetView(TextureDepthTargetView& v, bool immediate)
+{
+	if (v.IsValid())
+	{
+		if (immediate)
+		{
+			m_DepthStencilViewHeap.ReleaseDescriptor(v.GetIdx());
+		}
+		else
+		{
+			std::scoped_lock lock{ m_StaleDescriptorsMutex };
+			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
+				v.GetIdx(), TextureViewType::DepthTarget);
+		}
+		v.Invalidate();
+	}
+}
+/*
+st::rhi::GPUBindingHandle st::rhi::dx12::GpuDevice::GetShaderViewHandle(ITexture* tex, TextureShaderView view)
 {
 	auto idx = tex->GetShaderViewIndex(view);
 	if (idx != c_InvalidDescriptorIndex)
@@ -554,7 +710,7 @@ st::rhi::GPUBindingHandle st::rhi::dx12::GpuDevice::GetBindingHandle(ITexture* t
 
 	return 0ul;
 }
-
+*/
 void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value)
 {
 	auto& queue = m_Queues[(int)type];
@@ -598,35 +754,19 @@ void st::rhi::dx12::GpuDevice::ExecuteCommandList(ICommandList* commandList, Que
 
 void st::rhi::dx12::GpuDevice::NextFrame()
 {
-	uint64_t nextFrameModule = (m_CurrentFrameIdx + 1) % m_Desc.swapChainFrames;
-
-	// Remove the stale resources
-	{
-		std::scoped_lock lock{ m_LivingResourcesMutex };
-		for (IResource* pres : m_StaleResources[nextFrameModule])
-		{
-			ReleaseResource(pres);
-			m_LivingResources.erase(pres);
-		}
-	}
-
-	m_StaleResources[nextFrameModule].clear();
-	++m_CurrentFrameIdx;
+	ReleaseStaleResources((m_CurrentFrameIdx + 1) % m_Desc.swapChainFrames);
 
 	m_LastStats = m_CurrentStats;
 	m_CurrentStats = {};
+
+	++m_CurrentFrameIdx;
 }
 
 void st::rhi::dx12::GpuDevice::Shutdown()
 {
 	for(int i = 0; i < m_StaleResources.size(); ++i)
 	{
-		for(int j = 0; j < m_StaleResources[i].size(); ++j)
-		{
-			IResource* pres = m_StaleResources[i][j];
-			ReleaseResource(pres);
-			m_LivingResources.erase(pres);
-		}
+		ReleaseStaleResources(i);
 	}
 
 	if (!m_LivingResources.empty())
@@ -655,7 +795,7 @@ void st::rhi::dx12::GpuDevice::ReleaseQueuedInternal(IResource* resource)
 		return;
 
 	std::scoped_lock lock{ m_StaleResourcesMutex };
-	m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].push_back(resource);
+	m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Resources.push_back(resource);
 }
 
 void st::rhi::dx12::GpuDevice::WaitForIdle()
@@ -916,16 +1056,299 @@ D3D12_RESOURCE_DESC st::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& 
 	d3d12Desc.Format = formatMap.resourceFormat;
 	d3d12Desc.SampleDesc.Count = desc.sampleCount;
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
-	if (!has_flag(desc.shaderUsage, TextureShaderUsage::ShaderResource))
+	if (!has_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-	if (has_flag(desc.shaderUsage, TextureShaderUsage::RenderTarget))
-		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	if (has_flag(desc.shaderUsage, TextureShaderUsage::DepthStencil))
-		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	if (has_flag(desc.shaderUsage, TextureShaderUsage::UnorderedAccess))
+	if (has_flag(desc.shaderUsage, TextureShaderUsage::Storage))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	if (has_flag(desc.shaderUsage, TextureShaderUsage::ColorTarget))
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	if (has_flag(desc.shaderUsage, TextureShaderUsage::DepthTarget))
+		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	if (desc.isTiled)
 		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
 
 	return d3d12Desc;
+}
+
+void st::rhi::dx12::GpuDevice::CreateSRV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources, 
+	TextureDimension dimension)
+{
+	const auto& desc = texture->GetDesc();
+	subresources.Resolve(desc);
+
+	if (dimension == TextureDimension::Unknown)
+		dimension = desc.dimension;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = {};
+
+	viewDesc.Format = GetDxgiFormatMapping(format == Format::UNKNOWN ? desc.format : format).srvFormat;
+	viewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	uint32_t planeSlice = (viewDesc.Format == DXGI_FORMAT_X24_TYPELESS_G8_UINT) ? 1 : 0;
+
+	switch (dimension)
+	{
+	case TextureDimension::Texture1D:
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
+		viewDesc.Texture1D.MostDetailedMip = subresources.baseMipLevel;
+		viewDesc.Texture1D.MipLevels = subresources.numMipLevels;
+		break;
+	case TextureDimension::Texture1DArray:
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
+		viewDesc.Texture1DArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture1DArray.ArraySize = subresources.numArraySlices;
+		viewDesc.Texture1DArray.MostDetailedMip = subresources.baseMipLevel;
+		viewDesc.Texture1DArray.MipLevels = subresources.numMipLevels;
+		break;
+	case TextureDimension::Texture2D:
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		viewDesc.Texture2D.MostDetailedMip = subresources.baseMipLevel;
+		viewDesc.Texture2D.MipLevels = subresources.numMipLevels;
+		viewDesc.Texture2D.PlaneSlice = planeSlice;
+		break;
+	case TextureDimension::Texture2DArray:
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+		viewDesc.Texture2DArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture2DArray.ArraySize = subresources.numArraySlices;
+		viewDesc.Texture2DArray.MostDetailedMip = subresources.baseMipLevel;
+		viewDesc.Texture2DArray.MipLevels = subresources.numMipLevels;
+		viewDesc.Texture2DArray.PlaneSlice = planeSlice;
+		break;
+	case TextureDimension::TextureCube:
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		viewDesc.TextureCube.MostDetailedMip = subresources.baseMipLevel;
+		viewDesc.TextureCube.MipLevels = subresources.numMipLevels;
+		break;
+	case TextureDimension::TextureCubeArray:
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
+		viewDesc.TextureCubeArray.First2DArrayFace = subresources.baseArraySlice;
+		viewDesc.TextureCubeArray.NumCubes = subresources.numArraySlices / 6;
+		viewDesc.TextureCubeArray.MostDetailedMip = subresources.baseMipLevel;
+		viewDesc.TextureCubeArray.MipLevels = subresources.numMipLevels;
+		break;
+	case TextureDimension::Texture2DMS:
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
+		break;
+	case TextureDimension::Texture2DMSArray:
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
+		viewDesc.Texture2DMSArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture2DMSArray.ArraySize = subresources.numArraySlices;
+		break;
+	case TextureDimension::Texture3D:
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+		viewDesc.Texture3D.MostDetailedMip = subresources.baseMipLevel;
+		viewDesc.Texture3D.MipLevels = subresources.numMipLevels;
+		break;
+	case TextureDimension::Unknown:
+	default:
+		assert(0);
+		return;
+	}
+
+	m_D3d12Device->CreateShaderResourceView(texture->GetNativeResource(), &viewDesc, descriptor);
+}
+
+void st::rhi::dx12::GpuDevice::CreateUAV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources,
+	TextureDimension dimension)
+{
+	const auto& desc = texture->GetDesc();
+	subresources.Resolve(desc);
+
+	if (dimension == TextureDimension::Unknown)
+		dimension = desc.dimension;
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
+
+	viewDesc.Format = GetDxgiFormatMapping(format == Format::UNKNOWN ? desc.format : format).srvFormat;
+
+	switch (dimension)
+	{
+	case TextureDimension::Texture1D:
+		viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
+		viewDesc.Texture1D.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture1DArray:
+		viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
+		viewDesc.Texture1DArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture1DArray.ArraySize = subresources.numArraySlices;
+		viewDesc.Texture1DArray.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture2D:
+		viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		viewDesc.Texture2D.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture2DArray:
+	case TextureDimension::TextureCube:
+	case TextureDimension::TextureCubeArray:
+		viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+		viewDesc.Texture2DArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture2DArray.ArraySize = subresources.numArraySlices;
+		viewDesc.Texture2DArray.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture3D:
+		viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+		viewDesc.Texture3D.FirstWSlice = 0;
+		viewDesc.Texture3D.WSize = desc.depth;
+		viewDesc.Texture3D.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture2DMS:
+	case TextureDimension::Texture2DMSArray: {
+		assert(0);
+		return;
+	}
+	case TextureDimension::Unknown:
+	default:
+		assert(0);
+		return;
+	}
+
+	m_D3d12Device->CreateUnorderedAccessView(texture->GetNativeResource(), nullptr, &viewDesc, descriptor);
+}
+
+void st::rhi::dx12::GpuDevice::CreateRTV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources)
+{
+	const auto& desc = texture->GetDesc();
+	subresources.Resolve(desc);
+
+	D3D12_RENDER_TARGET_VIEW_DESC viewDesc = {};
+
+	viewDesc.Format = GetDxgiFormatMapping(format == Format::UNKNOWN ? desc.format : format).rtvFormat;
+
+	switch (desc.dimension)
+	{
+	case TextureDimension::Texture1D:
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1D;
+		viewDesc.Texture1D.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture1DArray:
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
+		viewDesc.Texture1DArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture1DArray.ArraySize = subresources.numArraySlices;
+		viewDesc.Texture1DArray.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture2D:
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		viewDesc.Texture2D.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture2DArray:
+	case TextureDimension::TextureCube:
+	case TextureDimension::TextureCubeArray:
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+		viewDesc.Texture2DArray.ArraySize = subresources.numArraySlices;
+		viewDesc.Texture2DArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture2DArray.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture2DMS:
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
+		break;
+	case TextureDimension::Texture2DMSArray:
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
+		viewDesc.Texture2DMSArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture2DMSArray.ArraySize = subresources.numArraySlices;
+		break;
+	case TextureDimension::Texture3D:
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
+		viewDesc.Texture3D.FirstWSlice = subresources.baseArraySlice;
+		viewDesc.Texture3D.WSize = subresources.numArraySlices;
+		viewDesc.Texture3D.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Unknown:
+	default:
+		assert(0);
+		return;
+	}
+
+	m_D3d12Device->CreateRenderTargetView(texture->GetNativeResource(), &viewDesc, descriptor);
+}
+
+void st::rhi::dx12::GpuDevice::CreateDSV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly)
+{
+	const auto& desc = texture->GetDesc();
+	subresources.Resolve(desc);
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC viewDesc = {};
+
+	viewDesc.Format = GetDxgiFormatMapping(desc.format).rtvFormat;
+
+	if (isReadOnly)
+	{
+		viewDesc.Flags |= D3D12_DSV_FLAG_READ_ONLY_DEPTH;
+		if (viewDesc.Format == DXGI_FORMAT_D24_UNORM_S8_UINT || viewDesc.Format == DXGI_FORMAT_D32_FLOAT_S8X24_UINT)
+			viewDesc.Flags |= D3D12_DSV_FLAG_READ_ONLY_STENCIL;
+	}
+
+	switch (desc.dimension)
+	{
+	case TextureDimension::Texture1D:
+		viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1D;
+		viewDesc.Texture1D.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture1DArray:
+		viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
+		viewDesc.Texture1DArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture1DArray.ArraySize = subresources.numArraySlices;
+		viewDesc.Texture1DArray.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture2D:
+		viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		viewDesc.Texture2D.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture2DArray:
+	case TextureDimension::TextureCube:
+	case TextureDimension::TextureCubeArray:
+		viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+		viewDesc.Texture2DArray.ArraySize = subresources.numArraySlices;
+		viewDesc.Texture2DArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture2DArray.MipSlice = subresources.baseMipLevel;
+		break;
+	case TextureDimension::Texture2DMS:
+		viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+		break;
+	case TextureDimension::Texture2DMSArray:
+		viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
+		viewDesc.Texture2DMSArray.FirstArraySlice = subresources.baseArraySlice;
+		viewDesc.Texture2DMSArray.ArraySize = subresources.numArraySlices;
+		break;
+	case TextureDimension::Texture3D: {
+		assert(0);
+		return;
+	}
+	case TextureDimension::Unknown:
+	default:
+		assert(0);
+		return;
+	}
+
+	m_D3d12Device->CreateDepthStencilView(texture->GetNativeResource(), &viewDesc, descriptor);
+}
+
+void st::rhi::dx12::GpuDevice::ReleaseStaleResources(uint32_t bufferIdx)
+{
+	{
+		std::scoped_lock lock{ m_LivingResourcesMutex };
+		for (IResource* pres : m_StaleResources[bufferIdx].Resources)
+		{
+			ReleaseResource(pres);
+			m_LivingResources.erase(pres);
+		}
+	}
+	m_StaleResources[bufferIdx].Resources.clear();
+
+	for (const auto& desc : m_StaleResources[bufferIdx].Descriptors)
+	{
+		switch (desc.second)
+		{
+		case TextureViewType::Sampled:
+		case TextureViewType::Storage:
+			m_ShaderResourceViewHeap.ReleaseDescriptor(desc.first);
+			break;
+		case TextureViewType::ColorTarget:
+			m_RenderTargetViewHeap.ReleaseDescriptor(desc.first);
+			break;
+		case TextureViewType::DepthTarget:
+			m_DepthStencilViewHeap.ReleaseDescriptor(desc.first);
+			break;
+		}
+	}
+	m_StaleResources[bufferIdx].Descriptors.clear();
 }

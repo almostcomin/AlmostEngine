@@ -44,20 +44,20 @@ st::rhi::TextureShaderUsage GetTextureShaderUsage(st::gfx::RenderView::TextureRe
 	switch (type)
 	{
 	case st::gfx::RenderView::TextureResourceType::RenderTarget:
-		usage = st::rhi::TextureShaderUsage::ShaderResource | st::rhi::TextureShaderUsage::RenderTarget;
+		usage = st::rhi::TextureShaderUsage::Sampled | st::rhi::TextureShaderUsage::ColorTarget;
 		break;
 	case st::gfx::RenderView::TextureResourceType::DepthStencil:
-		usage = st::rhi::TextureShaderUsage::ShaderResource | st::rhi::TextureShaderUsage::DepthStencil;
+		usage = st::rhi::TextureShaderUsage::Sampled | st::rhi::TextureShaderUsage::DepthTarget;
 		break;
 	case st::gfx::RenderView::TextureResourceType::ShaderResource:
-		usage = st::rhi::TextureShaderUsage::ShaderResource;
+		usage = st::rhi::TextureShaderUsage::Sampled;
 		break;
 	default:		
 		assert(0);
-		usage = st::rhi::TextureShaderUsage::ShaderResource;
+		usage = st::rhi::TextureShaderUsage::Sampled;
 	}
 	if (needUAV)
-		usage |= st::rhi::TextureShaderUsage::UnorderedAccess;
+		usage |= st::rhi::TextureShaderUsage::Storage;
 	
 	return usage;
 }
@@ -382,14 +382,24 @@ st::rhi::BufferHandle st::gfx::RenderView::GetBuffer(const std::string& id) cons
 	return nullptr;
 }
 
-st::rhi::DescriptorIndex st::gfx::RenderView::GetShaderViewIndex(const std::string& id, rhi::TextureShaderView view)
+st::rhi::TextureSampledView st::gfx::RenderView::GetSampledView(const std::string& id)
 {
 	auto tex = GetTexture(id);
 	if (tex)
 	{
-		return tex->GetShaderViewIndex(view);
+		return tex->GetSampledView();
 	}
-	return rhi::c_InvalidDescriptorIndex;
+	return {};
+}
+
+st::rhi::TextureStorageView st::gfx::RenderView::GetStorageView(const std::string& id)
+{
+	auto tex = GetTexture(id);
+	if (tex)
+	{
+		return tex->GetStorageView();
+	}
+	return {};
 }
 
 st::rhi::DescriptorIndex st::gfx::RenderView::GetShaderViewIndex(const std::string& id, rhi::BufferShaderView view)
@@ -459,17 +469,19 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 		commandList->PushBarrier(rhi::Barrier::Texture(
 			frameBuffer->GetDesc().ColorAttachments[0].texture.get(), rhi::ResourceState::PRESENT, rhi::ResourceState::RENDERTARGET));
 
-		// Set initial textures state
+		// Get initial textures state
 		std::map<std::string, rhi::ResourceState> texturesState;
 		for (auto& entry : m_DeclaredTextures)
 			texturesState.emplace(entry.first, GetInitialState(entry.second->type));
-		// Same for buffers
+		// Get initial buffers state
 		std::map<std::string, rhi::ResourceState> buffersState;
 		for (auto& entry : m_DeclaredBuffers)
 			buffersState.emplace(entry.first, rhi::ResourceState::SHADER_RESOURCE);
 
+		// Stages render
 		for (auto& rs : m_RenderStages)
 		{
+			// Update view of reads
 			UpdateRequestedTextureViews(commandList, rs->renderStage.get(), AccessMode::Read, texturesState);
 			UpdateRequestedBufferViews(commandList, rs->renderStage.get(), AccessMode::Read, buffersState);
 
@@ -557,11 +569,12 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 				}
 			} // if (rs->renderStage->IsEnabled())
 
+			// Update view of writes
 			UpdateRequestedTextureViews(commandList, rs->renderStage.get(), AccessMode::Write, texturesState);
 			UpdateRequestedBufferViews(commandList, rs->renderStage.get(), AccessMode::Write, buffersState);
 		}
 
-		// All the resources need to go back to it initial state
+		// Frame End. All the resources need to go back to its initial state.
 		{
 			std::vector<rhi::Barrier> barriers;
 			for (auto& tex : m_DeclaredTextures)
@@ -893,7 +906,7 @@ void st::gfx::RenderView::UpdateRequestedTextureViews(st::rhi::CommandListHandle
 				.arraySize = sourceTexDesc.arraySize,
 				.mipLevels = sourceTexDesc.mipLevels,
 				.format = sourceTexDesc.format,//rhi::Format::RGBA8_UNORM,
-				.shaderUsage = rhi::TextureShaderUsage::ShaderResource
+				.shaderUsage = rhi::TextureShaderUsage::Sampled
 			};
 
 			std::stringstream debugName;

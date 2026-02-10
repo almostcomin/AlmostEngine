@@ -33,9 +33,6 @@ void st::gfx::GBuffersRenderStage::Render()
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
-		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
-
 	interop::SingleInstanceDrawData shaderConstants;
 	shaderConstants.sceneDI = m_RenderView->GetSceneConstantBufferDI();
 

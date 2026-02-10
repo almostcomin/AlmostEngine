@@ -460,7 +460,7 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
         textureDesc.sampleCount = m_DeviceParams.SwapChainSampleCount;
         textureDesc.sampleQuality = m_DeviceParams.SwapChainSampleQuality;
         textureDesc.format = m_DeviceParams.SwapChainFormat;
-        textureDesc.shaderUsage = rhi::TextureShaderUsage::RenderTarget;
+        textureDesc.shaderUsage = rhi::TextureShaderUsage::ColorTarget;
 
         std::stringstream ss;
         ss << "SwapChainBackBuffer[" << n << "]";

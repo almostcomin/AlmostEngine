@@ -58,8 +58,8 @@ void st::gfx::ToneMappingRenderStage::Render()
 		commandList->SetPipelineState(commonResources->GetBlitComputePSO().get());
 		
 		interop::BlitComputeConstants shaderConstants;
-		shaderConstants.srcTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-		shaderConstants.dstTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+		shaderConstants.srcTextureDI = inputTexture->GetSampledView();
+		shaderConstants.dstTextureDI = outputTexture->GetStorageView();
 		shaderConstants.viewBegin = float2{ 0, 0 };
 		shaderConstants.viewEnd = float2{ width, height };
 		commandList->PushComputeConstants(shaderConstants);
@@ -124,7 +124,7 @@ void st::gfx::ToneMappingRenderStage::Render()
 			commandList->SetPipelineState(m_BuildHistogramPSO.get());
 
 			interop::BuildLuminanceHistogramConstants shaderConstants;
-			shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+			shaderConstants.inputTextureDI = inputTexture->GetSampledView();
 			shaderConstants.outputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
 			shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
 			shaderConstants.viewBegin = uint2{ 0 };
@@ -150,7 +150,7 @@ void st::gfx::ToneMappingRenderStage::Render()
 
 			interop::AvgLuminanceHistogramConstants shaderConstants;
 			shaderConstants.inputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
-			shaderConstants.outputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+			shaderConstants.outputAvgLuminanceTextureDI = avgLuminanceTexture->GetStorageView();
 			shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
 			shaderConstants.pixelCount = width * height;
 			shaderConstants.minLogLuminance = m_MinLogLuminance;
@@ -299,9 +299,9 @@ void st::gfx::ToneMappingRenderStage::TonemapHDR()
 	commandList->SetPipelineState(m_TonemappingHDR_PSO.get());
 
 	interop::TonemapConstants shaderConstants = {};
-	shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+	shaderConstants.inputTextureDI = inputTexture->GetSampledView();
+	shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetSampledView();
+	shaderConstants.outputTextureDI = outputTexture->GetStorageView();
 	shaderConstants.middleGray = m_SceneMiddleGray;
 	shaderConstants.sdrExposureBias = m_sdrExposureBias;
 
@@ -328,9 +328,9 @@ void st::gfx::ToneMappingRenderStage::TonemapSDR()
 	commandList->SetPipelineState(m_TonemappingSDR_PSO.get());
 
 	interop::TonemapConstants shaderConstants = {};
-	shaderConstants.inputTextureDI = inputTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.outputTextureDI = outputTexture->GetShaderViewIndex(rhi::TextureShaderView::UnorderedAccess);
+	shaderConstants.inputTextureDI = inputTexture->GetSampledView();
+	shaderConstants.inputAvgLuminanceTextureDI = avgLuminanceTexture->GetSampledView();
+	shaderConstants.outputTextureDI = outputTexture->GetStorageView();
 	shaderConstants.middleGray = m_SceneMiddleGray;
 	shaderConstants.sdrExposureBias = m_sdrExposureBias;
 

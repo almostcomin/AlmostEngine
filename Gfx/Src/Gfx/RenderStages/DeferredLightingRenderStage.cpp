@@ -27,12 +27,12 @@ void st::gfx::DeferredLightingRenderStage::Render()
 
 	interop::DeferredLightingConstants shaderConstants;
 	shaderConstants.sceneDI = m_RenderView->GetSceneConstantBufferDI();
-	shaderConstants.sceneDepthDI = m_RenderView->GetTexture("SceneDepth")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.shadowMapDI = m_RenderView->GetShaderViewIndex("Shadowmap", rhi::TextureShaderView::ShaderResource);
-	shaderConstants.GBuffer0DI = m_RenderView->GetTexture("GBuffer0")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.GBuffer1DI = m_RenderView->GetTexture("GBuffer1")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.GBuffer2DI = m_RenderView->GetTexture("GBuffer2")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.GBuffer3DI = m_RenderView->GetTexture("GBuffer3")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.sceneDepthDI = m_RenderView->GetSampledView("SceneDepth");
+	shaderConstants.shadowMapDI = m_RenderView->GetSampledView("Shadowmap");
+	shaderConstants.GBuffer0DI = m_RenderView->GetSampledView("GBuffer0");
+	shaderConstants.GBuffer1DI = m_RenderView->GetSampledView("GBuffer1");
+	shaderConstants.GBuffer2DI = m_RenderView->GetSampledView("GBuffer2");
+	shaderConstants.GBuffer3DI = m_RenderView->GetSampledView("GBuffer3");
 
 	commandList->PushGraphicsConstants(shaderConstants);
 	commandList->Draw(3);

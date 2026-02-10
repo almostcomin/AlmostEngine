@@ -1,6 +1,8 @@
 #include "Gfx/DataUploader.h"
 #include "Gfx/Util.h"
+#include "Gfx/ShaderFactory.h"
 #include "RHI/Device.h"
+#include "Interop/RenderResources.h"
 
 namespace
 {
@@ -9,7 +11,7 @@ namespace
 }
 
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
-st::gfx::DataUploader::DataUploader(rhi::Device* device) : 
+st::gfx::DataUploader::DataUploader(ShaderFactory* shaderFactory, rhi::Device* device) :
 	m_CommitCount{ 1 }, m_Device { device }
 {
 	m_UploadBuffer = m_Device->CreateBuffer(rhi::BufferDesc{
@@ -27,6 +29,15 @@ st::gfx::DataUploader::DataUploader(rhi::Device* device) :
 	m_CompletedTicketIdx = 0;
 
 	m_ProcessInFlightCommandsThread = std::thread([this] { this->AsyncUpdate(); });
+
+	m_GenMips_CS = shaderFactory->LoadShader("GenMips_cs", rhi::ShaderType::Compute);
+	m_GenMips_PSO = m_Device->CreateComputePipelineState({ m_GenMips_CS.get_weak() }, "GenMipsPSO");
+
+	m_GetMipsSRGB_CS = shaderFactory->LoadShader("GenMipsSRGB_cs", rhi::ShaderType::Compute);
+	m_GetMipsSRGB_PSO = m_Device->CreateComputePipelineState({ m_GetMipsSRGB_CS.get_weak() }, "m_GetMipsSRGB");
+
+	m_GenMipsRenorm_CS = shaderFactory->LoadShader("GenMipsRenorm_cs", rhi::ShaderType::Compute);
+	m_GenMipsRenorm_PSO = m_Device->CreateComputePipelineState({ m_GenMipsRenorm_CS.get_weak() }, "m_GenMipsRenorm");
 }
 
 st::gfx::DataUploader::~DataUploader()
@@ -51,9 +62,10 @@ std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUpl
 	return RequestUploadTicket(storageReq.size, storageReq.alignment);
 }
 
-std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(const rhi::TextureDesc& desc)
+std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(
+	const rhi::TextureDesc& desc, const rhi::TextureSubresourceSet& subresources)
 {
-	auto storageReq = m_Device->GetCopyableRequirements(desc);
+	auto storageReq = m_Device->GetCopyableRequirements(desc, subresources);
 	return RequestUploadTicket(storageReq.size, storageReq.alignment);
 }
 
@@ -150,7 +162,8 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 }
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadTextureTicket(UploadTicket&& ticket, rhi::TextureHandle dstTexture,
-	rhi::ResourceState currentState, rhi::ResourceState targetState, const rhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+	rhi::ResourceState currentState, rhi::ResourceState targetState, const rhi::TextureSubresourceSet& subresources, GenMipsMethod genMipsMethod, 
+	const char* opt_gpuMarker)
 {
 	m_UploadBuffer->Unmap(ticket.aligned_start, ticket.size);
 
@@ -163,7 +176,13 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 	uint32_t lastArraySlice = subresources.GetLastArraySlice(desc);
 	uint32_t lastMip = subresources.GetLastMipLevel(desc);
 
-	// Transition to copy_dest
+	// Transition to copy_dest.
+	// We are going to assume that ALL the resource (mips + slices) are in the same (currentState) state.
+	// But it is possible that we only want to copy a subset of those sub-resources.
+	// This is typicall of loading texture with a single mip and generate the rest.
+	// So we want to transition to COPY_DST only the resources we want to copy
+	// 
+	// We are going to transit the entire texture, not taking into account subresources for simplicity
 	if (currentState != rhi::ResourceState::COPY_DST)
 	{
 		if (subresources.IsEntireTexture(desc))
@@ -191,29 +210,39 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 
 	commandList->WriteTexture(dstTexture.get(), subresources, m_UploadBuffer.get(), ticket.aligned_start);
 
-	// Transition from copy_dest to target state
-	if (targetState != rhi::ResourceState::COPY_DST)
+	// Generate mips
+/*
+	if (genMipsMethod != GenMipsMethod::None)
 	{
-		if (subresources.IsEntireTexture(desc))
+		GenerateMips(dstTexture.get(), genMipsMethod, currentState, targetState, subresources, commandList.get());
+	}
+	else
+*/
+	{
+		// Transition from copy_dest to target state
+		if (targetState != rhi::ResourceState::COPY_DST)
 		{
-			commandList->PushBarrier(
-				rhi::Barrier::Texture(dstTexture.get(), rhi::ResourceState::COPY_DST, targetState));
-		}
-		else
-		{
-			std::vector<rhi::Barrier> barriers;
-			barriers.reserve(desc.mipLevels * desc.arraySize);
-
-			for (uint32_t arraySlice = subresources.baseArraySlice; arraySlice <= lastArraySlice; ++arraySlice)
+			if (subresources.IsEntireTexture(desc))
 			{
-				for (int mip = subresources.baseMipLevel; mip <= lastMip; ++mip)
-				{
-					barriers.push_back(rhi::Barrier::Texture(
-						dstTexture.get(), rhi::ResourceState::COPY_DST, targetState, mip, arraySlice));
-				}
+				commandList->PushBarrier(
+					rhi::Barrier::Texture(dstTexture.get(), rhi::ResourceState::COPY_DST, targetState));
 			}
+			else
+			{
+				std::vector<rhi::Barrier> barriers;
+				barriers.reserve(desc.mipLevels * desc.arraySize);
 
-			commandList->PushBarriers(barriers);
+				for (uint32_t arraySlice = subresources.baseArraySlice; arraySlice <= lastArraySlice; ++arraySlice)
+				{
+					for (int mip = subresources.baseMipLevel; mip <= lastMip; ++mip)
+					{
+						barriers.push_back(rhi::Barrier::Texture(
+							dstTexture.get(), rhi::ResourceState::COPY_DST, targetState, mip, arraySlice));
+					}
+				}
+
+				commandList->PushBarriers(barriers);
+			}
 		}
 	}
 
@@ -245,11 +274,11 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBuff
 
 std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
 	const st::WeakBlob& srcData, rhi::TextureHandle dstTexture, st::rhi::ResourceState currentState, st::rhi::ResourceState targetState,
-	const rhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker)
+	const rhi::TextureSubresourceSet& subresources, GenMipsMethod genMipsMethod, const char* opt_gpuMarker)
 {
 	const auto& texDesc = dstTexture->GetDesc();
 	rhi::FormatInfo formatInfo = GetFormatInfo(texDesc.format);
-	auto copyReq = m_Device->GetCopyableRequirements(texDesc);
+	auto copyReq = m_Device->GetCopyableRequirements(texDesc, subresources);
 	assert(copyReq.size >= srcData.size());
 
 	auto ticket = RequestUploadTicket(copyReq.size, copyReq.alignment);
@@ -278,7 +307,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 		}
 	}
 
-	auto uploadResult = CommitUploadTextureTicket(std::move(*ticket), dstTexture, currentState, targetState, subresources, opt_gpuMarker);
+	auto uploadResult = CommitUploadTextureTicket(std::move(*ticket), dstTexture, currentState, targetState, subresources, GenMipsMethod::None, opt_gpuMarker);
 	if (!uploadResult)
 		return std::unexpected(uploadResult.error());
 
@@ -350,11 +379,67 @@ void st::gfx::DataUploader::OnCompletedTicket(UploadTicket&& ticket)
 	{
 		InsertPendingTicket(std::move(ticket));
 	}
+}
 
-	if (m_UploadBufferHead == m_UploadBufferTail && m_PendingTickets.empty())
+void st::gfx::DataUploader::GenerateMips(rhi::ITexture* texture, GenMipsMethod method, rhi::ResourceState currentState, rhi::ResourceState targetState,
+	const rhi::TextureSubresourceSet& subresources, rhi::ICommandList* commandList)
+{
+	// Regarding resource state:
+	// We expect source subresources (in subresources param) in COPY_DST
+	// The rest of the subresources, should be in currentState
+
+	// We are going to generate mip from the last mip in subresources to all the rests
+
+	const rhi::TextureDesc& desc = texture->GetDesc();
+
+	// Transition all the subresources
+	std::vector<rhi::Barrier> barriers;
+	barriers.reserve(desc.mipLevels * desc.arraySize);
+	for (int sliceIdx = 0; sliceIdx < desc.arraySize; ++sliceIdx)
 	{
-		//m_UploadBufferHead = m_UploadBufferTail = 0;
+		for (int mipIdx = 0; mipIdx < desc.mipLevels; ++mipIdx)
+		{
+			if (mipIdx <= subresources.baseMipLevel)
+			{
+				barriers.push_back(rhi::Barrier::Texture(
+					texture, rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE, mipIdx, sliceIdx));
+			}
+			else
+			{
+				barriers.push_back(rhi::Barrier::Texture(
+					texture, currentState, rhi::ResourceState::UNORDERED_ACCESS, mipIdx, sliceIdx));
+			}
+		}
 	}
+/*
+	// We need to create the view for ShaderRsource & UnorderedAccess of each subresource we are gonna touch.
+	// Tipically duitn texture creation view are create but for all the subresources only
+	// These view are temporary. Can be removed when the mips gen is finished.
+	std::vector<st::rhi::DescriptorIndex> readViews(desc.mipLevels * desc.arraySize);
+	std::vector<st::rhi::DescriptorIndex> writeViews(desc.mipLevels * desc.arraySize);
+	for (int sliceIdx = 0; sliceIdx < desc.arraySize; ++sliceIdx)
+	{
+		for (int mipIdx = 0; mipIdx < desc.mipLevels; ++mipIdx)
+		{
+			texture->Create
+		}
+	}
+
+	for (int sliceIdx = 0; sliceIdx < desc.arraySize; ++sliceIdx)
+	{
+		// From the mip with valid data
+		for (int mipIdx = subresources.baseMipLevel; mipIdx < desc.mipLevels; ++mipIdx)
+		{
+			interop::GenMipsConstants shaderConstants;
+			shaderConstants.srcMipDI = texture->
+		}
+	}
+
+	commandList->PushBarriers(barriers);
+*/
+
+
+
 }
 
 void st::gfx::DataUploader::AsyncUpdate()

@@ -44,12 +44,24 @@ namespace st::rhi
         virtual StorageRequirements GetStorageRequirements(const BufferDesc& desc) = 0;
         virtual StorageRequirements GetStorageRequirements(const TextureDesc& desc) = 0;
         virtual StorageRequirements GetCopyableRequirements(const BufferDesc& desc) = 0;
-        virtual StorageRequirements GetCopyableRequirements(const TextureDesc& desc) = 0;
+        virtual StorageRequirements GetCopyableRequirements(const TextureDesc& desc, const rhi::TextureSubresourceSet& subresources) = 0;
         virtual SubresourceCopyableRequirements GetSubresourceCopyableRequirements(const TextureDesc& desc, uint32_t mipLevel, uint32_t arraySlice) = 0;
 
         virtual size_t GetCopyDataAlignment(CopyMethod method) = 0;
 
-        virtual GPUBindingHandle GetBindingHandle(ITexture* tex, TextureShaderView view) = 0;
+        virtual TextureSampledView CreateTextureSampledView(ITexture* texture, const TextureSubresourceSet& subresources = AllSubresources,
+            Format format = Format::UNKNOWN, TextureDimension dimension = TextureDimension::Unknown) = 0;
+        virtual TextureStorageView CreateTextureStorageView(ITexture* texture, const TextureSubresourceSet& subresources = AllSubresources,
+            Format format = Format::UNKNOWN, TextureDimension dimension = TextureDimension::Unknown) = 0;
+        virtual TextureColorTargetView CreateTextureColorTargetView(ITexture* texture, Format format, TextureSubresourceSet subresources = AllSubresources) = 0;
+        virtual TextureDepthTargetView CreateTextureDepthTargetView(ITexture* texture, TextureSubresourceSet subresources = AllSubresources, bool isReadOnly = false) = 0;
+
+        virtual void ReleaseTextureSampledView(TextureSampledView& v, bool immediate = false) = 0;
+        virtual void ReleaseTextureStorageView(TextureStorageView& v, bool immediate = false) = 0;
+        virtual void ReleaseTextureColorTargetView(TextureColorTargetView& v, bool immediate = false) = 0;
+        virtual void ReleaseTextureDepthTargetView(TextureDepthTargetView& v, bool immediate = false) = 0;
+
+        //virtual GPUBindingHandle GetShaderViewHandle(ITexture* tex, TextureShaderView view) = 0;
 
         template<class T>
         void ReleaseImmediately(unique<T>& handle) {

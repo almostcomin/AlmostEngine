@@ -474,7 +474,7 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
     return result;
 };
 
-std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool sRGB, bool searchForDDS, LoadTexCache& loadCache,
+std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool sRGB, bool normalMap, bool searchForDDS, LoadTexCache& loadCache,
     int imageIndex, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait)
 {
     auto it = loadCache.imageCache.find(image);
@@ -483,10 +483,17 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool
 
     FilePathOrInlineData textureSource = LoadImageData(image, searchForDDS, loadCache, imageIndex, options);
 
+    auto flags = st::gfx::TextureCache::Flags::GenerateMips;
+    if (sRGB)
+        flags |= st::gfx::TextureCache::Flags::ForceSRGB;
+    if (normalMap)
+        flags |= st::gfx::TextureCache::Flags::IsNormalMap;
+
     std::shared_ptr<st::gfx::LoadedTexture> texture;
     if (textureSource.data)
     {
-        auto loadResult = loadCache.textureCache->Load(st::WeakBlob{ textureSource.data->buffer }, textureSource.data->name, false, sRGB);
+        auto loadResult = loadCache.textureCache->Load(
+            st::WeakBlob{ textureSource.data->buffer }, flags, false, textureSource.data->name);
         if (loadResult)
         {
             texture = loadResult->first;
@@ -500,7 +507,7 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool
     }
     else if (!textureSource.path.empty())
     {
-        auto loadResult = loadCache.textureCache->Load(textureSource.path, sRGB);
+        auto loadResult = loadCache.textureCache->Load(textureSource.path, flags);
         if (loadResult)
         {
             texture = loadResult->first;
@@ -516,7 +523,7 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool
     return texture;
 };
 
-std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, const cgltf_data* objects, bool sRGB,
+std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, const cgltf_data* objects, bool sRGB, bool normalMap,
     LoadTexCache& loadCache, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait)
 {
     auto it = loadCache.texCache.find(texture);
@@ -531,11 +538,11 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, cons
     cgltf_image const* ddsImage = extensions.ddsImage;
     if (ddsImage)
     {
-        loadedTexture = LoadImage(ddsImage, sRGB, false, loadCache, objects->images - ddsImage, options, out_handlesToWait);
+        loadedTexture = LoadImage(ddsImage, sRGB, normalMap, false, loadCache, objects->images - ddsImage, options, out_handlesToWait);
     }
     if (!loadedTexture && texture->image)
     {
-        loadedTexture = LoadImage(texture->image, sRGB, true, loadCache, objects->images - texture->image, options, out_handlesToWait);
+        loadedTexture = LoadImage(texture->image, sRGB, normalMap, true, loadCache, objects->images - texture->image, options, out_handlesToWait);
     }
 
     // If the texture swizzle extension is present, load the source images and transfer the swizzle data
@@ -552,11 +559,12 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
     st::rhi::Device* device)
 {
     std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> matMap;
-    auto loadTex = [objects, &loadCache, &options, &out_handlesToWait](cgltf_texture* texture, bool sRGB) -> std::shared_ptr<st::gfx::LoadedTexture>
+    auto loadTex = [objects, &loadCache, &options, &out_handlesToWait](cgltf_texture* texture, bool sRGB, bool normalMap) 
+        -> std::shared_ptr<st::gfx::LoadedTexture>
     {
         if (!texture)
             return {};
-        auto loadedTexture = LoadTexture(texture, objects, sRGB, loadCache, options, out_handlesToWait);
+        auto loadedTexture = LoadTexture(texture, objects, sRGB, normalMap, loadCache, options, out_handlesToWait);
         return loadedTexture;
     };
 
@@ -574,11 +582,11 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         }
         assert(srcMat.has_pbr_metallic_roughness);
 
-        mat->SetBaseColorTexture(loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true));
-        mat->SetMetalRoughTexture(loadTex(srcMat.pbr_metallic_roughness.metallic_roughness_texture.texture, false));
-        mat->SetNormalTexture(loadTex(srcMat.normal_texture.texture, false));
-        mat->SetEmissiveTexture(loadTex(srcMat.emissive_texture.texture, true));
-        mat->SetOcclusionTexture(loadTex(srcMat.occlusion_texture.texture, false));
+        mat->SetBaseColorTexture(loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true, false));
+        mat->SetMetalRoughTexture(loadTex(srcMat.pbr_metallic_roughness.metallic_roughness_texture.texture, false, false));
+        mat->SetNormalTexture(loadTex(srcMat.normal_texture.texture, false, true));
+        mat->SetEmissiveTexture(loadTex(srcMat.emissive_texture.texture, true, false));
+        mat->SetOcclusionTexture(loadTex(srcMat.occlusion_texture.texture, false, false));
 
         mat->SetBaseColor(*(float3*)srcMat.pbr_metallic_roughness.base_color_factor);
         mat->SetOpacity(srcMat.pbr_metallic_roughness.base_color_factor[3]);

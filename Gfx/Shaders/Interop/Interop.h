@@ -4,6 +4,7 @@
 #ifdef __cplusplus // not invoking shader compiler, but included in engine source
 
 #include "Core/Math.h"
+#include "Binding.h"
 
 using uint = uint32_t;
 
@@ -21,6 +22,9 @@ static_assert(sizeof(float4x4) == 64);
 static const uint INVALID_DESCRIPTOR_INDEX = 0xFFFFFFFFu;
 
 #define ConstantBufferStruct struct
+
+#define TextureSampledViewIndex uint
+#define TextureStorageViewIndex uint
 
 #endif // __cplusplus
 #endif // __SHADER_SHADERINTEROP_H__

@@ -27,21 +27,29 @@ class TextureCache
 {
 public:
 
+	enum Flags
+	{
+		None = 0,
+		ForceSRGB = 1 << 0,			// SRGB format
+		GenerateMips = 1 << 1,	// Generate mips if not present in the data
+		IsNormalMap = 1 << 2	// When generate mips, renormalize
+	};
+
 	using LoadResult = std::expected<std::pair<std::shared_ptr<LoadedTexture>, st::SignalListener>, std::string>;
 
-	TextureCache(rhi::Device* device, st::gfx::DataUploader* dataUploader);
+	TextureCache(st::gfx::DataUploader* dataUploader, rhi::Device* device);
 	~TextureCache();
 
 	std::shared_ptr<LoadedTexture> Get(const std::string& id);
 
-	LoadResult Load(const std::string& path, bool forceSRGB = false);
-	LoadResult Load(const st::WeakBlob& blob, const std::string& id = MakeUniqueStringId(), bool isDDS = false, bool forceSRGB = false);
+	LoadResult Load(const std::string& path, Flags flags);
+	LoadResult Load(const st::WeakBlob& blob, Flags flags = Flags::None, bool isDDS = false, const std::string& id = MakeUniqueStringId());
 
 	void Update();
 
 private:
 
-	LoadResult LoadInternal(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB);
+	LoadResult LoadInternal(const st::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id);
 
 	std::shared_ptr<LoadedTexture> CreateHandle();
 
@@ -69,3 +77,5 @@ private:
 };
 
 } // namespace st::gfx
+
+ENUM_CLASS_FLAG_OPERATORS(st::gfx::TextureCache::Flags)

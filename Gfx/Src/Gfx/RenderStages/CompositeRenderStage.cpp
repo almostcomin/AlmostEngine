@@ -21,8 +21,8 @@ void st::gfx::CompositeRenderStage::Render()
 	commandList->SetPipelineState(m_PSO.get());
 
 	interop::CompositeConstants shaderConstants;
-	shaderConstants.sceneTextureDI = m_RenderView->GetTexture("ToneMapped")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
-	shaderConstants.uiTextureDI = m_RenderView->GetTexture("ImGui")->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+	shaderConstants.sceneTextureDI = m_RenderView->GetSampledView("ToneMapped");
+	shaderConstants.uiTextureDI = m_RenderView->GetSampledView("ImGui");
 	shaderConstants.colorSpace = (uint)m_RenderView->GetDeviceManager()->GetColorSpace();
 	shaderConstants.paperWhiteNits = m_PaperWhiteNits;
 

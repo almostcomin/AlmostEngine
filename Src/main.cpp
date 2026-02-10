@@ -177,7 +177,7 @@ int SDL_main(int argc, char* argv[])
 	camera->SetPosition({ 0.f, 0.f, 5.f });
 
 	// Add stages to render view
-	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, gBufRS, lightingRS/*opaqueRS*/, toneMappingRS, debugRS, uiRS, compositeRS });
+	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, gBufRS, lightingRS, toneMappingRS, debugRS, uiRS, compositeRS });
 	renderView->SetCamera(camera);
 
 	// Update UI data with initial render stages values

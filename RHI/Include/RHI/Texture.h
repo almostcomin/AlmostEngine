@@ -3,6 +3,7 @@
 #include "RHI/Resource.h"
 #include "RHI/Format.h"
 #include "RHI/Descriptors.h"
+#include "RHI/ShaderViews.h"
 #include "Core/Math.h"
 
 namespace st::rhi
@@ -115,7 +116,9 @@ namespace st::rhi
     public:
 
 		virtual const TextureDesc& GetDesc() const = 0;
-        virtual DescriptorIndex GetShaderViewIndex(TextureShaderView type) = 0;
+
+        virtual TextureSampledView GetSampledView() = 0;
+        virtual TextureStorageView GetStorageView() = 0;
 
         virtual void Swap(ITexture& other) = 0;
 

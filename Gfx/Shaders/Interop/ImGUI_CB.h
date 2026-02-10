@@ -12,7 +12,7 @@ namespace interop
         uint indexOffset;
         uint vertexBuffer;
         uint vertexBufferOffset;
-        uint textureIndex;
+        TextureSampledViewIndex textureIndex;
         uint flags;
     };
 

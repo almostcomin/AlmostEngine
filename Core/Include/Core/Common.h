@@ -26,6 +26,15 @@ std::string_view GetExtensionFromPath(const std::string_view& path);
 // a 128 bits number stringyfied
 std::string MakeUniqueStringId();
 
+// String conversion
+std::wstring ToWide(const char* utf8);
+std::string ToUtf8(const wchar_t* wide);
+
+inline bool AlmostEqual(float v1, float v2, float epsilon = 1.0e-05f)
+{
+    return abs(v2 - v1) <= epsilon;
+}
+
 template<typename T>
 constexpr T AlignUp(T value, T alignment)
 {
@@ -100,15 +109,6 @@ template<typename T>
 constexpr bool has_flag(T lhs, T rhs)
 {
     return (lhs & rhs) == rhs;
-}
-
-// String conversion
-std::wstring ToWide(const char* utf8);
-std::string ToUtf8(const wchar_t* wide);
-
-inline bool AlmostEqual(float v1, float v2, float epsilon = 1.0e-05f)
-{
-    return abs(v2 - v1) <= epsilon;
 }
 
 } // namespace st

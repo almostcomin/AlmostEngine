@@ -7,9 +7,9 @@ namespace interop
 {
     struct ClearBufferConstants
     {
-        uint32_t bufferDI;
-        uint32_t bufferElementCount; // uints
-        uint32_t clearValue;
+        uint bufferDI;
+        uint bufferElementCount; // uints
+        uint clearValue;
     };
 
     struct BlitGraphicsConstants
@@ -19,10 +19,16 @@ namespace interop
 
     struct BlitComputeConstants
     {
-        uint srcTextureDI;
-        uint dstTextureDI;
+        TextureSampledViewIndex srcTextureDI;
+        TextureStorageViewIndex dstTextureDI;
         uint2 viewBegin;
         uint2 viewEnd;
+    };
+
+    struct GenMipsConstants
+    {
+        uint srcMipDI;
+        uint dstMipDI;
     };
 
     // There is a max limit to the number of lights in the engine.
@@ -77,11 +83,11 @@ namespace interop
 
     struct MaterialData
     {
-        uint baseColorTextureDI;
-        uint emissiveTextureDI;
-        uint metalRoughTextureDI;
-        uint occlusionTextureDI;
-        uint normalTextureDI;
+        TextureSampledViewIndex baseColorTextureDI;
+        TextureSampledViewIndex emissiveTextureDI;
+        TextureSampledViewIndex metalRoughTextureDI;
+        TextureSampledViewIndex occlusionTextureDI;
+        TextureSampledViewIndex normalTextureDI;
         float2 normalScale;
         float4 baseColor; // rgb + opacity
         float3 emissiveColor;
@@ -124,12 +130,12 @@ namespace interop
     struct DeferredLightingConstants
     {
         uint sceneDI;
-        uint sceneDepthDI;
-        uint shadowMapDI;
-        uint GBuffer0DI;
-        uint GBuffer1DI;
-        uint GBuffer2DI;
-        uint GBuffer3DI;
+        TextureSampledViewIndex sceneDepthDI;
+        TextureSampledViewIndex shadowMapDI;
+        TextureSampledViewIndex GBuffer0DI;
+        TextureSampledViewIndex GBuffer1DI;
+        TextureSampledViewIndex GBuffer2DI;
+        TextureSampledViewIndex GBuffer3DI;
     };
 
     struct DebugStage
@@ -146,17 +152,17 @@ namespace interop
 
     struct CompositeConstants
     {
-        uint sceneTextureDI;
-        uint uiTextureDI;
+        TextureSampledViewIndex sceneTextureDI;
+        TextureSampledViewIndex uiTextureDI;
         uint colorSpace; // st::rhi::ColorSpace
         float paperWhiteNits;
     };
 
     struct TonemapConstants
     {
-        uint inputTextureDI;
-        uint inputAvgLuminanceTextureDI; // 1x1 R32
-        uint outputTextureDI;
+        TextureSampledViewIndex inputTextureDI;
+        TextureSampledViewIndex inputAvgLuminanceTextureDI; // 1x1 R32
+        TextureStorageViewIndex outputTextureDI;
         float contrast;
         float shoulder;
         float2 bc;
@@ -166,7 +172,7 @@ namespace interop
 
     struct BuildLuminanceHistogramConstants
     {
-        uint inputTextureDI;
+        TextureSampledViewIndex inputTextureDI;
         uint outputHistogramBufferDI; // 256 4-byte (uint32) elements
         uint outputStatsBufferDI;
         uint _padding;
@@ -179,7 +185,7 @@ namespace interop
     struct AvgLuminanceHistogramConstants
     {
         uint inputHistogramBufferDI;
-        uint outputAvgLuminanceTextureDI;
+        TextureStorageViewIndex outputAvgLuminanceTextureDI;
         uint outputStatsBufferDI;
         uint pixelCount;
         float minLogLuminance;

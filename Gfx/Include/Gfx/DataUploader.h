@@ -19,10 +19,23 @@ namespace st::rhi
 
 namespace st::gfx
 {
+	class ShaderFactory;
+}
+
+namespace st::gfx
+{
 
 class DataUploader
 {
 public:
+
+	enum class GenMipsMethod
+	{
+		None = 0,
+		GenMips,
+		GenMips_SRGB,
+		GenMips_Renormalize
+	};
 
 	struct UploadTicket
 	{
@@ -51,18 +64,20 @@ public:
 		uint64_t idx = UINT64_MAX; // ticket index
 	};
 
-	DataUploader(rhi::Device* device);
+	DataUploader(ShaderFactory* shaderFactory, rhi::Device* device);
 	~DataUploader();
 
 	std::expected<UploadTicket, std::string> RequestUploadTicket(const rhi::BufferDesc& desc);
-	std::expected<UploadTicket, std::string> RequestUploadTicket(const rhi::TextureDesc& desc);
+	std::expected<UploadTicket, std::string> RequestUploadTicket(const rhi::TextureDesc& desc, const rhi::TextureSubresourceSet& subresources);
 	std::expected<UploadTicket, std::string> RequestUploadTicket(size_t size, size_t alignment);
 
 	std::expected<SignalListener, std::string> CommitUploadBufferTicket(UploadTicket&& ticket, rhi::BufferHandle dstBuffer,
 		rhi::ResourceState currentBufferState, rhi::ResourceState targetBufferState, size_t dstStart = 0, const char* opt_gpuMarker = nullptr);
 
+	/// @param subresources Subresources to copy. If any GenMipsMethod, will generate mips in all mips from the last mip in subresources
 	std::expected<SignalListener, std::string> CommitUploadTextureTicket(UploadTicket&& ticket, rhi::TextureHandle dstTexture, 
-		rhi::ResourceState currentState, rhi::ResourceState targetState, const rhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
+		rhi::ResourceState currentState, rhi::ResourceState targetState, const rhi::TextureSubresourceSet& subresources, 
+		GenMipsMethod genMipsMethod = GenMipsMethod::None, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a buffer object.
 	/// 
@@ -84,16 +99,17 @@ public:
 	/// 
 	/// @param srcData Pointer to the source data to copy from. Densely packed.
 	/// @param dstTexture Destination texture where the data will be copied.
-	/// @param currentTextureState Current state of the texture object.
-	/// @param textureTargetState Desired final state of the texture object after the copy.
-	/// @param subresources Subresources to copy
-	/// @param opt_gpuMarker Optional GPU marker.
+	/// @param currentState Current state of the texture object.
+	/// @param targetState Desired final state of the texture object after the copy.
+	/// @param subresources Subresources to copy. If any GenMipsMethod, will generate mips in all mips from the last mip in subresources
+	/// @param generateMips Will upload data for the first mip only
+	/// @param opt_gpuMarker Optional GPU marker
 	/// 
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadTextureData(
 		const st::WeakBlob& srcData, rhi::TextureHandle dstTexture, rhi::ResourceState currentState, rhi::ResourceState targetState,
-		const rhi::TextureSubresourceSet& subresources, const char* opt_gpuMarker = nullptr);
+		const rhi::TextureSubresourceSet& subresources, GenMipsMethod genMipsMethod = GenMipsMethod::None, const char* opt_gpuMarker = nullptr);
 
 private: /* types */
 
@@ -104,6 +120,9 @@ private: /* methods */
 
 	void InsertPendingTicket(UploadTicket&& ticket);
 	void OnCompletedTicket(UploadTicket&& ticket);
+
+	void GenerateMips(rhi::ITexture* texture, GenMipsMethod method, rhi::ResourceState currentState, rhi::ResourceState targetState, 
+		const rhi::TextureSubresourceSet& subresources, rhi::ICommandList* commandList);
 
 	void AsyncUpdate();
 
@@ -134,6 +153,14 @@ private: /* */
 	std::thread m_ProcessInFlightCommandsThread;
 	std::condition_variable m_InFlightCommandListsCV;
 	std::atomic<bool> m_AsyncShutdown;
+
+	rhi::ShaderOwner m_GenMips_CS;
+	rhi::ShaderOwner m_GetMipsSRGB_CS;
+	rhi::ShaderOwner m_GenMipsRenorm_CS;
+
+	rhi::ComputePipelineStateOwner m_GenMips_PSO;
+	rhi::ComputePipelineStateOwner m_GetMipsSRGB_PSO;
+	rhi::ComputePipelineStateOwner m_GenMipsRenorm_PSO;
 
 	st::rhi::Device* m_Device;
 };

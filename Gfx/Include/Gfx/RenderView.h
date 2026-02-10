@@ -114,7 +114,10 @@ public:
 	// Access
 	rhi::TextureHandle GetTexture(const std::string& id) const;
 	rhi::BufferHandle GetBuffer(const std::string& id) const;
-	rhi::DescriptorIndex GetShaderViewIndex(const std::string& id, rhi::TextureShaderView view);
+
+	rhi::TextureSampledView GetSampledView(const std::string& id);
+	rhi::TextureStorageView GetStorageView(const std::string& id);
+
 	rhi::DescriptorIndex GetShaderViewIndex(const std::string& id, rhi::BufferShaderView view);
 
 	void OnWindowSizeChanged();

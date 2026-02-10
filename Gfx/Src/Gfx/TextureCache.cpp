@@ -23,19 +23,26 @@ st::rhi::TextureDesc TexInfoToTexDesc(const st::gfx::TextureInfo& texInfo)
         .sampleQuality = 0,
         .format = texInfo.format,
         .dimension = texInfo.dimension,
-        .shaderUsage = st::rhi::TextureShaderUsage::ShaderResource
+        .shaderUsage = st::rhi::TextureShaderUsage::Sampled
     };
 }
 
-st::rhi::TextureOwner CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, st::rhi::Device* device)
+// Resturns [texture, originalMips]
+// The texture is created in COPY_DST state
+std::pair<st::rhi::TextureOwner, uint32_t> CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, bool genMips, st::rhi::Device* device)
 {
     st::rhi::TextureDesc desc = TexInfoToTexDesc(texInfo);
-    return device->CreateTexture(desc, st::rhi::ResourceState::COPY_DST, texInfo.debugName);
+    uint32_t originalMips = desc.mipLevels;
+    if (genMips)
+    {
+        //desc.mipLevels = log2(std::max(desc.width, desc.height)) + 1;
+    }
+    return { device->CreateTexture(desc, st::rhi::ResourceState::COPY_DST, texInfo.debugName), originalMips };
 }
 
 } // anonymous namespace
 
-st::gfx::TextureCache::TextureCache(rhi::Device* device, st::gfx::DataUploader* dataUploader) :
+st::gfx::TextureCache::TextureCache(st::gfx::DataUploader* dataUploader, rhi::Device* device) :
     m_Device{ device }, m_DataUploader{ dataUploader }
 {}
 
@@ -61,7 +68,7 @@ std::shared_ptr<st::gfx::LoadedTexture> st::gfx::TextureCache::Get(const std::st
     }
 }
 
-st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string& path, bool forceSRGB)
+st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string& path, Flags flags)
 {
     auto textureHandle = Get(path);
     if (textureHandle)
@@ -81,7 +88,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string&
     st::Blob fileData = std::move(*readResult);
 
     std::string_view ext = GetExtensionFromPath(path);
-    auto loadResult = LoadInternal(st::WeakBlob{ fileData }, path, (ext == "dds" || ext == "DDS"), forceSRGB);
+    auto loadResult = LoadInternal(st::WeakBlob{ fileData }, flags, (ext == "dds" || ext == "DDS"), path);
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
@@ -90,7 +97,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string&
     return loadResult;
 }
 
-st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB)
+st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const st::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id)
 {
     auto textureHandle = Get(id);
     if (textureHandle)
@@ -98,7 +105,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const st::WeakBlob
         return std::pair<std::shared_ptr<st::gfx::LoadedTexture>, st::SignalListener>(textureHandle, {});
     }
 
-    auto loadResult = LoadInternal(blob, id, isDDS, forceSRGB);
+    auto loadResult = LoadInternal(blob, flags, isDDS, id);
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
@@ -131,7 +138,7 @@ void st::gfx::TextureCache::Update()
     RemoveStaleTextures();
 }
 
-st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::WeakBlob& blob, const std::string& id, bool isDDS, bool forceSRGB)
+st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id)
 {
     std::expected<std::pair<st::gfx::TextureInfo, st::Blob>, std::string> loadResult;
     if (isDDS)
@@ -140,7 +147,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
     }
     else
     {
-        loadResult = LoadImageTexture(blob, forceSRGB);
+        loadResult = LoadImageTexture(blob, flags & Flags::ForceSRGB);
     }
     if (!loadResult)
     {
@@ -149,14 +156,34 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
 
     TextureInfo& texInfo = loadResult->first;
     texInfo.debugName = id;
-    rhi::TextureOwner texture = CreateTextureFromTexInfo(texInfo, m_Device);
+    auto [texture, originalMips] = CreateTextureFromTexInfo(texInfo, flags & Flags::GenerateMips, m_Device);
     if (!texture)
     {
         return std::unexpected(std::format("Failed creating texture {}.", id));
     }
 
+    auto getMipsMethod = DataUploader::GenMipsMethod::None;
+    if (originalMips != texture->GetDesc().mipLevels)
+    {
+        if (any(flags & Flags::IsNormalMap))
+        {
+            getMipsMethod = DataUploader::GenMipsMethod::GenMips_Renormalize;
+        }
+        else
+        {
+            const auto& formatInfo = rhi::GetFormatInfo(texture->GetDesc().format);
+            getMipsMethod = formatInfo.isSRGB ? DataUploader::GenMipsMethod::GenMips_SRGB : DataUploader::GenMipsMethod::GenMips;
+        }
+    }
+
     auto uploadResult = m_DataUploader->UploadTextureData(
-        WeakBlob{ loadResult->second }, texture.get_weak(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE, rhi::AllSubresources, texInfo.debugName.c_str());
+        WeakBlob{ loadResult->second },
+        texture.get_weak(),
+        rhi::ResourceState::COPY_DST,
+        rhi::ResourceState::SHADER_RESOURCE,
+        rhi::TextureSubresourceSet{ 0, 1, 0, 1 }, //rhi::AllSubresources,
+        getMipsMethod,
+        texInfo.debugName.c_str());
     if (!uploadResult)
     {
         return std::unexpected(std::move(uploadResult.error()));

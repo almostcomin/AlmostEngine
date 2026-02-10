@@ -157,14 +157,27 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			auto* matDataPtr = (interop::MaterialData*)uploadTicket->GetPtr();
 			for (const st::gfx::Material* mat : materials)
 			{
-				matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle() ?
-					mat->GetBaseColorTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
-				matDataPtr->emissiveTextureDI = mat->GetEmissiveTextureHandle() ? 
-					mat->GetEmissiveTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
-				matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle() ?
-					mat->GetMetalRoughTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
-				matDataPtr->normalTextureDI = mat->GetNormalTextureHandle() ?
-					mat->GetNormalTextureHandle()->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
+				*matDataPtr = {};
+				if (mat->GetBaseColorTextureHandle())
+				{
+					matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle()->GetSampledView();
+				}
+				if (mat->GetEmissiveTextureHandle())
+				{
+					matDataPtr->emissiveTextureDI = mat->GetEmissiveTextureHandle()->GetSampledView();
+				}
+				if (mat->GetMetalRoughTextureHandle())
+				{
+					matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle()->GetSampledView();
+				}
+				if (mat->GetNormalTextureHandle())
+				{
+					matDataPtr->normalTextureDI = mat->GetNormalTextureHandle()->GetSampledView();
+				}
+				if (mat->GetOcclusionTextureHandle())
+				{
+					matDataPtr->occlusionTextureDI = mat->GetOcclusionTextureHandle()->GetSampledView();
+				}
 
 				matDataPtr->normalScale = mat->GetNormalTextureScale();
 				matDataPtr->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };

@@ -146,7 +146,7 @@ void st::gfx::ImGuiRenderStage::Render()
                 if (pCmd->TexRef._TexID != NULL && !((ImGuiTexture*)pCmd->TexRef._TexID)->tex.expired())
                 {
                     auto* guiTex = (ImGuiTexture*)pCmd->TexRef._TexID;
-                    cb.textureIndex = guiTex->tex->GetShaderViewIndex(rhi::TextureShaderView::ShaderResource);
+                    cb.textureIndex = guiTex->tex->GetSampledView();
                     cb.flags = guiTex->flags;
                     // Delete guiTex if it was a requested one (via ShowImage).
                     for(auto it = m_CurrentTextures.begin(); it != m_CurrentTextures.end(); ++it)
@@ -160,7 +160,7 @@ void st::gfx::ImGuiRenderStage::Render()
                 }
                 else
                 {
-                    cb.textureIndex = rhi::c_InvalidDescriptorIndex;
+                    cb.textureIndex = {};
                 }
 
                 commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0, false);
@@ -306,7 +306,7 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
     textureDesc.width = width;
     textureDesc.height = height;
     textureDesc.format = rhi::Format::RGBA8_UNORM;
-    textureDesc.shaderUsage = rhi::TextureShaderUsage::ShaderResource;
+    textureDesc.shaderUsage = rhi::TextureShaderUsage::Sampled;
     m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rhi::ResourceState::COPY_DST, "ImGuiFontTexture");
     if (!m_FontTexture)
         return false;

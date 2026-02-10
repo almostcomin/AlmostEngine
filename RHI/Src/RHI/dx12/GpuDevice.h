@@ -45,12 +45,24 @@ namespace st::rhi::dx12
 		StorageRequirements GetStorageRequirements(const BufferDesc& desc) override;
 		StorageRequirements GetStorageRequirements(const TextureDesc& desc) override;
 		StorageRequirements GetCopyableRequirements(const BufferDesc& desc) override;
-		StorageRequirements GetCopyableRequirements(const TextureDesc& desc);
+		StorageRequirements GetCopyableRequirements(const TextureDesc& desc, const rhi::TextureSubresourceSet& subresources) override;
 		SubresourceCopyableRequirements GetSubresourceCopyableRequirements(const TextureDesc& desc, uint32_t mipLevel, uint32_t arraySlice) override;
 
 		size_t GetCopyDataAlignment(CopyMethod method) override;
 
-		GPUBindingHandle GetBindingHandle(ITexture* tex, TextureShaderView view) override;
+		TextureSampledView CreateTextureSampledView(ITexture* texture, const TextureSubresourceSet& subresources,
+			Format format, TextureDimension dimension) override;
+		TextureStorageView CreateTextureStorageView(ITexture* texture, const TextureSubresourceSet& subresources,
+			Format format, TextureDimension dimension) override;
+		TextureColorTargetView CreateTextureColorTargetView(ITexture* texture, Format format, TextureSubresourceSet subresources) override;
+		TextureDepthTargetView CreateTextureDepthTargetView(ITexture* texture, TextureSubresourceSet subresources, bool isReadOnly) override;
+
+		void ReleaseTextureSampledView(TextureSampledView& v, bool immediate = false) override;
+		void ReleaseTextureStorageView(TextureStorageView& v, bool immediate = false) override;
+		void ReleaseTextureColorTargetView(TextureColorTargetView& v, bool immediate = false) override;
+		void ReleaseTextureDepthTargetView(TextureDepthTargetView& v, bool immediate = false) override;
+
+		//GPUBindingHandle GetShaderViewHandle(ITexture* tex, TextureShaderView view) override;
 
 		void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value) override;
 		void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value) override;
@@ -82,9 +94,22 @@ namespace st::rhi::dx12
 
 	private:
 
+		struct FrameStaleResources
+		{
+			std::vector<IResource*> Resources;
+			std::vector<std::pair<DescriptorIndex, TextureViewType>> Descriptors;
+		};
+
+	private:
+
 		void CreateBindlessRootSignature();
 
 		D3D12_RESOURCE_DESC BuildD3d12Desc(const TextureDesc& desc);
+
+		void CreateSRV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources, TextureDimension dimension);
+		void CreateUAV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources, TextureDimension dimension);
+		void CreateRTV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources);
+		void CreateDSV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly);
 
 		template<class T>
 		st::unique<T> InsertNewResource(T* p)
@@ -96,6 +121,8 @@ namespace st::rhi::dx12
 			auto insertResult = m_LivingResources.insert(handle.get());
 			return st::adopt_unique<T>(std::move(handle));
 		}
+
+		void ReleaseStaleResources(uint32_t bufferIdx);
 
 	private:
 
@@ -133,10 +160,11 @@ namespace st::rhi::dx12
 		ComPtr<ID3D12RootSignature> m_BindlessRootSignature;
 
 		std::mutex m_LivingResourcesMutex;
-		std::unordered_set<IResource*/*, ResourcePtrHash, ResourcePtrEqual*/> m_LivingResources;
+		std::unordered_set<IResource*> m_LivingResources;
 
 		std::mutex m_StaleResourcesMutex;
-		std::vector<std::vector<IResource*>> m_StaleResources;
+		std::mutex m_StaleDescriptorsMutex;
+		std::vector<FrameStaleResources> m_StaleResources;
 
 		uint64_t m_CurrentFrameIdx;
 
