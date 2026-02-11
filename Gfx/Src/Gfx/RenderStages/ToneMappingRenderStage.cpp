@@ -97,7 +97,7 @@ void st::gfx::ToneMappingRenderStage::Render()
 			commandList->SetPipelineState(commonResources->GetClearBufferPSO().get());
 
 			interop::ClearBufferConstants shaderConstants;
-			shaderConstants.bufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+			shaderConstants.bufferDI = histogramBuffer->GetReadWriteView();
 			const uint32_t elemCount = histogramBuffer->GetDesc().sizeBytes / 4;
 			shaderConstants.bufferElementCount = elemCount;
 			shaderConstants.clearValue = 0;
@@ -125,8 +125,8 @@ void st::gfx::ToneMappingRenderStage::Render()
 
 			interop::BuildLuminanceHistogramConstants shaderConstants;
 			shaderConstants.inputTextureDI = inputTexture->GetSampledView();
-			shaderConstants.outputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
-			shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+			shaderConstants.outputHistogramBufferDI = histogramBuffer->GetReadWriteView();
+			shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetReadWriteView();
 			shaderConstants.viewBegin = uint2{ 0 };
 			shaderConstants.viewEnd = uint2{ outputTexture->GetDesc().width, outputTexture->GetDesc().height };
 			shaderConstants.minLogLuminance = m_MinLogLuminance;
@@ -149,9 +149,9 @@ void st::gfx::ToneMappingRenderStage::Render()
 			commandList->SetPipelineState(m_AvgLuminancePSO.get());
 
 			interop::AvgLuminanceHistogramConstants shaderConstants;
-			shaderConstants.inputHistogramBufferDI = histogramBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+			shaderConstants.inputHistogramBufferDI = histogramBuffer->GetReadOnlyView();
 			shaderConstants.outputAvgLuminanceTextureDI = avgLuminanceTexture->GetStorageView();
-			shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetShaderViewIndex(rhi::BufferShaderView::UnorderedAccess);
+			shaderConstants.outputStatsBufferDI = m_StatsBuffer->GetReadWriteView();
 			shaderConstants.pixelCount = width * height;
 			shaderConstants.minLogLuminance = m_MinLogLuminance;
 			shaderConstants.logLuminanceRange = m_LogLuminanceRange;
@@ -200,7 +200,7 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 	// Create resources
 	{
 		m_RenderView->CreateBuffer("LuminanceHistogram", rhi::BufferDesc{
-			.shaderUsage = rhi::BufferShaderUsage::ShaderResource | rhi::BufferShaderUsage::UnorderedAccess,
+			.shaderUsage = rhi::BufferShaderUsage::ReadOnly | rhi::BufferShaderUsage::ReadWrite,
 			.sizeBytes = 256 * sizeof(uint32_t) });
 
 		m_RenderView->CreateTexture("LuminanceAverage", RenderView::TextureResourceType::ShaderResource,
@@ -247,7 +247,7 @@ void st::gfx::ToneMappingRenderStage::OnAttached()
 		{
 			auto desc = rhi::BufferDesc{
 				.memoryAccess = rhi::MemoryAccess::Default,
-				.shaderUsage = rhi::BufferShaderUsage::UnorderedAccess,
+				.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
 				.sizeBytes = sizeof(interop::TonemappingStatsBuffer),
 				.format = rhi::Format::UNKNOWN,
 				.stride = sizeof(interop::TonemappingStatsBuffer) };

@@ -139,9 +139,9 @@ void st::gfx::ImGuiRenderStage::Render()
 
                 interop::ImGUI_CB cb = {};
                 cb.invDisplaySize = invDisplaySize;
-                cb.indexBuffer = GetCurrentIB()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
+                cb.indexBuffer = GetCurrentIB()->GetReadOnlyView();
                 cb.indexOffset = idxOffset;
-                cb.vertexBuffer = GetCurrentVB()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
+                cb.vertexBuffer = GetCurrentVB()->GetReadOnlyView();
                 cb.vertexBufferOffset = vtxOffset;
                 if (pCmd->TexRef._TexID != NULL && !((ImGuiTexture*)pCmd->TexRef._TexID)->tex.expired())
                 {
@@ -383,7 +383,7 @@ bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_
     {
         rhi::BufferDesc desc;
         desc.memoryAccess = rhi::MemoryAccess::Upload;
-        desc.shaderUsage = rhi::BufferShaderUsage::ShaderResource;
+        desc.shaderUsage = rhi::BufferShaderUsage::ReadOnly;
         desc.sizeBytes = uint32_t(reallocateSize);
         if (indexBuffer)
         {

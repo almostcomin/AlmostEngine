@@ -51,9 +51,9 @@ namespace st::gfx
 		const SunParams& GetSunParams() const { return m_SunParams; }
 		void SetSunParams(const SunParams& v) { m_SunParams = v; }
 
-		rhi::DescriptorIndex GetInstancesBufferDI() const;
-		rhi::DescriptorIndex GetMeshesBufferDI() const;
-		rhi::DescriptorIndex GetMaterialsBufferDI() const;
+		rhi::BufferReadOnlyView GetInstancesBufferView() const;
+		rhi::BufferReadOnlyView GetMeshesBufferView() const;
+		rhi::BufferReadOnlyView GetMaterialsBufferView() const;
 
 		// Resturs the index in the instances buffer (GetInstancesBufferDI) of the pInstance instance
 		int GetInstanceIndex(const st::gfx::MeshInstance* pInstance);

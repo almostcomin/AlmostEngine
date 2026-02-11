@@ -34,7 +34,7 @@ void st::gfx::GBuffersRenderStage::Render()
 	commandList->SetPipelineState(m_PSO.get());
 
 	interop::SingleInstanceDrawData shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneConstantBufferDI();
+	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
 
 	const auto& visibleSet = m_RenderView->GetCameraVisibleSet();
 	for (const st::gfx::MeshInstance* meshInstance : visibleSet)

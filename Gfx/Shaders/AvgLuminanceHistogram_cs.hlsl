@@ -13,7 +13,7 @@ groupshared float HistogramShared[NUM_HISTOGRAM_BINS];
 [numthreads(NUM_HISTOGRAM_BINS, 1, 1)]
 void main(uint groupIndex : SV_GroupIndex)
 {
-    RWByteAddressBuffer inputHistogram = ResourceDescriptorHeap[Constants.inputHistogramBufferDI];
+    ByteAddressBuffer inputHistogram = ResourceDescriptorHeap[Constants.inputHistogramBufferDI];
     RWTexture2D<float> luminanceOutput = ResourceDescriptorHeap[Constants.outputAvgLuminanceTextureDI];
     RWStructuredBuffer<interop::TonemappingStatsBuffer> statsBuffer = ResourceDescriptorHeap[Constants.outputStatsBufferDI];
     

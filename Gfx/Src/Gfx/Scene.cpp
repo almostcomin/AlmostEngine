@@ -80,7 +80,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 		{
 			rhi::BufferDesc desc{
 				.memoryAccess = rhi::MemoryAccess::Default,
-				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
+				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
 				.sizeBytes = meshInstances.size() * sizeof(interop::InstanceData),
 				.format = rhi::Format::UNKNOWN,
 				.stride = sizeof(interop::InstanceData) };
@@ -108,7 +108,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			assert(!meshes.empty());
 			rhi::BufferDesc desc{
 				.memoryAccess = rhi::MemoryAccess::Default,
-				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
+				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
 				.sizeBytes = meshes.size() * sizeof(interop::MeshData),
 				.format = rhi::Format::UNKNOWN,
 				.stride = sizeof(interop::MeshData) };
@@ -119,10 +119,10 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			auto* meshDataPtr = (interop::MeshData*)uploadTicket->GetPtr();
 			for (const st::gfx::Mesh* mesh : meshes)
 			{
-				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
+				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetReadOnlyView();
 				meshDataPtr->indexSize = mesh->GetIndexSize();
 				meshDataPtr->indexOffsetBytes = 0;
-				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource);
+				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetReadOnlyView();
 				meshDataPtr->vertexBufferOffsetBytes = 0;
 				const auto& vertexFormat = mesh->GetVertexFormat();
 				meshDataPtr->vertexStride = vertexFormat.VertexStride;
@@ -146,7 +146,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 		{
 			rhi::BufferDesc desc{
 				.memoryAccess = rhi::MemoryAccess::Default,
-				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
+				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
 				.sizeBytes = materials.size() * sizeof(interop::MaterialData),
 				.format = rhi::Format::UNKNOWN,
 				.stride = sizeof(interop::MaterialData) };
@@ -212,19 +212,19 @@ const st::math::aabox3f st::gfx::Scene::GetWorldBounds() const
 	return math::aabox3f::get_empty();
 }
 
-st::rhi::DescriptorIndex st::gfx::Scene::GetInstancesBufferDI() const
+st::rhi::BufferReadOnlyView st::gfx::Scene::GetInstancesBufferView() const
 {
-	return m_InstancesBuffer ? m_InstancesBuffer->GetShaderViewIndex(st::rhi::BufferShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
+	return m_InstancesBuffer ? m_InstancesBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
 
-st::rhi::DescriptorIndex st::gfx::Scene::GetMeshesBufferDI() const
+st::rhi::BufferReadOnlyView st::gfx::Scene::GetMeshesBufferView() const
 {
-	return m_MeshesBuffer ? m_MeshesBuffer->GetShaderViewIndex(st::rhi::BufferShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
+	return m_MeshesBuffer ? m_MeshesBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
 
-st::rhi::DescriptorIndex st::gfx::Scene::GetMaterialsBufferDI() const
+st::rhi::BufferReadOnlyView st::gfx::Scene::GetMaterialsBufferView() const
 {
-	return m_MaterialsBuffer ? m_MaterialsBuffer->GetShaderViewIndex(st::rhi::BufferShaderView::ShaderResource) : rhi::c_InvalidDescriptorIndex;
+	return m_MaterialsBuffer ? m_MaterialsBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
 
 int st::gfx::Scene::GetInstanceIndex(const st::gfx::MeshInstance* pInstance)

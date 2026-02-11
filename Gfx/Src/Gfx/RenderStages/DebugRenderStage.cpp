@@ -33,7 +33,7 @@ void st::gfx::DebugRenderStage::Render()
 	auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene.get(), commandList);
 
 	interop::DebugStage shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneConstantBufferDI();
+	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
 	shaderConstants.aaboxDI = bboxBufferDI;	
 	commandList->PushGraphicsConstants(shaderConstants);
 
@@ -122,7 +122,7 @@ void st::gfx::DebugRenderStage::OnBackbufferResize()
 	}
 }
 
-std::pair<st::rhi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList)
+std::pair<st::rhi::BufferReadOnlyView, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList)
 {
 	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
@@ -160,7 +160,7 @@ std::pair<st::rhi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBOX
 		m_AABBOXBuffer = device->CreateBuffer(
 			rhi::BufferDesc{
 				.memoryAccess = rhi::MemoryAccess::Upload,
-				.shaderUsage = rhi::BufferShaderUsage::ShaderResource,
+				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
 				.sizeBytes = aabboxes.size() * sizeof(interop::AABB),
 				.stride = sizeof(interop::AABB) },
 			rhi::ResourceState::SHADER_RESOURCE,
@@ -171,5 +171,5 @@ std::pair<st::rhi::DescriptorIndex, size_t> st::gfx::DebugRenderStage::GetAABBOX
 	std::memcpy(ptr, aabboxes.data(), aabboxes.size() * sizeof(interop::AABB));
 	m_AABBOXBuffer->Unmap();
 
-	return { m_AABBOXBuffer->GetShaderViewIndex(rhi::BufferShaderView::ShaderResource), aabboxes.size() };
+	return { m_AABBOXBuffer->GetReadOnlyView(), aabboxes.size() };
 }

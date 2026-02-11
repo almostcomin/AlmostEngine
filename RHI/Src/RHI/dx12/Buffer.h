@@ -19,7 +19,9 @@ namespace st::rhi::dx12
 		void* Map(uint64_t bufferStart = 0, size_t size = 0) override;
 		void Unmap(uint64_t bufferStart = 0, size_t size = 0) override;
 
-		DescriptorIndex GetShaderViewIndex(BufferShaderView type) override;
+		BufferUniformView GetUniformView() override { return m_UniformView; }
+		BufferReadOnlyView GetReadOnlyView() override { return m_ReadOnlyView; }
+		BufferReadWriteView GetReadWriteView() override { return m_ReadWriteView; }
 
 		void Swap(IBuffer& other) override;
 
@@ -39,7 +41,9 @@ namespace st::rhi::dx12
 		BufferDesc m_Desc;
 		char* m_mapAddr;
 
-		std::array<DescriptorIndex, (int)BufferShaderView::_Size> m_ShaderViews;
+		BufferUniformView m_UniformView;
+		BufferReadOnlyView m_ReadOnlyView;
+		BufferReadWriteView m_ReadWriteView;
 
 		ComPtr<ID3D12Resource> m_Resource;
 	};

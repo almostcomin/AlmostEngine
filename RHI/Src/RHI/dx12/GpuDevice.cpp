@@ -210,7 +210,7 @@ st::rhi::BufferOwner st::rhi::dx12::GpuDevice::CreateBuffer(const BufferDesc& de
 	d3d12Desc.SampleDesc.Count = 1;
 	d3d12Desc.SampleDesc.Quality = 0;
 	d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	d3d12Desc.Flags = (fixedDesc.shaderUsage & BufferShaderUsage::UnorderedAccess) == 0 ?
+	d3d12Desc.Flags = (fixedDesc.shaderUsage & BufferShaderUsage::ReadWrite) == 0 ?
 		D3D12_RESOURCE_FLAG_NONE : D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	// TODO: D3D12MA
@@ -317,7 +317,7 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 		DescriptorIndex index = m_RenderTargetViewHeap.AllocateDescriptor();
 
 		const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_RenderTargetViewHeap.GetCpuHandle(index);
-		CreateRTV(texture, descriptorHandle, attachment.format, attachment.subresources);
+		CreateTextureRTV(texture, descriptorHandle, attachment.format, attachment.subresources);
 
 		fb->RTVs.push_back(index);
 
@@ -334,7 +334,7 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 		DescriptorIndex index = m_DepthStencilViewHeap.AllocateDescriptor();
 
 		const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_DepthStencilViewHeap.GetCpuHandle(index);
-		CreateDSV(texture, descriptorHandle, desc.DepthAttachment.subresources, desc.DepthAttachment.isReadOnly);
+		CreateTextureDSV(texture, descriptorHandle, desc.DepthAttachment.subresources, desc.DepthAttachment.isReadOnly);
 
 		fb->DSV = index;
 
@@ -465,7 +465,7 @@ st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetStorageRequirements(co
 		.size = desc.sizeBytes, 
 		.alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT };
 
-	if (has_flag(desc.shaderUsage, BufferShaderUsage::ConstantBuffer))
+	if (has_flag(desc.shaderUsage, BufferShaderUsage::Uniform))
 	{
 		ret.size = AlignUp(desc.sizeBytes, (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 	}
@@ -557,7 +557,7 @@ st::rhi::TextureSampledView st::rhi::dx12::GpuDevice::CreateTextureSampledView(I
 	assert(di != c_InvalidDescriptorIndex);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_ShaderResourceViewHeap.GetCpuHandle(di);
-	CreateSRV(texture, descriptorHandle, format, subresources, dimension);
+	CreateTextureSRV(texture, descriptorHandle, format, subresources, dimension);
 
 	return TextureSampledView{ di };
 }
@@ -576,7 +576,7 @@ st::rhi::TextureStorageView st::rhi::dx12::GpuDevice::CreateTextureStorageView(I
 	assert(di != c_InvalidDescriptorIndex);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_ShaderResourceViewHeap.GetCpuHandle(di);
-	CreateUAV(texture, descriptorHandle, format, subresources, dimension);
+	CreateTextureUAV(texture, descriptorHandle, format, subresources, dimension);
 
 	return TextureStorageView{ di };
 }
@@ -594,7 +594,7 @@ st::rhi::TextureColorTargetView st::rhi::dx12::GpuDevice::CreateTextureColorTarg
 	assert(di != c_InvalidDescriptorIndex);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_RenderTargetViewHeap.GetCpuHandle(di);
-	CreateRTV(texture, descriptorHandle, format, subresources);
+	CreateTextureRTV(texture, descriptorHandle, format, subresources);
 
 	return TextureColorTargetView{ di };
 }
@@ -612,7 +612,7 @@ st::rhi::TextureDepthTargetView st::rhi::dx12::GpuDevice::CreateTextureDepthTarg
 	assert(di != c_InvalidDescriptorIndex);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_DepthStencilViewHeap.GetCpuHandle(di);
-	CreateDSV(texture, descriptorHandle, subresources, isReadOnly);
+	CreateTextureDSV(texture, descriptorHandle, subresources, isReadOnly);
 
 	return TextureDepthTargetView{ di };
 }
@@ -629,7 +629,7 @@ void st::rhi::dx12::GpuDevice::ReleaseTextureSampledView(TextureSampledView& v, 
 		{
 			std::scoped_lock lock{ m_StaleDescriptorsMutex };
 			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
-				v.GetIdx(), TextureViewType::Sampled);
+				v.GetIdx(), &m_ShaderResourceViewHeap);
 		}
 		v.Invalidate();
 	}
@@ -647,7 +647,7 @@ void st::rhi::dx12::GpuDevice::ReleaseTextureStorageView(TextureStorageView& v, 
 		{
 			std::scoped_lock lock{ m_StaleDescriptorsMutex };
 			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
-				v.GetIdx(), TextureViewType::Storage);
+				v.GetIdx(), &m_ShaderResourceViewHeap);
 		}
 		v.Invalidate();
 	}
@@ -665,7 +665,7 @@ void st::rhi::dx12::GpuDevice::ReleaseTextureColorTargetView(TextureColorTargetV
 		{
 			std::scoped_lock lock{ m_StaleDescriptorsMutex };
 			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
-				v.GetIdx(), TextureViewType::ColorTarget);
+				v.GetIdx(), &m_RenderTargetViewHeap);
 		}
 		v.Invalidate();
 	}
@@ -683,34 +683,114 @@ void st::rhi::dx12::GpuDevice::ReleaseTextureDepthTargetView(TextureDepthTargetV
 		{
 			std::scoped_lock lock{ m_StaleDescriptorsMutex };
 			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
-				v.GetIdx(), TextureViewType::DepthTarget);
+				v.GetIdx(), &m_DepthStencilViewHeap);
 		}
 		v.Invalidate();
 	}
 }
-/*
-st::rhi::GPUBindingHandle st::rhi::dx12::GpuDevice::GetShaderViewHandle(ITexture* tex, TextureShaderView view)
+
+st::rhi::BufferUniformView st::rhi::dx12::GpuDevice::CreateBufferUniformView(IBuffer* buffer, uint32_t start, int size)
 {
-	auto idx = tex->GetShaderViewIndex(view);
-	if (idx != c_InvalidDescriptorIndex)
+	const auto& desc = buffer->GetDesc();
+	if (!has_flag(desc.shaderUsage, BufferShaderUsage::Uniform))
 	{
-		switch (view)
-		{
-		case TextureShaderView::ShaderResource:
-		case TextureShaderView::UnorderedAccess:
-			return m_ShaderResourceViewHeap.GetGpuHandle(idx).ptr;
-
-		case TextureShaderView::RenderTarget:
-			return m_RenderTargetViewHeap.GetGpuHandle(idx).ptr;
-
-		case TextureShaderView::DepthStencil:
-			return m_DepthStencilViewHeap.GetGpuHandle(idx).ptr;
-		}
+		LOG_ERROR("Can't create CBV: Buffer not created with BufferShaderUsage::Uniform");
+		return {};
 	}
 
-	return 0ul;
+	DescriptorIndex di = m_ShaderResourceViewHeap.AllocateDescriptor();
+	const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_ShaderResourceViewHeap.GetCpuHandle(di);
+	CreateBufferCBV(buffer, descriptorHandle, start, size < 0 ? (uint32_t)buffer->GetDesc().sizeBytes : (uint32_t)size);
+
+	return BufferUniformView{ di };
 }
-*/
+
+st::rhi::BufferReadOnlyView st::rhi::dx12::GpuDevice::CreateBufferReadOnlyView(IBuffer* buffer, uint32_t start, int size)
+{
+	const auto& desc = buffer->GetDesc();
+	if (!has_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly))
+	{
+		LOG_ERROR("Can't create CBV: Buffer not created with BufferShaderUsage::ReadOnly");
+		return {};
+	}
+
+	DescriptorIndex di = m_ShaderResourceViewHeap.AllocateDescriptor();
+	const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_ShaderResourceViewHeap.GetCpuHandle(di);
+	CreateBufferSRV(buffer, descriptorHandle, start, size < 0 ? (uint32_t)buffer->GetDesc().sizeBytes : (uint32_t)size);
+
+	return BufferReadOnlyView{ di };
+}
+
+st::rhi::BufferReadWriteView st::rhi::dx12::GpuDevice::CreateBufferReadWriteView(IBuffer* buffer, uint32_t start, int size)
+{
+	const auto& desc = buffer->GetDesc();
+	if (!has_flag(desc.shaderUsage, BufferShaderUsage::ReadWrite))
+	{
+		LOG_ERROR("Can't create CBV: Buffer not created with BufferShaderUsage::ReadOnly");
+		return {};
+	}
+
+	DescriptorIndex di = m_ShaderResourceViewHeap.AllocateDescriptor();
+	const D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_ShaderResourceViewHeap.GetCpuHandle(di);
+	CreateBufferUAV(buffer, descriptorHandle, start, size < 0 ? (uint32_t)buffer->GetDesc().sizeBytes : (uint32_t)size);
+
+	return BufferReadWriteView{ di };
+}
+
+void st::rhi::dx12::GpuDevice::ReleaseBufferUniformView(BufferUniformView& v, bool immediate)
+{
+	if (v.IsValid())
+	{
+		if (immediate)
+		{
+			m_ShaderResourceViewHeap.ReleaseDescriptor(v.GetIdx());
+		}
+		else
+		{
+			std::scoped_lock lock{ m_StaleDescriptorsMutex };
+			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
+				v.GetIdx(), &m_ShaderResourceViewHeap);
+		}
+		v.Invalidate();
+	}
+}
+
+void st::rhi::dx12::GpuDevice::ReleaseBufferReadOnlyView(BufferReadOnlyView& v, bool immediate)
+{
+	if (v.IsValid())
+	{
+		if (immediate)
+		{
+			m_ShaderResourceViewHeap.ReleaseDescriptor(v.GetIdx());
+		}
+		else
+		{
+			std::scoped_lock lock{ m_StaleDescriptorsMutex };
+			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
+				v.GetIdx(), &m_ShaderResourceViewHeap);
+		}
+		v.Invalidate();
+	}
+}
+
+void st::rhi::dx12::GpuDevice::ReleaseBufferReadWriteView(BufferReadWriteView& v, bool immediate)
+{
+	if (v.IsValid())
+	{
+		if (immediate)
+		{
+			m_ShaderResourceViewHeap.ReleaseDescriptor(v.GetIdx());
+		}
+		else
+		{
+			std::scoped_lock lock{ m_StaleDescriptorsMutex };
+			m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Descriptors.emplace_back(
+				v.GetIdx(), &m_ShaderResourceViewHeap);
+		}
+		v.Invalidate();
+	}
+}
+
 void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value)
 {
 	auto& queue = m_Queues[(int)type];
@@ -1070,7 +1150,7 @@ D3D12_RESOURCE_DESC st::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& 
 	return d3d12Desc;
 }
 
-void st::rhi::dx12::GpuDevice::CreateSRV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources, 
+void st::rhi::dx12::GpuDevice::CreateTextureSRV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources,
 	TextureDimension dimension)
 {
 	const auto& desc = texture->GetDesc();
@@ -1148,7 +1228,7 @@ void st::rhi::dx12::GpuDevice::CreateSRV(ITexture* texture, D3D12_CPU_DESCRIPTOR
 	m_D3d12Device->CreateShaderResourceView(texture->GetNativeResource(), &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::CreateUAV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources,
+void st::rhi::dx12::GpuDevice::CreateTextureUAV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources,
 	TextureDimension dimension)
 {
 	const auto& desc = texture->GetDesc();
@@ -1205,7 +1285,7 @@ void st::rhi::dx12::GpuDevice::CreateUAV(ITexture* texture, D3D12_CPU_DESCRIPTOR
 	m_D3d12Device->CreateUnorderedAccessView(texture->GetNativeResource(), nullptr, &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::CreateRTV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources)
+void st::rhi::dx12::GpuDevice::CreateTextureRTV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources)
 {
 	const auto& desc = texture->GetDesc();
 	subresources.Resolve(desc);
@@ -1261,7 +1341,7 @@ void st::rhi::dx12::GpuDevice::CreateRTV(ITexture* texture, D3D12_CPU_DESCRIPTOR
 	m_D3d12Device->CreateRenderTargetView(texture->GetNativeResource(), &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::CreateDSV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly)
+void st::rhi::dx12::GpuDevice::CreateTextureDSV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly)
 {
 	const auto& desc = texture->GetDesc();
 	subresources.Resolve(desc);
@@ -1322,6 +1402,99 @@ void st::rhi::dx12::GpuDevice::CreateDSV(ITexture* texture, D3D12_CPU_DESCRIPTOR
 	m_D3d12Device->CreateDepthStencilView(texture->GetNativeResource(), &viewDesc, descriptor);
 }
 
+void st::rhi::dx12::GpuDevice::CreateBufferCBV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes)
+{
+	assert(IsAligned(offsetBytes, (uint32_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+	assert(IsAligned(sizeBytes, (uint32_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+
+	ID3D12Resource* nativeRes = buffer->GetNativeResource();
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+	desc.BufferLocation = nativeRes->GetGPUVirtualAddress() + offsetBytes;
+	desc.SizeInBytes = sizeBytes;
+
+	m_D3d12Device->CreateConstantBufferView(&desc, descriptor);
+}
+
+void st::rhi::dx12::GpuDevice::CreateBufferSRV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes)
+{
+	const auto& desc = buffer->GetDesc();
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = {};
+	viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	viewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	// Structured buffer
+	if (desc.format == Format::UNKNOWN)
+	{
+		if (desc.stride != 0)
+		{
+			assert(IsAligned(offsetBytes, desc.stride));
+			viewDesc.Format = DXGI_FORMAT_UNKNOWN;
+			viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+			viewDesc.Buffer.FirstElement = offsetBytes / desc.stride;
+			viewDesc.Buffer.NumElements = std::min(sizeBytes, (uint32_t)desc.sizeBytes) / desc.stride;
+			viewDesc.Buffer.StructureByteStride = desc.stride;
+		}
+		else
+		{
+			viewDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+			viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+			viewDesc.Buffer.FirstElement = offsetBytes / sizeof(uint32_t);
+			viewDesc.Buffer.NumElements = std::min(sizeBytes, (uint32_t)desc.sizeBytes) / sizeof(uint32_t);
+			viewDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+		}
+	}
+	// Typed buffer
+	else
+	{
+		uint32_t stride = GetFormatInfo(desc.format).bytesPerBlock;
+		viewDesc.Format = GetDxgiFormatMapping(desc.format).srvFormat;
+		viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		viewDesc.Buffer.FirstElement = offsetBytes / stride;
+		viewDesc.Buffer.NumElements = std::min(sizeBytes, (uint32_t)desc.sizeBytes) / stride;
+	}
+
+	m_D3d12Device->CreateShaderResourceView(buffer->GetNativeResource(), &viewDesc, descriptor);
+}
+
+void st::rhi::dx12::GpuDevice::CreateBufferUAV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes)
+{
+	const auto& desc = buffer->GetDesc();
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
+	viewDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+
+	if (desc.format == Format::UNKNOWN)
+	{
+		if (desc.stride != 0) // Structured buffer
+		{
+			assert(IsAligned(offsetBytes, desc.stride));
+			viewDesc.Format = DXGI_FORMAT_UNKNOWN;
+			viewDesc.Buffer.FirstElement = offsetBytes / desc.stride;
+			viewDesc.Buffer.NumElements = std::min(sizeBytes, (uint32_t)desc.sizeBytes) / desc.stride;
+			viewDesc.Buffer.StructureByteStride = desc.stride;
+		}
+		else
+		{
+			viewDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+			viewDesc.Buffer.FirstElement = offsetBytes / sizeof(uint32_t);
+			viewDesc.Buffer.NumElements = std::min(sizeBytes, (uint32_t)desc.sizeBytes) / sizeof(uint32_t);
+			viewDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+		}
+	}
+	else
+	{
+		uint32_t stride = GetFormatInfo(desc.format).bytesPerBlock;
+		viewDesc.Format = GetDxgiFormatMapping(desc.format).srvFormat;
+		viewDesc.Buffer.FirstElement = offsetBytes / stride;
+		viewDesc.Buffer.NumElements = std::min(sizeBytes, (uint32_t)desc.sizeBytes) / stride;
+	}
+
+
+	m_D3d12Device->CreateUnorderedAccessView(buffer->GetNativeResource(), nullptr, &viewDesc, descriptor);
+}
+
 void st::rhi::dx12::GpuDevice::ReleaseStaleResources(uint32_t bufferIdx)
 {
 	{
@@ -1336,19 +1509,7 @@ void st::rhi::dx12::GpuDevice::ReleaseStaleResources(uint32_t bufferIdx)
 
 	for (const auto& desc : m_StaleResources[bufferIdx].Descriptors)
 	{
-		switch (desc.second)
-		{
-		case TextureViewType::Sampled:
-		case TextureViewType::Storage:
-			m_ShaderResourceViewHeap.ReleaseDescriptor(desc.first);
-			break;
-		case TextureViewType::ColorTarget:
-			m_RenderTargetViewHeap.ReleaseDescriptor(desc.first);
-			break;
-		case TextureViewType::DepthTarget:
-			m_DepthStencilViewHeap.ReleaseDescriptor(desc.first);
-			break;
-		}
+		desc.second->ReleaseDescriptor(desc.first);
 	}
 	m_StaleResources[bufferIdx].Descriptors.clear();
 }

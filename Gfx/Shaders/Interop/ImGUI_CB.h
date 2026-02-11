@@ -8,9 +8,9 @@ namespace interop
     struct ImGUI_CB
     {
         float2 invDisplaySize;
-        uint indexBuffer;
+        BufferReadOnlyIndex indexBuffer;
         uint indexOffset;
-        uint vertexBuffer;
+        BufferReadOnlyIndex vertexBuffer;
         uint vertexBufferOffset;
         TextureSampledViewIndex textureIndex;
         uint flags;

@@ -25,6 +25,9 @@ static const uint INVALID_DESCRIPTOR_INDEX = 0xFFFFFFFFu;
 
 #define TextureSampledViewIndex uint
 #define TextureStorageViewIndex uint
+#define BufferUniformIndex uint
+#define BufferReadOnlyIndex uint
+#define BufferReadWriteIndex uint
 
 #endif // __cplusplus
 #endif // __SHADER_SHADERINTEROP_H__

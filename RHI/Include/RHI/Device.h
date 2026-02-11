@@ -61,7 +61,13 @@ namespace st::rhi
         virtual void ReleaseTextureColorTargetView(TextureColorTargetView& v, bool immediate = false) = 0;
         virtual void ReleaseTextureDepthTargetView(TextureDepthTargetView& v, bool immediate = false) = 0;
 
-        //virtual GPUBindingHandle GetShaderViewHandle(ITexture* tex, TextureShaderView view) = 0;
+        virtual BufferUniformView CreateBufferUniformView(IBuffer* buffer, uint32_t start = 0, int size = -1) = 0;
+        virtual BufferReadOnlyView CreateBufferReadOnlyView(IBuffer* buffer, uint32_t start = 0, int size = -1) = 0;
+        virtual BufferReadWriteView CreateBufferReadWriteView(IBuffer* buffer, uint32_t start = 0, int size = -1) = 0;
+
+        virtual void ReleaseBufferUniformView(BufferUniformView& v, bool immediate = false) = 0;
+        virtual void ReleaseBufferReadOnlyView(BufferReadOnlyView& v, bool immediate = false) = 0;
+        virtual void ReleaseBufferReadWriteView(BufferReadWriteView& v, bool immediate = false) = 0;
 
         template<class T>
         void ReleaseImmediately(unique<T>& handle) {

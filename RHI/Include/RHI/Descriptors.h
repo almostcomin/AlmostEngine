@@ -18,6 +18,15 @@ enum class TextureViewType
 	_Size
 };
 
+enum class BufferViewType
+{
+	Uniform = 0,
+	ReadOnly = 1,
+	ReadWrite = 2,
+
+	_Size
+};
+
 enum class TextureShaderUsage
 {
 	None = 0x0,
@@ -28,20 +37,12 @@ enum class TextureShaderUsage
 };
 ENUM_CLASS_FLAG_OPERATORS(TextureShaderUsage)
 
-enum class BufferShaderView
-{
-	ConstantBuffer = 0,
-	ShaderResource = 1,
-	UnorderedAccess = 2,
-
-	_Size
-};
 enum class BufferShaderUsage
 {
 	None = 0x0,
-	ConstantBuffer = 0x1 << (int)BufferShaderView::ConstantBuffer,
-	ShaderResource = 0x1 << (int)BufferShaderView::ShaderResource,
-	UnorderedAccess = 0x1 << (int)BufferShaderView::UnorderedAccess
+	Uniform = 0x1 << (int)BufferViewType::Uniform,
+	ReadOnly = 0x1 << (int)BufferViewType::ReadOnly,
+	ReadWrite = 0x1 << (int)BufferViewType::ReadWrite
 };
 ENUM_CLASS_FLAG_OPERATORS(BufferShaderUsage)
 

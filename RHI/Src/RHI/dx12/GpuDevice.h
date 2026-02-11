@@ -62,7 +62,13 @@ namespace st::rhi::dx12
 		void ReleaseTextureColorTargetView(TextureColorTargetView& v, bool immediate = false) override;
 		void ReleaseTextureDepthTargetView(TextureDepthTargetView& v, bool immediate = false) override;
 
-		//GPUBindingHandle GetShaderViewHandle(ITexture* tex, TextureShaderView view) override;
+		BufferUniformView CreateBufferUniformView(IBuffer* buffer, uint32_t start = 0, int size = -1) override;
+		BufferReadOnlyView CreateBufferReadOnlyView(IBuffer* buffer, uint32_t start = 0, int size = -1) override;
+		BufferReadWriteView CreateBufferReadWriteView(IBuffer* buffer, uint32_t start = 0, int size = -1) override;
+
+		void ReleaseBufferUniformView(BufferUniformView& v, bool immediate = false) override;
+		void ReleaseBufferReadOnlyView(BufferReadOnlyView& v, bool immediate = false) override;
+		void ReleaseBufferReadWriteView(BufferReadWriteView& v, bool immediate = false) override;
 
 		void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value) override;
 		void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value) override;
@@ -97,7 +103,7 @@ namespace st::rhi::dx12
 		struct FrameStaleResources
 		{
 			std::vector<IResource*> Resources;
-			std::vector<std::pair<DescriptorIndex, TextureViewType>> Descriptors;
+			std::vector<std::pair<DescriptorIndex, DescriptorHeap*>> Descriptors;
 		};
 
 	private:
@@ -106,10 +112,14 @@ namespace st::rhi::dx12
 
 		D3D12_RESOURCE_DESC BuildD3d12Desc(const TextureDesc& desc);
 
-		void CreateSRV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources, TextureDimension dimension);
-		void CreateUAV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources, TextureDimension dimension);
-		void CreateRTV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources);
-		void CreateDSV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly);
+		void CreateTextureSRV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources, TextureDimension dimension);
+		void CreateTextureUAV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources, TextureDimension dimension);
+		void CreateTextureRTV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources);
+		void CreateTextureDSV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly);
+
+		void CreateBufferCBV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes);
+		void CreateBufferSRV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes);
+		void CreateBufferUAV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes);
 
 		template<class T>
 		st::unique<T> InsertNewResource(T* p)

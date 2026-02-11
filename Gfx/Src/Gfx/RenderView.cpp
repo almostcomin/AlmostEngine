@@ -148,9 +148,9 @@ st::rhi::CommandListHandle st::gfx::RenderView::GetCommandList()
 	return m_CommandLists[m_DeviceManager->GetFrameModuleIndex()].get_weak();
 }
 
-st::rhi::DescriptorIndex st::gfx::RenderView::GetSceneConstantBufferDI()
+st::rhi::BufferUniformView st::gfx::RenderView::GetSceneBufferUniformView()
 {
-	return m_SceneCB ? m_SceneCB->GetShaderViewIndex(rhi::BufferShaderView::ConstantBuffer) : rhi::c_InvalidDescriptorIndex;
+	return m_SceneCB ? m_SceneCB->GetUniformView() : rhi::BufferUniformView{};
 }
 
 bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
@@ -382,7 +382,7 @@ st::rhi::BufferHandle st::gfx::RenderView::GetBuffer(const std::string& id) cons
 	return nullptr;
 }
 
-st::rhi::TextureSampledView st::gfx::RenderView::GetSampledView(const std::string& id)
+st::rhi::TextureSampledView st::gfx::RenderView::GetTextureSampledView(const std::string& id)
 {
 	auto tex = GetTexture(id);
 	if (tex)
@@ -392,7 +392,7 @@ st::rhi::TextureSampledView st::gfx::RenderView::GetSampledView(const std::strin
 	return {};
 }
 
-st::rhi::TextureStorageView st::gfx::RenderView::GetStorageView(const std::string& id)
+st::rhi::TextureStorageView st::gfx::RenderView::GetTextureStorageView(const std::string& id)
 {
 	auto tex = GetTexture(id);
 	if (tex)
@@ -402,14 +402,34 @@ st::rhi::TextureStorageView st::gfx::RenderView::GetStorageView(const std::strin
 	return {};
 }
 
-st::rhi::DescriptorIndex st::gfx::RenderView::GetShaderViewIndex(const std::string& id, rhi::BufferShaderView view)
+st::rhi::BufferUniformView st::gfx::RenderView::GetBufferUniformView(const std::string& id)
 {
 	auto buffer = GetBuffer(id);
 	if (buffer)
 	{
-		return buffer->GetShaderViewIndex(view);
+		return buffer->GetUniformView();
 	}
-	return rhi::c_InvalidDescriptorIndex;
+	return {};
+}
+
+st::rhi::BufferReadOnlyView st::gfx::RenderView::GetBufferReadOnlyView(const std::string& id)
+{
+	auto buffer = GetBuffer(id);
+	if (buffer)
+	{
+		return buffer->GetReadOnlyView();
+	}
+	return {};
+}
+
+st::rhi::BufferReadWriteView st::gfx::RenderView::GetBufferReadWriteView(const std::string& id)
+{
+	auto buffer = GetBuffer(id);
+	if (buffer)
+	{
+		return buffer->GetReadWriteView();
+	}
+	return {};
 }
 
 void st::gfx::RenderView::OnWindowSizeChanged()
@@ -720,7 +740,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	{
 		rhi::BufferDesc desc{
 			.memoryAccess = rhi::MemoryAccess::Upload,
-			.shaderUsage = rhi::BufferShaderUsage::ConstantBuffer,
+			.shaderUsage = rhi::BufferShaderUsage::Uniform,
 			.sizeBytes = sizeof(interop::Scene),
 			.stride = 0 };
 
@@ -728,6 +748,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	}
 
 	interop::Scene* sceneShaderConstant = (interop::Scene*)m_SceneCB->Map();
+	*sceneShaderConstant = {};
 
 	// Camera
 	if (m_Camera)
@@ -762,15 +783,9 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->ambientBottom = float4{ ambientParams.GroundColor * ambientParams.Intensity, 0.f };
 
 		// Data buffers
-		sceneShaderConstant->instanceBufferDI = m_Scene->GetInstancesBufferDI();
-		sceneShaderConstant->meshesBufferDI = m_Scene->GetMeshesBufferDI();
-		sceneShaderConstant->materialsBufferDI = m_Scene->GetMaterialsBufferDI();
-	}
-	else
-	{
-		sceneShaderConstant->instanceBufferDI = rhi::c_InvalidDescriptorIndex;
-		sceneShaderConstant->meshesBufferDI = rhi::c_InvalidDescriptorIndex;
-		sceneShaderConstant->materialsBufferDI = rhi::c_InvalidDescriptorIndex;
+		sceneShaderConstant->instanceBufferDI = m_Scene->GetInstancesBufferView();
+		sceneShaderConstant->meshesBufferDI = m_Scene->GetMeshesBufferView();
+		sceneShaderConstant->materialsBufferDI = m_Scene->GetMaterialsBufferView();
 	}
 
 	m_SceneCB->Unmap();

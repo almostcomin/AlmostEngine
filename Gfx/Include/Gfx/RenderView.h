@@ -90,7 +90,7 @@ public:
 	st::rhi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
 	st::rhi::TextureHandle GetBackBuffer(int idx = 0);
 	st::rhi::CommandListHandle GetCommandList();
-	st::rhi::DescriptorIndex GetSceneConstantBufferDI();
+	st::rhi::BufferUniformView GetSceneBufferUniformView();
 	
 	const std::vector<const st::gfx::MeshInstance*>& GetCameraVisibleSet() const { return m_CameraVisibleSet; }
 	const std::vector<const st::gfx::MeshInstance*>& GetSunVisibleSet() const { return m_SunVisibleSet; }
@@ -115,10 +115,12 @@ public:
 	rhi::TextureHandle GetTexture(const std::string& id) const;
 	rhi::BufferHandle GetBuffer(const std::string& id) const;
 
-	rhi::TextureSampledView GetSampledView(const std::string& id);
-	rhi::TextureStorageView GetStorageView(const std::string& id);
-
-	rhi::DescriptorIndex GetShaderViewIndex(const std::string& id, rhi::BufferShaderView view);
+	rhi::TextureSampledView GetTextureSampledView(const std::string& id);
+	rhi::TextureStorageView GetTextureStorageView(const std::string& id);
+	
+	rhi::BufferUniformView GetBufferUniformView(const std::string& id);
+	rhi::BufferReadOnlyView GetBufferReadOnlyView(const std::string& id);
+	rhi::BufferReadWriteView GetBufferReadWriteView(const std::string& id);
 
 	void OnWindowSizeChanged();
 

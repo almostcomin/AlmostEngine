@@ -7,7 +7,7 @@ namespace interop
 {
     struct ClearBufferConstants
     {
-        uint bufferDI;
+        BufferReadWriteIndex bufferDI;
         uint bufferElementCount; // uints
         uint clearValue;
     };
@@ -65,10 +65,10 @@ namespace interop
 
     struct MeshData
     {
-        uint indexBufferDI;
+        BufferReadOnlyIndex indexBufferDI;
         uint indexSize;
         uint indexOffsetBytes;
-        uint vertexBufferDI;
+        BufferReadOnlyIndex vertexBufferDI;
         uint vertexBufferOffsetBytes;
         uint vertexStride;
         uint vertexPositionOffset;
@@ -115,21 +115,21 @@ namespace interop
         float4 ambientBottom;   // rgb
 
         // Global descriptors indices
-        uint instanceBufferDI;
-        uint meshesBufferDI;
-        uint materialsBufferDI;
+        BufferReadOnlyIndex instanceBufferDI;
+        BufferReadOnlyIndex meshesBufferDI;
+        BufferReadOnlyIndex materialsBufferDI;
         uint _padding3;
     };
 
     struct SingleInstanceDrawData
     {
-        uint sceneDI;           // DI for the scene constants
-        uint instanceIdx;       // Index in the instance data buffer to render
+        BufferUniformIndex sceneDI; // DI for the scene constants
+        uint instanceIdx;           // Index in the instance data buffer to render
     };
 
     struct DeferredLightingConstants
     {
-        uint sceneDI;
+        BufferUniformIndex sceneDI;
         TextureSampledViewIndex sceneDepthDI;
         TextureSampledViewIndex shadowMapDI;
         TextureSampledViewIndex GBuffer0DI;
@@ -140,8 +140,8 @@ namespace interop
 
     struct DebugStage
     {
-        uint sceneDI;
-        uint aaboxDI;
+        BufferUniformIndex sceneDI;
+        BufferReadOnlyIndex aaboxDI;
     };
 
     struct AABB
@@ -173,8 +173,8 @@ namespace interop
     struct BuildLuminanceHistogramConstants
     {
         TextureSampledViewIndex inputTextureDI;
-        uint outputHistogramBufferDI; // 256 4-byte (uint32) elements
-        uint outputStatsBufferDI;
+        BufferReadWriteIndex outputHistogramBufferDI; // 256 4-byte (uint32) elements
+        BufferReadWriteIndex outputStatsBufferDI;
         uint _padding;
         uint2 viewBegin;
         uint2 viewEnd;
@@ -184,9 +184,9 @@ namespace interop
 
     struct AvgLuminanceHistogramConstants
     {
-        uint inputHistogramBufferDI;
+        BufferReadOnlyIndex inputHistogramBufferDI;
         TextureStorageViewIndex outputAvgLuminanceTextureDI;
-        uint outputStatsBufferDI;
+        BufferReadWriteIndex outputStatsBufferDI;
         uint pixelCount;
         float minLogLuminance;
         float logLuminanceRange;

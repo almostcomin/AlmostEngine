@@ -4,6 +4,7 @@
 #include "RHI/Format.h"
 #include "RHI/Descriptors.h"
 #include "RHI/Common.h"
+#include "ShaderViews.h"
 
 namespace st::rhi
 {
@@ -27,7 +28,9 @@ public:
     virtual void* Map(uint64_t bufferStart = 0, size_t size = 0) = 0;
     virtual void Unmap(uint64_t bufferStart = 0, size_t size = 0) = 0;
 
-    virtual DescriptorIndex GetShaderViewIndex(BufferShaderView type) = 0;
+    virtual BufferUniformView GetUniformView() = 0;
+    virtual BufferReadOnlyView GetReadOnlyView() = 0;
+    virtual BufferReadWriteView GetReadWriteView() = 0;
 
     virtual void Swap(IBuffer& other) = 0;
 

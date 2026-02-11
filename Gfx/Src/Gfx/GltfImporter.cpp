@@ -883,7 +883,7 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
 {
     st::rhi::BufferDesc bufferDesc;
     bufferDesc.memoryAccess = st::rhi::MemoryAccess::Default;
-    bufferDesc.shaderUsage = st::rhi::BufferShaderUsage::ShaderResource;
+    bufferDesc.shaderUsage = st::rhi::BufferShaderUsage::ReadOnly;
     bufferDesc.sizeBytes = indexData.size();
     bufferDesc.stride = idx32bits ? sizeof(int32_t) : sizeof(int16_t);
 
@@ -912,7 +912,7 @@ CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugNam
 {
     st::rhi::BufferDesc bufferDesc;
     bufferDesc.memoryAccess = st::rhi::MemoryAccess::Default;
-    bufferDesc.shaderUsage = st::rhi::BufferShaderUsage::ShaderResource;
+    bufferDesc.shaderUsage = st::rhi::BufferShaderUsage::ReadOnly;
     bufferDesc.sizeBytes = vertexData.size();
     bufferDesc.stride = vertexStride;
 

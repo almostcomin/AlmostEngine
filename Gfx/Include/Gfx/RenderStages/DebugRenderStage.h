@@ -31,7 +31,7 @@ private:
 	void OnDetached() override;
 	void OnBackbufferResize() override;
 
-	std::pair<rhi::DescriptorIndex, size_t> GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList);
+	std::pair<rhi::BufferReadOnlyView, size_t> GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList);
 
 	rhi::GraphicsPipelineStateOwner m_PSO;
 	rhi::ShaderOwner m_VS;
