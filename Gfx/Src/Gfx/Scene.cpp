@@ -30,9 +30,9 @@ st::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceMan
 
 st::gfx::Scene::~Scene()
 {
-	m_DeviceManager->GetDevice()->ReleaseQueued(m_MaterialsBuffer);
-	m_DeviceManager->GetDevice()->ReleaseQueued(m_MeshesBuffer);
-	m_DeviceManager->GetDevice()->ReleaseQueued(m_InstancesBuffer);
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
 
 	m_SceneGraph.reset();
 }
@@ -40,9 +40,9 @@ st::gfx::Scene::~Scene()
 void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 {
 	// Release old data
-	m_DeviceManager->GetDevice()->ReleaseQueued(m_MaterialsBuffer);
-	m_DeviceManager->GetDevice()->ReleaseQueued(m_MeshesBuffer);
-	m_DeviceManager->GetDevice()->ReleaseQueued(m_InstancesBuffer);
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
 	m_InstanceIndices.clear();
 
 	m_SceneGraph = std::move(graph);

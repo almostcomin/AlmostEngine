@@ -59,17 +59,33 @@ bool st::gfx::DeviceManager::Init(const DeviceParams& params)
 void st::gfx::DeviceManager::Shutdown()
 {
 	m_Device->WaitForIdle();
+	m_UploadBuffer->OnFrameCompleted(m_FrameIndex);
 
+	for (auto& fb : m_SwapChainFramebuffers)
+	{
+		m_Device->ReleaseImmediately(std::move(fb));
+	}
+	m_SwapChainFramebuffers.clear();
+
+	for (auto& commandList : m_BeginCommandLists)
+	{
+		m_Device->ReleaseImmediately(std::move(commandList));
+	}
+	for (auto& commandList : m_EndCommandLists)
+	{
+		m_Device->ReleaseImmediately(std::move(commandList));
+	}
+
+	for (auto& timerQuery : m_FrameTimers)
+	{
+		m_Device->ReleaseImmediately(std::move(timerQuery));
+	}
+
+	m_UploadBuffer.reset();
 	m_CommonResources.reset();
 	m_TextureCache.reset();
 	m_DataUploader.reset();
 	m_ShaderFactory.reset();
-
-	for (auto& fb : m_SwapChainFramebuffers)
-	{
-		m_Device->ReleaseQueued(fb);
-	}
-	m_SwapChainFramebuffers.clear();
 
 	InternalShutdown();
 }
@@ -105,7 +121,7 @@ bool st::gfx::DeviceManager::UpdateWindowSize()
 	{
 		for (auto& fb : m_SwapChainFramebuffers)
 		{
-			m_Device->ReleaseQueued(fb);
+			m_Device->ReleaseQueued(std::move(fb));
 		}
 		m_SwapChainFramebuffers.clear();
 

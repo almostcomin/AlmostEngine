@@ -154,7 +154,7 @@ std::pair<st::rhi::BufferReadOnlyView, size_t> st::gfx::DebugRenderStage::GetAAB
 	{
 		if (m_AABBOXBuffer)
 		{
-			device->ReleaseQueued(m_AABBOXBuffer);
+			device->ReleaseQueued(std::move(m_AABBOXBuffer));
 		}
 
 		m_AABBOXBuffer = device->CreateBuffer(

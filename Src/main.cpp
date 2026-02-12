@@ -413,9 +413,13 @@ int SDL_main(int argc, char* argv[])
 	depthPrepassRS.reset();
 	shadowmapRS.reset();
 	debugRS.reset();
+	toneMappingRS.reset();
 	scene.reset();
 
 	deviceManager->Shutdown();
+
+	ImGui_ImplSDL3_Shutdown();
+	ImGui::DestroyContext();
 
 	SDL_DestroyWindow(window);
 	SDL_Quit();

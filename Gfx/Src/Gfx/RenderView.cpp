@@ -79,11 +79,11 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 st::gfx::RenderView::~RenderView()
 {
 	ClearRenderStages();
-	m_DeviceManager->GetDevice()->ReleaseQueued(m_SceneCB);
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_SceneCB));
 
 	for (int i = 0; i < m_CommandLists.size(); ++i)
 	{
-		m_DeviceManager->GetDevice()->ReleaseImmediately(m_CommandLists[i]);
+		m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_CommandLists[i]));
 	}
 }
 
@@ -210,7 +210,7 @@ bool st::gfx::RenderView::RecreateTexture(const char* id, int width, int height,
 
 	// newTexture (actually the old old since it has been swap-ed) would be released when the owner pointer gets out of scope
 	// but lets do it explicitly
-	m_DeviceManager->GetDevice()->ReleaseQueued(newTexture);
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(newTexture));
 
 	it->second->requestedWidth = width;
 	it->second->requestedHeight = height;
@@ -449,9 +449,7 @@ void st::gfx::RenderView::OnWindowSizeChanged()
 				newDesc.width = GetActualSize(declTex->requestedWidth, newSize.x);
 				newDesc.height = GetActualSize(declTex->requestedHeight, newSize.y);
 				
-				// Lets queue the release just in case, but should not be neccessary because we are waiting for the GPU
-				// At least in the case of swapchan BB.
-				m_DeviceManager->GetDevice()->ReleaseQueued(declTex->texture);
+				m_DeviceManager->GetDevice()->ReleaseImmediately(std::move(declTex->texture));
 				declTex->texture = m_DeviceManager->GetDevice()->CreateTexture(newDesc, 
 					GetInitialState(declTex->type), it.first);
 			}
@@ -729,7 +727,7 @@ void st::gfx::RenderView::ClearRenderStages()
 
 	for (auto& dt : m_DeclaredTextures)
 	{
-		m_DeviceManager->GetDevice()->ReleaseQueued(dt.second->texture);
+		m_DeviceManager->GetDevice()->ReleaseQueued(std::move(dt.second->texture));
 	}
 	m_DeclaredTextures.clear();
 }

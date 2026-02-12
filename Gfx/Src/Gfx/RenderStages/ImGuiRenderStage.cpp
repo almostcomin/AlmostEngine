@@ -265,23 +265,21 @@ void st::gfx::ImGuiRenderStage::Release()
 {
     auto* device = m_RenderView->GetDeviceManager()->GetDevice();
 
-    ImGui::DestroyContext();
-
     m_GuiFontTexture.reset();
     m_CurrentTextures.clear();
 
-    device->ReleaseQueued(m_FontTexture);
-    device->ReleaseQueued(m_PSO);
+    device->ReleaseQueued(std::move(m_FontTexture));
+    device->ReleaseQueued(std::move(m_PSO));
     for (int i = 0; i < 3; ++i)
     {
-        device->ReleaseQueued(m_VertexBuffer[i]);
-        device->ReleaseQueued(m_IndexBuffer[i]);
+        device->ReleaseQueued(std::move(m_VertexBuffer[i]));
+        device->ReleaseQueued(std::move(m_IndexBuffer[i]));
     }
 
-    device->ReleaseQueued(m_PSO);
-    device->ReleaseQueued(m_FB);
-    device->ReleaseQueued(m_PS);
-    device->ReleaseQueued(m_VS);
+    device->ReleaseQueued(std::move(m_PSO));
+    device->ReleaseQueued(std::move(m_FB));
+    device->ReleaseQueued(std::move(m_PS));
+    device->ReleaseQueued(std::move(m_VS));
 }
 
 bool st::gfx::ImGuiRenderStage::UpdateFontTexture()

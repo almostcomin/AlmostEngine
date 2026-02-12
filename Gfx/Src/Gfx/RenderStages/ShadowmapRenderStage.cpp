@@ -126,10 +126,10 @@ void st::gfx::ShadowmapRenderStage::ReleaseResources()
 {
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
-	device->ReleaseQueued(m_FB);
-	device->ReleaseQueued(m_PSO);
-	device->ReleaseQueued(m_PS);
-	device->ReleaseQueued(m_VS);
+	device->ReleaseQueued(std::move(m_FB));
+	device->ReleaseQueued(std::move(m_PSO));
+	device->ReleaseQueued(std::move(m_PS));
+	device->ReleaseQueued(std::move(m_VS));
 
 	m_RenderView->ReleaseTexture("Shadowmap");
 #ifdef DEBUG_STAGE

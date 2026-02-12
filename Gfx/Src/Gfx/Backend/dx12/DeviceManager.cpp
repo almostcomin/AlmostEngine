@@ -487,7 +487,7 @@ void st::gfx::dx12::DeviceManager::ReleaseRenderTargets()
     // Release the old buffers because ResizeBuffers requires that
     for (auto& texture : m_SwapChainBuffers)
     {
-        m_Device->ReleaseImmediately(texture);
+        m_Device->ReleaseImmediately(std::move(texture));
     }
     m_SwapChainBuffers.clear();
 }

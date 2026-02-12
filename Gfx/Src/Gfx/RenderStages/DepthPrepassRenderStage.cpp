@@ -101,8 +101,8 @@ void st::gfx::DepthPrepassRenderStage::OnDetached()
 {
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
-	device->ReleaseQueued(m_FB);
-	device->ReleaseQueued(m_PSO);
+	device->ReleaseQueued(std::move(m_FB));
+	device->ReleaseQueued(std::move(m_PSO));
 }
 
 void st::gfx::DepthPrepassRenderStage::OnBackbufferResize()

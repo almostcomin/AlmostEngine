@@ -118,10 +118,10 @@ void st::gfx::OpaqueRenderStage::OnDetached()
 {
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
-	device->ReleaseQueued(m_FB);
-	device->ReleaseQueued(m_PSO);
-	device->ReleaseQueued(m_PS);
-	device->ReleaseQueued(m_VS);
+	device->ReleaseQueued(std::move(m_FB));
+	device->ReleaseQueued(std::move(m_PSO));
+	device->ReleaseQueued(std::move(m_PS));
+	device->ReleaseQueued(std::move(m_VS));
 }
 
 void st::gfx::OpaqueRenderStage::OnBackbufferResize()

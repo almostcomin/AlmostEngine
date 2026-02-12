@@ -50,8 +50,8 @@ st::gfx::DataUploader::~DataUploader()
 	assert(m_UploadBufferHead == m_UploadBufferTail);
 	assert(m_InFlightCommandLists.Empty());
 
-	m_Device->ReleaseImmediately(m_CommitFence);
-	m_Device->ReleaseImmediately(m_UploadBuffer);
+	m_Device->ReleaseImmediately(std::move(m_CommitFence));
+	m_Device->ReleaseImmediately(std::move(m_UploadBuffer));
 }
 
 std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(const rhi::BufferDesc& desc)
@@ -518,7 +518,7 @@ void st::gfx::DataUploader::AsyncUpdate()
 
 			for (auto& c : completedOnes)
 			{
-				m_Device->ReleaseImmediately(c.CommandList); // no need to queue the release
+				m_Device->ReleaseImmediately(std::move(c.CommandList)); // no need to queue the release
 				for (auto& views : c.MipGenViews)
 				{
 					m_Device->ReleaseTextureSampledView(views.first, true);

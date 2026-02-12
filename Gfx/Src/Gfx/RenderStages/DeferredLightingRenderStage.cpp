@@ -109,9 +109,9 @@ void st::gfx::DeferredLightingRenderStage::OnDetached()
 {
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
-	device->ReleaseQueued(m_FB);
-	device->ReleaseQueued(m_PSO);
-	device->ReleaseQueued(m_PS);
+	device->ReleaseQueued(std::move(m_FB));
+	device->ReleaseQueued(std::move(m_PSO));
+	device->ReleaseQueued(std::move(m_PS));
 }
 
 void st::gfx::DeferredLightingRenderStage::OnBackbufferResize()

@@ -70,12 +70,12 @@ namespace st::rhi
         virtual void ReleaseBufferReadWriteView(BufferReadWriteView& v, bool immediate = false) = 0;
 
         template<class T>
-        void ReleaseImmediately(unique<T>& handle) {
+        void ReleaseImmediately(unique<T>&& handle) {
             if (handle)
                 ReleaseImmediatelyInternal(handle.release());
         }
         template<class T>
-        void ReleaseQueued(unique<T>& handle) {
+        void ReleaseQueued(unique<T>&& handle) {
             if (handle)
                 ReleaseQueuedInternal(handle.release());
         }

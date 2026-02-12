@@ -12,8 +12,8 @@ st::gfx::Mesh::Mesh(rhi::Device* device, const char* name, const char* sourceFil
 
 st::gfx::Mesh::~Mesh()
 {
-	m_Device->ReleaseQueued(m_IndexBuffer);
-	m_Device->ReleaseQueued(m_VertexBuffer);
+	m_Device->ReleaseQueued(std::move(m_IndexBuffer));
+	m_Device->ReleaseQueued(std::move(m_VertexBuffer));
 }
 
 void st::gfx::Mesh::SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo, uint8_t indexSize)

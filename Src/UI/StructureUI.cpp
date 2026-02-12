@@ -1296,7 +1296,7 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
         if (mat)
         {
             ImGui::BeginTable("MatProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
-            ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+            ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 40.0f);
             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
             PropertyRowText("Name", mat->GetName().c_str());
             ImGui::EndTable();
