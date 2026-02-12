@@ -32,9 +32,8 @@ public:
 	enum class GenMipsMethod
 	{
 		None = 0,
-		GenMips,
-		GenMips_SRGB,
-		GenMips_Renormalize
+		GenMips_Color,
+		GenMips_NormalMap
 	};
 
 	struct UploadTicket
@@ -116,13 +115,14 @@ private: /* types */
 private: /* methods */
 
 	rhi::CommandListOwner GetCommandList();
-	SignalListener FinishCommandList(rhi::CommandListOwner&& commandList, UploadTicket&& ticket);
+	SignalListener FinishCommandList(rhi::CommandListOwner&& commandList, UploadTicket&& ticket,
+		std::vector<std::pair<rhi::TextureSampledView, rhi::TextureStorageView>>&& mipGenViews = {});
 
 	void InsertPendingTicket(UploadTicket&& ticket);
 	void OnCompletedTicket(UploadTicket&& ticket);
 
 	void GenerateMips(rhi::ITexture* texture, GenMipsMethod method, rhi::ResourceState currentState, rhi::ResourceState targetState, 
-		const rhi::TextureSubresourceSet& subresources, rhi::ICommandList* commandList);
+		const rhi::TextureSubresourceSet& subresources, rhi::ICommandList* commandList, std::vector<std::pair<rhi::TextureSampledView, rhi::TextureStorageView>>& tempViews);
 
 	void AsyncUpdate();
 
@@ -143,6 +143,7 @@ private: /* */
 		rhi::CommandListOwner CommandList;
 		SignalEmitter Signal;
 		UploadTicket Ticket;
+		std::vector<std::pair<rhi::TextureSampledView, rhi::TextureStorageView>> MipGenViews; // used during mipgen
 	};
 	RingBuffer<InFlightCommandListEntry, 1024> m_InFlightCommandLists;
 	std::mutex m_InFlightCommandListsMutex;
@@ -155,11 +156,9 @@ private: /* */
 	std::atomic<bool> m_AsyncShutdown;
 
 	rhi::ShaderOwner m_GenMips_CS;
-	rhi::ShaderOwner m_GetMipsSRGB_CS;
 	rhi::ShaderOwner m_GenMipsRenorm_CS;
 
 	rhi::ComputePipelineStateOwner m_GenMips_PSO;
-	rhi::ComputePipelineStateOwner m_GetMipsSRGB_PSO;
 	rhi::ComputePipelineStateOwner m_GenMipsRenorm_PSO;
 
 	st::rhi::Device* m_Device;

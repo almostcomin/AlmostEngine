@@ -179,21 +179,21 @@ const char* GetTextureDimensionText(st::rhi::TextureDimension dim)
     }
 }
 
-void BuildTexture(const st::gfx::LoadedTexture& diffuseTex)
+void BuildTexture(const char* title, const st::gfx::LoadedTexture& diffuseTex)
 {
-    ImGui::SeparatorText("Diffuse texture");
+    ImGui::SeparatorText(title);
     auto desc = diffuseTex.texture->GetDesc();
 
     ImGui::BeginTable("texId", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
-    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 16.0f);
     ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
     PropertyRowText("id", diffuseTex.id.c_str());
     ImGui::EndTable();
 
     ImGui::BeginTable("##texDesc", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
-    ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthFixed, 120);
+    ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthFixed, 80);
     ImGui::TableSetupColumn("val0", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-    ImGui::TableSetupColumn("txt1", ImGuiTableColumnFlags_WidthFixed, 120);
+    ImGui::TableSetupColumn("txt1", ImGuiTableColumnFlags_WidthFixed, 80);
     ImGui::TableSetupColumn("val1", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 
     auto propString = [](const char* label, const char* value)
@@ -1301,11 +1301,16 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
             PropertyRowText("Name", mat->GetName().c_str());
             ImGui::EndTable();
 
-            const auto& baseTex = mat->GetBaseColorTexture();
-            if (baseTex)
-            {
-                BuildTexture(*baseTex);
-            }
+            if(auto tex = mat->GetBaseColorTexture())
+                BuildTexture("Diffuse texture", *tex);
+            if (auto tex = mat->GetMetalRoughTexture())
+                BuildTexture("Metal-rough texture", *tex);
+            if (auto tex = mat->GetNormalTexture())
+                BuildTexture("Normal texture", *tex);
+            if (auto tex = mat->GetEmissiveTexture())
+                BuildTexture("Emissive texture", *tex);
+            if (auto tex = mat->GetOcclusionTexture())
+                BuildTexture("Occlusion texture", *tex);
         }
     }
 }

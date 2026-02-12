@@ -27,8 +27,8 @@ namespace interop
 
     struct GenMipsConstants
     {
-        uint srcMipDI;
-        uint dstMipDI;
+        TextureSampledViewIndex srcMipDI;
+        TextureStorageViewIndex dstMipDI;
     };
 
     // There is a max limit to the number of lights in the engine.

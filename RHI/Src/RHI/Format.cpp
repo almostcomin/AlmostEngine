@@ -104,6 +104,32 @@ bool st::rhi::IsDepthFormat(Format format)
     }
 }
 
+st::rhi::Format st::rhi::GetNonSRGB(Format format)
+{
+    switch (format)
+    {
+    case Format::SRGBA8_UNORM:
+        return Format::RGBA8_UNORM;
+    case Format::SBGRA8_UNORM:
+        return Format::BGRA8_UNORM;
+    default:
+        return format;
+    }
+}
+
+st::rhi::Format st::rhi::GetSRGB(Format format)
+{
+    switch (format)
+    {
+    case Format::RGBA8_UNORM:
+        return Format::SRGBA8_UNORM;
+    case Format::BGRA8_UNORM:
+        return Format::SBGRA8_UNORM;
+    default:
+        return format;
+    }
+}
+
 const char* st::rhi::GetFormatString(Format format)
 {
     static_assert(sizeof(c_FormatInfo) / sizeof(FormatInfo) == size_t(Format::COUNT),

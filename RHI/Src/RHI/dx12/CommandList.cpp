@@ -92,7 +92,7 @@ void st::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::T
 			src.pResource = srcBuffer->GetNativeResource();
 			src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 			src.PlacedFootprint.Offset = srcOffset;
-			src.PlacedFootprint.Footprint.Format = GetDxgiFormatMapping(desc.format).resourceFormat;
+			src.PlacedFootprint.Footprint.Format = GetDxgiFormatMapping(desc.format).typelessFormat;
 			src.PlacedFootprint.Footprint.Width = desc.width >> mip;
 			src.PlacedFootprint.Footprint.Height = desc.height >> mip;
 			src.PlacedFootprint.Footprint.Depth = desc.depth;

@@ -1133,7 +1133,7 @@ D3D12_RESOURCE_DESC st::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& 
 	d3d12Desc.Width = desc.width;
 	d3d12Desc.Height = desc.height;
 	d3d12Desc.MipLevels = desc.mipLevels;
-	d3d12Desc.Format = formatMap.resourceFormat;
+	d3d12Desc.Format = formatMap.srvFormat;
 	d3d12Desc.SampleDesc.Count = desc.sampleCount;
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
 	if (!has_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
@@ -1239,7 +1239,7 @@ void st::rhi::dx12::GpuDevice::CreateTextureUAV(ITexture* texture, D3D12_CPU_DES
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
 
-	viewDesc.Format = GetDxgiFormatMapping(format == Format::UNKNOWN ? desc.format : format).srvFormat;
+	viewDesc.Format = GetDxgiFormatMapping(format == Format::UNKNOWN ? desc.format : format).uavFormat;
 
 	switch (dimension)
 	{

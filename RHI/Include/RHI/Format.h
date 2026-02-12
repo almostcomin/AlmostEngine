@@ -114,6 +114,8 @@ struct FormatInfo
 
 const FormatInfo& GetFormatInfo(Format format);
 bool IsDepthFormat(Format format);
+Format GetNonSRGB(Format format);
+Format GetSRGB(Format format);
 const char* GetFormatString(Format format);
 
 } // namespace st::rhi

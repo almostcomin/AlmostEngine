@@ -244,7 +244,7 @@ D3D12_RENDER_PASS_BEGINNING_ACCESS st::rhi::dx12::GetRenderPassBeginningAccess(s
 		break;
 	case st::rhi::RenderPassOp::LoadOp::Clear:
 		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
-		ret.Clear.ClearValue.Format = st::rhi::GetDxgiFormatMapping(format).resourceFormat;
+		ret.Clear.ClearValue.Format = st::rhi::GetDxgiFormatMapping(format).typelessFormat;
 		if (IsDepthFormat(format))
 		{
 			ret.Clear.ClearValue.DepthStencil.Depth = clearValue.depthStencil.depth;

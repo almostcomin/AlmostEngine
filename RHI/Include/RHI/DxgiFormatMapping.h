@@ -29,9 +29,10 @@ namespace st::rhi
     struct DxgiFormatMapping
     {
         st::rhi::Format format;
-        DXGI_FORMAT resourceFormat;
+        DXGI_FORMAT typelessFormat;
         DXGI_FORMAT srvFormat;
         DXGI_FORMAT rtvFormat;
+        DXGI_FORMAT uavFormat;
     };
 
     const DxgiFormatMapping& GetDxgiFormatMapping(st::rhi::Format abstractFormat);

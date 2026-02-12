@@ -43,11 +43,6 @@ void st::gfx::Material::SetOcclusionTexture(std::shared_ptr<st::gfx::LoadedTextu
 	m_OcclusionTexture = textureHandle;
 }
 
-const std::shared_ptr<st::gfx::LoadedTexture> st::gfx::Material::GetBaseColorTexture() const
-{
-	return m_BaseColorTexture;
-}
-
 st::rhi::TextureHandle st::gfx::Material::GetBaseColorTextureHandle() const
 {
 	return m_BaseColorTexture ? m_BaseColorTexture->texture.get_weak() : nullptr;

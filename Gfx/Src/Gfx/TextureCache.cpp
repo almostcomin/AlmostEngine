@@ -35,7 +35,11 @@ std::pair<st::rhi::TextureOwner, uint32_t> CreateTextureFromTexInfo(const st::gf
     uint32_t originalMips = desc.mipLevels;
     if (genMips)
     {
-        //desc.mipLevels = log2(std::max(desc.width, desc.height)) + 1;
+        desc.mipLevels = log2(std::max(desc.width, desc.height)) + 1;
+        if (desc.mipLevels != originalMips)
+        {
+            desc.shaderUsage |= st::rhi::TextureShaderUsage::Storage; // Needed for mip generation
+        }
     }
     return { device->CreateTexture(desc, st::rhi::ResourceState::COPY_DST, texInfo.debugName), originalMips };
 }
@@ -163,17 +167,10 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
     }
 
     auto getMipsMethod = DataUploader::GenMipsMethod::None;
-    if (originalMips != texture->GetDesc().mipLevels)
+    if ((flags & Flags::GenerateMips) && (originalMips != texture->GetDesc().mipLevels))
     {
-        if (any(flags & Flags::IsNormalMap))
-        {
-            getMipsMethod = DataUploader::GenMipsMethod::GenMips_Renormalize;
-        }
-        else
-        {
-            const auto& formatInfo = rhi::GetFormatInfo(texture->GetDesc().format);
-            getMipsMethod = formatInfo.isSRGB ? DataUploader::GenMipsMethod::GenMips_SRGB : DataUploader::GenMipsMethod::GenMips;
-        }
+        getMipsMethod = any(flags & Flags::IsNormalMap) ?
+            DataUploader::GenMipsMethod::GenMips_NormalMap : DataUploader::GenMipsMethod::GenMips_Color;
     }
 
     auto uploadResult = m_DataUploader->UploadTextureData(

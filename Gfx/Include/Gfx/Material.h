@@ -36,7 +36,11 @@ public:
 	void SetNormalTextureScale(const float2 scale) { m_NormalTextureScale = scale; }
 	void SetOcclusionStrengh(const float v) { m_OcclusionStrengh = v; }
 
-	const std::shared_ptr<st::gfx::LoadedTexture> GetBaseColorTexture() const;
+	const std::shared_ptr<st::gfx::LoadedTexture> GetBaseColorTexture() const { return m_BaseColorTexture; }
+	const std::shared_ptr<st::gfx::LoadedTexture> GetMetalRoughTexture() const { return m_MetalRoughTexture; }
+	const std::shared_ptr<st::gfx::LoadedTexture> GetNormalTexture() const { return m_NormalTexture; }
+	const std::shared_ptr<st::gfx::LoadedTexture> GetEmissiveTexture() const { return m_EmissiveTexture; }
+	const std::shared_ptr<st::gfx::LoadedTexture> GetOcclusionTexture() const { return m_OcclusionTexture; }
 
 	rhi::TextureHandle GetBaseColorTextureHandle() const;
 	rhi::TextureHandle GetMetalRoughTextureHandle() const;
