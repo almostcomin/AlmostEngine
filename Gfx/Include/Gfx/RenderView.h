@@ -83,6 +83,10 @@ public:
 	void SetOffscreenFrameBuffer(st::rhi::FramebufferHandle frameBuffer);
 
 	void SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages);
+	void SetRenderMode(const std::string& name, const std::vector<RenderStage*>& renderStages);
+	void SetCurrentRenderMode(const std::string& name);
+	const std::string& GetCurrentRenderMode() const { return m_CurrentRenderMode; }
+	std::vector<std::string> GetRenderModes() const;
 
 	st::weak<Scene> GetScene() { return m_Scene; }
 	std::shared_ptr<Camera> GetCamera() { return m_Camera; }
@@ -126,8 +130,8 @@ public:
 
 	void Render(float timeDeltaSec);
 
-	size_t GetNumRenderStages() const { return m_RenderStages.size(); }
-	const RenderStageData* GetRenderStage(uint32_t idx) const { return m_RenderStages[idx]; }
+	size_t GetNumRenderStages(const std::string& mode = {}) const;
+	const RenderStageData* GetRenderStage(uint32_t idx, const std::string& mode = {}) const;
 
 	TextureViewTicket RequestTextureView(RenderStage* rs, AccessMode accessMode, const std::string& id);
 	BufferViewTicket RequestBufferView(RenderStage* rs, AccessMode accessMode, const std::string& id);
@@ -190,7 +194,10 @@ private:
 	st::rhi::FramebufferHandle m_OffscreenFramebuffer;
 	std::vector<st::rhi::CommandListOwner> m_CommandLists;
 
-	std::vector<RenderStageData*> m_RenderStages;
+	std::vector<std::unique_ptr<RenderStageData>> m_RenderStages;
+
+	std::string m_CurrentRenderMode;
+	std::unordered_map<std::string, std::vector<RenderStageData*>> m_RenderModes;
 
 	std::map<std::string, std::unique_ptr<DeclaredTexture>> m_DeclaredTextures;
 	std::map<std::string, std::unique_ptr<DeclaredBuffer>> m_DeclaredBuffers;

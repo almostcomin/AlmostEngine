@@ -32,7 +32,7 @@ private:
 	rhi::ComputePipelineStateOwner m_SSAO_PSO;
 	rhi::TextureOwner m_NoiseTexture;
 
-	bool m_SSAOEnabled = true;
+	bool m_SSAOEnabled = false;
 };
 
 } // namespace st::gfx

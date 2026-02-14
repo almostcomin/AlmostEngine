@@ -1,4 +1,4 @@
-#include "Gfx/RenderStages/OpaqueRenderStage.h"
+#include "Gfx/RenderStages/WireframeRenderStage.h"
 #include "Core/Log.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
@@ -11,12 +11,11 @@
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-void st::gfx::OpaqueRenderStage::Render()
+void st::gfx::WireframeRenderStage::Render()
 {
 	auto scene = m_RenderView->GetScene();
 	if (!scene)
 	{
-		//LOG_WARNING("No scene set. Nothing to render");
 		return;
 	}
 
@@ -26,14 +25,11 @@ void st::gfx::OpaqueRenderStage::Render()
 	commandList->BeginRenderPass(
 		m_FB.get(),
 		{ rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack()} },
-		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
+		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store },
 		{},
 		rhi::RenderPassFlags::None);
 
 	commandList->SetPipelineState(m_PSO.get());
-
-	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
-		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
 
 	interop::SingleInstanceDrawData shaderConstants;
 	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
@@ -50,33 +46,42 @@ void st::gfx::OpaqueRenderStage::Render()
 	commandList->EndRenderPass();
 }
 
-void st::gfx::OpaqueRenderStage::OnAttached()
+void st::gfx::WireframeRenderStage::OnAttached()
 {
 	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
-	// Create render target
-	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::SRGBA8_UNORM);
+	// Create textures
+	{
+		// Note that we create the ToneMapped resource here (as it does ToneMappingRenderStage).
+		// That should not be a probleam as far as the properties are the same in both places
+		m_RenderView->CreateTexture("ToneMapped", RenderView::TextureResourceType::RenderTarget,
+			RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
+	}
 
-	// Request RT access
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth", rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	// Request texture access access
+	{
+		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth",
+			rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ToneMapped",
+			rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	}
 
 	// Create Framebuffer
 	{
-		st::rhi::TextureHandle renderTarget = m_RenderView->GetTexture("SceneColor");
+		st::rhi::TextureHandle renderTarget = m_RenderView->GetTexture("ToneMapped");
 		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
 		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(renderTarget)
 			.SetDepthAttachment(depthStencil);
-		m_FB = device->CreateFramebuffer(fbDesc, "OpaqueRenderStage");
+		m_FB = device->CreateFramebuffer(fbDesc, "WireframeRenderStage");
 	}
 
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("OpaqueStage_vs", rhi::ShaderType::Vertex);
-		m_PS = shaderFactory->LoadShader("OpaqueStage_ps", rhi::ShaderType::Pixel);
+		m_VS = shaderFactory->LoadShader("WireframeStage_vs", rhi::ShaderType::Vertex);
+		m_PS = shaderFactory->LoadShader("WireframeStage_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO
@@ -89,15 +94,18 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 
 		rhi::RasterizerState rasterState =
 		{
-			.fillMode = rhi::FillMode::Solid,
-			.cullMode = rhi::CullMode::Back
+			.fillMode = rhi::FillMode::Wireframe,
+			.cullMode = rhi::CullMode::Back,
+			.depthBias = 100,
+			.depthBiasClamp = 0.001,
+			.slopeScaledDepthBias = 1.0f
 		};
 
 		rhi::DepthStencilState depthStencilState =
 		{
 			.depthTestEnable = true,
 			.depthWriteEnable = false,
-			.depthFunc = rhi::ComparisonFunc::Equal,
+			.depthFunc = rhi::ComparisonFunc::GreaterEqual,
 			.stencilEnable = false
 		};
 
@@ -110,11 +118,11 @@ void st::gfx::OpaqueRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "OpaqueRenderStage");
+		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage");
 	}
 }
 
-void st::gfx::OpaqueRenderStage::OnDetached()
+void st::gfx::WireframeRenderStage::OnDetached()
 {
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
@@ -124,20 +132,20 @@ void st::gfx::OpaqueRenderStage::OnDetached()
 	device->ReleaseQueued(std::move(m_VS));
 }
 
-void st::gfx::OpaqueRenderStage::OnBackbufferResize()
+void st::gfx::WireframeRenderStage::OnBackbufferResize()
 {
 	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 	// Re-create Framebuffer
 	{
-		st::rhi::TextureHandle renderTarget = m_RenderView->GetTexture("SceneColor");
+		st::rhi::TextureHandle renderTarget = m_RenderView->GetTexture("ToneMapped");
 		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
 		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(renderTarget)
 			.SetDepthAttachment(depthStencil);
-		m_FB = device->CreateFramebuffer(fbDesc, "OpaqueRenderStage");
+		m_FB = device->CreateFramebuffer(fbDesc, "WireframeRenderStage");
 	}
 
 	// Re-create PSO
-	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "OpaqueRenderStage");
+	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage");
 }

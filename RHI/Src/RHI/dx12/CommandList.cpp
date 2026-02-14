@@ -248,7 +248,7 @@ void st::rhi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
 
 		// TODO: Do not always set root signature
 		m_D3d12Commandlist->SetGraphicsRootSignature(impl->GetD3d12Desc().pRootSignature);
-		m_D3d12Commandlist->SetPipelineState(pso->GetNativeResource());
+		m_D3d12Commandlist->SetPipelineState(impl->GetD3d12PSO());
 		m_D3d12Commandlist->IASetPrimitiveTopology(GetPrimitiveTopology(impl->GetDesc().primTopo, impl->GetDesc().patchControlPoints));
 
 		m_CurrentGraphicsPSO = static_pointer_cast<IGraphicsPipelineState>(pso->weak_from_this());

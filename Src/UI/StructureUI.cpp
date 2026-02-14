@@ -515,6 +515,34 @@ void StructureUI::BuildSettingsWindow()
     const ImGuiStyle& style = ImGui::GetStyle();
     const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
 
+    if (ImGui::CollapsingHeader("Render modes", ImGuiTreeNodeFlags_None))
+    {
+        std::vector<std::string> renderModes = m_RenderView->GetRenderModes();
+        int selectedIdx = 0;
+        for (int i = 0; i < renderModes.size(); ++i)
+        {
+            if (renderModes[i] == m_RenderView->GetCurrentRenderMode())
+            {
+                selectedIdx = i;
+                break;
+            }
+        }
+
+        ImGui::BeginListBox("##RenderModesListBox");
+        for (int n = 0; n < renderModes.size(); n++)
+        {
+            const bool is_selected = (n == selectedIdx);
+            if (ImGui::Selectable(renderModes[n].c_str(), is_selected))
+                selectedIdx = n;
+            // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndListBox();
+
+        m_Data.RenderMode = renderModes[selectedIdx];
+    }
+
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_None))
     {
         auto camera = m_RenderView->GetCamera();
@@ -909,7 +937,8 @@ void StructureUI::BuildRenderStagesWindow()
     float windowHeight = parentHeight * 0.9f;
 
     ImGui::SetNextWindowSize(ImVec2(320, windowHeight), ImGuiCond_Once);
-    if (!ImGui::Begin(m_RenderView->GetName().c_str(), &m_ShowRenderStages, ImGuiWindowFlags_None))
+    std::string title = m_RenderView->GetName() + " - " + m_RenderView->GetCurrentRenderMode() + "###RenderViewWindow";
+    if (!ImGui::Begin(title.c_str(), &m_ShowRenderStages, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;

@@ -13,6 +13,7 @@ struct PS_INPUT
 [RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {
+#if 0
     ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     StructuredBuffer<interop::InstanceData> instancesBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
     StructuredBuffer<interop::MeshData> meshesBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
@@ -30,5 +31,8 @@ float4 main(PS_INPUT input) : SV_Target
         out_col.rgb = texColor.rgb;
         out_col.a *= texColor.a;
     }
+#else
+    float4 out_col = 1.0f;
+#endif
     return out_col;
 }

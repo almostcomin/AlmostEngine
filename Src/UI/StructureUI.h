@@ -28,6 +28,9 @@ public:
 		float FPS = 0.f;
 		float CPUTime = 0.f;
 		float GPUTime = 0.f;
+
+		std::string RenderMode;
+
 		float CameraSpeed = 2.f;
 		bool ShowBBoxes = false;
 		bool ShadowmapEnabled = true;

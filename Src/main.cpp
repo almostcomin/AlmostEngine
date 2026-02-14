@@ -22,6 +22,7 @@
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
 #include "Gfx/RenderStages/LinearizeDepthRenderStage.h"
 #include "Gfx/RenderStages/SSAORenderStage.h"
+#include "Gfx/RenderStages/WireframeRenderStage.h"
 #include "UI/StructureUI.h"
 #include <thread>
 #include <sstream>
@@ -134,38 +135,33 @@ int SDL_main(int argc, char* argv[])
 	// Our scene
 	auto scene = st::make_unique_with_weak<st::gfx::Scene>(deviceManager.get());
 
-	// Create RenderView
-	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
+	// Create main RenderView
+	auto mainRenderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
 
 	// Create shadowmap render stage
 	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 1024, 4, st::rhi::Format::D32 }};
-
 	// Create depth prepass render stage
 	std::shared_ptr<st::gfx::DepthPrepassRenderStage> depthPrepassRS{ new st::gfx::DepthPrepassRenderStage };
-
 	// Create linearize-depth render stage
 	std::shared_ptr<st::gfx::LinearizeDepthRenderStage> linearizeDepthRS{ new st::gfx::LinearizeDepthRenderStage };
-
 	// Screen-space ambient occlusion
 	std::shared_ptr<st::gfx::SSAORenderStage> SSAORS{ new st::gfx::SSAORenderStage };
-
 	// Create deferred render stage
 	std::shared_ptr<st::gfx::GBuffersRenderStage> gBufRS{ new st::gfx::GBuffersRenderStage };
-
 	// Create lighting render stage
 	std::shared_ptr<st::gfx::DeferredLightingRenderStage> lightingRS{ new st::gfx::DeferredLightingRenderStage };
-	
 	// Create TonemMapping
 	std::shared_ptr<st::gfx::ToneMappingRenderStage> toneMappingRS{ new st::gfx::ToneMappingRenderStage };
-
 	// Create debug render stage
 	std::shared_ptr<st::gfx::DebugRenderStage> debugRS{ new st::gfx::DebugRenderStage };
+	// Wireframe render stage
+	std::shared_ptr<st::gfx::WireframeRenderStage> wireframeRS{ new st::gfx::WireframeRenderStage };
 
 	// Create UI render stage
 	std::string requestLoadFile;
 	bool requestClose = false;
 	bool requestQuit = false;
-	std::shared_ptr<StructureUI> uiRS{ new StructureUI{ renderView.get_weak(), window, shadowmapRS.get(), toneMappingRS.get(), deviceManager.get() }};
+	std::shared_ptr<StructureUI> uiRS{ new StructureUI{ mainRenderView.get_weak(), window, shadowmapRS.get(), toneMappingRS.get(), deviceManager.get() }};
 	uiRS->m_RequestLoadFile = [&requestLoadFile](const char* filename) { requestLoadFile = filename; };
 	uiRS->m_RequestClose = [&requestClose] { requestClose = true; };
 	uiRS->m_RequestQuit = [&requestQuit] { requestQuit = true; };
@@ -181,8 +177,16 @@ int SDL_main(int argc, char* argv[])
 	camera->SetPosition({ 0.f, 0.f, 5.f });
 
 	// Add stages to render view
-	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, toneMappingRS, debugRS, uiRS, compositeRS });
-	renderView->SetCamera(camera);
+	mainRenderView->SetRenderStages({ shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, toneMappingRS, debugRS, uiRS, compositeRS, wireframeRS });
+	// Define default render mode
+	mainRenderView->SetRenderMode("Default", 
+		{ shadowmapRS.get(), depthPrepassRS.get(), linearizeDepthRS.get(), gBufRS.get(), SSAORS.get(), lightingRS.get(), toneMappingRS.get(), 
+		  debugRS.get(), uiRS.get(), compositeRS.get() });
+	// Define wireframe render mode
+	mainRenderView->SetRenderMode("Wireframe",
+		{ depthPrepassRS.get(), wireframeRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
+
+	mainRenderView->SetCamera(camera);
 
 	// Update UI data with initial render stages values
 	uiRS->m_Data.ShadowmapSize = shadowmapRS->GetSize();
@@ -215,7 +219,7 @@ int SDL_main(int argc, char* argv[])
 			if (importResult)
 			{
 				scene->SetSceneGraph(std::move(*importResult));
-				renderView->SetScene(scene.get_weak());
+				mainRenderView->SetScene(scene.get_weak());
 
 				const st::math::aabox3f& bounds = scene->GetSceneGraph()->GetRoot()->GetWorldBounds();
 				const float radius = glm::length(bounds.extents()) / 2.f;
@@ -346,6 +350,11 @@ int SDL_main(int argc, char* argv[])
 
 		// Update UI values
 		{
+			if (!uiRS->m_Data.RenderMode.empty() && uiRS->m_Data.RenderMode != mainRenderView->GetCurrentRenderMode())
+			{
+				mainRenderView->SetCurrentRenderMode(uiRS->m_Data.RenderMode);
+			}
+
 			debugRS->SetRenderBBoxes(uiRS->m_Data.ShowBBoxes);
 
 			if (uiRS->m_Data.ShadowmapSize != shadowmapRS->GetSize())
@@ -400,12 +409,12 @@ int SDL_main(int argc, char* argv[])
 			float2 newSize = deviceManager->GetWindowDimensions();
 			camera->SetAspect(newSize.x / newSize.y);
 
-			renderView->OnWindowSizeChanged();
+			mainRenderView->OnWindowSizeChanged();
 		}
 
-		deviceManager->Render([&renderView, elapsedSec]()
+		deviceManager->Render([&mainRenderView, elapsedSec]()
 		{
-			renderView->Render(elapsedSec);
+			mainRenderView->Render(elapsedSec);
 		});
 
 		fpsFrameCount++;
@@ -415,7 +424,7 @@ int SDL_main(int argc, char* argv[])
 
 	// Clean up
 	camera.reset();
-	renderView.reset();
+	mainRenderView.reset();
 	uiRS.reset();
 	compositeRS.reset();
 	SSAORS.reset();
@@ -424,6 +433,7 @@ int SDL_main(int argc, char* argv[])
 	gBufRS.reset();
 	depthPrepassRS.reset();
 	shadowmapRS.reset();
+	wireframeRS.reset();
 	debugRS.reset();
 	toneMappingRS.reset();
 	scene.reset();

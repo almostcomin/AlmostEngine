@@ -90,7 +90,7 @@ st::gfx::RenderView::~RenderView()
 void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
 { 
 	m_Scene = scene;
-	for (auto rs : m_RenderStages)
+	for (auto& rs : m_RenderStages)
 	{
 		rs->renderStage->OnSceneChanged();
 	}
@@ -122,15 +122,67 @@ void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<Rend
 				std::format("{} - TimerQuery", rs->GetDebugName())));
 		}
 
-		m_RenderStages.push_back(rsd);
+		m_RenderStages.emplace_back(rsd);
 	}
 
-	for (auto rs : m_RenderStages)
+	for (auto& rs : m_RenderStages)
 	{
 		rs->renderStage->Attach(this);
 	}
 
 	m_IsDirty = true;
+}
+
+void st::gfx::RenderView::SetRenderMode(const std::string& name, const std::vector<RenderStage*>& renderStages)
+{
+	if (m_RenderModes.find(name) != m_RenderModes.end())
+	{
+		m_RenderModes.erase(name);
+	}
+
+	std::vector<RenderStageData*> stages;
+	stages.reserve(renderStages.size());
+
+	for (auto* rs : renderStages)
+	{
+		// Check that the stage actually belongs to this
+		auto it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const std::unique_ptr<RenderStageData>& rsd) -> bool
+		{
+			return rs == rsd->renderStage.get();
+		});
+		if (it == m_RenderStages.end())
+		{
+			LOG_ERROR("Render stage '{}' is not part of the render view '{}'", rs->GetDebugName(), m_DebugName);
+			return;
+		}
+		stages.push_back(it->get());
+	}
+
+	m_RenderModes[name] = std::move(stages);
+
+	if (m_CurrentRenderMode.empty())
+		m_CurrentRenderMode = name;
+}
+
+void st::gfx::RenderView::SetCurrentRenderMode(const std::string& name)
+{
+	if (m_RenderModes.find(name) == m_RenderModes.end())
+	{
+		LOG_WARNING("Render mode '{}' not found", name);
+		return;
+	}
+	m_CurrentRenderMode = name;
+}
+
+std::vector<std::string> st::gfx::RenderView::GetRenderModes() const
+{
+	std::vector<std::string> result;
+	result.reserve(m_RenderModes.size());
+	for (const auto& rm : m_RenderModes)
+	{
+		result.push_back(rm.first);
+	}
+	return result;
 }
 
 st::rhi::FramebufferHandle st::gfx::RenderView::GetFramebuffer()
@@ -163,14 +215,24 @@ bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int heigh
 	return CreateTexture(id, TextureResourceType::DepthStencil, width, height, arraySize, format, false);
 }
 
-bool st::gfx::RenderView::CreateTexture(const char* id, TextureResourceType type, int width, int height, int arraySize, rhi::Format format, bool needUAV)
+bool st::gfx::RenderView::CreateTexture(const char* id, TextureResourceType type, int width, int height, int arraySize, rhi::Format format, bool needsUAV)
 {
-	// Check that texture has not been already created
+	// Check if that texture is already created
 	auto it = m_DeclaredTextures.find(id);
 	if (it != m_DeclaredTextures.end())
 	{
-		LOG_ERROR("Texture with id {} already created", id);
-		return false;
+		// No problem, this is allowed as far as the texture properties match
+		const auto& desc = it->second->texture->GetDesc();
+		if (it->second->requestedWidth == width && it->second->requestedHeight == height && it->second->type == type && desc.arraySize == arraySize &&
+			desc.format == format && needsUAV == has_flag(desc.shaderUsage, rhi::TextureShaderUsage::Storage))
+		{
+			return true;
+		}
+		else
+		{
+			LOG_ERROR("Texture with id {} already created", id);
+			return false;
+		}
 	}
 
 	rhi::TextureDesc desc{
@@ -178,7 +240,7 @@ bool st::gfx::RenderView::CreateTexture(const char* id, TextureResourceType type
 		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
 		.arraySize = (uint32_t)arraySize,
 		.format = format,
-		.shaderUsage = GetTextureShaderUsage(type, needUAV) };
+		.shaderUsage = GetTextureShaderUsage(type, needsUAV) };
 
 	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(type), id);
 	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), type, width, height) });
@@ -286,7 +348,7 @@ bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rs, AccessMode acces
 	rhi::ResourceState inputState, rhi::ResourceState outputState)
 {
 	// Find render pass deps
-	auto rs_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const RenderStageData* entry) -> bool
+	auto rs_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const auto& entry) -> bool
 		{
 			return entry->renderStage.get() == rs;
 		});
@@ -326,7 +388,7 @@ bool st::gfx::RenderView::RequestBufferAccess(RenderStage* rs, AccessMode access
 	rhi::ResourceState inputState, rhi::ResourceState outputState)
 {
 	// Find render pass deps
-	auto rs_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const RenderStageData* entry) -> bool
+	auto rs_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const auto& entry) -> bool
 		{
 			return entry->renderStage.get() == rs;
 		});
@@ -456,7 +518,7 @@ void st::gfx::RenderView::OnWindowSizeChanged()
 		}
 
 		// Inform render stages
-		for (auto rs : m_RenderStages)
+		for (auto& rs : m_RenderStages)
 		{
 			rs->renderStage->OnBackbufferResize();
 		}
@@ -471,6 +533,21 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 		Refresh();
 	}
 
+	// Get render mode
+	if (m_RenderModes.empty() || m_CurrentRenderMode.empty())
+	{
+		LOG_WARNING("Render mode not set");
+		return;
+	}
+	auto it = m_RenderModes.find(m_CurrentRenderMode);
+	if (it == m_RenderModes.end())
+	{
+		LOG_ERROR("Render mode set '{}' not defined", m_CurrentRenderMode);
+		return;
+	}
+	const std::vector<RenderStageData*>& renderStages = it->second;
+
+	// Update common data
 	UpdateCameraVisibleSet();
 	UpdateShadowmapData();
 	UpdateSceneConstantBuffer();
@@ -497,7 +574,7 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 			buffersState.emplace(entry.first, rhi::ResourceState::SHADER_RESOURCE);
 
 		// Stages render
-		for (auto& rs : m_RenderStages)
+		for (auto* rs : renderStages)
 		{
 			// Update view of reads
 			UpdateRequestedTextureViews(commandList, rs->renderStage.get(), AccessMode::Read, texturesState);
@@ -635,6 +712,29 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 	}
 }
 
+size_t st::gfx::RenderView::GetNumRenderStages(const std::string& mode) const
+{ 
+	auto it = m_RenderModes.find(mode.empty() ? m_CurrentRenderMode : mode);
+	if(it == m_RenderModes.end())
+	{
+		LOG_WARNING("Render mode requested '{}' does not exists", m_CurrentRenderMode);
+		return 0;
+	}
+	return it->second.size();
+}
+
+const st::gfx::RenderView::RenderStageData* st::gfx::RenderView::GetRenderStage(uint32_t idx, const std::string& mode) const
+{
+	auto it = m_RenderModes.find(mode.empty() ? m_CurrentRenderMode : mode);
+	if (it == m_RenderModes.end())
+	{
+		LOG_WARNING("Render mode requested '{}' does not exists", m_CurrentRenderMode);
+		return 0;
+	}
+
+	return it->second.at(idx);
+}
+
 st::gfx::RenderView::TextureViewTicket st::gfx::RenderView::RequestTextureView(RenderStage* rs, AccessMode accessMode, const std::string& id)
 {
 	for (auto& entry : m_TexViewRequests)
@@ -718,10 +818,11 @@ void st::gfx::RenderView::Refresh()
 
 void st::gfx::RenderView::ClearRenderStages()
 {
-	for (auto rs : m_RenderStages)
+	m_RenderModes.clear();
+
+	for (auto& rs : m_RenderStages)
 	{
 		rs->renderStage->Detach();
-		delete rs;
 	}
 	m_RenderStages.clear();
 
@@ -870,6 +971,7 @@ void st::gfx::RenderView::UpdateShadowmapData()
 
 	m_SunWoldToClipMatrix = sunProjMatrix * sunViewMatrix;
 
+	// Visible set from sun
 	{
 		math::aabox3f aabb = sceneBoundsSun.transform(glm::inverse(sunViewMatrix));
 		std::vector<math::plane3f> sunClipPlanes{

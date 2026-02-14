@@ -8,13 +8,13 @@
 namespace st::gfx
 {
 
-class OpaqueRenderStage : public RenderStage
+class WireframeRenderStage : public RenderStage
 {
 public:
 
-	OpaqueRenderStage() = default;
+	WireframeRenderStage() = default;
 
-	const char* GetDebugName() const override { return "OpaqueRenderStage"; }
+	const char* GetDebugName() const override { return "WireframeRenderStage"; }
 
 private:
 

@@ -390,6 +390,7 @@ st::rhi::GraphicsPipelineStateOwner st::rhi::dx12::GpuDevice::CreateGraphicsPipe
 {
 	// TODO: cache
 
+	// Create regular PSO
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3d12Desc = {};
 	d3d12Desc.pRootSignature = m_BindlessRootSignature.Get();
 	d3d12Desc.VS = desc.VS ? D3D12_SHADER_BYTECODE{ desc.VS->GetBytecode().data(), desc.VS->GetBytecode().size() } : D3D12_SHADER_BYTECODE{};
