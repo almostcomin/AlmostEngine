@@ -63,3 +63,15 @@ std::string st::ToUtf8(const wchar_t* wide)
     WideCharToMultiByte(CP_UTF8, 0, wide, -1, utf8.data(), size_needed, nullptr, nullptr);
     return utf8;
 }
+
+// Convert float (32 bits) to half-float (16 bits) (IEEE 754)
+uint16_t st::FloatToHalf(float f)
+{
+    uint32_t i = *((uint32_t*)&f);
+    uint32_t s = (i >> 16) & 0x00008000;
+    uint32_t e = ((i >> 23) & 0x000000ff) - (127 - 15);
+    uint32_t m = i & 0x007fffff;
+    if (e <= 0) return (uint16_t)s;
+    if (e >= 31) return (uint16_t)(s | 0x7c00);
+    return (uint16_t)(s | (e << 10) | (m >> 13));
+}

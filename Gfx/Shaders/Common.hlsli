@@ -4,16 +4,19 @@
 #define M_PI 3.14159265358979323846
 #define M_INV_PI 0.31830988618379067154
 
-float4 WorldPosReconstruction(float2 uv, Texture2D depthTex, float4x4 invViewProjMatrix)
+// Typically invMatrix is invViewProjMatrix for world pos reconstruction
+// or invProjMatrix for view space pos recosntruction
+float4 PosReconstruction(float2 uv, float depth, float4x4 invViewProjMatrix)
 {
     float4 ndcPos;
     ndcPos.x = uv.x * 2.0 - 1.0;
     ndcPos.y = 1.0 - uv.y * 2.0; // Y flip D3D
-    ndcPos.z = depthTex.Sample(pointClampSampler, uv).r; // reverse-Z [0, 1]
+    ndcPos.z = depth;
     ndcPos.w = 1.0;
-    float4 worldPos = mul(invViewProjMatrix, ndcPos);
-    worldPos /= worldPos.w;
-    return worldPos;
+    
+    float4 pos = mul(invViewProjMatrix, ndcPos);
+    pos /= pos.w;
+    return pos;
 }
 
 float SampleShadowMap(float4 worldPos, float4x4 worldToClipMatrix, Texture2D shadowMap)

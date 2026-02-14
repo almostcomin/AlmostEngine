@@ -30,6 +30,9 @@ std::string MakeUniqueStringId();
 std::wstring ToWide(const char* utf8);
 std::string ToUtf8(const wchar_t* wide);
 
+// Convert float (32 bits) to half-float (16 bits) (IEEE 754)
+uint16_t FloatToHalf(float f);
+
 inline bool AlmostEqual(float v1, float v2, float epsilon = 1.0e-05f)
 {
     return abs(v2 - v1) <= epsilon;

@@ -13,7 +13,6 @@
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/Camera.h"
-#include "Gfx/RenderStages/OpaqueRenderStage.h"
 #include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "Gfx/RenderStages/DebugRenderStage.h"
 #include "Gfx/RenderStages/DepthPrepassRenderStage.h"
@@ -21,6 +20,8 @@
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
+#include "Gfx/RenderStages/LinearizeDepthRenderStage.h"
+#include "Gfx/RenderStages/SSAORenderStage.h"
 #include "UI/StructureUI.h"
 #include <thread>
 #include <sstream>
@@ -142,15 +143,18 @@ int SDL_main(int argc, char* argv[])
 	// Create depth prepass render stage
 	std::shared_ptr<st::gfx::DepthPrepassRenderStage> depthPrepassRS{ new st::gfx::DepthPrepassRenderStage };
 
+	// Create linearize-depth render stage
+	std::shared_ptr<st::gfx::LinearizeDepthRenderStage> linearizeDepthRS{ new st::gfx::LinearizeDepthRenderStage };
+
+	// Screen-space ambient occlusion
+	std::shared_ptr<st::gfx::SSAORenderStage> SSAORS{ new st::gfx::SSAORenderStage };
+
 	// Create deferred render stage
 	std::shared_ptr<st::gfx::GBuffersRenderStage> gBufRS{ new st::gfx::GBuffersRenderStage };
 
 	// Create lighting render stage
 	std::shared_ptr<st::gfx::DeferredLightingRenderStage> lightingRS{ new st::gfx::DeferredLightingRenderStage };
 	
-	// Create opaque render stage
-	std::shared_ptr<st::gfx::OpaqueRenderStage> opaqueRS{ new st::gfx::OpaqueRenderStage };
-
 	// Create TonemMapping
 	std::shared_ptr<st::gfx::ToneMappingRenderStage> toneMappingRS{ new st::gfx::ToneMappingRenderStage };
 
@@ -177,7 +181,7 @@ int SDL_main(int argc, char* argv[])
 	camera->SetPosition({ 0.f, 0.f, 5.f });
 
 	// Add stages to render view
-	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, gBufRS, lightingRS, toneMappingRS, debugRS, uiRS, compositeRS });
+	renderView->SetRenderStages({ shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, toneMappingRS, debugRS, uiRS, compositeRS });
 	renderView->SetCamera(camera);
 
 	// Update UI data with initial render stages values
@@ -407,7 +411,8 @@ int SDL_main(int argc, char* argv[])
 	renderView.reset();
 	uiRS.reset();
 	compositeRS.reset();
-	opaqueRS.reset();
+	SSAORS.reset();
+	linearizeDepthRS.reset();
 	lightingRS.reset();
 	gBufRS.reset();
 	depthPrepassRS.reset();

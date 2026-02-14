@@ -65,4 +65,4 @@ inline constexpr uint32_t GetPrimitiveCount(uint32_t indexCount, PrimitiveTopolo
     }
 }
 
-};
+} // namespace st::rhi

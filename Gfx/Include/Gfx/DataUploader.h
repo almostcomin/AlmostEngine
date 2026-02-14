@@ -67,7 +67,7 @@ public:
 	~DataUploader();
 
 	std::expected<UploadTicket, std::string> RequestUploadTicket(const rhi::BufferDesc& desc);
-	std::expected<UploadTicket, std::string> RequestUploadTicket(const rhi::TextureDesc& desc, const rhi::TextureSubresourceSet& subresources);
+	std::expected<UploadTicket, std::string> RequestUploadTicket(const rhi::TextureDesc& desc, const rhi::TextureSubresourceSet& subresources = rhi::AllSubresources);
 	std::expected<UploadTicket, std::string> RequestUploadTicket(size_t size, size_t alignment);
 
 	std::expected<SignalListener, std::string> CommitUploadBufferTicket(UploadTicket&& ticket, rhi::BufferHandle dstBuffer,
@@ -75,7 +75,7 @@ public:
 
 	/// @param subresources Subresources to copy. If any GenMipsMethod, will generate mips in all mips from the last mip in subresources
 	std::expected<SignalListener, std::string> CommitUploadTextureTicket(UploadTicket&& ticket, rhi::TextureHandle dstTexture, 
-		rhi::ResourceState currentState, rhi::ResourceState targetState, const rhi::TextureSubresourceSet& subresources, 
+		rhi::ResourceState currentState, rhi::ResourceState targetState, const rhi::TextureSubresourceSet& subresources = rhi::AllSubresources, 
 		GenMipsMethod genMipsMethod = GenMipsMethod::None, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a buffer object.

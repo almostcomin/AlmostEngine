@@ -33,6 +33,7 @@ void st::gfx::DeferredLightingRenderStage::Render()
 	shaderConstants.GBuffer1DI = m_RenderView->GetTextureSampledView("GBuffer1");
 	shaderConstants.GBuffer2DI = m_RenderView->GetTextureSampledView("GBuffer2");
 	shaderConstants.GBuffer3DI = m_RenderView->GetTextureSampledView("GBuffer3");
+	shaderConstants.SSAO_DI = m_RenderView->GetTextureSampledView("AmbientOcclusion");
 
 	commandList->PushGraphicsConstants(shaderConstants);
 	commandList->Draw(3);
@@ -57,6 +58,7 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer1", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer2", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer3", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "AmbientOcclusion", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 
 	// Create Framebuffer
 	{

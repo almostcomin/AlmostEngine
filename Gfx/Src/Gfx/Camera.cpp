@@ -90,6 +90,30 @@ void st::gfx::Camera::Fit(const st::math::aabox3f& bounds)
 	SetForward(newFwd);
 }
 
+float3 st::gfx::Camera::GetFrustumTopLeftDirView()
+{
+	float tanHalfFov = tanf(m_VerticalFov * 0.5f);
+	return { -tanHalfFov * m_Aspect, tanHalfFov, -1.f };
+}
+
+float3 st::gfx::Camera::GetFrustumTopRightDirView()
+{
+	float tanHalfFov = tanf(m_VerticalFov * 0.5f);
+	return { tanHalfFov * m_Aspect, tanHalfFov, -1.f };
+}
+
+float3 st::gfx::Camera::GetFrustumBottomLeftDirView()
+{
+	float tanHalfFov = tanf(m_VerticalFov * 0.5f);
+	return { -tanHalfFov * m_Aspect, -tanHalfFov, -1.f };
+}
+
+float3 st::gfx::Camera::GetFrustumBottomRightDirView()
+{
+	float tanHalfFov = tanf(m_VerticalFov * 0.5f);
+	return { tanHalfFov * m_Aspect, -tanHalfFov, -1.f };
+}
+
 const float4x4& st::gfx::Camera::GeViewMatrix()
 {
 	UpdateMatrices();

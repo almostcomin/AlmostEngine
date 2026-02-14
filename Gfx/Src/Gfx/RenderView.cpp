@@ -752,14 +752,20 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	if (m_Camera)
 	{
 		sceneShaderConstant->camViewProjMatrix = m_Camera->GetViewProjectionMatrix();
+		sceneShaderConstant->camViewMatrix = m_Camera->GeViewMatrix();
+		sceneShaderConstant->camProjMatrix = m_Camera->GetProjectionMatrix();
 		sceneShaderConstant->camWorldPos = float4{ m_Camera->GetPosition(), 0.f };
 	}
 	else
 	{
 		sceneShaderConstant->camViewProjMatrix = float4x4{ 1.f };
+		sceneShaderConstant->camViewMatrix = float4x4{ 1.f };
+		sceneShaderConstant->camProjMatrix = float4x4{ 1.f };
 		sceneShaderConstant->camWorldPos = float4{ 0.f };
 	}
 	sceneShaderConstant->invCamViewProjMatrix = glm::inverse(sceneShaderConstant->camViewProjMatrix);
+	sceneShaderConstant->invCamViewMatrix = glm::inverse(sceneShaderConstant->camViewMatrix);
+	sceneShaderConstant->invCamProjMatrix = glm::inverse(sceneShaderConstant->camProjMatrix);
 
 	// Scene data
 	if (m_Scene)

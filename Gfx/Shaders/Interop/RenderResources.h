@@ -31,6 +31,15 @@ namespace interop
         TextureStorageViewIndex dstMipDI;
     };
 
+    struct LinearizeDepthConstants
+    {
+        TextureSampledViewIndex srcDepthTexDI;
+        TextureStorageViewIndex outLinearDepthTexDI;
+        uint width; // texture width in pixels
+        uint height;// texture height in pixels
+        float nearPlaneDist;
+    };
+
     // There is a max limit to the number of lights in the engine.
     // Index 0 of both the light buffer will be
     // reserved for directional light.
@@ -101,6 +110,10 @@ namespace interop
         // Camera
         float4x4 camViewProjMatrix;
         float4x4 invCamViewProjMatrix;
+        float4x4 camViewMatrix;
+        float4x4 invCamViewMatrix;
+        float4x4 camProjMatrix;
+        float4x4 invCamProjMatrix;
         float4 camWorldPos; // xyz
 
         // Sun light
@@ -136,6 +149,7 @@ namespace interop
         TextureSampledViewIndex GBuffer1DI;
         TextureSampledViewIndex GBuffer2DI;
         TextureSampledViewIndex GBuffer3DI;
+        TextureSampledViewIndex SSAO_DI;
     };
 
     struct DebugStage
@@ -200,6 +214,32 @@ namespace interop
         float maxLuminance;
         float avgLuminance;
         float avgBin;
+    };
+
+    struct SSAOConstants
+    {
+        BufferUniformIndex sceneDI;
+        TextureSampledViewIndex depthTextureDI;
+        TextureSampledViewIndex normalsTextureDI; // GBuffer2.xz
+        TextureSampledViewIndex noiseTextureDI;
+        TextureStorageViewIndex outputAOTextureDI; // (offset 16)
+        uint textureWidth;
+        uint textureHeight;
+        float radius;
+        float2 noiseScale; // (offset 32)
+        float power;
+        float bias;
+        float4 frustumTopLeft; // .xyz (offset 48)
+        float4 frustumVecX; // .xyz
+        float4 frustumVecY; // .xyz
+    };
+
+    struct SSAOBlur
+    {
+        TextureSampledViewIndex inputAOTextureDI;
+        TextureSampledViewIndex depthTextureDI;
+        TextureStorageViewIndex outputAOTextureDI;
+        float textureWidth;
     };
 }
 

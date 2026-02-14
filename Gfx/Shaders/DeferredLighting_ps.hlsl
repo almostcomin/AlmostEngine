@@ -37,15 +37,17 @@ float4 main(PS_INPUT input) : SV_Target
                     
     // Sample G-Buffers
     float4 gbuffers[4];
-    gbuffers[0] = GBuffer0.Sample(pointClampSampler, input.uv);
-    gbuffers[1] = GBuffer1.Sample(pointClampSampler, input.uv);
-    gbuffers[2] = GBuffer2.Sample(pointClampSampler, input.uv);
-    gbuffers[3] = GBuffer3.Sample(pointClampSampler, input.uv);
+    gbuffers[0] = GBuffer0.SampleLevel(pointClampSampler, input.uv, 0);
+    gbuffers[1] = GBuffer1.SampleLevel(pointClampSampler, input.uv, 0);
+    gbuffers[2] = GBuffer2.SampleLevel(pointClampSampler, input.uv, 0);
+    gbuffers[3] = GBuffer3.SampleLevel(pointClampSampler, input.uv, 0);
         
     MaterialSample surfaceMat = DecodeGBuffer(gbuffers);
             
     // World pos reconstruction
-    float4 surfacePos = WorldPosReconstruction(input.uv, sceneDepth, sceneData.invCamViewProjMatrix);
+    float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
+    float4 surfacePos = PosReconstruction(input.uv, depth, sceneData.invCamViewProjMatrix);
+    
     // Retrieve shadow factor
     float shadowFactor = 1.0;
     if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
@@ -54,6 +56,12 @@ float4 main(PS_INPUT input) : SV_Target
         shadowFactor = SampleShadowMap(surfacePos, sceneData.sunWorldToClipMatrix, shadowMap);
     }
     //shadowFactor *= surfaceMat.occlusion;
+    
+    if (Constants.SSAO_DI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D<float> SSAOTex = ResourceDescriptorHeap[Constants.SSAO_DI];
+        shadowFactor *= SSAOTex.SampleLevel(pointClampSampler, input.uv, 0);
+    }
     
     LightConstants sunConstants;
     sunConstants.lighType = LightType_Directional;
@@ -68,6 +76,7 @@ float4 main(PS_INPUT input) : SV_Target
     ShadeSurface(sunConstants, surfaceMat, surfacePos.xyz, viewIncident, diffuseRadiance, specularRadiance);
     
     float3 diffuseTerm = shadowFactor * diffuseRadiance * sceneData.sunColor.rgb;
+    //diffuseTerm = surfaceMat.occlusion;
     float3 specularTerm = shadowFactor * specularRadiance * sceneData.sunColor.rgb;
             
     // Ambient    
@@ -76,14 +85,6 @@ float4 main(PS_INPUT input) : SV_Target
     specularTerm += ambientColor * surfaceMat.specularF0;
 
     float3 color = diffuseTerm + specularTerm + surfaceMat.emissiveColor;
-    
-    //float exposure = 1.0;
-    //color = 1.0 - exp(-color * exposure);
-    
-    //color *= 2.0; // exposición burra
-    //color = 1.0 - exp(-color); // tone map simple    
-    
-    //color = color / (color + 1.0);
-    
+        
     return float4(color, 1.0);
 }

@@ -43,6 +43,11 @@ public:
 	float GetVerticalFOV() const { return m_VerticalFov; }
 	float GetZNear() const { return m_zNear; }
 
+	float3 GetFrustumTopLeftDirView();
+	float3 GetFrustumTopRightDirView();
+	float3 GetFrustumBottomLeftDirView();
+	float3 GetFrustumBottomRightDirView();
+
 	const float4x4& GeViewMatrix();
 	const float4x4& GetProjectionMatrix();
 	float4x4 GetViewProjectionMatrix();
