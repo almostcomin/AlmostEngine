@@ -37,14 +37,15 @@ PS_OUTPUT main(PS_INPUT input)
     MaterialTextureSample texturesSample = SampleMaterialTextures(input.uv, matData);
     MaterialSample matSample = EvaluateSceneMaterial(input.normal, input.tangent, matData, texturesSample);
     
-    // GBuffer0: diffuseAlbedo + opacity
+    // GBuffer0: diffuseAlbedo.rgb + opacity.w
     output.GBuffer0 = float4(matSample.diffuseAlbedo, matSample.opacity);
 
-    // GBuffer1: specularF0 + occlusion
+    // GBuffer1: specularF0.rgb + occlusion.w
     output.GBuffer1 = float4(matSample.specularF0, matSample.occlusion);
     
-    // GBuffer2: Normal.xy + roughnes.z
-    output.GBuffer2 = float4(EncodeNormal(matSample.normal), matSample.roughness, 0.0);
+    // GBuffer2: Normal.xy + roughnes.z + metalness.w
+    // metalness is actually not needed since we have speculatF0, but keeping here so we can show metalness in MaterialChannels
+    output.GBuffer2 = float4(EncodeNormal(matSample.normal), matSample.roughness, matSample.metalness);
     
     // GBuffer3: Emissive.rgb
     output.GBuffer3 = float4(matSample.emissiveColor, 0.0);

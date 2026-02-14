@@ -29,14 +29,20 @@ struct RSDepResult
     bool clicked;
 };
 
-void TextRightAligned(const char* text)
+void TextRightAligned(const char* fmt, ...)
 {
-    float textWidth = ImGui::CalcTextSize(text).x;
+    char buffer[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    float textWidth = ImGui::CalcTextSize(buffer).x;
     float colWidth = ImGui::GetColumnWidth();
     float cursorX = ImGui::GetCursorPosX();
 
     ImGui::SetCursorPosX(cursorX + colWidth - textWidth);
-    ImGui::TextUnformatted(text);
+    ImGui::TextUnformatted(buffer);
 }
 
 void PropertyRowText(const char* label, const char* value)
@@ -568,7 +574,7 @@ void StructureUI::BuildSettingsWindow()
 
     if (ImGui::CollapsingHeader("Shadowmap", ImGuiTreeNodeFlags_None) && m_ShadowmapRS)
     {
-        ImGui::Checkbox("Enabled", &m_Data.ShadowmapEnabled);
+        ImGui::Checkbox("Enabled##Shadowmap", &m_Data.ShadowmapEnabled);
 
         float itemWidth = availWidth / 5;
         ImGui::SetCursorPosX(style.ItemSpacing.x);
@@ -624,16 +630,46 @@ void StructureUI::BuildSettingsWindow()
         m_Data.AmbientParamsUpdated |= ImGui::ColorEdit3("Ground Color", &m_Data.AmbientParams.GroundColor.x, ImGuiColorEditFlags_Float);
     }
 
+    if (ImGui::CollapsingHeader("Material channels"))
+    {
+        if (ImGui::RadioButton("Disabled##matDisabled", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
+        if(ImGui::RadioButton("Base Color##matBaseColor", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor;
+        if (ImGui::RadioButton("Metalness##matMetalness", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness;
+        if (ImGui::RadioButton("Anisotropy##matAnisotropy", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy;
+        if (ImGui::RadioButton("Roughness##matRoughness", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness;
+        if (ImGui::RadioButton("Scattering##matScattering", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering;
+        if (ImGui::RadioButton("Translucency##matTranslucency", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency;
+        if (ImGui::RadioButton("Normal Map##matNormalMap", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap;
+        if (ImGui::RadioButton("Occlusion Map##matOcclusionMap", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap;
+        if (ImGui::RadioButton("Emissive##matEmissive", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive;
+        if (ImGui::RadioButton("Specular F0##matSpecularF0", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0))
+            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0;
+    }
+
+    if (ImGui::CollapsingHeader("SSAO"))
+    {
+        ImGui::Checkbox("Enabled##SSAO", &m_Data.SSAOEnabled);
+    }
+
     if (ImGui::CollapsingHeader("Tonemapping"))
     {
+        ImGui::Checkbox("Enabled##Tonemapping", &m_Data.tonemappingEnabled);
+
         st::rhi::ColorSpace colorSpace = m_DeviceManager->GetColorSpace();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-        ImGui::Text("Color Space: %s", colorSpace == st::rhi::ColorSpace::HDR10_ST2084 ? "HDR10" : "SDR");
-        ImGui::PopStyleColor();
-
         ImGui::SameLine(0.f, availWidth / 8);
-        ImGui::Checkbox("Enabled", &m_Data.tonemappingEnabled);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+        TextRightAligned("Color Space: %s", colorSpace == st::rhi::ColorSpace::HDR10_ST2084 ? "HDR10" : "SDR");
+        ImGui::PopStyleColor();
 
         ImGui::Separator();
 

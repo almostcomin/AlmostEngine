@@ -10,7 +10,26 @@ class DeferredLightingRenderStage : public RenderStage
 {
 public:
 
+	enum class MaterialChannel
+	{
+		Disabled,
+		BaseColor,
+		Metalness,
+		Anisotropy,
+		Roughness,
+		Scattering,
+		Translucency,
+		NormalMap,
+		OcclusionMap,
+		Emissive,
+		SpecularF0
+	};
+
+public:
+
 	DeferredLightingRenderStage() = default;
+
+	void SetMaterialChannel(MaterialChannel v) { m_MaterialChannel = v; }
 
 	const char* GetDebugName() const override { return "DeferredLightingRenderStage"; }
 
@@ -27,6 +46,8 @@ private:
 	st::rhi::FramebufferOwner m_FB;
 	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	st::rhi::GraphicsPipelineStateOwner m_PSO;
+
+	MaterialChannel m_MaterialChannel = MaterialChannel::Disabled;
 };
 
 } // namespace st::gfx

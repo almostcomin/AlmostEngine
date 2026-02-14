@@ -9,6 +9,7 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 	m_BlitPS = m_ShaderFactory->LoadShader("Blit_ps", rhi::ShaderType::Pixel);
 	m_BlitCS = m_ShaderFactory->LoadShader("Blit_cs", rhi::ShaderType::Compute);
 	m_ClearBufferCS = m_ShaderFactory->LoadShader("ClearBuffer_cs", rhi::ShaderType::Compute);
+	m_ClearTextureCS = m_ShaderFactory->LoadShader("ClearTexture_cs", rhi::ShaderType::Compute);
 
 	// Create blit PSO desc
 	{
@@ -51,6 +52,12 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 	{
 		m_ClearBufferPSO = m_Device->CreateComputePipelineState(
 			rhi::ComputePipelineStateDesc{ m_ClearBufferCS.get_weak() }, "ClearBufferPSO");
+	}
+
+	// Compute ClearTexture PSO
+	{
+		m_ClearTexturePSO = m_Device->CreateComputePipelineState(
+			rhi::ComputePipelineStateDesc{ m_ClearTextureCS.get_weak() }, "ClearTexturePSO");
 	}
 }
 

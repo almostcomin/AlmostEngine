@@ -2,6 +2,20 @@
 #include "BindlessRS.hlsli"
 #include "Shading.hlsli"
 
+// Keep in sync with st::gfx::DeferredLightingRenderStage::MaterialChannel
+static const uint MaterialChannel_Disabled      = 0;
+static const uint MaterialChannel_BaseColor     = 1;
+static const uint MaterialChannel_Metalness     = 2;
+static const uint MaterialChannel_Anisotropy    = 3;
+static const uint MaterialChannel_Roughness     = 4;
+static const uint MaterialChannel_Scattering    = 5;
+static const uint MaterialChannel_Translucency  = 6;
+static const uint MaterialChannel_NormalMap     = 7;
+static const uint MaterialChannel_OcclusionMap  = 8;
+static const uint MaterialChannel_Emissive      = 9;
+static const uint MaterialChannel_SpecularF0    = 10;
+
+
 MaterialSample DecodeGBuffer(float4 channels[4])
 {
     MaterialSample surface = DefaultMaterialSample();
@@ -12,6 +26,7 @@ MaterialSample DecodeGBuffer(float4 channels[4])
     surface.occlusion = channels[1].w;
     surface.normal = DecodeNormal(channels[2].xy);
     surface.roughness = channels[2].z;
+    surface.metalness = channels[2].w;
     surface.emissiveColor = channels[3].xyz;
     
     return surface;
@@ -43,48 +58,91 @@ float4 main(PS_INPUT input) : SV_Target
     gbuffers[3] = GBuffer3.SampleLevel(pointClampSampler, input.uv, 0);
         
     MaterialSample surfaceMat = DecodeGBuffer(gbuffers);
-            
-    // World pos reconstruction
-    float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
-    float4 surfacePos = PosReconstruction(input.uv, depth, sceneData.invCamViewProjMatrix);
-    
-    // Retrieve shadow factor
-    float shadowFactor = 1.0;
-    if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
-    {
-        Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
-        shadowFactor = SampleShadowMap(surfacePos, sceneData.sunWorldToClipMatrix, shadowMap);
-    }
-    //shadowFactor *= surfaceMat.occlusion;
-    
-    if (Constants.SSAO_DI != INVALID_DESCRIPTOR_INDEX)
-    {
-        Texture2D<float> SSAOTex = ResourceDescriptorHeap[Constants.SSAO_DI];
-        shadowFactor *= SSAOTex.SampleLevel(pointClampSampler, input.uv, 0);
-    }
-    
-    LightConstants sunConstants;
-    sunConstants.lighType = LightType_Directional;
-    sunConstants.direction = sceneData.sunDirection;
-    sunConstants.intensity = sceneData.sunIrradiance;
-    sunConstants.angularSizeOrInvRange = sceneData.sunAngularSizeRad;
-    
-    // Shade
-    float3 viewIncident = normalize(surfacePos.xyz - sceneData.camWorldPos.xyz);    
-    float3 diffuseRadiance = 0.0;
-    float3 specularRadiance = 0.0;
-    ShadeSurface(sunConstants, surfaceMat, surfacePos.xyz, viewIncident, diffuseRadiance, specularRadiance);
-    
-    float3 diffuseTerm = shadowFactor * diffuseRadiance * sceneData.sunColor.rgb;
-    //diffuseTerm = surfaceMat.occlusion;
-    float3 specularTerm = shadowFactor * specularRadiance * sceneData.sunColor.rgb;
-            
-    // Ambient    
-    float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
-    diffuseTerm += ambientColor * surfaceMat.diffuseAlbedo;
-    specularTerm += ambientColor * surfaceMat.specularF0;
 
-    float3 color = diffuseTerm + specularTerm + surfaceMat.emissiveColor;
-        
+    float3 color = 0.0;
+    if (Constants.MaterialChannel == MaterialChannel_BaseColor)
+    {
+        color = surfaceMat.diffuseAlbedo;
+    }
+    else if (Constants.MaterialChannel == MaterialChannel_Metalness)
+    {
+        color = surfaceMat.metalness;
+    }
+    else if (Constants.MaterialChannel == MaterialChannel_Anisotropy)
+    {
+        color = 1.f; // TODO
+    }
+    else if (Constants.MaterialChannel == MaterialChannel_Roughness)
+    {
+        color = surfaceMat.roughness;
+    }
+    else if (Constants.MaterialChannel == MaterialChannel_Scattering)
+    {
+        color = 1.f; // TODO
+    }
+    else if (Constants.MaterialChannel == MaterialChannel_Translucency)
+    {
+        color = surfaceMat.opacity;
+    }
+    else if (Constants.MaterialChannel == MaterialChannel_NormalMap)
+    {
+        color = surfaceMat.normal * 0.5 + 0.5;
+    }
+    else if (Constants.MaterialChannel == MaterialChannel_OcclusionMap)
+    {
+        color = surfaceMat.occlusion;
+    }
+    else if (Constants.MaterialChannel == MaterialChannel_Emissive)
+    {
+        color = surfaceMat.emissiveColor;
+    }
+    else if (Constants.MaterialChannel == MaterialChannel_SpecularF0)
+    {
+        color = surfaceMat.specularF0;
+    }
+    else
+    {
+        // World pos reconstruction
+        float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
+        float4 surfacePos = PosReconstruction(input.uv, depth, sceneData.invCamViewProjMatrix);
+    
+        // Retrieve shadow factor
+        float shadowFactor = 1.0;
+        if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
+        {
+            Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
+            shadowFactor = SampleShadowMap(surfacePos, sceneData.sunWorldToClipMatrix, shadowMap);
+        }
+        shadowFactor *= surfaceMat.occlusion;
+    
+        if (Constants.SSAO_DI != INVALID_DESCRIPTOR_INDEX)
+        {
+            Texture2D<float> SSAOTex = ResourceDescriptorHeap[Constants.SSAO_DI];
+            shadowFactor *= SSAOTex.SampleLevel(pointClampSampler, input.uv, 0);
+        }
+    
+        LightConstants sunConstants;
+        sunConstants.lighType = LightType_Directional;
+        sunConstants.direction = sceneData.sunDirection;
+        sunConstants.intensity = sceneData.sunIrradiance;
+        sunConstants.angularSizeOrInvRange = sceneData.sunAngularSizeRad;
+    
+        // Shade
+        float3 viewIncident = normalize(surfacePos.xyz - sceneData.camWorldPos.xyz);
+        float3 diffuseRadiance = 0.0;
+        float3 specularRadiance = 0.0;
+        ShadeSurface(sunConstants, surfaceMat, surfacePos.xyz, viewIncident, diffuseRadiance, specularRadiance);
+    
+        float3 diffuseTerm = shadowFactor * diffuseRadiance * sceneData.sunColor.rgb;
+        float3 specularTerm = shadowFactor * specularRadiance * sceneData.sunColor.rgb;
+            
+        // Ambient    
+        float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
+        diffuseTerm += ambientColor * surfaceMat.diffuseAlbedo;
+        specularTerm += ambientColor * surfaceMat.specularF0;
+
+        color = diffuseTerm + specularTerm + surfaceMat.emissiveColor;
+    }
+    
     return float4(color, 1.0);
 }

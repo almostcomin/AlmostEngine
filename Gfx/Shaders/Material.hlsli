@@ -55,6 +55,7 @@ MaterialTextureSample DefaultMaterialTextureSample()
     
     ret.baseColor = 0;
     ret.metalRough = 0;
+    ret.occlusion = 0;
     ret.normal = 0;
     ret.emissive = 0;
     ret.MaterialTextureSample_Flags = 0;
@@ -74,19 +75,14 @@ MaterialTextureSample SampleMaterialTextures(float2 uv, interop::MaterialData ma
     }
     if (mat.metalRoughTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
+        // Typically OCR texture (r=Occlusion, g=Roughness, b=Metalness)
         Texture2D metalRoughTexture = ResourceDescriptorHeap[mat.metalRoughTextureDI];
         ret.metalRough = metalRoughTexture.Sample(linearWrapSampler, uv);
         ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidMetalRough;
-        // Special case: usually we are going to have OCR texture (r=Occlusion, g=Roughness, b=Metalness)
-        // We can check here if that is the case and avoid an extra sample
-        if (mat.metalRoughTextureDI == mat.occlusionTextureDI)
-        {
-            ret.occlusion = ret.metalRough;
-            ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidOcclusion;
-        }
     }
-    if (mat.occlusionTextureDI != INVALID_DESCRIPTOR_INDEX && (ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidOcclusion) == 0)
+    if (mat.occlusionTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
+        // Typically OCR texture (r=Occlusion, g=Roughness, b=Metalness)
         Texture2D occlusionTexture = ResourceDescriptorHeap[mat.occlusionTextureDI];
         ret.occlusion = occlusionTexture.Sample(linearWrapSampler, uv);
         ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidOcclusion;
@@ -142,10 +138,11 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
     }
     
     // Occlusion
-    result.occlusion = mat.occlusion;
+    result.occlusion = 1.0;
     if ((textures.MaterialTextureSample_Flags & MaterialTextureSample_ValidOcclusion) != 0)
     {
         result.occlusion *= textures.occlusion.r;
+        result.occlusion *= mat.occlusion; // mat.occlusion is actually occlusion strength
     }
                 
     // Compute the BRDF inputs for the metal-rough model

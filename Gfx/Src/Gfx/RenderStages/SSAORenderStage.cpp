@@ -3,6 +3,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/DataUploader.h"
+#include "Gfx/CommonResources.h"
 #include "Gfx/Camera.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
@@ -16,32 +17,51 @@ void st::gfx::SSAORenderStage::Render()
 	auto linearDepthTex = m_RenderView->GetTexture("LinearDepth");
 	const uint32_t width = linearDepthTex->GetDesc().width;
 	const uint32_t height = linearDepthTex->GetDesc().height;
-	const uint32_t noiseWidth = m_NoiseTexture->GetDesc().width;
-	const uint32_t noiseHeight = m_NoiseTexture->GetDesc().height;
 
-	rhi::CommandListHandle commandList = m_RenderView->GetCommandList();
+	if (m_SSAOEnabled)
+	{
+		const uint32_t noiseWidth = m_NoiseTexture->GetDesc().width;
+		const uint32_t noiseHeight = m_NoiseTexture->GetDesc().height;
 
-	commandList->SetPipelineState(m_SSAO_PSO.get());
+		rhi::CommandListHandle commandList = m_RenderView->GetCommandList();
 
-	interop::SSAOConstants shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
-	shaderConstants.depthTextureDI = m_RenderView->GetTextureSampledView("LinearDepth");
-	shaderConstants.normalsTextureDI = m_RenderView->GetTextureSampledView("GBuffer2");
-	shaderConstants.noiseTextureDI = m_NoiseTexture->GetSampledView();
-	shaderConstants.outputAOTextureDI = m_RenderView->GetTextureStorageView("AmbientOcclusion");
-	shaderConstants.textureWidth = width;
-	shaderConstants.textureHeight = height;
-	shaderConstants.noiseScale = { (float)width / noiseWidth, (float)height / noiseHeight };
-	shaderConstants.radius = 0.01f;
-	shaderConstants.power = 2.f;
-	shaderConstants.bias = 0.005f;
-	shaderConstants.frustumTopLeft = float4{ camera->GetFrustumTopLeftDirView(), 0.f };
-	shaderConstants.frustumVecX = float4{ camera->GetFrustumTopRightDirView() - camera->GetFrustumTopLeftDirView(), 0.f };
-	shaderConstants.frustumVecY = float4{ camera->GetFrustumBottomLeftDirView() - camera->GetFrustumTopLeftDirView(), 0.f };
+		commandList->SetPipelineState(m_SSAO_PSO.get());
 
-	commandList->PushComputeConstants(shaderConstants);
+		interop::SSAOConstants shaderConstants;
+		shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
+		shaderConstants.depthTextureDI = m_RenderView->GetTextureSampledView("LinearDepth");
+		shaderConstants.normalsTextureDI = m_RenderView->GetTextureSampledView("GBuffer2");
+		shaderConstants.noiseTextureDI = m_NoiseTexture->GetSampledView();
+		shaderConstants.outputAOTextureDI = m_RenderView->GetTextureStorageView("AmbientOcclusion");
+		shaderConstants.textureWidth = width;
+		shaderConstants.textureHeight = height;
+		shaderConstants.noiseScale = { (float)width / noiseWidth, (float)height / noiseHeight };
+		shaderConstants.radius = 0.01f;
+		shaderConstants.power = 2.f;
+		shaderConstants.bias = 0.005f;
+		shaderConstants.frustumTopLeft = float4{ camera->GetFrustumTopLeftDirView(), 0.f };
+		shaderConstants.frustumVecX = float4{ camera->GetFrustumTopRightDirView() - camera->GetFrustumTopLeftDirView(), 0.f };
+		shaderConstants.frustumVecY = float4{ camera->GetFrustumBottomLeftDirView() - camera->GetFrustumTopLeftDirView(), 0.f };
 
-	commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
+		commandList->PushComputeConstants(shaderConstants);
+
+		commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
+	}
+	else
+	{
+		auto* commonResources = m_RenderView->GetDeviceManager()->GetCommonResources();
+		rhi::CommandListHandle commandList = m_RenderView->GetCommandList();
+
+		commandList->SetPipelineState(commonResources->GetClearTexturePSO().get());
+
+		interop::ClearTextureConstants shaderConstants;
+		shaderConstants.textureDI = m_RenderView->GetTextureStorageView("AmbientOcclusion");
+		shaderConstants.textureDim = float2{ width, height };
+		shaderConstants.clearValue = float4{ 1.f };
+
+		commandList->PushComputeConstants(shaderConstants);
+		commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
+	}
 }
 
 void st::gfx::SSAORenderStage::OnAttached()

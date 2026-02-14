@@ -31,10 +31,10 @@ public:
 	rhi::ComputePipelineStateHandle GetBlitComputePSO() { return m_BlitComputePSO.get_weak(); }
 
 	rhi::ComputePipelineStateHandle GetClearBufferPSO() { return m_ClearBufferPSO.get_weak(); }
+	rhi::ComputePipelineStateHandle GetClearTexturePSO() { return m_ClearTexturePSO.get_weak(); }
 
 	rhi::ShaderHandle GetBlitVS() const { return m_BlitVS.get_weak(); }
 	rhi::ShaderHandle GetBlitPS() const { return m_BlitPS.get_weak(); }
-	rhi::ShaderHandle GetClearBufferCS() const { return m_ClearBufferCS.get_weak(); }
 
 private:
 
@@ -50,6 +50,9 @@ private:
 
 	rhi::ShaderOwner m_ClearBufferCS;
 	rhi::ComputePipelineStateOwner m_ClearBufferPSO;
+
+	rhi::ShaderOwner m_ClearTextureCS;
+	rhi::ComputePipelineStateOwner m_ClearTexturePSO;
 };
 
 } // namespace st::gfx

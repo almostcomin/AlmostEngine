@@ -12,6 +12,14 @@ namespace interop
         uint clearValue;
     };
 
+    struct ClearTextureConstants
+    {
+        TextureStorageViewIndex textureDI;
+        uint2 textureDim;
+        uint2 _padding;
+        float4 clearValue;
+    };
+
     struct BlitGraphicsConstants
     {
         uint textureDI;
@@ -150,6 +158,7 @@ namespace interop
         TextureSampledViewIndex GBuffer2DI;
         TextureSampledViewIndex GBuffer3DI;
         TextureSampledViewIndex SSAO_DI;
+        uint MaterialChannel;
     };
 
     struct DebugStage

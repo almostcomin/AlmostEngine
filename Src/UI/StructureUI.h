@@ -2,6 +2,7 @@
 
 #include "Core/Math/plane.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
+#include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderView.h"
 #include <functional>
 #include "Core/Memory.h"
@@ -36,6 +37,10 @@ public:
 		bool AmbientParamsUpdated = false;
 		st::gfx::Scene::SunParams SunParams;
 		bool SunParamsUpdated = false;
+
+		st::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
+
+		bool SSAOEnabled = true;
 
 		bool tonemappingEnabled = true;
 		float middleGrayNits = 0.18f;
