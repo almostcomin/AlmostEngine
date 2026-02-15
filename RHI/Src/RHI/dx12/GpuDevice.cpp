@@ -52,6 +52,31 @@ std::unique_ptr<st::rhi::Device> st::rhi::dx12::CreateDevice(const st::rhi::dx12
 	return std::make_unique<st::rhi::dx12::GpuDevice>(desc);
 }
 
+void st::rhi::dx12::CheckDRED(ID3D12Device* device)
+{
+	ID3D12DeviceRemovedExtendedData2* pDred;
+	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&pDred))))
+	{
+		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 dredAutoBreadcrumbsOutput;
+		D3D12_DRED_PAGE_FAULT_OUTPUT2 dredPageFaultOutput;
+
+		D3D12_DRED_DEVICE_STATE deviceState = pDred->GetDeviceState();
+		(deviceState);
+
+		if (SUCCEEDED(pDred->GetAutoBreadcrumbsOutput1(&dredAutoBreadcrumbsOutput)))
+		{
+			(dredAutoBreadcrumbsOutput);
+			// Each 'Nodes' is a command queue.
+			// 'pLastCompletedOp' is the last complemente command
+		}
+
+		if (SUCCEEDED(pDred->GetPageFaultAllocationOutput2(&dredPageFaultOutput)))
+		{
+			(dredAutoBreadcrumbsOutput);
+		}
+	}
+}
+
 st::rhi::dx12::GpuDevice::GpuDevice(const st::rhi::dx12::DeviceDesc& desc) :
 	m_DepthStencilViewHeap{ desc.pDevice },
 	m_RenderTargetViewHeap{ desc.pDevice },

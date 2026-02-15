@@ -24,5 +24,6 @@ namespace st::rhi::dx12
     };
 
     std::unique_ptr<st::rhi::Device> CreateDevice(const DeviceDesc& desc);
+    void CheckDRED(ID3D12Device* pDevice);
 
 } // namespace st::rhi::dx12

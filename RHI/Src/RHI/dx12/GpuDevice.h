@@ -79,6 +79,8 @@ namespace st::rhi::dx12
 
 		void Shutdown() override;
 
+		NativeResource GetNativeDevice() override { return m_D3d12Device.Get(); }
+
 		const Stats& GetStats() const override { return m_LastStats; }
 
 		Queue* GetQueue(QueueType type) { return &m_Queues[(int)type]; }
@@ -91,7 +93,7 @@ namespace st::rhi::dx12
 		ID3D12QueryHeap* GetQueryHeap() { return m_TimerQueryHeap.Get(); }
 		ID3D12Resource* GetQueryResolveBuffer() { return m_TimerQueryResolveBuffer.Get(); }
 
-		ID3D12Device* GetNativeDevice() { return m_D3d12Device.Get(); }
+		ID3D12Device* GetD3d12Device() { return m_D3d12Device.Get(); }
 
 	protected:
 

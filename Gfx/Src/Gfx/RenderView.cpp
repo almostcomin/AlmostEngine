@@ -79,8 +79,7 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 st::gfx::RenderView::~RenderView()
 {
 	ClearRenderStages();
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_SceneCB));
-
+	m_SceneCB.clear();
 	for (int i = 0; i < m_CommandLists.size(); ++i)
 	{
 		m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_CommandLists[i]));
@@ -202,7 +201,7 @@ st::rhi::CommandListHandle st::gfx::RenderView::GetCommandList()
 
 st::rhi::BufferUniformView st::gfx::RenderView::GetSceneBufferUniformView()
 {
-	return m_SceneCB ? m_SceneCB->GetUniformView() : rhi::BufferUniformView{};
+	return m_SceneCB.empty() ? rhi::BufferUniformView{} : m_SceneCB[m_DeviceManager->GetFrameModuleIndex()]->GetUniformView();
 }
 
 bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
@@ -835,7 +834,7 @@ void st::gfx::RenderView::ClearRenderStages()
 
 void st::gfx::RenderView::UpdateSceneConstantBuffer()
 {
-	if (!m_SceneCB)
+	if (m_SceneCB.empty())
 	{
 		rhi::BufferDesc desc{
 			.memoryAccess = rhi::MemoryAccess::Upload,
@@ -843,10 +842,14 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 			.sizeBytes = sizeof(interop::Scene),
 			.stride = 0 };
 
-		m_SceneCB = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, "Scene CB");
+		m_SceneCB.resize(m_DeviceManager->GetSwapchainBufferCount());
+		for (auto& cb : m_SceneCB)
+		{
+			cb = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, "Scene CB");
+		}
 	}
 
-	interop::Scene* sceneShaderConstant = (interop::Scene*)m_SceneCB->Map();
+	interop::Scene* sceneShaderConstant = (interop::Scene*)m_SceneCB[m_DeviceManager->GetFrameModuleIndex()]->Map();
 	*sceneShaderConstant = {};
 
 	// Camera
@@ -893,7 +896,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->materialsBufferDI = m_Scene->GetMaterialsBufferView();
 	}
 
-	m_SceneCB->Unmap();
+	m_SceneCB[m_DeviceManager->GetFrameModuleIndex()]->Unmap();
 }
 
 void st::gfx::RenderView::UpdateCameraVisibleSet()

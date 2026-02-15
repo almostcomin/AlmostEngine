@@ -111,6 +111,10 @@ bool st::gfx::dx12::DeviceManager::Present()
         presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
 
     HRESULT result = m_SwapChain->Present(m_DeviceParams.VSyncEnabled ? 1 : 0, presentFlags);
+    if (FAILED(result))
+    {
+        rhi::dx12::CheckDRED(m_Device->GetNativeDevice());
+    }
     assert(SUCCEEDED(result));
 
     ResetEvent(m_FrameFenceEvents[bufferIndex].first);
@@ -490,6 +494,17 @@ void st::gfx::dx12::DeviceManager::ReleaseRenderTargets()
         m_Device->ReleaseImmediately(std::move(texture));
     }
     m_SwapChainBuffers.clear();
+}
+
+void st::gfx::dx12::DeviceManager::EnableDRED()
+{
+    ID3D12DeviceRemovedExtendedDataSettings1* pDredSettings;
+
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&pDredSettings)))) 
+    {
+        pDredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        pDredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+    }
 }
 
 bool st::gfx::dx12::DeviceManager::CheckHDRSupport()

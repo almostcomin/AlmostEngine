@@ -99,7 +99,7 @@ void st::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::T
 
 			GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
 			uint64_t totalBytes = 0;
-			gpuDevice->GetNativeDevice()->GetCopyableFootprints(
+			gpuDevice->GetD3d12Device()->GetCopyableFootprints(
 				&d3d12Desc,
 				D3D12CalcSubresource(mip, arraySlice, 0, desc.mipLevels, desc.arraySize),
 				1,

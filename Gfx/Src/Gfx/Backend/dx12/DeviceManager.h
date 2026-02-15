@@ -27,6 +27,7 @@ public:
 	st::rhi::TextureHandle GetBackBuffer(uint32_t index) override;
 
 	rhi::ColorSpace GetColorSpace() const override;
+	const std::string& GetBackEndHWName() const override { return m_RendererString; }
 
 	void ReportLiveObjects() override;
 
@@ -40,6 +41,8 @@ private:
 
 	bool CreateRenderTargets();
 	void ReleaseRenderTargets();
+
+	void EnableDRED();
 
 	bool CheckHDRSupport();
 	void SetColorSpace(DXGI_FORMAT swapChainFormat, bool allowHdr);

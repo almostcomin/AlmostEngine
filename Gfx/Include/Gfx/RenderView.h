@@ -211,7 +211,7 @@ private:
 	float4x4 m_SunWoldToClipMatrix;
 
 	// Scene constant buffer, set at begin frame, no changes during frame render
-	st::rhi::BufferOwner m_SceneCB;
+	std::vector<st::rhi::BufferOwner> m_SceneCB;
 
 	// Living requests for visualizing resources
 	std::vector<TextureViewRequest*> m_TexViewRequests;

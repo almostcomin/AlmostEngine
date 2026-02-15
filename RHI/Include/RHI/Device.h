@@ -91,6 +91,8 @@ namespace st::rhi
 
         virtual void Shutdown() = 0;
 
+        virtual NativeResource GetNativeDevice() = 0;
+
     protected:
 
         virtual void ReleaseImmediatelyInternal(IResource* resource) = 0;

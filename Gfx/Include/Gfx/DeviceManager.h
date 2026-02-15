@@ -130,6 +130,7 @@ public:
     uint32_t GetFrameModuleIndex() const;
 
     virtual rhi::ColorSpace GetColorSpace() const = 0;
+    virtual const std::string& GetBackEndHWName() const = 0;
 
     float GetGPUFrameTime();
 

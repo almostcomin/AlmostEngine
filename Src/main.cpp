@@ -107,6 +107,9 @@ int SDL_main(int argc, char* argv[])
 		.ForceSDR = false
 	};
 	deviceManager->Init(initParams);
+	std::string windowTitle = "Structure";
+	windowTitle = windowTitle + " - " + deviceManager->GetBackEndHWName();
+	SDL_SetWindowTitle(window, windowTitle.c_str());
 
 	// Init ImGui
 	{
