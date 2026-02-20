@@ -13,6 +13,7 @@ void st::gfx::SSAORenderStage::Render()
 	if (!m_RenderView->GetScene())
 		return;
 	auto camera = m_RenderView->GetCamera();
+	const float4x4& projMatrix = camera->GetProjectionMatrix();
 
 	auto linearDepthTex = m_RenderView->GetTexture("LinearDepth");
 	const uint32_t width = linearDepthTex->GetDesc().width;
@@ -35,16 +36,22 @@ void st::gfx::SSAORenderStage::Render()
 		shaderConstants.outputAOTextureDI = m_RenderView->GetTextureStorageView("AmbientOcclusion");
 		shaderConstants.textureWidth = width;
 		shaderConstants.textureHeight = height;
-		shaderConstants.noiseScale = { (float)width / noiseWidth, (float)height / noiseHeight };
-		shaderConstants.radius = 0.01f;
-		shaderConstants.power = 2.f;
-		shaderConstants.bias = 0.005f;
-		shaderConstants.frustumTopLeft = float4{ camera->GetFrustumTopLeftDirView(), 0.f };
-		shaderConstants.frustumVecX = float4{ camera->GetFrustumTopRightDirView() - camera->GetFrustumTopLeftDirView(), 0.f };
-		shaderConstants.frustumVecY = float4{ camera->GetFrustumBottomLeftDirView() - camera->GetFrustumTopLeftDirView(), 0.f };
+
+		shaderConstants.radiusWorld = m_Radius;
+		shaderConstants.power = m_Power;
+		shaderConstants.surfaceBias = m_Bias;
+
+		shaderConstants.clipToWindowScale = float2(0.5f * width, -0.5f * height);
+		shaderConstants.clipToWindowBias = float2(width * 0.5f, height * 0.5f);
+		shaderConstants.windowToClipScale = 1.f / shaderConstants.clipToWindowScale;
+		shaderConstants.windowToClipBias = -shaderConstants.clipToWindowBias * shaderConstants.windowToClipScale;
+		shaderConstants.clipToView = float2(
+			1.f / projMatrix[0].x,
+			1.f / projMatrix[1].y);
+		shaderConstants.invBackgroundViewDepth = 1.f / 1000;
+		shaderConstants.radiusToScreen = 0.5f * height * abs(projMatrix[1].y);
 
 		commandList->PushComputeConstants(shaderConstants);
-
 		commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
 	}
 	else

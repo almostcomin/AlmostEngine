@@ -30,6 +30,7 @@ public:
 	DeferredLightingRenderStage() = default;
 
 	void SetMaterialChannel(MaterialChannel v) { m_MaterialChannel = v; }
+	void ShowSSAO(bool b) { m_ShowSSAO = b; }
 
 	const char* GetDebugName() const override { return "DeferredLightingRenderStage"; }
 
@@ -48,6 +49,8 @@ private:
 	st::rhi::GraphicsPipelineStateOwner m_PSO;
 
 	MaterialChannel m_MaterialChannel = MaterialChannel::Disabled;
+	bool m_ShowSSAO = false;
+
 };
 
 } // namespace st::gfx

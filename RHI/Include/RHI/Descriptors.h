@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "Core/Common.h"
 
 namespace st::rhi
 {

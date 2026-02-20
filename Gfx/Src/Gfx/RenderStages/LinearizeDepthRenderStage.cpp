@@ -38,7 +38,7 @@ void st::gfx::LinearizeDepthRenderStage::OnAttached()
 	// Create resources
 	{
 		m_RenderView->CreateTexture("LinearDepth", RenderView::TextureResourceType::ShaderResource,
-			st::gfx::RenderView::c_BBSize, st::gfx::RenderView::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
+			st::gfx::RenderView::c_BBSize, st::gfx::RenderView::c_BBSize, 1, rhi::Format::R32_FLOAT, true);
 	}
 
 	// Declare resource access

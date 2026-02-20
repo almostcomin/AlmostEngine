@@ -41,15 +41,17 @@ VS_OUTPUT main(uint vertexID : SV_VertexID)
     // Normal
     const float3x3 normalMatrix = (float3x3)transpose(instanceData.inverseModelMatrix);
     float3 normalWorld = normalize(mul(normalMatrix, normal));
+    float3 normalView = normalize(mul((float3x3)sceneData.camViewMatrix, normalWorld));
     
     // Tangent
     float3 tangentWorld = normalize(mul(instanceData.modelMatrix, float4(tangent.xyz, 0.0)).xyz);
+    float3 tangentView = normalize(mul((float3x3)sceneData.camViewMatrix, tangentWorld));
             
     // Output
     VS_OUTPUT output;
     output.pos = posClip;
-    output.normal = normalWorld;
-    output.tangent = float4(tangentWorld, tangent.w);
+    output.normal = normalView;
+    output.tangent = float4(tangentView, tangent.w);
     output.uv = uv0;
     return output;
 }

@@ -7,6 +7,7 @@
 #include "RHI/CommandList.h"
 #include "RHI/Buffer.h"
 #include "RHI/TimerQuery.h"
+#include "Gfx/FrameUniformBuffer.h"
 #include "Gfx/Scene.h"
 
 namespace st::gfx
@@ -209,9 +210,10 @@ private:
 	// Visible set for the sun (for shadowmapping)
 	std::vector<const st::gfx::MeshInstance*> m_SunVisibleSet;
 	float4x4 m_SunWoldToClipMatrix;
+	float4x4 m_ViewToSunClipMatrix;
 
 	// Scene constant buffer, set at begin frame, no changes during frame render
-	std::vector<st::rhi::BufferOwner> m_SceneCB;
+	FrameUniformBufferRaw m_SceneCB;
 
 	// Living requests for visualizing resources
 	std::vector<TextureViewRequest*> m_TexViewRequests;

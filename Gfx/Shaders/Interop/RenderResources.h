@@ -130,6 +130,7 @@ namespace interop
         float3 sunColor;
         float sunAngularSizeRad;
         float4x4 sunWorldToClipMatrix;
+        float4x4 sunViewToClipMatrix;
 
         // Sky/ambient light
         float4 ambientTop;      // rgb
@@ -159,6 +160,7 @@ namespace interop
         TextureSampledViewIndex GBuffer3DI;
         TextureSampledViewIndex SSAO_DI;
         uint MaterialChannel;
+        uint ShowSSAO;
     };
 
     struct DebugStage
@@ -234,13 +236,16 @@ namespace interop
         TextureStorageViewIndex outputAOTextureDI; // (offset 16)
         uint textureWidth;
         uint textureHeight;
-        float radius;
-        float2 noiseScale; // (offset 32)
+        float radiusWorld;
+        float2 clipToWindowScale; // offset 32
+        float2 clipToWindowBias;
+        float2 windowToClipScale; // offset 48
+        float2 windowToClipBias;
+        float2 clipToView;        // offset 64
+        float invBackgroundViewDepth;
+        float radiusToScreen;
         float power;
-        float bias;
-        float4 frustumTopLeft; // .xyz (offset 48)
-        float4 frustumVecX; // .xyz
-        float4 frustumVecY; // .xyz
+        float surfaceBias;
     };
 
     struct SSAOBlur

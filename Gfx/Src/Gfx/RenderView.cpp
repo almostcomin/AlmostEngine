@@ -65,7 +65,11 @@ st::rhi::TextureShaderUsage GetTextureShaderUsage(st::gfx::RenderView::TextureRe
 } // anonymous namespace
 
 st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
-	m_TimeDeltaSec{ 0.f }, m_IsDirty{ false }, m_DebugName{ debugName }, m_DeviceManager{ deviceManager }
+	m_SceneCB{ deviceManager->GetSwapchainBufferCount(), sizeof(interop::Scene), deviceManager->GetDevice(), "SceneCB" },
+	m_TimeDeltaSec{ 0.f },
+	m_IsDirty{ false },
+	m_DebugName{ debugName },
+	m_DeviceManager{ deviceManager }
 {
 	rhi::CommandListParams params{
 		.queueType = rhi::QueueType::Graphics
@@ -79,7 +83,6 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 st::gfx::RenderView::~RenderView()
 {
 	ClearRenderStages();
-	m_SceneCB.clear();
 	for (int i = 0; i < m_CommandLists.size(); ++i)
 	{
 		m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_CommandLists[i]));
@@ -201,7 +204,7 @@ st::rhi::CommandListHandle st::gfx::RenderView::GetCommandList()
 
 st::rhi::BufferUniformView st::gfx::RenderView::GetSceneBufferUniformView()
 {
-	return m_SceneCB.empty() ? rhi::BufferUniformView{} : m_SceneCB[m_DeviceManager->GetFrameModuleIndex()]->GetUniformView();
+	return m_SceneCB.GetUniformView();
 }
 
 bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
@@ -834,22 +837,7 @@ void st::gfx::RenderView::ClearRenderStages()
 
 void st::gfx::RenderView::UpdateSceneConstantBuffer()
 {
-	if (m_SceneCB.empty())
-	{
-		rhi::BufferDesc desc{
-			.memoryAccess = rhi::MemoryAccess::Upload,
-			.shaderUsage = rhi::BufferShaderUsage::Uniform,
-			.sizeBytes = sizeof(interop::Scene),
-			.stride = 0 };
-
-		m_SceneCB.resize(m_DeviceManager->GetSwapchainBufferCount());
-		for (auto& cb : m_SceneCB)
-		{
-			cb = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, "Scene CB");
-		}
-	}
-
-	interop::Scene* sceneShaderConstant = (interop::Scene*)m_SceneCB[m_DeviceManager->GetFrameModuleIndex()]->Map();
+	interop::Scene* sceneShaderConstant = (interop::Scene*)m_SceneCB.GetNextPtrRaw();
 	*sceneShaderConstant = {};
 
 	// Camera
@@ -884,6 +872,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->sunColor = float4{ sunParams.Color, 0.f };
 		sceneShaderConstant->sunAngularSizeRad = glm::radians(sunParams.AngularSizeDeg);
 		sceneShaderConstant->sunWorldToClipMatrix = m_SunWoldToClipMatrix;
+		sceneShaderConstant->sunViewToClipMatrix = m_ViewToSunClipMatrix;
 
 		// Ambient 
 		const Scene::AmbientParams& ambientParams = m_Scene->GetAmbientParams();
@@ -895,8 +884,6 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->meshesBufferDI = m_Scene->GetMeshesBufferView();
 		sceneShaderConstant->materialsBufferDI = m_Scene->GetMaterialsBufferView();
 	}
-
-	m_SceneCB[m_DeviceManager->GetFrameModuleIndex()]->Unmap();
 }
 
 void st::gfx::RenderView::UpdateCameraVisibleSet()
@@ -913,6 +900,7 @@ void st::gfx::RenderView::UpdateShadowmapData()
 {
 	m_SunVisibleSet.clear();
 	m_SunWoldToClipMatrix = {};
+	m_ViewToSunClipMatrix = {};
 
 	if (!m_CameraVisibleBounds.valid())
 		return;
@@ -973,6 +961,9 @@ void st::gfx::RenderView::UpdateShadowmapData()
 #endif
 
 	m_SunWoldToClipMatrix = sunProjMatrix * sunViewMatrix;
+
+	// view -> world -> sun_view -> sun_clip
+	m_ViewToSunClipMatrix = sunProjMatrix * sunViewMatrix * glm::inverse(m_Camera->GeViewMatrix());
 
 	// Visible set from sun
 	{

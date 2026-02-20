@@ -100,18 +100,27 @@ float4 main(PS_INPUT input) : SV_Target
     {
         color = surfaceMat.specularF0;
     }
+    else if (Constants.ShowSSAO != 0)
+    {
+        color = 1.0;
+        if (Constants.SSAO_DI != INVALID_DESCRIPTOR_INDEX)
+        {
+            Texture2D<float4> SSAOTex = ResourceDescriptorHeap[Constants.SSAO_DI];
+            color = abs(SSAOTex.SampleLevel(pointClampSampler, input.uv, 0).r);
+        }
+    }
     else
     {
         // World pos reconstruction
         float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
-        float4 surfacePos = PosReconstruction(input.uv, depth, sceneData.invCamViewProjMatrix);
+        float4 surfacePosView = PosReconstruction(input.uv, depth, sceneData.invCamProjMatrix);
     
         // Retrieve shadow factor
         float shadowFactor = 1.0;
         if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
         {
             Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
-            shadowFactor = SampleShadowMap(surfacePos, sceneData.sunWorldToClipMatrix, shadowMap);
+            shadowFactor = SampleShadowMap(surfacePosView, sceneData.sunViewToClipMatrix, shadowMap);
         }
         shadowFactor *= surfaceMat.occlusion;
     
@@ -128,10 +137,10 @@ float4 main(PS_INPUT input) : SV_Target
         sunConstants.angularSizeOrInvRange = sceneData.sunAngularSizeRad;
     
         // Shade
-        float3 viewIncident = normalize(surfacePos.xyz - sceneData.camWorldPos.xyz);
+        float3 viewIncident = normalize(surfacePosView.xyz);
         float3 diffuseRadiance = 0.0;
         float3 specularRadiance = 0.0;
-        ShadeSurface(sunConstants, surfaceMat, surfacePos.xyz, viewIncident, diffuseRadiance, specularRadiance);
+        ShadeSurface(sunConstants, surfaceMat, surfacePosView.xyz, viewIncident, (float3x3) sceneData.camViewMatrix, diffuseRadiance, specularRadiance);
     
         float3 diffuseTerm = shadowFactor * diffuseRadiance * sceneData.sunColor.rgb;
         float3 specularTerm = shadowFactor * specularRadiance * sceneData.sunColor.rgb;

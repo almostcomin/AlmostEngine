@@ -44,6 +44,11 @@ public:
 		st::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
 
 		bool SSAOEnabled = true;
+		bool ShowSSAO = false;
+		float2 SSAO_NoiseScale;
+		float SSAO_Radius;
+		float SSAO_Power;
+		float SSAO_Bias;
 
 		bool tonemappingEnabled = true;
 		float middleGrayNits = 0.18f;

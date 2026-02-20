@@ -16,7 +16,7 @@ struct LightConstants
     float intensity;
 };
 
-void ShadeSurface(LightConstants light, MaterialSample surfaceMaterial, float3 surfacePos, float3 viewIncident,
+void ShadeSurface(LightConstants light, MaterialSample surfaceMaterial, float3 surfacePos, float3 viewIncident, float3x3 worldToViewMatrix,
     out float3 out_diffuseRadiance, out float3 out_specularRadiance)
 {
     float3 lightIncident = 0;
@@ -25,7 +25,8 @@ void ShadeSurface(LightConstants light, MaterialSample surfaceMaterial, float3 s
 
     if(light.lighType == LightType_Directional)
     {
-        lightIncident = light.direction;
+        lightIncident = normalize(mul(worldToViewMatrix, light.direction));
+        //lightIncident = light.direction;        
         halfAngularSize = light.angularSizeOrInvRange / 2;
         irradiance = light.intensity;
     }

@@ -35,6 +35,7 @@ void st::gfx::DeferredLightingRenderStage::Render()
 	shaderConstants.GBuffer3DI = m_RenderView->GetTextureSampledView("GBuffer3");
 	shaderConstants.SSAO_DI = m_RenderView->GetTextureSampledView("AmbientOcclusion");
 	shaderConstants.MaterialChannel = (uint)m_MaterialChannel;
+	shaderConstants.ShowSSAO = m_ShowSSAO;
 
 	commandList->PushGraphicsConstants(shaderConstants);
 	commandList->Draw(3);

@@ -504,7 +504,7 @@ void StructureUI::BuildMenuFile()
 
 void StructureUI::BuildSettingsWindow()
 {
-    ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(400, 800), ImGuiCond_Once);
 
     if (!ImGui::Begin("Settings", &m_ShowSettings, ImGuiWindowFlags_None))
     {
@@ -687,6 +687,11 @@ void StructureUI::BuildSettingsWindow()
     if (ImGui::CollapsingHeader("SSAO"))
     {
         ImGui::Checkbox("Enabled##SSAO", &m_Data.SSAOEnabled);
+        ImGui::SameLine(0.f, 20.f);
+        ImGui::Checkbox("Show##SSAO", &m_Data.ShowSSAO);
+        ImGui::InputFloat("Radius##SSAO", &m_Data.SSAO_Radius);    
+        ImGui::InputFloat("Power##SSAO", &m_Data.SSAO_Power);
+        ImGui::InputFloat("Bias##Bias", &m_Data.SSAO_Bias);
     }
 
     if (ImGui::CollapsingHeader("Tonemapping"))

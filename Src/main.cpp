@@ -195,6 +195,11 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_Data.ShadowmapSize = shadowmapRS->GetSize();
 	uiRS->m_Data.AmbientParams = scene->GetAmbientParams();
 	uiRS->m_Data.SunParams = scene->GetSunParams();
+
+	uiRS->m_Data.SSAO_Radius = SSAORS->GetRadius();
+	uiRS->m_Data.SSAO_Power = SSAORS->GetPower();
+	uiRS->m_Data.SSAO_Bias = SSAORS->GetBias();
+
 	uiRS->m_Data.middleGrayNits = toneMappingRS->GetSceneMiddleGray() * compositeRS->GetPaperWhiteNits();
 	uiRS->m_Data.paperWhiteNits = compositeRS->GetPaperWhiteNits();
 	uiRS->m_Data.sdrExposureBias = toneMappingRS->GetSDRExposureBias();
@@ -228,8 +233,8 @@ int SDL_main(int argc, char* argv[])
 				const float radius = glm::length(bounds.extents()) / 2.f;
 				camera->SetZNear(radius * 0.01f);
 
-				camera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
-				camera->LookAt(float3{ 0.f });
+				//camera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
+				camera->SetPosition(float3{ -5.f, 0.f, 1000.f });
 				camera->Fit(bounds);
 
 				uiRS->m_Data.CameraSpeed = radius * 2.f;
@@ -387,6 +392,10 @@ int SDL_main(int argc, char* argv[])
 			{
 				SSAORS->SetSSAOEnabled(uiRS->m_Data.SSAOEnabled);
 			}
+			lightingRS->ShowSSAO(uiRS->m_Data.ShowSSAO);
+			SSAORS->SetRadius(uiRS->m_Data.SSAO_Radius);
+			SSAORS->SetPower(uiRS->m_Data.SSAO_Power);
+			SSAORS->SetBias(uiRS->m_Data.SSAO_Bias);
 
 			toneMappingRS->SetTonemappingEnabled(uiRS->m_Data.tonemappingEnabled);
 			// Scene middlegray is middle_gray_nits / paper_white_nits

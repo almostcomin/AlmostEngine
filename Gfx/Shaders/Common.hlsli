@@ -4,8 +4,9 @@
 #define M_PI 3.14159265358979323846
 #define M_INV_PI 0.31830988618379067154
 
-// Typically invMatrix is invViewProjMatrix for world pos reconstruction
-// or invProjMatrix for view space pos recosntruction
+// Typically:
+//   invMatrix is invViewProjMatrix for world space position reconstruction
+//   invMatrix is invProjMatrix for view space position reconstruction
 float4 PosReconstruction(float2 uv, float depth, float4x4 invViewProjMatrix)
 {
     float4 ndcPos;
@@ -19,9 +20,9 @@ float4 PosReconstruction(float2 uv, float depth, float4x4 invViewProjMatrix)
     return pos;
 }
 
-float SampleShadowMap(float4 worldPos, float4x4 worldToClipMatrix, Texture2D shadowMap)
+float SampleShadowMap(float4 viewPos, float4x4 viewToClipMatrix, Texture2D shadowMap)
 {
-    float4 clipPos = mul(worldToClipMatrix, worldPos);
+    float4 clipPos = mul(viewToClipMatrix, viewPos);
     float3 ndcPos = clipPos.xyz / clipPos.w;
     // UV
     float2 shadowUV = ndcPos.xy * 0.5 + 0.5;
