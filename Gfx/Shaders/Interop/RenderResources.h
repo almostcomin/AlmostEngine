@@ -216,7 +216,8 @@ namespace interop
         float minLogLuminance;
         float logLuminanceRange;
         float timeDelta;
-        float tau;
+        float adaptionSpeedUp;
+        float adaptionSpeedDown;
     };
 
     struct TonemappingStatsBuffer

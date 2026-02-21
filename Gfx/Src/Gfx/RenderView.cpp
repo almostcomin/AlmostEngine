@@ -502,7 +502,6 @@ st::rhi::BufferReadWriteView st::gfx::RenderView::GetBufferReadWriteView(const s
 
 void st::gfx::RenderView::OnWindowSizeChanged()
 {
-	// 
 	// Actually we are only interested in this if we are rendering to the swap chain BB
 	if (!m_OffscreenFramebuffer)
 	{
@@ -523,12 +522,19 @@ void st::gfx::RenderView::OnWindowSizeChanged()
 			}
 		}
 
-		// Inform render stages
+		// Forward to render stages
 		for (auto& rs : m_RenderStages)
 		{
 			rs->renderStage->OnBackbufferResize();
 		}
+
+		// Recreate texture view requests
+		for (auto* req : m_TexViewRequests)
+		{
+			m_DeviceManager->GetDevice()->ReleaseImmediately(std::move(req->tex));
+		}
 	}
+
 	// TODO: Check if we are resized (or changed) the offscreen BB
 }
 

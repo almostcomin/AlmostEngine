@@ -38,6 +38,12 @@ public:
 	void SetMinLogLuminance(float v) { m_MinLogLuminance = v; }
 	void SetLogLuminanceRange(float v) { m_LogLuminanceRange = v; }
 
+	void SetAdaptationUpSpeed(float v) { m_AdaptationUpSpeed = v; }
+	void SetAdaptationDownSpeed(float v) { m_AdaptationDownSpeed = v; }
+
+	float GetAdaptationUpSpeed() { return m_AdaptationUpSpeed; }
+	float GetAdaptationDownSpeed() { return m_AdaptationDownSpeed; }
+
 	const char* GetDebugName() const override { return "ToneMappingRenderStage"; }
 
 	Stats GetStats();
@@ -71,6 +77,9 @@ private:
 
 	float m_MinLogLuminance;
 	float m_LogLuminanceRange;
+
+	float m_AdaptationUpSpeed = 2.f;
+	float m_AdaptationDownSpeed = 0.75f;
 
 	rhi::BufferOwner m_StatsBuffer;
 	rhi::BufferOwner m_StatsBufferReadBack;

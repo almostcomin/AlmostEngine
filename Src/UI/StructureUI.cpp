@@ -704,7 +704,9 @@ void StructureUI::BuildSettingsWindow()
         TextRightAligned("Color Space: %s", colorSpace == st::rhi::ColorSpace::HDR10_ST2084 ? "HDR10" : "SDR");
         ImGui::PopStyleColor();
 
+        ImGui::Spacing();
         ImGui::Separator();
+        ImGui::Spacing();
 
         // Luminance
 
@@ -729,9 +731,17 @@ void StructureUI::BuildSettingsWindow()
 
         ImGui::Spacing();
 
+        //ImGui::SetNextItemWidth(availWidth / 2);
+        ImGui::InputFloat("Dark to light adaptation speed", &m_Data.adaptationUpSpeed);
+        ImGui::InputFloat("Light to dark adaptation speed", &m_Data.adaptationDownSpeed);
+
+        ImGui::Spacing();
+
         m_ShowLuminanceHistogram |= ImGui::Button("View Histogram");
-        
+
+        ImGui::Spacing();
         ImGui::Separator();
+        ImGui::Spacing();
 
         const float minExposureBias = 0.f;
         const float maxExposureBias = 1.f;

@@ -53,6 +53,7 @@ float ComputeAO(float3 V, float3 N, float InvR2)
     float NdotV = dot(N, V) * rsqrt(VdotV); 
 
     float lambertian = saturate(NdotV - Constants.surfaceBias);
+    lambertian /= (1.0 - Constants.surfaceBias); // Remap to [0,1]
     float falloff = saturate(1 - VdotV * InvR2);
     return saturate(lambertian * falloff * Constants.power);
 }

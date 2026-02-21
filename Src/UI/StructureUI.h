@@ -55,6 +55,8 @@ public:
 		float paperWhiteNits = 203.f;
 		float minLogLuminance = -10.f;
 		float logLuminanceRange = 12.f;
+		float adaptationUpSpeed = 2.f;
+		float adaptationDownSpeed = 0.5f;
 		float sdrExposureBias = 0.5f;
 	};
 

@@ -142,7 +142,7 @@ int SDL_main(int argc, char* argv[])
 	auto mainRenderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
 
 	// Create shadowmap render stage
-	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 1024, 4, st::rhi::Format::D32 }};
+	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 2048, 4, st::rhi::Format::D32 }};
 	// Create depth prepass render stage
 	std::shared_ptr<st::gfx::DepthPrepassRenderStage> depthPrepassRS{ new st::gfx::DepthPrepassRenderStage };
 	// Create linearize-depth render stage
@@ -205,6 +205,8 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_Data.sdrExposureBias = toneMappingRS->GetSDRExposureBias();
 	uiRS->m_Data.minLogLuminance = toneMappingRS->GetMinLogLuminance();
 	uiRS->m_Data.logLuminanceRange = toneMappingRS->GetLogLuminanceRange();
+	uiRS->m_Data.adaptationUpSpeed = toneMappingRS->GetAdaptationUpSpeed();
+	uiRS->m_Data.adaptationDownSpeed = toneMappingRS->GetAdaptationDownSpeed();
 
 	// Main loop
 
@@ -231,13 +233,12 @@ int SDL_main(int argc, char* argv[])
 
 				const st::math::aabox3f& bounds = scene->GetSceneGraph()->GetRoot()->GetWorldBounds();
 				const float radius = glm::length(bounds.extents()) / 2.f;
-				camera->SetZNear(radius * 0.01f);
+				camera->SetZNear(radius * 0.05f);
 
-				//camera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
-				camera->SetPosition(float3{ -5.f, 0.f, 1000.f });
+				camera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
 				camera->Fit(bounds);
 
-				uiRS->m_Data.CameraSpeed = radius * 2.f;
+				uiRS->m_Data.CameraSpeed = radius * 1.f;
 
 				PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
 			}
@@ -403,6 +404,8 @@ int SDL_main(int argc, char* argv[])
 			toneMappingRS->SetMinLogLuminance(uiRS->m_Data.minLogLuminance);
 			toneMappingRS->SetLogLuminanceRange(uiRS->m_Data.logLuminanceRange);
 			toneMappingRS->SetSDRExposureBias(uiRS->m_Data.sdrExposureBias);
+			toneMappingRS->SetAdaptationUpSpeed(uiRS->m_Data.adaptationUpSpeed);
+			toneMappingRS->SetAdaptationDownSpeed(uiRS->m_Data.adaptationDownSpeed);
 		}
 
 		// Update FPS counter

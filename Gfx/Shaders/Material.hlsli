@@ -151,15 +151,13 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
     result.specularF0 = lerp(c_DielectricSpecular, baseColor.rgb, result.metalness);
     
     // Normal
-/*    
     if ((textures.MaterialTextureSample_Flags & MaterialTextureSample_ValidNormal) != 0)
     {
         result.normal = ApplyNormalMap(normal, tangent, textures.normal.xyz, mat.normalScale);
     }
     else
-*/
     {
-        result.normal = normal;
+        result.normal = normalize(normal);
     }
     
     return result;

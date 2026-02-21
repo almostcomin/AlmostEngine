@@ -42,7 +42,9 @@ void main(uint groupIndex : SV_GroupIndex)
         
         float targetLuminance = exp2(((avgBin / 254.0) * Constants.logLuminanceRange) + Constants.minLogLuminance);
         float oldLuminance = luminanceOutput[uint2(0, 0)];
-        float newLuminance = oldLuminance + (targetLuminance - oldLuminance) * (1 - exp(-Constants.timeDelta * Constants.tau));
+        float adaptionSpeed = targetLuminance > oldLuminance ?
+            Constants.adaptionSpeedUp : Constants.adaptionSpeedDown;
+        float newLuminance = oldLuminance + (targetLuminance - oldLuminance) * (1 - exp(-Constants.timeDelta * adaptionSpeed));
         
         luminanceOutput[uint2(0, 0)] = newLuminance;
         statsBuffer[0].avgLuminance = newLuminance;

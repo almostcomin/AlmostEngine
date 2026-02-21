@@ -156,7 +156,8 @@ void st::gfx::ToneMappingRenderStage::Render()
 			shaderConstants.minLogLuminance = m_MinLogLuminance;
 			shaderConstants.logLuminanceRange = m_LogLuminanceRange;
 			shaderConstants.timeDelta = m_RenderView->GetTimeDelta();
-			shaderConstants.tau = 0.5f;
+			shaderConstants.adaptionSpeedUp = m_AdaptationUpSpeed;
+			shaderConstants.adaptionSpeedDown = m_AdaptationDownSpeed;
 
 			commandList->PushComputeConstants(shaderConstants);
 			commandList->Dispatch(1, 1, 1);
