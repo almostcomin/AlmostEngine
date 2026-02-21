@@ -2,7 +2,7 @@
 #include "RHI/dx12/Utils.h"
 #include "RHI/dx12/GpuDevice.h"
 
-float st::rhi::dx12::TimerQuery::GetQueryTime()
+float st::rhi::dx12::TimerQuery::GetQueryTimeMs()
 {
     if (!m_Resolved)
     {
@@ -31,7 +31,7 @@ float st::rhi::dx12::TimerQuery::GetQueryTime()
         }
 
         m_Resolved = true;
-        m_Time = float(double(data[m_EndQueryIndex] - data[m_BeginQueryIndex]) / double(frequency));
+        m_Time = float(double(data[m_EndQueryIndex] - data[m_BeginQueryIndex]) * 1000.0 / double(frequency));
 
         device->GetQueryResolveBuffer()->Unmap(0, nullptr);
     }

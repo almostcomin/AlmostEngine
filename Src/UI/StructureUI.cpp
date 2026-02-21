@@ -990,6 +990,30 @@ void StructureUI::BuildRenderStagesWindow()
                 addDep(rs->textureWrites, true, false);
                 addDep(rs->bufferWrites, true, true);
             }
+
+            ImGui::SeparatorText("Stats");
+            {
+                // find a resolved timer query
+
+                float timeMs = 0.f;
+                int valid = 0;
+                for (int i = 0; i < rs->timerQueries.size(); ++i)
+                {
+                    if (rs->timerQueries[i]->Poll())
+                    {
+                        timeMs += rs->timerQueries[i]->GetQueryTimeMs();
+                        ++valid;
+                    }
+                }
+
+                if (valid > 0)
+                {
+                    timeMs /= valid;
+                }
+                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+                ImGui::Text("GPU time: %1.3fms", timeMs);
+                ImGui::PopStyleColor();
+            }
         }
     }
     m_RenderStageIOHoveredId = newHoveredId;

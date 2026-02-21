@@ -202,13 +202,13 @@ float st::gfx::DeviceManager::GetGPUFrameTime()
 	for (int i = m_NextTimerToUse - 1; i >= 0; i--)
 	{
 		if (m_FrameTimers[i]->Poll())
-			return m_FrameTimers[i]->GetQueryTime() * 1000.f;
+			return m_FrameTimers[i]->GetQueryTimeMs();
 	}
 
 	for (int i = QueuedFramesCount - 1; i > m_NextTimerToUse; i--)
 	{
 		if (m_FrameTimers[i]->Poll())
-			return m_FrameTimers[i]->GetQueryTime() * 1000.f;
+			return m_FrameTimers[i]->GetQueryTimeMs();
 	}
 	return -1.0f;
 }

@@ -118,13 +118,17 @@ void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<Rend
 		auto rsd = new RenderStageData;
 		rsd->renderStage = rs;
 		rsd->timerQueries.reserve(m_DeviceManager->GetSwapchainBufferCount());
-		for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
+		m_RenderStages.emplace_back(rsd);
+	}
+
+	// Init timer queries
+	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
+	{
+		for (auto& rsd : m_RenderStages)
 		{
 			rsd->timerQueries.push_back(m_DeviceManager->GetDevice()->CreateTimerQuery(
-				std::format("{} - TimerQuery", rs->GetDebugName())));
+				std::format("{} - TimerQuery[{}]", rsd->renderStage->GetDebugName(), i)));
 		}
-
-		m_RenderStages.emplace_back(rsd);
 	}
 
 	for (auto& rs : m_RenderStages)
@@ -585,6 +589,8 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 			if (rs->renderStage->IsEnabled())
 			{
 				commandList->BeginMarker(rs->renderStage->GetDebugName());
+				rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()]->Reset();
+				commandList->BeginTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
 
 				// Entry barriers
 				{
@@ -633,6 +639,7 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 				// Render
 				rs->renderStage->Render();
 
+				commandList->EndTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
 				commandList->EndMarker();
 
 				// Update the resource states

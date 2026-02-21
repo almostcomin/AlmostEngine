@@ -27,7 +27,7 @@ namespace st::rhi::dx12
 			m_Fence = nullptr;
 		};
 
-		float GetQueryTime() override;
+		float GetQueryTimeMs() override;
 		bool Poll() override;
 
 		ResourceType GetResourceType() const override { return ResourceType::TimerQuery; }

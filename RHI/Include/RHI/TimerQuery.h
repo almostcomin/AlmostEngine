@@ -8,7 +8,7 @@ namespace st::rhi
 	{
 	public:
 		virtual void Reset() = 0;
-		virtual float GetQueryTime() = 0;
+		virtual float GetQueryTimeMs() = 0; // milliseconds
 		virtual bool Poll() = 0;
 	protected:
 		ITimerQuery(Device* device, const std::string& debugName) : IResource(device, debugName) {};

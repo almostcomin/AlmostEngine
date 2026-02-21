@@ -54,6 +54,47 @@ void st::rhi::dx12::CommandList::Open()
 
 void st::rhi::dx12::CommandList::Close()
 {
+	// Resolve timer queries
+	if(!m_BeginTimerQueries.empty() || !m_EndTimerQueries.empty())
+	{
+		GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+
+		std::vector<uint32_t> toResolveQueries;
+		toResolveQueries.reserve(m_BeginTimerQueries.size() + m_EndTimerQueries.size());
+
+		for (const TimerQueryHandle& handle : m_BeginTimerQueries)
+		{
+			auto* tq = st::checked_cast<const TimerQuery*>(handle.get());
+			toResolveQueries.push_back(tq->m_BeginQueryIndex);
+		}
+		for (const TimerQueryHandle& handle : m_EndTimerQueries)
+		{
+			auto* tq = st::checked_cast<const TimerQuery*>(handle.get());
+			toResolveQueries.push_back(tq->m_EndQueryIndex);
+		}
+
+		std::sort(toResolveQueries.begin(), toResolveQueries.end());
+
+		for (int i = 0; i < toResolveQueries.size();)
+		{
+			int startIdx = i;
+			int endIdx = i;
+
+			while ((endIdx + 1 < toResolveQueries.size()) && (toResolveQueries[endIdx + 1] == toResolveQueries[endIdx] + 1))
+			{
+				++endIdx;
+			}
+
+			uint32_t firstQ = toResolveQueries[startIdx];
+			uint32_t rangeQ = toResolveQueries[endIdx] - toResolveQueries[startIdx] + 1;
+
+			m_D3d12Commandlist->ResolveQueryData(gpuDevice->GetQueryHeap(), D3D12_QUERY_TYPE_TIMESTAMP,
+				firstQ, rangeQ, gpuDevice->GetQueryResolveBuffer(), firstQ * sizeof(uint64_t));
+
+			i = endIdx + 1;
+		}
+	}
+
 	[[maybe_unused]] HRESULT hr = m_D3d12Commandlist->Close();
 	assert(hr == S_OK);
 }
@@ -443,9 +484,6 @@ void st::rhi::dx12::CommandList::EndTimerQuery(ITimerQuery* query)
 	auto* tq = st::checked_cast<TimerQuery*>(query);
 
 	m_D3d12Commandlist->EndQuery(gpuDevice->GetQueryHeap(), D3D12_QUERY_TYPE_TIMESTAMP, tq->m_EndQueryIndex);
-
-	m_D3d12Commandlist->ResolveQueryData(gpuDevice->GetQueryHeap(), D3D12_QUERY_TYPE_TIMESTAMP,
-		tq->m_BeginQueryIndex, 2, gpuDevice->GetQueryResolveBuffer(), tq->m_BeginQueryIndex * 8);
 
 	m_EndTimerQueries.push_back(static_pointer_cast<ITimerQuery>(query->weak_from_this()));
 }
