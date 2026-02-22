@@ -233,28 +233,28 @@ namespace interop
         BufferUniformIndex sceneDI;
         TextureSampledViewIndex depthTextureDI;
         TextureSampledViewIndex normalsTextureDI; // GBuffer2.xz
-        TextureSampledViewIndex noiseTextureDI;
-        TextureStorageViewIndex outputAOTextureDI; // (offset 16)
-        uint textureWidth;
+        TextureStorageViewIndex outputAOTextureDI;
+        uint textureWidth;          // offset 16
         uint textureHeight;
         float radiusWorld;
-        float2 clipToWindowScale; // offset 32
-        float2 clipToWindowBias;
-        float2 windowToClipScale; // offset 48
-        float2 windowToClipBias;
-        float2 clipToView;        // offset 64
         float invBackgroundViewDepth;
+        float2 clipToWindowScale;   // offset 32
+        float2 clipToWindowBias;
+        float2 windowToClipScale;   // offset 48
+        float2 windowToClipBias;
+        float2 clipToView;          // offset 64
         float radiusToScreen;
         float power;
-        float surfaceBias;
+        float surfaceBias;          // offset 80
     };
 
-    struct SSAOBlur
+    struct BilaterialBlurConstants
     {
-        TextureSampledViewIndex inputAOTextureDI;
-        TextureSampledViewIndex depthTextureDI;
-        TextureStorageViewIndex outputAOTextureDI;
+        TextureSampledViewIndex inputTextureDI;
+        TextureSampledViewIndex depthTextureDI; // linear
+        TextureStorageViewIndex outputTextureDI;
         float textureWidth;
+        float textureHeight;
     };
 }
 

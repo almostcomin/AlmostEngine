@@ -31,15 +31,18 @@ private:
 	void OnAttached() override;
 	void OnDetached() override;
 
-private:
-
-	void CreateNoiseTexture();
+	void Passthrough();
 
 private:
 
 	rhi::ShaderOwner m_SSAO_CS;
 	rhi::ComputePipelineStateOwner m_SSAO_PSO;
-	rhi::TextureOwner m_NoiseTexture;
+
+	rhi::ShaderOwner m_BilateralBlurV_CS;
+	rhi::ComputePipelineStateOwner m_BilateralBlurV_PSO;
+
+	rhi::ShaderOwner m_BilateralBlurH_CS;
+	rhi::ComputePipelineStateOwner m_BilateralBlurH_PSO;
 
 	float m_Radius = 0.01f;
 	float m_Power = 2.f;
