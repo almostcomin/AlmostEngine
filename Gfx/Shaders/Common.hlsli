@@ -20,21 +20,6 @@ float4 PosReconstruction(float2 uv, float depth, float4x4 invViewProjMatrix)
     return pos;
 }
 
-float SampleShadowMap(float4 viewPos, float4x4 viewToClipMatrix, Texture2D shadowMap)
-{
-    float4 clipPos = mul(viewToClipMatrix, viewPos);
-    float3 ndcPos = clipPos.xyz / clipPos.w;
-    // UV
-    float2 shadowUV = ndcPos.xy * 0.5 + 0.5;
-    shadowUV.y = 1.0 - shadowUV.y;
-        
-    // Sample shadowmap
-    float shadowDepth = shadowMap.Sample(pointClampSampler, shadowUV).r;
-    
-    float shadow = ndcPos.z < shadowDepth ? 0.0 : 1.f; // Reverse-Z compare    
-    return shadow;
-}
-
 float3 ApplyNormalMap(float3 vNormal, float4 vTangent, float3 tNormal, float2 normalScale)
 {
     // Remap to [-1,1]

@@ -15,10 +15,18 @@ public:
 	int2 GetSize() const { return int2{ m_TextureWidth, m_TextureHeight }; }
 	void SetSize(const int2& textureSize);
 
+	int GetDepthBias() const { return m_DepthBias; }
+	void SetDepthBias(int v);
+
+	float GetSlopeScaledDepthBias() const { return m_SlopeScaledDepthBias; }
+	void SetSlopeScaledDepthBias(float v);
+
 private:
 
 	void InitResources();
 	void ReleaseResources();
+
+	void RecreatePSO();
 
 	void Render() override;
 	void OnAttached() override;
@@ -41,6 +49,9 @@ private:
 	st::rhi::FramebufferOwner m_FB;
 	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	st::rhi::GraphicsPipelineStateOwner m_PSO;
+
+	int m_DepthBias;
+	float m_SlopeScaledDepthBias;
 };
 
 } // namespace st::gfx

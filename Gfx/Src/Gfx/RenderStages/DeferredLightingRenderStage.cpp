@@ -11,6 +11,15 @@
 void st::gfx::DeferredLightingRenderStage::Render()
 {
 	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	auto shadowmapTex = m_RenderView->GetTexture("Shadowmap");
+	float2 shadowMapResolution = { 0.f, 0.f };
+	rhi::TextureSampledView shadowmapSampled = {};
+	if (shadowmapTex)
+	{
+		shadowMapResolution = { (float)shadowmapTex->GetDesc().width, (float)shadowmapTex->GetDesc().height };
+		shadowmapSampled = shadowmapTex->GetSampledView();
+	}
+
 	auto commandList = m_RenderView->GetCommandList();
 
 	commandList->BeginRenderPass(
@@ -28,14 +37,16 @@ void st::gfx::DeferredLightingRenderStage::Render()
 	interop::DeferredLightingConstants shaderConstants;
 	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
 	shaderConstants.sceneDepthDI = m_RenderView->GetTextureSampledView("SceneDepth");
-	shaderConstants.shadowMapDI = m_RenderView->GetTextureSampledView("Shadowmap");
+	shaderConstants.shadowMapDI = shadowmapSampled;
 	shaderConstants.GBuffer0DI = m_RenderView->GetTextureSampledView("GBuffer0");
 	shaderConstants.GBuffer1DI = m_RenderView->GetTextureSampledView("GBuffer1");
 	shaderConstants.GBuffer2DI = m_RenderView->GetTextureSampledView("GBuffer2");
 	shaderConstants.GBuffer3DI = m_RenderView->GetTextureSampledView("GBuffer3");
 	shaderConstants.SSAO_DI = m_RenderView->GetTextureSampledView("AmbientOcclusion");
+	shaderConstants.oneOverShadowmapResolution = 1.f / shadowMapResolution;
 	shaderConstants.MaterialChannel = (uint)m_MaterialChannel;
 	shaderConstants.ShowSSAO = m_ShowSSAO;
+	shaderConstants.ShowShadowmap = m_ShowShadowmap;
 
 	commandList->PushGraphicsConstants(shaderConstants);
 	commandList->Draw(3);

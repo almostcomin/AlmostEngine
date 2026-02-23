@@ -14,7 +14,9 @@ st::gfx::ShadowmapRenderStage::ShadowmapRenderStage(size_t resolution, size_t nu
 	m_TextureWidth{ resolution },
 	m_TextureHeight{ resolution },
 	m_NumCascades{ numCascades },
-	m_PixelFormat{ pixelFormat }
+	m_PixelFormat{ pixelFormat },
+	m_DepthBias{ -10000 },
+	m_SlopeScaledDepthBias{ -5.f }
 {}
 
 void st::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
@@ -46,6 +48,18 @@ void st::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 		// Recreate PSO (psodesc keeps the same)
 		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage");
 	}
+}
+
+void st::gfx::ShadowmapRenderStage::SetDepthBias(int v)
+{
+	m_DepthBias = v;
+	RecreatePSO();
+}
+
+void st::gfx::ShadowmapRenderStage::SetSlopeScaledDepthBias(float v)
+{
+	m_SlopeScaledDepthBias = v;
+	RecreatePSO();
 }
 
 void st::gfx::ShadowmapRenderStage::InitResources()
@@ -86,40 +100,7 @@ void st::gfx::ShadowmapRenderStage::InitResources()
 	}
 
 	// Create PSO
-	{
-		rhi::BlendState blendState;
-		blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
-		{
-			.blendEnable = false,
-		};
-
-		rhi::RasterizerState rasterState =
-		{
-			.cullMode = rhi::CullMode::Back,
-			.depthBias = -1000,
-			.slopeScaledDepthBias = -1.f
-		};
-
-		rhi::DepthStencilState depthStencilState =
-		{
-			.depthTestEnable = true,
-			.depthWriteEnable = true,
-			.depthFunc = rhi::ComparisonFunc::Greater
-		};
-
-		m_PSODesc = rhi::GraphicsPipelineStateDesc
-		{
-			.VS = m_VS.get_weak(),
-#ifdef DEBUG_STAGE
-			.PS = m_PS.get_weak(),
-#endif
-			.blendState = blendState,
-			.depthStencilState = depthStencilState,
-			.rasterState = rasterState
-		};
-
-		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage");
-	}
+	RecreatePSO();
 }
 
 void st::gfx::ShadowmapRenderStage::ReleaseResources()
@@ -135,6 +116,44 @@ void st::gfx::ShadowmapRenderStage::ReleaseResources()
 #ifdef DEBUG_STAGE
 	m_RenderView->ReleaseTexture("ShadowmapColor");
 #endif
+}
+
+void st::gfx::ShadowmapRenderStage::RecreatePSO()
+{
+	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+
+	rhi::BlendState blendState;
+	blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
+	{
+		.blendEnable = false,
+	};
+
+	rhi::RasterizerState rasterState =
+	{
+		.cullMode = rhi::CullMode::Back,
+		.depthBias = m_DepthBias,
+		.slopeScaledDepthBias = m_SlopeScaledDepthBias
+	};
+
+	rhi::DepthStencilState depthStencilState =
+	{
+		.depthTestEnable = true,
+		.depthWriteEnable = true,
+		.depthFunc = rhi::ComparisonFunc::Greater
+	};
+
+	m_PSODesc = rhi::GraphicsPipelineStateDesc
+	{
+		.VS = m_VS.get_weak(),
+#ifdef DEBUG_STAGE
+		.PS = m_PS.get_weak(),
+#endif
+		.blendState = blendState,
+		.depthStencilState = depthStencilState,
+		.rasterState = rasterState
+	};
+
+	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage");
 }
 
 void st::gfx::ShadowmapRenderStage::Render()

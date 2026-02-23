@@ -33,7 +33,11 @@ public:
 
 		float CameraSpeed = 2.f;
 		bool ShowBBoxes = false;
+
 		bool ShadowmapEnabled = true;
+		bool ShowShadowmap = false;
+		int ShadowmapDepthBias;
+		float ShadowmapSlopeScaledDepthBias;
 		int2 ShadowmapSize;
 		
 		st::gfx::Scene::AmbientParams AmbientParams;

@@ -196,6 +196,9 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_Data.AmbientParams = scene->GetAmbientParams();
 	uiRS->m_Data.SunParams = scene->GetSunParams();
 
+	uiRS->m_Data.ShadowmapDepthBias = shadowmapRS->GetDepthBias();
+	uiRS->m_Data.ShadowmapSlopeScaledDepthBias = shadowmapRS->GetSlopeScaledDepthBias();
+
 	uiRS->m_Data.SSAO_Radius = SSAORS->GetRadius();
 	uiRS->m_Data.SSAO_Power = SSAORS->GetPower();
 	uiRS->m_Data.SSAO_Bias = SSAORS->GetBias();
@@ -366,6 +369,15 @@ int SDL_main(int argc, char* argv[])
 
 			debugRS->SetRenderBBoxes(uiRS->m_Data.ShowBBoxes);
 
+			lightingRS->ShowShadowmap(uiRS->m_Data.ShowShadowmap);
+			if (uiRS->m_Data.ShadowmapDepthBias != shadowmapRS->GetDepthBias())
+			{
+				shadowmapRS->SetDepthBias(uiRS->m_Data.ShadowmapDepthBias);
+			}
+			if (uiRS->m_Data.ShadowmapSlopeScaledDepthBias != shadowmapRS->GetSlopeScaledDepthBias())
+			{
+				shadowmapRS->SetSlopeScaledDepthBias(uiRS->m_Data.ShadowmapSlopeScaledDepthBias);
+			}
 			if (uiRS->m_Data.ShadowmapSize != shadowmapRS->GetSize())
 			{
 				shadowmapRS->SetSize(uiRS->m_Data.ShadowmapSize);

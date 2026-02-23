@@ -31,6 +31,7 @@ public:
 
 	void SetMaterialChannel(MaterialChannel v) { m_MaterialChannel = v; }
 	void ShowSSAO(bool b) { m_ShowSSAO = b; }
+	void ShowShadowmap(bool b) { m_ShowShadowmap = b; }
 
 	const char* GetDebugName() const override { return "DeferredLightingRenderStage"; }
 
@@ -50,6 +51,7 @@ private:
 
 	MaterialChannel m_MaterialChannel = MaterialChannel::Disabled;
 	bool m_ShowSSAO = false;
+	bool m_ShowShadowmap = false;
 
 };
 

@@ -155,12 +155,14 @@ namespace interop
         TextureSampledViewIndex sceneDepthDI;
         TextureSampledViewIndex shadowMapDI;
         TextureSampledViewIndex GBuffer0DI;
-        TextureSampledViewIndex GBuffer1DI;
+        TextureSampledViewIndex GBuffer1DI; // offset 16
         TextureSampledViewIndex GBuffer2DI;
         TextureSampledViewIndex GBuffer3DI;
         TextureSampledViewIndex SSAO_DI;
-        uint MaterialChannel;
+        float2 oneOverShadowmapResolution; // offset 32
+        uint MaterialChannel; 
         uint ShowSSAO;
+        uint ShowShadowmap;
     };
 
     struct DebugStage

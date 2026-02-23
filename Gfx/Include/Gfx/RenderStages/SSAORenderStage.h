@@ -44,8 +44,8 @@ private:
 	rhi::ShaderOwner m_BilateralBlurH_CS;
 	rhi::ComputePipelineStateOwner m_BilateralBlurH_PSO;
 
-	float m_Radius = 0.01f;
-	float m_Power = 2.f;
+	float m_Radius = 0.05f;
+	float m_Power = 4.f;
 	float m_Bias = 0.1f;
 
 	bool m_SSAOEnabled = true;

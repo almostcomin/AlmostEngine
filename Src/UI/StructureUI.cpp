@@ -602,7 +602,23 @@ void StructureUI::BuildSettingsWindow()
 
     if (ImGui::CollapsingHeader("Shadowmap", ImGuiTreeNodeFlags_None) && m_ShadowmapRS)
     {
+        ImGui::SetNextItemWidth(availWidth / 2);
         ImGui::Checkbox("Enabled##Shadowmap", &m_Data.ShadowmapEnabled);
+        ImGui::SameLine(availWidth / 2);
+        ImGui::SetNextItemWidth(availWidth / 2);
+        ImGui::Checkbox("Show##Shadowmap", &m_Data.ShowShadowmap);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::SetNextItemWidth(availWidth / 4);
+        ImGui::InputInt("Depth Bias##Shadowmap", &m_Data.ShadowmapDepthBias);
+        ImGui::SameLine(availWidth / 2);
+        ImGui::SetNextItemWidth(availWidth / 4);
+        ImGui::InputFloat("Slope scaled Depth Bias##Shadowmap", &m_Data.ShadowmapSlopeScaledDepthBias);
+
+        ImGui::Spacing();
 
         float itemWidth = availWidth / 5;
         ImGui::SetCursorPosX(style.ItemSpacing.x);
@@ -686,9 +702,12 @@ void StructureUI::BuildSettingsWindow()
 
     if (ImGui::CollapsingHeader("SSAO"))
     {
+        ImGui::SetNextItemWidth(availWidth / 2);
         ImGui::Checkbox("Enabled##SSAO", &m_Data.SSAOEnabled);
-        ImGui::SameLine(0.f, 20.f);
+        ImGui::SameLine(availWidth / 2);
+        ImGui::SetNextItemWidth(availWidth / 2);
         ImGui::Checkbox("Show##SSAO", &m_Data.ShowSSAO);
+
         ImGui::InputFloat("Radius##SSAO", &m_Data.SSAO_Radius);    
         ImGui::InputFloat("Power##SSAO", &m_Data.SSAO_Power);
         ImGui::InputFloat("Bias##Bias", &m_Data.SSAO_Bias);
@@ -731,7 +750,6 @@ void StructureUI::BuildSettingsWindow()
 
         ImGui::Spacing();
 
-        //ImGui::SetNextItemWidth(availWidth / 2);
         ImGui::InputFloat("Dark to light adaptation speed", &m_Data.adaptationUpSpeed);
         ImGui::InputFloat("Light to dark adaptation speed", &m_Data.adaptationDownSpeed);
 

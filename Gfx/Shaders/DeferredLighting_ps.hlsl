@@ -1,6 +1,7 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 #include "Shading.hlsli"
+#include "Shadowmap.hlsli"
 
 // Keep in sync with st::gfx::DeferredLightingRenderStage::MaterialChannel
 static const uint MaterialChannel_Disabled      = 0;
@@ -15,6 +16,7 @@ static const uint MaterialChannel_OcclusionMap  = 8;
 static const uint MaterialChannel_Emissive      = 9;
 static const uint MaterialChannel_SpecularF0    = 10;
 
+ConstantBuffer<interop::DeferredLightingConstants> Constants : register(b0);
 
 MaterialSample DecodeGBuffer(float4 channels[4])
 {
@@ -31,8 +33,6 @@ MaterialSample DecodeGBuffer(float4 channels[4])
     
     return surface;
 }
-
-ConstantBuffer<interop::DeferredLightingConstants> Constants : register(b0);
 
 struct PS_INPUT
 {
@@ -86,7 +86,7 @@ float4 main(PS_INPUT input) : SV_Target
     }
     else if (Constants.MaterialChannel == MaterialChannel_NormalMap)
     {
-        color = surfaceMat.normal * 0.5 + 0.5;
+        color = mul((float3x3)sceneData.invCamViewMatrix, surfaceMat.normal) * 0.5 + 0.5;
     }
     else if (Constants.MaterialChannel == MaterialChannel_OcclusionMap)
     {
@@ -109,6 +109,19 @@ float4 main(PS_INPUT input) : SV_Target
             color = abs(SSAOTex.SampleLevel(pointClampSampler, input.uv, 0).r);
         }
     }
+    else if (Constants.ShowShadowmap != 0)
+    {
+        color = 1.0;
+        float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
+        float4 surfacePosView = PosReconstruction(input.uv, depth, sceneData.invCamProjMatrix);
+        
+        if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
+        {
+            Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
+            color = SampleShadowMapPoissonDisk16(
+                surfacePosView, sceneData.sunViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
+        }
+    }
     else
     {
         // World pos reconstruction
@@ -120,7 +133,9 @@ float4 main(PS_INPUT input) : SV_Target
         if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
         {
             Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
-            shadowFactor = SampleShadowMap(surfacePosView, sceneData.sunViewToClipMatrix, shadowMap);
+            //shadowFactor = SampleShadowMap(surfacePosView, sceneData.sunViewToClipMatrix, shadowMap);
+            shadowFactor = SampleShadowMapPoissonDisk16(
+                surfacePosView, sceneData.sunViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
         }
         shadowFactor *= surfaceMat.occlusion;
     
