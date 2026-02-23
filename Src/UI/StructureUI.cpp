@@ -18,6 +18,7 @@
 #include <SDL3/SDL.h>
 #include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
 #include <sstream>
+#include <numeric>
 #include "imgui_memory_editor.h"
 
 namespace
@@ -966,8 +967,10 @@ void StructureUI::BuildResourcesWindow(bool* p_open)
 
 void StructureUI::BuildRenderStagesWindow()
 {
-    float parentHeight = ImGui::GetIO().DisplaySize.y;
-    float windowHeight = parentHeight * 0.9f;
+    const float parentHeight = ImGui::GetIO().DisplaySize.y;
+    const float windowHeight = parentHeight * 0.9f;
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
 
     ImGui::SetNextWindowSize(ImVec2(320, windowHeight), ImGuiCond_Once);
     std::string title = m_RenderView->GetName() + " - " + m_RenderView->GetCurrentRenderMode() + "###RenderViewWindow";
@@ -1023,23 +1026,29 @@ void StructureUI::BuildRenderStagesWindow()
             {
                 // find a resolved timer query
 
-                float timeMs = 0.f;
+                float gpuTimeMs = 0.f;
                 int valid = 0;
                 for (int i = 0; i < rs->timerQueries.size(); ++i)
                 {
                     if (rs->timerQueries[i]->Poll())
                     {
-                        timeMs += rs->timerQueries[i]->GetQueryTimeMs();
+                        gpuTimeMs += rs->timerQueries[i]->GetQueryTimeMs();
                         ++valid;
                     }
                 }
 
                 if (valid > 0)
                 {
-                    timeMs /= valid;
+                    gpuTimeMs /= valid;
                 }
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-                ImGui::Text("GPU time: %1.3fms", timeMs);
+
+                float cpuTime = std::accumulate(rs->cpuElapsed.begin(), rs->cpuElapsed.end(), 0.0f) / rs->cpuElapsed.size();
+                
+
+                ImGui::Text("CPU time: %1.3fms", cpuTime);
+                ImGui::SameLine();
+                TextRightAligned("GPU time: %1.3fms", gpuTimeMs);
                 ImGui::PopStyleColor();
             }
         }

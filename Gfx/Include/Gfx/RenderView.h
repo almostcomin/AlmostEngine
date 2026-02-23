@@ -68,6 +68,7 @@ public:
 		std::vector<RenderStageResourceDep> bufferReads;
 		std::vector<RenderStageResourceDep> bufferWrites;
 		std::vector<rhi::TimerQueryOwner> timerQueries;
+		std::vector<float> cpuElapsed;
 	};
 
 	static constexpr int c_BBSize = 0;

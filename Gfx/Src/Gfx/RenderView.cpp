@@ -118,6 +118,7 @@ void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<Rend
 		auto rsd = new RenderStageData;
 		rsd->renderStage = rs;
 		rsd->timerQueries.reserve(m_DeviceManager->GetSwapchainBufferCount());
+		rsd->cpuElapsed.resize(8, 0.f); // 8 samples
 		m_RenderStages.emplace_back(rsd);
 	}
 
@@ -595,6 +596,8 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 			if (rs->renderStage->IsEnabled())
 			{
 				commandList->BeginMarker(rs->renderStage->GetDebugName());
+				
+				// GPU time query
 				rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()]->Reset();
 				commandList->BeginTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
 
@@ -643,7 +646,15 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 				} // end entry barriers
 
 				// Render
-				rs->renderStage->Render();
+				{
+					std::chrono::steady_clock::time_point tbegin = std::chrono::steady_clock::now();
+
+					rs->renderStage->Render();
+
+					std::chrono::steady_clock::time_point tend = std::chrono::steady_clock::now();
+					float ms = std::chrono::duration<float, std::milli>(tend - tbegin).count();
+					rs->cpuElapsed[m_DeviceManager->GetFrameIndex() % rs->cpuElapsed.size()] = ms;
+				}
 
 				commandList->EndTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
 				commandList->EndMarker();
