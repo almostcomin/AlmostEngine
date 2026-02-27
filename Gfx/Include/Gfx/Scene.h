@@ -14,6 +14,7 @@ namespace st::gfx
 {
 	class SceneGraph;
 	class MeshInstance;
+	class Mesh;
 
 	class Scene : private st::noncopyable_nonmovable
 	{
@@ -55,9 +56,6 @@ namespace st::gfx
 		rhi::BufferReadOnlyView GetMeshesBufferView() const;
 		rhi::BufferReadOnlyView GetMaterialsBufferView() const;
 
-		// Resturs the index in the instances buffer (GetInstancesBufferDI) of the pInstance instance
-		int GetInstanceIndex(const st::gfx::MeshInstance* pInstance);
-
 		// Updates scene graph
 		void Update();
 
@@ -67,9 +65,6 @@ namespace st::gfx
 		
 		AmbientParams m_AmbientParams;
 		SunParams m_SunParams;
-
-		// For a mesh instance pointer, index in the m_InstancesBuffer of that instance
-		std::map<const st::gfx::MeshInstance*, size_t> m_InstanceIndices;
 
 		rhi::BufferOwner m_InstancesBuffer;
 		rhi::BufferOwner m_MeshesBuffer;

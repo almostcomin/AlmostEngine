@@ -6,6 +6,10 @@
 #include "Interop/RenderResources.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
+#include "Gfx/SceneGraph.h"
+#include "Gfx/RenderHelpers.h"
+
+#define MULTI_INSTANCE 1
 
 void st::gfx::DepthPrepassRenderStage::Render()
 {
@@ -28,21 +32,22 @@ void st::gfx::DepthPrepassRenderStage::Render()
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
-		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
+#if MULTI_INSTANCE
 
-	interop::SingleInstanceDrawData shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
+	RenderSetInstanced(
+		m_RenderView->GetCameraVisibleSet(),
+		m_RenderView->GetSceneBufferUniformView(),
+		m_RenderView->GetCameraVisiblityBufferROView(),
+		commandList.get());
 
-	const auto& visibleSet = m_RenderView->GetCameraVisibleSet();
-	for (const st::gfx::MeshInstance* meshInstance : visibleSet)
-	{
-		shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
+#else
 
-		commandList->PushGraphicsConstants(shaderConstants);
-		commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
-	}
+	RenderSet(
+		m_RenderView->GetCameraVisibleSet(),
+		m_RenderView->GetSceneBufferUniformView(),
+		commandList.get());
 
+#endif
 	commandList->EndRenderPass();
 }
 
@@ -68,7 +73,11 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+#if MULTI_INSTANCE
+		m_VS = shaderFactory->LoadShader("DepthPrepass2_vs", rhi::ShaderType::Vertex);
+#else
 		m_VS = shaderFactory->LoadShader("DepthPrepass_vs", rhi::ShaderType::Vertex);
+#endif
 	}
 
 	// Create PSO

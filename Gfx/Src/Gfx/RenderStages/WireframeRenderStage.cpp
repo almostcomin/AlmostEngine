@@ -10,6 +10,7 @@
 #include "Gfx/Mesh.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
+#include "Gfx/RenderHelpers.h"
 
 void st::gfx::WireframeRenderStage::Render()
 {
@@ -31,17 +32,11 @@ void st::gfx::WireframeRenderStage::Render()
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	interop::SingleInstanceDrawData shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
-
-	const auto& visibleSet = m_RenderView->GetCameraVisibleSet();
-	for (const st::gfx::MeshInstance* meshInstance : visibleSet)
-	{
-		shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
-
-		commandList->PushGraphicsConstants(shaderConstants);
-		commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
-	}
+	RenderSetInstanced(
+		m_RenderView->GetCameraVisibleSet(),
+		m_RenderView->GetSceneBufferUniformView(),
+		m_RenderView->GetCameraVisiblityBufferROView(),
+		commandList.get());
 
 	commandList->EndRenderPass();
 }

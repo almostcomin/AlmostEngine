@@ -20,7 +20,7 @@ st::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceMan
 	};
 
 	m_SunParams = SunParams{
-		.ElevationDeg = 80.f,
+		.ElevationDeg = 60.f,
 		.AzimuthDeg = -135.f,
 		.Irradiance = 1.f,
 		.AngularSizeDeg = 0.53f,
@@ -39,44 +39,22 @@ st::gfx::Scene::~Scene()
 
 void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 {
+	auto* dataUploader = m_DeviceManager->GetDataUploader();
+
 	// Release old data
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
-	m_InstanceIndices.clear();
 
 	m_SceneGraph = std::move(graph);
 	m_SceneGraph->Refresh(); // Make sure it is up to date
 
-	std::vector<const st::gfx::MeshInstance*> meshInstances;
-	SceneGraph::Walker walker{ *m_SceneGraph };
-	while (walker)
-	{
-		if (any(walker->GetContentFlags() & (SceneContentFlags::OpaqueMeshes | SceneContentFlags::AlphaTestedMeshes)))
-		{
-			auto leaf = walker->GetLeaf();
-			if (leaf && any(leaf->GetContentFlags() & (SceneContentFlags::OpaqueMeshes | SceneContentFlags::AlphaTestedMeshes)))
-			{
-				auto* meshInstancePtr = checked_cast<st::gfx::MeshInstance*>(leaf.get());
-				m_InstanceIndices.insert({ meshInstancePtr, meshInstances.size() });
-				meshInstances.push_back(meshInstancePtr);
-			}
-			
-			walker.Next();
-		}
-		else
-		{
-			walker.NextSibling();
-		}
-	}
-
-	auto* dataUploader = m_DeviceManager->GetDataUploader();
+	const std::vector<st::gfx::MeshInstance*> meshInstances = m_SceneGraph->GetMeshInstances();
 
 	// Each MeshInstance has a, unique transform and a index to a shared mesh
 	if (!meshInstances.empty())
 	{
 		// Fill instances buffer
-		unique_vector<st::gfx::Mesh*> meshes;
 		{
 			rhi::BufferDesc desc{
 				.memoryAccess = rhi::MemoryAccess::Default,
@@ -93,7 +71,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			{
 				instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
 				instanceDataPtr->inverseModelMatrix = glm::inverse(instanceDataPtr->modelMatrix);
-				instanceDataPtr->meshIndex = meshes.insert(meshInstance->GetMesh().get());
+				instanceDataPtr->meshIndex = meshInstance->GetMeshSceneIndex();
 
 				instanceDataPtr++;
 			}
@@ -103,7 +81,9 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 		}
 
 		// Fill meshes buffer
-		unique_vector<st::gfx::Material*> materials;
+		const auto& meshes = m_SceneGraph->GetMeshes();
+		//st::unique_vector<Material*> materials;
+		if(!meshes.empty())
 		{
 			assert(!meshes.empty());
 			rhi::BufferDesc desc{
@@ -132,7 +112,8 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 				meshDataPtr->vertexTexCoord0Offset = vertexFormat.TexCoord0Offset;
 				meshDataPtr->vertexTexCoord1Offset = vertexFormat.TexCoord1Offset;
 				meshDataPtr->vertexColorOffset = vertexFormat.ColorOffset;
-				meshDataPtr->materialIdx = mesh->GetMaterial() ? materials.insert(mesh->GetMaterial().get()) : rhi::c_InvalidDescriptorIndex;
+				//meshDataPtr->materialIdx = mesh->GetMaterial() ? materials.insert(mesh->GetMaterial().get()).first : rhi::c_InvalidDescriptorIndex;
+				meshDataPtr->materialIdx = m_SceneGraph->GetMaterialIndex(mesh);
 
 				meshDataPtr++;
 			}
@@ -142,6 +123,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 		}
 
 		// Materials buffer
+		const auto& materials = m_SceneGraph->GetMaterials();
 		if(!materials.empty())
 		{
 			rhi::BufferDesc desc{
@@ -225,17 +207,4 @@ st::rhi::BufferReadOnlyView st::gfx::Scene::GetMeshesBufferView() const
 st::rhi::BufferReadOnlyView st::gfx::Scene::GetMaterialsBufferView() const
 {
 	return m_MaterialsBuffer ? m_MaterialsBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
-}
-
-int st::gfx::Scene::GetInstanceIndex(const st::gfx::MeshInstance* pInstance)
-{
-	auto it = m_InstanceIndices.find(pInstance);
-	if (it != m_InstanceIndices.end())
-	{
-		return it->second;
-	}
-	else
-	{
-		return -1;
-	}
 }

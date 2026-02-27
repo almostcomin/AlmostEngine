@@ -114,7 +114,7 @@ public:
 	virtual void EndRenderPass() = 0;
 
 	virtual void Draw(uint32_t vertexCount) = 0;
-	virtual void DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount) = 0;
+	virtual void DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount, uint32_t startVertex) = 0;
 
 	virtual void Dispatch(uint32_t threadGroupCountX, uint32_t threadGroupCountY, uint32_t threadGroupCountZ) = 0;
 

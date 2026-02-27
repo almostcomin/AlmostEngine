@@ -38,6 +38,12 @@ inline bool AlmostEqual(float v1, float v2, float epsilon = 1.0e-05f)
     return abs(v2 - v1) <= epsilon;
 }
 
+template<glm::length_t L, typename T, glm::qualifier Q>
+inline bool AlmostEqual(const glm::vec<L, T, Q>& v1, const glm::vec<L, T, Q>& v2, T epsilon = T(1.0e-05))
+{
+    return glm::all(glm::lessThanEqual(glm::abs(v2 - v1), glm::vec<L, T, Q>(epsilon)));
+}
+
 template<typename T>
 constexpr T AlignUp(T value, T alignment)
 {

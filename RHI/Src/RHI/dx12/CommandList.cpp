@@ -422,9 +422,9 @@ void st::rhi::dx12::CommandList::Draw(uint32_t vertexCount)
 	m_PrimitiveCount += GetPrimitiveCount(vertexCount, m_CurrentGraphicsPSO->GetDesc().primTopo);
 }
 
-void st::rhi::dx12::CommandList::DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount)
+void st::rhi::dx12::CommandList::DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount, uint32_t startVertex)
 {
-	m_D3d12Commandlist->DrawInstanced(vertexCountPerInstance, instanceCount, 0, 0);
+	m_D3d12Commandlist->DrawInstanced(vertexCountPerInstance, instanceCount, startVertex, 0);
 
 	++m_DrawCalls;
 	m_PrimitiveCount += GetPrimitiveCount(vertexCountPerInstance, m_CurrentGraphicsPSO->GetDesc().primTopo) * instanceCount;

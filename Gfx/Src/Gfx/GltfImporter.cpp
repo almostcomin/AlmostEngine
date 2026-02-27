@@ -614,6 +614,15 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
                 srcMat.name ? srcMat.name : "<Unnamed>");
         }
 
+        // Avoid duplicated materials
+        for (auto& it : matMap)
+        {
+            if (*(it.second) == *mat)
+            {
+                mat = it.second;
+            }
+        }
+
         matMap[&srcMat] = mat;
     }
 
@@ -1099,7 +1108,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
 
             // Create mesh
             std::string meshName = debugName;
-            if (srcMesh.primitives_count > 0)
+            if (srcMesh.primitives_count > 1)
             {
                 std::stringstream ss;
                 ss << debugName << "[" << prim_idx << "]";

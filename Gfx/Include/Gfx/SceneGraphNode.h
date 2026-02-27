@@ -78,7 +78,7 @@ private:
 	bool m_HasBounds;
 	st::math::aabox3f m_WorldBounds;
 
-	SceneContentFlags m_ContentFlags; // This includes leaf content flags push children
+	SceneContentFlags m_ContentFlags; // This leaf content flags plus children content flags
 
 	DirtyFlags m_DirtyFlags;
 	std::string m_Name;

@@ -11,16 +11,16 @@ struct unique_vector
 {
 	using index_type = size_t;
 
-	index_type insert(const T& value)
+	std::pair<index_type, bool> insert(const T& value)
 	{
 		auto it = m_lookup.find(value);
 		if (it != m_lookup.end())
-			return it->second;
+			return { it->second, false };
 
 		index_type idx = m_data.size();
 		m_data.push_back(value);
 		m_lookup.emplace(value, idx);
-		return idx;
+		return { idx, true };
 	}
 
 	const T& operator[](index_type i) const { return m_data[i]; }
@@ -31,6 +31,9 @@ struct unique_vector
 
 	std::vector<T>::iterator begin() { return m_data.begin(); }
 	std::vector<T>::iterator end() { return m_data.end(); }
+
+	std::vector<T>::const_iterator begin() const { return m_data.begin(); }
+	std::vector<T>::const_iterator end() const { return m_data.end(); }
 
 private:
 

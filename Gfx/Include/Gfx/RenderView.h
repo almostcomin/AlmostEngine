@@ -96,7 +96,9 @@ public:
 	st::rhi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
 	st::rhi::TextureHandle GetBackBuffer(int idx = 0);
 	st::rhi::CommandListHandle GetCommandList();
+
 	st::rhi::BufferUniformView GetSceneBufferUniformView();
+	st::rhi::BufferReadOnlyView GetCameraVisiblityBufferROView();
 	
 	const std::vector<const st::gfx::MeshInstance*>& GetCameraVisibleSet() const { return m_CameraVisibleSet; }
 	const std::vector<const st::gfx::MeshInstance*>& GetSunVisibleSet() const { return m_SunVisibleSet; }
@@ -151,7 +153,7 @@ private:
 
 	void ClearRenderStages();
 	void UpdateSceneConstantBuffer();
-	void UpdateCameraVisibleSet();
+	void UpdateCameraVisibleSet(rhi::ICommandList* commandList);
 	void UpdateShadowmapData();
 
 	std::vector<const st::gfx::MeshInstance*> GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
@@ -181,11 +183,11 @@ private:
 	void Refresh();
 
 	std::vector<TextureViewRequest*> GetTexViewRequests(RenderStage* rs, AccessMode accessMode);
-	void UpdateRequestedTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode,
+	void UpdateRequestedTextureViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 		const std::map<std::string, rhi::ResourceState> resourceStates);
 
 	std::vector<BufferViewRequest*> GetBufferViewRequests(RenderStage* rs, AccessMode accessMode);
-	void UpdateRequestedBufferViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode,
+	void UpdateRequestedBufferViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 		const std::map<std::string, rhi::ResourceState> resourceStates);
 
 private:
@@ -207,6 +209,7 @@ private:
 	// Visible set for the current camera
 	std::vector<const st::gfx::MeshInstance*> m_CameraVisibleSet;
 	math::aabox3f m_CameraVisibleBounds;
+	std::vector<rhi::BufferOwner> m_CameraVisibleBuffer;
 
 	// Visible set for the sun (for shadowmapping)
 	std::vector<const st::gfx::MeshInstance*> m_SunVisibleSet;
@@ -219,6 +222,12 @@ private:
 	// Living requests for visualizing resources
 	std::vector<TextureViewRequest*> m_TexViewRequests;
 	std::vector<BufferViewRequest*> m_BufferViewRequests;
+
+	// Begin & End command lists
+	std::vector<rhi::CommandListOwner> m_BeginCommandLists;
+	std::vector<rhi::CommandListOwner> m_EndCommandLists;
+	// Submit sync fence
+	std::vector<rhi::FenceOwner> m_SubmitFences;
 
 	float m_TimeDeltaSec = 0.f;
 

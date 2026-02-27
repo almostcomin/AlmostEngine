@@ -7,6 +7,7 @@
 #include "Interop/RenderResources.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
+#include "Gfx/RenderHelpers.h"
 
 #define DEBUG_STAGE
 
@@ -181,20 +182,11 @@ void st::gfx::ShadowmapRenderStage::Render()
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
-		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
-
-	interop::SingleInstanceDrawData shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
-
-	const auto& visibleSet = m_RenderView->GetSunVisibleSet();
-	for (const st::gfx::MeshInstance* meshInstance : visibleSet)
-	{
-		shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
-
-		commandList->PushGraphicsConstants(shaderConstants);
-		commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
-	}
+	RenderSetInstanced(
+		m_RenderView->GetCameraVisibleSet(),
+		m_RenderView->GetSceneBufferUniformView(),
+		m_RenderView->GetCameraVisiblityBufferROView(),
+		commandList.get());
 
 	commandList->EndRenderPass();
 }

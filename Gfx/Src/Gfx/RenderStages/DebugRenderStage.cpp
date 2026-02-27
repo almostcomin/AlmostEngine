@@ -37,7 +37,7 @@ void st::gfx::DebugRenderStage::Render()
 	shaderConstants.aaboxDI = bboxBufferDI;	
 	commandList->PushGraphicsConstants(shaderConstants);
 
-	commandList->DrawInstanced(24, bboxCount);
+	commandList->DrawInstanced(24, bboxCount, 0);
 
 	commandList->EndRenderPass();
 };

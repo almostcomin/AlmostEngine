@@ -51,6 +51,8 @@ public:
 
 	std::shared_ptr<Material> GetMaterial() const { return m_Material; }
 
+	const std::string& GetName() const { return m_Name; }
+
 private:
 
 	std::string m_Name;

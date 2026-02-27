@@ -58,6 +58,8 @@ public:
 
 	const std::string& GetName() const { return m_Name; }
 
+	bool operator==(const Material& other) const;
+
 private:
 
 	std::shared_ptr<st::gfx::LoadedTexture> m_BaseColorTexture;

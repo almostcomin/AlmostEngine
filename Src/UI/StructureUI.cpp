@@ -1348,6 +1348,16 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
 
     if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        ImGui::BeginTable("MatProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+        PropertyRowText("Name", mesh->GetName().c_str());
+        ImGui::EndTable();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
         const st::rhi::PrimitiveTopology topo = mesh->GetPrimitiveTopology();
 
         ImGui::BeginTable("MeshProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);

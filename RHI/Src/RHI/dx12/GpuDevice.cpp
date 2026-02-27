@@ -817,7 +817,7 @@ void st::rhi::dx12::GpuDevice::ReleaseBufferReadWriteView(BufferReadWriteView& v
 	}
 }
 
-void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value)
+void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList* const> commandLists, QueueType type, IFence* signal, uint64_t value)
 {
 	auto& queue = m_Queues[(int)type];
 	if (!queue.d3d12Queue)

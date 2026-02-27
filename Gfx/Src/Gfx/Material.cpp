@@ -67,3 +67,20 @@ st::rhi::TextureHandle st::gfx::Material::GetOcclusionTextureHandle() const
 {
 	return m_OcclusionTexture ? m_OcclusionTexture->texture.get_weak() : nullptr;
 }
+
+bool st::gfx::Material::operator==(const Material& other) const
+{
+	return
+		m_BaseColorTexture == other.m_BaseColorTexture &&
+		m_MetalRoughTexture == other.m_MetalRoughTexture &&
+		m_NormalTexture == other.m_NormalTexture &&
+		m_EmissiveTexture == other.m_EmissiveTexture &&
+		m_OcclusionTexture == other.m_OcclusionTexture &&
+		AlmostEqual(m_BaseColor, other.m_BaseColor) &&
+		AlmostEqual(m_Opacity, other.m_Opacity) &&
+		AlmostEqual(m_EmissiveColor, other.m_EmissiveColor) &&
+		AlmostEqual(m_MetallicFactor, other.m_MetallicFactor) &&
+		AlmostEqual(m_RoughnessFactor, other.m_RoughnessFactor) &&
+		AlmostEqual(m_NormalTextureScale, other.m_NormalTextureScale) &&
+		AlmostEqual(m_OcclusionStrengh, other.m_OcclusionStrengh);
+}

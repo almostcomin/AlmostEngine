@@ -2,13 +2,13 @@
 #include "Gfx/Mesh.h"
 
 st::gfx::MeshInstance::MeshInstance(std::shared_ptr<st::gfx::Mesh> mesh) :
-	m_Mesh{ mesh }
-{
-}
+	m_Mesh{ mesh },
+	m_MeshSceneIndex{ -1 },
+	m_MaterialSceneIndex{ -1 }
+{}
 
 st::gfx::MeshInstance::~MeshInstance()
-{
-}
+{}
 
 bool st::gfx::MeshInstance::HasBounds() const
 {

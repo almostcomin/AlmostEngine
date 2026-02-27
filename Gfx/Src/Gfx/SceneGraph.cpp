@@ -1,6 +1,9 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/SceneGraphLeaf.h"
+#include "Gfx/MeshInstance.h"
+#include "Gfx/SceneCamera.h"
+#include "Gfx/Mesh.h"
 
 int st::gfx::SceneGraph::Walker::Next(IterationMode mode)
 {
@@ -117,6 +120,11 @@ st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(SceneGraphNode* pa
         for (auto walker = Walker{ child.get_weak() }; walker; walker.Next())
         {
             walker->m_Graph = weak_from_this();
+            const auto& leaf = walker->GetLeaf();
+            if (leaf)
+            {
+                RegisterLeaf(leaf.get());
+            }
         }
 
         if (parent)
@@ -140,8 +148,45 @@ st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(SceneGraphNode* pa
 st::unique<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Detach(
     const SceneGraphNode* node)
 {
+    assert(0);
     // TODO
     return {};
+}
+
+int st::gfx::SceneGraph::GetInstanceIndex(const st::gfx::MeshInstance* pInstance) const
+{
+    return pInstance->GetLeafSceneIndex();
+}
+
+int st::gfx::SceneGraph::GetMeshIndex(const st::gfx::MeshInstance* pInstance) const
+{
+    return pInstance->GetMeshSceneIndex();
+}
+
+int st::gfx::SceneGraph::GetMeshIndex(int meshInstanceIndex) const
+{
+    assert(meshInstanceIndex < m_MeshInstanceLeafs.size() && "index out of bounds");
+    assert(m_MeshInstanceLeafs[meshInstanceIndex] != nullptr && "invalid index");
+
+    return m_MeshInstanceLeafs[meshInstanceIndex]->GetMeshSceneIndex();
+}
+
+int st::gfx::SceneGraph::GetMaterialIndex(const st::gfx::MeshInstance* pInstance) const
+{
+    return pInstance->GetMaterialSceneIndex();
+}
+
+int st::gfx::SceneGraph::GetMaterialIndex(const st::gfx::Mesh* mesh) const
+{
+    auto it = std::find(m_Meshes.begin(), m_Meshes.end(), mesh);
+    if (it != m_Meshes.end())
+    {
+        int idx = it - m_Meshes.begin();
+        assert(idx < m_MeshMaterialIndices.size());
+        return m_MeshMaterialIndices[idx];
+    }
+
+    return -1;
 }
 
 void st::gfx::SceneGraph::Refresh()
@@ -252,6 +297,45 @@ void st::gfx::SceneGraph::Refresh()
 
 void st::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
 {
+    switch (leaf->GetType())
+    {
+    case SceneGraphLeaf::Type::MeshInstance:
+    {
+        auto* meshInstance = checked_cast<MeshInstance*>(leaf);
+        m_MeshInstanceLeafs.push_back(meshInstance);
+        leaf->m_SceneIndex = m_MeshInstanceLeafs.size() - 1;
+
+        const auto& mesh = meshInstance->GetMesh();
+        if (mesh)
+        {
+            // Material
+            const auto& mat = mesh->GetMaterial();
+            if (mat)
+            {
+                int materialIdx = m_Materials.insert(mat.get()).first;
+                meshInstance->SetMaterialSceneIndex(materialIdx);
+            }
+
+            // Mesh
+            auto [meshIdx, newMesh] = m_Meshes.insert(mesh.get());
+            meshInstance->SetMeshSceneIndex(meshIdx);
+            if (newMesh)
+            {
+                m_MeshMaterialIndices.push_back(meshInstance->GetMaterialSceneIndex());
+            }
+            assert(m_MeshMaterialIndices.size() == m_Meshes.size());
+        }
+
+    } break;
+        
+    case SceneGraphLeaf::Type::Camera:
+        m_SceneCameraLeafs.push_back(checked_cast<SceneCamera*>(leaf));
+        leaf->m_SceneIndex = m_SceneCameraLeafs.size() - 1;
+        break;
+
+    default:
+        assert(false && "Unknown leaf type");
+    }
     // TODO
 }
 

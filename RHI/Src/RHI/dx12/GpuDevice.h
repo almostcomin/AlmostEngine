@@ -70,7 +70,7 @@ namespace st::rhi::dx12
 		void ReleaseBufferReadOnlyView(BufferReadOnlyView& v, bool immediate = false) override;
 		void ReleaseBufferReadWriteView(BufferReadWriteView& v, bool immediate = false) override;
 
-		void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal, uint64_t value) override;
+		void ExecuteCommandLists(std::span<ICommandList* const> commandLists, QueueType type, IFence* signal, uint64_t value) override;
 		void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value) override;
 
 		void WaitForIdle() override;

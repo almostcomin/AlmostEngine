@@ -26,11 +26,19 @@ public:
 	SceneContentFlags GetContentFlags() const override { return SceneContentFlags::OpaqueMeshes; }
 	Type GetType() const override { return Type::MeshInstance; }
 
-	std::shared_ptr<st::gfx::Mesh> GetMesh() const { return m_Mesh; }
+	const std::shared_ptr<st::gfx::Mesh>& GetMesh() const { return m_Mesh; }
+
+	void SetMeshSceneIndex(int i) { m_MeshSceneIndex = i; }
+	int GetMeshSceneIndex() const { return m_MeshSceneIndex; }
+
+	void SetMaterialSceneIndex(int i) { m_MaterialSceneIndex = i; }
+	int GetMaterialSceneIndex() const { return m_MaterialSceneIndex; }
 
 private:
 
 	std::shared_ptr<st::gfx::Mesh> m_Mesh;
+	int m_MeshSceneIndex;
+	int m_MaterialSceneIndex;
 };
 
 } // namespace 

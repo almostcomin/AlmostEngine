@@ -80,7 +80,11 @@ namespace st::rhi
                 ReleaseQueuedInternal(handle.release());
         }
 
-        virtual void ExecuteCommandLists(std::span<ICommandList*> commandLists, QueueType type, IFence* signal = nullptr, uint64_t value = 0) = 0;
+        virtual void ExecuteCommandLists(std::span<ICommandList* const> commandLists, QueueType type, IFence* signal = nullptr, uint64_t value = 0) = 0;
+        void ExecuteCommandLists(std::initializer_list<ICommandList* const> commandLists, QueueType type, IFence* signal = nullptr, uint64_t value = 0)
+        {
+            ExecuteCommandLists(std::span<ICommandList* const>(commandLists.begin(), commandLists.size()), type, signal, value);
+        }
         virtual void ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal = nullptr, uint64_t value = 0) = 0;
 
         virtual void WaitForIdle() = 0;

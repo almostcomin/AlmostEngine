@@ -6,13 +6,16 @@
 #include "Interop/RenderResources.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
+#include "Gfx/SceneGraph.h"
+#include "Gfx/RenderHelpers.h"
+
+#define MULTI_INSTANCE 1
 
 void st::gfx::GBuffersRenderStage::Render()
 {
 	auto scene = m_RenderView->GetScene();
 	if (!scene)
 	{
-		//LOG_WARNING("No scene set. Nothing to render");
 		return;
 	}
 
@@ -33,17 +36,29 @@ void st::gfx::GBuffersRenderStage::Render()
 
 	commandList->SetPipelineState(m_PSO.get());
 
+#if MULTI_INSTANCE
+
+	RenderSetInstanced(
+		m_RenderView->GetCameraVisibleSet(),
+		m_RenderView->GetSceneBufferUniformView(),
+		m_RenderView->GetCameraVisiblityBufferROView(),
+		commandList.get());
+
+#else
+
 	interop::SingleInstanceDrawData shaderConstants;
 	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
 
 	const auto& visibleSet = m_RenderView->GetCameraVisibleSet();
 	for (const st::gfx::MeshInstance* meshInstance : visibleSet)
 	{
-		shaderConstants.instanceIdx = scene->GetInstanceIndex(meshInstance);
+		shaderConstants.instanceIdx = meshInstance->GetLeafSceneIndex();
 
 		commandList->PushGraphicsConstants(shaderConstants);
 		commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
 	}
+
+#endif
 
 	commandList->EndRenderPass();
 }
@@ -100,8 +115,13 @@ void st::gfx::GBuffersRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+#if MULTI_INSTANCE
+		m_VS = shaderFactory->LoadShader("GBuffers2_vs", rhi::ShaderType::Vertex);
+		m_PS = shaderFactory->LoadShader("GBuffers2_ps", rhi::ShaderType::Pixel);
+#else
 		m_VS = shaderFactory->LoadShader("GBuffers_vs", rhi::ShaderType::Vertex);
 		m_PS = shaderFactory->LoadShader("GBuffers_ps", rhi::ShaderType::Pixel);
+#endif
 	}
 
 	// Create PSO

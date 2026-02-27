@@ -57,7 +57,7 @@ namespace st::rhi::dx12
 		void EndRenderPass() override;
 
 		void Draw(uint32_t vertexCount) override;
-		void DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount) override;
+		void DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount, uint32_t startVertex) override;
 
 		void Dispatch(uint32_t threadGroupCountX, uint32_t threadGroupCountY, uint32_t threadGroupCountZ) override;
 

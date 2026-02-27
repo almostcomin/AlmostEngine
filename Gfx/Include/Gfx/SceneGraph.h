@@ -2,11 +2,16 @@
 #include <stack>
 #include "Gfx/SceneGraphNode.h"
 #include "Core/Memory.h"
+#include "Core/unique_vector.h"
 
 namespace st::gfx
 {
 
 class SceneGraphNode;
+class MeshInstance;
+class SceneCamera;
+class Mesh;
+class Material;
 
 class SceneGraph : public st::enable_weak_from_this<SceneGraph>, private st::noncopyable_nonmovable
 {
@@ -88,6 +93,20 @@ public:
 
     st::weak<SceneGraphNode> GetRoot() const { return m_Root.get_weak(); }
 
+    int GetInstanceIndex(const st::gfx::MeshInstance* pInstance) const;
+    
+    int GetMeshIndex(const st::gfx::MeshInstance* pInstance) const;
+    int GetMeshIndex(int meshInstanceIndex) const;
+    
+    int GetMaterialIndex(const st::gfx::MeshInstance* pInstance) const;
+    int GetMaterialIndex(const st::gfx::Mesh* mesh) const;
+
+    const std::vector<MeshInstance*>& GetMeshInstances() const { return m_MeshInstanceLeafs; }
+    const std::vector<SceneCamera*>& GetSceneCameras() const { return m_SceneCameraLeafs; }
+    const st::unique_vector<Mesh*>& GetMeshes() const { return m_Meshes; }
+    const std::vector<int>& GetMeshesMaterialIndices() const { return m_MeshMaterialIndices; }
+    const st::unique_vector<Material*>& GetMaterials() const { return m_Materials; }
+
     // 
     void Refresh();
 
@@ -99,6 +118,14 @@ private:
 private:
 
 	st::unique<SceneGraphNode> m_Root;
+
+    std::vector<MeshInstance*> m_MeshInstanceLeafs;
+    std::vector<SceneCamera*> m_SceneCameraLeafs;
+
+    st::unique_vector<Mesh*> m_Meshes;
+    std::vector<int> m_MeshMaterialIndices;
+
+    st::unique_vector<Material*> m_Materials;
 };
 
 } // namespace st::gfx

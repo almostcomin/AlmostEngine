@@ -16,6 +16,7 @@ namespace st::gfx
 class SceneGraphLeaf : private st::noncopyable_nonmovable
 {
 	friend class SceneGraphNode;
+	friend class SceneGraph;
 
 public:
 
@@ -35,9 +36,12 @@ public:
 
 	st::weak<SceneGraphNode> GetNode() const { return m_Node; }
 
+	int GetLeafSceneIndex() const { return m_SceneIndex; }
+
 private:
 
 	st::weak<SceneGraphNode> m_Node;
+	int m_SceneIndex = -1;
 };
 
 };

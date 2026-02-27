@@ -171,7 +171,7 @@ private:
     rhi::TimerQueryOwner m_FrameTimers[QueuedFramesCount];
     int m_NextTimerToUse = 0;
 
-    // Begin & End command
+    // Begin & End command lists
     std::vector<rhi::CommandListOwner> m_BeginCommandLists;
     std::vector<rhi::CommandListOwner> m_EndCommandLists;
 };

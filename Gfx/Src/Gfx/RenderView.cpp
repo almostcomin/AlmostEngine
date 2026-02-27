@@ -7,6 +7,7 @@
 #include "Interop/RenderResources.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/UploadBuffer.h"
 #include "Gfx/Util.h"
 
 namespace
@@ -71,13 +72,24 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 	m_DebugName{ debugName },
 	m_DeviceManager{ deviceManager }
 {
+	rhi::Device* device = m_DeviceManager->GetDevice();
+
 	rhi::CommandListParams params{
 		.queueType = rhi::QueueType::Graphics
 	};
 	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
 	{
-		m_CommandLists.push_back(m_DeviceManager->GetDevice()->CreateCommandList(params, m_DebugName));
+		m_CommandLists.push_back(device->CreateCommandList(params, m_DebugName));
+		
+		m_BeginCommandLists.push_back(device->CreateCommandList(
+			params, std::format("{} - BeginCmdList[{}]", m_DebugName, i)));
+		m_EndCommandLists.push_back(device->CreateCommandList(
+			params, std::format("{} - EndCmdList[{}]", m_DebugName, i)));
+
+		m_SubmitFences.push_back(device->CreateFence(0, std::format("{} - Fence[{}]", m_DebugName, i)));
 	}
+
+	m_CameraVisibleBuffer.resize(m_DeviceManager->GetSwapchainBufferCount());
 }
 
 st::gfx::RenderView::~RenderView()
@@ -210,6 +222,11 @@ st::rhi::CommandListHandle st::gfx::RenderView::GetCommandList()
 st::rhi::BufferUniformView st::gfx::RenderView::GetSceneBufferUniformView()
 {
 	return m_SceneCB.GetUniformView();
+}
+
+st::rhi::BufferReadOnlyView st::gfx::RenderView::GetCameraVisiblityBufferROView()
+{
+	return m_CameraVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()]->GetReadOnlyView();
 }
 
 bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
@@ -541,6 +558,13 @@ void st::gfx::RenderView::OnWindowSizeChanged()
 
 void st::gfx::RenderView::Render(float timeDeltaSec)
 {
+	st::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
+	if (!frameBuffer)
+	{
+		LOG_ERROR("No frame buffer specified. Nothing to render");
+		return;
+	}
+
 	if (m_IsDirty)
 	{
 		Refresh();
@@ -560,182 +584,194 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 	}
 	const std::vector<RenderStageData*>& renderStages = it->second;
 
+	rhi::ICommandList* beginCommandList = m_BeginCommandLists[m_DeviceManager->GetFrameModuleIndex()].get();
+	beginCommandList->Open();
+	beginCommandList->BeginMarker(m_DebugName.c_str());
+	beginCommandList->BeginMarker("Begin commands");
+
 	// Update common data
-	UpdateCameraVisibleSet();
+	UpdateCameraVisibleSet(beginCommandList);
 	UpdateShadowmapData();
 	UpdateSceneConstantBuffer();
 
 	m_TimeDeltaSec = timeDeltaSec;
-	st::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
-	if (frameBuffer)
+
+	// Back buffer is in COMMON state and need to be transitioned to RT
+	beginCommandList->PushBarrier(rhi::Barrier::Texture(
+		frameBuffer->GetDesc().ColorAttachments[0].texture.get(), rhi::ResourceState::PRESENT, rhi::ResourceState::RENDERTARGET));
+
+	// Done with beginCommandList
+	beginCommandList->EndMarker();
+	beginCommandList->Close();
+	m_DeviceManager->GetDevice()->ExecuteCommandList(beginCommandList, st::rhi::QueueType::Graphics);
+
+	// Get initial textures state
+	std::map<std::string, rhi::ResourceState> texturesState;
+	for (auto& entry : m_DeclaredTextures)
+		texturesState.emplace(entry.first, GetInitialState(entry.second->type));
+	// Get initial buffers state
+	std::map<std::string, rhi::ResourceState> buffersState;
+	for (auto& entry : m_DeclaredBuffers)
+		buffersState.emplace(entry.first, rhi::ResourceState::SHADER_RESOURCE);
+
+	// Stages render
+	auto stageCommandList = GetCommandList().get();
+	stageCommandList->Open();
+
+	stageCommandList->BeginMarker("Render stages");
+	for (auto* rs : renderStages)
 	{
-		auto commandList = GetCommandList();
-		commandList->Open();
-		commandList->BeginMarker(m_DebugName.c_str());
+		// Update view of reads
+		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, texturesState);
+		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, buffersState);
 
-		// Back buffer is in COMMON state and need to be transitioned to RT
-		commandList->PushBarrier(rhi::Barrier::Texture(
-			frameBuffer->GetDesc().ColorAttachments[0].texture.get(), rhi::ResourceState::PRESENT, rhi::ResourceState::RENDERTARGET));
-
-		// Get initial textures state
-		std::map<std::string, rhi::ResourceState> texturesState;
-		for (auto& entry : m_DeclaredTextures)
-			texturesState.emplace(entry.first, GetInitialState(entry.second->type));
-		// Get initial buffers state
-		std::map<std::string, rhi::ResourceState> buffersState;
-		for (auto& entry : m_DeclaredBuffers)
-			buffersState.emplace(entry.first, rhi::ResourceState::SHADER_RESOURCE);
-
-		// Stages render
-		for (auto* rs : renderStages)
+		if (rs->renderStage->IsEnabled())
 		{
-			// Update view of reads
-			UpdateRequestedTextureViews(commandList, rs->renderStage.get(), AccessMode::Read, texturesState);
-			UpdateRequestedBufferViews(commandList, rs->renderStage.get(), AccessMode::Read, buffersState);
-
-			if (rs->renderStage->IsEnabled())
-			{
-				commandList->BeginMarker(rs->renderStage->GetDebugName());
+			stageCommandList->BeginMarker(rs->renderStage->GetDebugName());
 				
-				// GPU time query
-				rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()]->Reset();
-				commandList->BeginTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
+			// GPU time query
+			rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()]->Reset();
+			stageCommandList->BeginTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
 
-				// Entry barriers
+			// Entry barriers
+			{
+				std::vector<rhi::Barrier> barriers;
+				auto getTextureBarriers = [&texturesState, &barriers, this](const std::vector<RenderStageResourceDep>& deps)
 				{
-					std::vector<rhi::Barrier> barriers;
-					auto getTextureBarriers = [&texturesState, &barriers, this](const std::vector<RenderStageResourceDep>& deps)
+					for (const auto& dep : deps)
 					{
-						for (const auto& dep : deps)
+						auto state_it = texturesState.find(dep.id);
+						if (state_it != texturesState.end() && state_it->second != dep.inputState)
 						{
-							auto state_it = texturesState.find(dep.id);
-							if (state_it != texturesState.end() && state_it->second != dep.inputState)
-							{
-								barriers.push_back(rhi::Barrier::Texture(
-									GetTexture(dep.id).get(), state_it->second, dep.inputState));
-								state_it->second = dep.inputState;
-							}
+							barriers.push_back(rhi::Barrier::Texture(
+								GetTexture(dep.id).get(), state_it->second, dep.inputState));
+							state_it->second = dep.inputState;
 						}
-					};
-					auto getBufferBarriers = [&buffersState, &barriers, this](const std::vector< RenderStageResourceDep>& deps)
-					{
-						for(const auto& dep : deps)
-						{
-							auto state_it = buffersState.find(dep.id);
-							if (state_it != buffersState.end() && state_it->second != dep.inputState)
-							{
-								barriers.push_back(rhi::Barrier::Buffer(
-									GetBuffer(dep.id).get(), state_it->second, dep.inputState));
-								state_it->second = dep.inputState;
-							}
-						}
-					};
-					getTextureBarriers(rs->textureReads);
-					getTextureBarriers(rs->textureWrites);
-					getBufferBarriers(rs->bufferReads);
-					getBufferBarriers(rs->bufferWrites);
-
-					if (!barriers.empty())
-					{
-						std::string markerName = rs->renderStage->GetDebugName();
-						markerName.append(" - Entry barriers");
-						commandList->BeginMarker(markerName.c_str());
-						commandList->PushBarriers(barriers);
-						commandList->EndMarker();
 					}
-				} // end entry barriers
-
-				// Render
+				};
+				auto getBufferBarriers = [&buffersState, &barriers, this](const std::vector< RenderStageResourceDep>& deps)
 				{
-					std::chrono::steady_clock::time_point tbegin = std::chrono::steady_clock::now();
-
-					rs->renderStage->Render();
-
-					std::chrono::steady_clock::time_point tend = std::chrono::steady_clock::now();
-					float ms = std::chrono::duration<float, std::milli>(tend - tbegin).count();
-					rs->cpuElapsed[m_DeviceManager->GetFrameIndex() % rs->cpuElapsed.size()] = ms;
-				}
-
-				commandList->EndTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
-				commandList->EndMarker();
-
-				// Update the resource states
-				{
-					auto updateTextureStates = [&texturesState, this](const std::vector<RenderStageResourceDep>& deps)
+					for(const auto& dep : deps)
 					{
-						for (const auto& dep : deps)
+						auto state_it = buffersState.find(dep.id);
+						if (state_it != buffersState.end() && state_it->second != dep.inputState)
 						{
-							auto state_it = texturesState.find(dep.id);
-							if (state_it != texturesState.end() && state_it->second != dep.outputState)
-							{
-								state_it->second = dep.outputState;
-							}
+							barriers.push_back(rhi::Barrier::Buffer(
+								GetBuffer(dep.id).get(), state_it->second, dep.inputState));
+							state_it->second = dep.inputState;
 						}
-					};
-					auto updateBufferStates = [&buffersState, this](const std::vector<RenderStageResourceDep>& deps)
+					}
+				};
+				getTextureBarriers(rs->textureReads);
+				getTextureBarriers(rs->textureWrites);
+				getBufferBarriers(rs->bufferReads);
+				getBufferBarriers(rs->bufferWrites);
+
+				if (!barriers.empty())
+				{
+					std::string markerName = rs->renderStage->GetDebugName();
+					markerName.append(" - Entry barriers");
+					stageCommandList->BeginMarker(markerName.c_str());
+					stageCommandList->PushBarriers(barriers);
+					stageCommandList->EndMarker();
+				}
+			} // end entry barriers
+
+			// Render
+			{
+				std::chrono::steady_clock::time_point tbegin = std::chrono::steady_clock::now();
+
+				rs->renderStage->Render();
+
+				std::chrono::steady_clock::time_point tend = std::chrono::steady_clock::now();
+				float ms = std::chrono::duration<float, std::milli>(tend - tbegin).count();
+				rs->cpuElapsed[m_DeviceManager->GetFrameIndex() % rs->cpuElapsed.size()] = ms;
+			}
+
+			stageCommandList->EndTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
+			stageCommandList->EndMarker();
+
+			// Update the resource states
+			{
+				auto updateTextureStates = [&texturesState, this](const std::vector<RenderStageResourceDep>& deps)
+				{
+					for (const auto& dep : deps)
 					{
-						for (const auto& dep : deps)
+						auto state_it = texturesState.find(dep.id);
+						if (state_it != texturesState.end() && state_it->second != dep.outputState)
 						{
-							auto state_it = buffersState.find(dep.id);
-							if (state_it != buffersState.end() && state_it->second != dep.outputState)
-							{
-								state_it->second = dep.outputState;
-							}
+							state_it->second = dep.outputState;
 						}
-					};
-					updateTextureStates(rs->textureReads);
-					updateTextureStates(rs->textureWrites);
-					updateBufferStates(rs->bufferReads);
-					updateBufferStates(rs->bufferWrites);
-				}
-			} // if (rs->renderStage->IsEnabled())
-
-			// Update view of writes
-			UpdateRequestedTextureViews(commandList, rs->renderStage.get(), AccessMode::Write, texturesState);
-			UpdateRequestedBufferViews(commandList, rs->renderStage.get(), AccessMode::Write, buffersState);
-		}
-
-		// Frame End. All the resources need to go back to its initial state.
-		{
-			std::vector<rhi::Barrier> barriers;
-			for (auto& tex : m_DeclaredTextures)
-			{
-				rhi::ResourceState initialState = GetInitialState(tex.second->type);
-				rhi::ResourceState currentState = texturesState.find(tex.first)->second;
-				if (initialState != currentState)
+					}
+				};
+				auto updateBufferStates = [&buffersState, this](const std::vector<RenderStageResourceDep>& deps)
 				{
-					barriers.push_back(rhi::Barrier::Texture(tex.second->texture.get(), currentState, initialState));
-				}
+					for (const auto& dep : deps)
+					{
+						auto state_it = buffersState.find(dep.id);
+						if (state_it != buffersState.end() && state_it->second != dep.outputState)
+						{
+							state_it->second = dep.outputState;
+						}
+					}
+				};
+				updateTextureStates(rs->textureReads);
+				updateTextureStates(rs->textureWrites);
+				updateBufferStates(rs->bufferReads);
+				updateBufferStates(rs->bufferWrites);
 			}
-			for (auto& buffer : m_DeclaredBuffers)
-			{
-				rhi::ResourceState initialState = rhi::ResourceState::SHADER_RESOURCE;
-				rhi::ResourceState currentState = buffersState.find(buffer.first)->second;
-				if (initialState != currentState)
-				{
-					barriers.push_back(rhi::Barrier::Buffer(buffer.second->buffer.get(), currentState, initialState));
-				}
-			}
-			if (!barriers.empty())
-			{
-				commandList->PushBarriers(barriers);
-			}
-		}
+		} // if (rs->renderStage->IsEnabled())
 
-		// Back buffer to common so it can be presented
-		commandList->PushBarrier(rhi::Barrier().Texture(
-			frameBuffer->GetDesc().ColorAttachments[0].texture.get(), rhi::ResourceState::RENDERTARGET, rhi::ResourceState::PRESENT));
+		// Update view of writes
+		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, texturesState);
+		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, buffersState);
+	} // end render stages iteration
 
-		commandList->EndMarker();
-		commandList->Close();
+	stageCommandList->EndMarker();
+	stageCommandList->Close();
+	m_DeviceManager->GetDevice()->ExecuteCommandList(stageCommandList, st::rhi::QueueType::Graphics);
 
-		// Execute!
-		m_DeviceManager->GetDevice()->ExecuteCommandList(commandList.get(), st::rhi::QueueType::Graphics);
-	}
-	else
+	rhi::ICommandList* endCommandList = m_EndCommandLists[m_DeviceManager->GetFrameModuleIndex()].get();
+	endCommandList->Open();
+	endCommandList->BeginMarker("End commands");
+
+	// Frame End. All the resources need to go back to its initial state.
 	{
-		LOG_ERROR("No frame buffer specified. Nothing to render");
+		std::vector<rhi::Barrier> barriers;
+		for (auto& tex : m_DeclaredTextures)
+		{
+			rhi::ResourceState initialState = GetInitialState(tex.second->type);
+			rhi::ResourceState currentState = texturesState.find(tex.first)->second;
+			if (initialState != currentState)
+			{
+				barriers.push_back(rhi::Barrier::Texture(tex.second->texture.get(), currentState, initialState));
+			}
+		}
+		for (auto& buffer : m_DeclaredBuffers)
+		{
+			rhi::ResourceState initialState = rhi::ResourceState::SHADER_RESOURCE;
+			rhi::ResourceState currentState = buffersState.find(buffer.first)->second;
+			if (initialState != currentState)
+			{
+				barriers.push_back(rhi::Barrier::Buffer(buffer.second->buffer.get(), currentState, initialState));
+			}
+		}
+		if (!barriers.empty())
+		{
+			endCommandList->PushBarriers(barriers);
+		}
 	}
+
+	// Back buffer to common so it can be presented
+	endCommandList->PushBarrier(rhi::Barrier().Texture(
+		frameBuffer->GetDesc().ColorAttachments[0].texture.get(), rhi::ResourceState::RENDERTARGET, rhi::ResourceState::PRESENT));
+
+	endCommandList->EndMarker();
+	endCommandList->EndMarker();
+	endCommandList->Close();
+
+	// Execute!
+	m_DeviceManager->GetDevice()->ExecuteCommandList(endCommandList, st::rhi::QueueType::Graphics);
 }
 
 size_t st::gfx::RenderView::GetNumRenderStages(const std::string& mode) const
@@ -910,7 +946,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	}
 }
 
-void st::gfx::RenderView::UpdateCameraVisibleSet()
+void st::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 {
 	m_CameraVisibleSet.clear();
 	m_CameraVisibleBounds.reset();
@@ -918,6 +954,41 @@ void st::gfx::RenderView::UpdateCameraVisibleSet()
 		return;
 
 	m_CameraVisibleSet = GetVisibleSet(m_Camera->GetFrustum().get_planes(), &m_CameraVisibleBounds);
+
+	{
+		UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
+
+		rhi::BufferOwner& visBuf = m_CameraVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()];
+		const size_t reqSize = m_CameraVisibleSet.size() * sizeof(uint32_t);
+		if (!visBuf || visBuf->GetDesc().sizeBytes < reqSize)
+		{
+			visBuf = m_DeviceManager->GetDevice()->CreateBuffer(rhi::BufferDesc{
+				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
+				.sizeBytes = reqSize * 2 },
+				rhi::ResourceState::COPY_DST, "CameraVisibleBuffer");
+		}
+		else
+		{
+			commandList->PushBarrier(
+				rhi::Barrier::Buffer(visBuf.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
+		}
+
+		// Copy to upload data
+		auto [ptr, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
+
+		uint32_t* it = (uint32_t*)ptr;
+		for (const st::gfx::MeshInstance* inst : m_CameraVisibleSet)
+		{
+			*it = inst->GetLeafSceneIndex();
+			it++;
+		}
+
+		// Copy to buffer
+		commandList->CopyBufferToBuffer(visBuf.get(), 0, uploadBuffer->GetBuffer().get(), offset, reqSize);
+
+		commandList->PushBarrier(
+			rhi::Barrier::Buffer(visBuf.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+	}
 }
 
 void st::gfx::RenderView::UpdateShadowmapData()
@@ -1018,7 +1089,7 @@ std::vector<st::gfx::RenderView::TextureViewRequest*> st::gfx::RenderView::GetTe
 	return ret;
 }
 
-void st::gfx::RenderView::UpdateRequestedTextureViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode, 
+void st::gfx::RenderView::UpdateRequestedTextureViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 	const std::map<std::string, rhi::ResourceState> resourceStates)
 {
 	auto requests = GetTexViewRequests(rs, accessMode);
@@ -1089,7 +1160,7 @@ std::vector<st::gfx::RenderView::BufferViewRequest*> st::gfx::RenderView::GetBuf
 	return ret;
 }
 
-void st::gfx::RenderView::UpdateRequestedBufferViews(st::rhi::CommandListHandle commandList, RenderStage* rs, AccessMode accessMode,
+void st::gfx::RenderView::UpdateRequestedBufferViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 	const std::map<std::string, rhi::ResourceState> resourceStates)
 {
 	auto requests = GetBufferViewRequests(rs, accessMode);
@@ -1187,6 +1258,12 @@ std::vector<const st::gfx::MeshInstance*> st::gfx::RenderView::GetVisibleSet(
 			walker.NextSibling();
 		}
 	}
+
+	// Lets sort by mesh to be friendly for DrawIndirect
+	std::sort(result.begin(), result.end(), [](const st::gfx::MeshInstance* a, const st::gfx::MeshInstance* b)
+	{
+		return a->GetMesh().get() < b->GetMesh().get();
+	});
 
 	return result;
 }

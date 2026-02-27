@@ -149,6 +149,15 @@ namespace interop
         uint instanceIdx;           // Index in the instance data buffer to render
     };
 
+    struct MultiInstanceDrawConstants
+    {
+        BufferUniformIndex sceneDI;
+        BufferReadOnlyIndex instancesDI;
+        uint baseInstanceIdx;
+        uint meshIndex;
+        uint materialIndex;
+    };
+
     struct DeferredLightingConstants
     {
         BufferUniformIndex sceneDI;
