@@ -77,7 +77,7 @@ float SampleShadowMapPoissonDisk16(float4 viewPos, float4x4 viewToClipMatrix, Te
         shadow += ndcPos.z < depth ? 0.0 : 1.f; // Reverse depth
     }
     
-    return shadow / 4.0;
+    return shadow / 16.0;
 }
 
 float SampleShadowMap(float4 viewPos, float4x4 viewToClipMatrix, Texture2D shadowMap)
