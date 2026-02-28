@@ -9,6 +9,8 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/UploadBuffer.h"
 #include "Gfx/Util.h"
+#include "Gfx/Mesh.h"
+#include "Gfx/Material.h"
 
 namespace
 {
@@ -1188,15 +1190,15 @@ void st::gfx::RenderView::UpdateRequestedBufferViews(st::rhi::ICommandList* comm
 	}
 }
 
-std::vector<const st::gfx::MeshInstance*> st::gfx::RenderView::GetVisibleSet(
-	const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds) const
+st::gfx::RenderView::RenderSet st::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds) const
 {
-	std::vector<const st::gfx::MeshInstance*> result;
+	if (!m_Scene || !m_Scene->GetSceneGraph())
+		return {};
+	
+	std::vector<const st::gfx::MeshInstance*> cullBase[(int)rhi::CullMode::_Size];
+
 	if (opt_outBounds)
 		opt_outBounds->reset();
-
-	if (!m_Scene || !m_Scene->GetSceneGraph())
-		return result;
 
 	auto boundsVisible = [&planes](const math::aabox3f bounds) -> bool
 	{
@@ -1218,9 +1220,10 @@ std::vector<const st::gfx::MeshInstance*> st::gfx::RenderView::GetVisibleSet(
 			if (leaf)
 			{
 				const auto* meshInstance = st::checked_cast<const st::gfx::MeshInstance*>(leaf.get());
-				assert(meshInstance);
+				assert(meshInstance && meshInstance->GetMesh() && meshInstance->GetMesh()->GetMaterial());
 
-				result.push_back(meshInstance);
+				cullBase[(int)meshInstance->GetMesh()->GetMaterial()->GetCullMode()].push_back(meshInstance);
+
 				if(opt_outBounds)
 					opt_outBounds->merge(node->GetWorldBounds());
 			}
@@ -1233,20 +1236,32 @@ std::vector<const st::gfx::MeshInstance*> st::gfx::RenderView::GetVisibleSet(
 	}
 
 	// Lets sort by mesh to be friendly for DrawIndirect
-	std::sort(result.begin(), result.end(), [](const st::gfx::MeshInstance* a, const st::gfx::MeshInstance* b)
+	for(int i = 0; i < (int)rhi::CullMode::_Size; ++i)
 	{
-		return a->GetMesh().get() < b->GetMesh().get();
-	});
+		std::sort(cullBase[i].begin(), cullBase[i].end(), [](const st::gfx::MeshInstance* a, const st::gfx::MeshInstance* b)
+		{
+			return a->GetMesh().get() < b->GetMesh().get();
+		});
+	}
 
+	// Move to result
+	std::vector<std::pair<st::rhi::CullMode, std::vector<const st::gfx::MeshInstance*>>> result;
+	for (int i = 0; i < (int)rhi::CullMode::_Size; ++i)
+	{
+		result.emplace_back((rhi::CullMode)i, std::move(cullBase[i]));
+	}
 	return result;
 }
 
-void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const std::vector<const st::gfx::MeshInstance*>& visiblitySet, rhi::BufferOwner& buffer,
+void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSet, rhi::BufferOwner& buffer,
 	rhi::ICommandList* commandList)
 {
 	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
 
-	const size_t reqSize = visiblitySet.size() * sizeof(uint32_t);
+	size_t reqSize = 0;
+	for(const auto& instances : renderSet)
+		reqSize += instances.second.size() * sizeof(uint32_t);
+
 	if (!buffer || buffer->GetDesc().sizeBytes < reqSize)
 	{
 		buffer = m_DeviceManager->GetDevice()->CreateBuffer(rhi::BufferDesc{
@@ -1261,13 +1276,16 @@ void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const std::vector<const s
 	}
 
 	// Copy to upload data
-	auto [ptr, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
+	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
 
-	uint32_t* it = (uint32_t*)ptr;
-	for (const st::gfx::MeshInstance* inst : visiblitySet)
+	uint32_t* ptr = (uint32_t*)data;
+	for (const auto& instances : renderSet)
 	{
-		*it = inst->GetLeafSceneIndex();
-		it++;
+		for (const st::gfx::MeshInstance* inst : instances.second)
+		{
+			*ptr = inst->GetLeafSceneIndex();
+			ptr++;
+		}
 	}
 
 	// Copy to buffer

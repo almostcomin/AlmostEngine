@@ -9,8 +9,6 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/RenderHelpers.h"
 
-#define MULTI_INSTANCE 1
-
 void st::gfx::GBuffersRenderStage::Render()
 {
 	auto scene = m_RenderView->GetScene();
@@ -34,31 +32,12 @@ void st::gfx::GBuffersRenderStage::Render()
 		{},
 		rhi::RenderPassFlags::None);
 
-	commandList->SetPipelineState(m_PSO.get());
-
-#if MULTI_INSTANCE
-
 	RenderSetInstanced(
 		m_RenderView->GetCameraVisibleSet(),
 		m_RenderView->GetSceneBufferUniformView(),
 		m_RenderView->GetCameraVisiblityBufferROView(),
+		m_RenderContext,
 		commandList.get());
-
-#else
-
-	interop::SingleInstanceDrawData shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
-
-	const auto& visibleSet = m_RenderView->GetCameraVisibleSet();
-	for (const st::gfx::MeshInstance* meshInstance : visibleSet)
-	{
-		shaderConstants.instanceIdx = meshInstance->GetLeafSceneIndex();
-
-		commandList->PushGraphicsConstants(shaderConstants);
-		commandList->Draw(meshInstance->GetMesh()->GetIndexCount());
-	}
-
-#endif
 
 	commandList->EndRenderPass();
 }
@@ -113,13 +92,8 @@ void st::gfx::GBuffersRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-#if MULTI_INSTANCE
-		m_VS = shaderFactory->LoadShader("GBuffers2_vs", rhi::ShaderType::Vertex);
-		m_PS = shaderFactory->LoadShader("GBuffers2_ps", rhi::ShaderType::Pixel);
-#else
 		m_VS = shaderFactory->LoadShader("GBuffers_vs", rhi::ShaderType::Vertex);
 		m_PS = shaderFactory->LoadShader("GBuffers_ps", rhi::ShaderType::Pixel);
-#endif
 	}
 
 	// Create PSO
@@ -153,7 +127,7 @@ void st::gfx::GBuffersRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "GBuffersRenderStage");
+		m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "GBuffersRenderStage");
 	}
 }
 
@@ -162,7 +136,7 @@ void st::gfx::GBuffersRenderStage::OnDetached()
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_FB));
-	device->ReleaseQueued(std::move(m_PSO));
+	m_RenderContext = {};
 }
 
 void st::gfx::GBuffersRenderStage::OnBackbufferResize()
@@ -181,5 +155,5 @@ void st::gfx::GBuffersRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "GBuffersRenderStage");
+	m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "GBuffersRenderStage");
 }

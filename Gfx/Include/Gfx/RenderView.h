@@ -7,6 +7,7 @@
 #include "RHI/CommandList.h"
 #include "RHI/Buffer.h"
 #include "RHI/TimerQuery.h"
+#include "RHI/RasterizerState.h"
 #include "Gfx/FrameUniformBuffer.h"
 #include "Gfx/Scene.h"
 
@@ -71,6 +72,8 @@ public:
 		std::vector<float> cpuElapsed;
 	};
 
+	using RenderSet = std::vector<std::pair<rhi::CullMode, std::vector<const st::gfx::MeshInstance*>>>;
+
 	static constexpr int c_BBSize = 0;
 	static constexpr int c_HalfBBSize = -1;
 
@@ -101,8 +104,8 @@ public:
 	st::rhi::BufferReadOnlyView GetCameraVisiblityBufferROView();
 	st::rhi::BufferReadOnlyView GetSunVisibilityBufferROView();
 	
-	const std::vector<const st::gfx::MeshInstance*>& GetCameraVisibleSet() const { return m_CameraVisibleSet; }
-	const std::vector<const st::gfx::MeshInstance*>& GetSunVisibleSet() const { return m_SunVisibleSet; }
+	const RenderSet& GetCameraVisibleSet() const { return m_CameraVisibleSet; }
+	const RenderSet& GetSunVisibleSet() const { return m_SunVisibleSet; }
 
 	// Texture creation / release
 	bool CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
@@ -157,7 +160,7 @@ private:
 	void UpdateCameraVisibleSet(rhi::ICommandList* commandList);
 	void UpdateShadowmapData(rhi::ICommandList* commandList);
 
-	std::vector<const st::gfx::MeshInstance*> GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
+	RenderSet GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
 
 private:
 
@@ -191,7 +194,7 @@ private:
 	void UpdateRequestedBufferViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 		const std::map<std::string, rhi::ResourceState> resourceStates);
 
-	void UpdateVisibilityShaderBuffer(const std::vector<const st::gfx::MeshInstance*>& visiblitySet, rhi::BufferOwner& buffer, rhi::ICommandList* commandList);
+	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, rhi::BufferOwner& buffer, rhi::ICommandList* commandList);
 
 private:
 
@@ -210,13 +213,13 @@ private:
 	std::map<std::string, std::unique_ptr<DeclaredBuffer>> m_DeclaredBuffers;
 
 	// Visible set for the current camera
-	std::vector<const st::gfx::MeshInstance*> m_CameraVisibleSet;
+	RenderSet m_CameraVisibleSet;
 	math::aabox3f m_CameraVisibleBounds;
 	std::vector<rhi::BufferOwner> m_CameraVisibleBuffer;
 	std::vector<rhi::BufferOwner> m_SunVisibleBuffer;
 
 	// Visible set for the sun (for shadowmapping)
-	std::vector<const st::gfx::MeshInstance*> m_SunVisibleSet;
+	RenderSet m_SunVisibleSet;
 	float4x4 m_SunWoldToClipMatrix;
 	float4x4 m_ViewToSunClipMatrix;
 

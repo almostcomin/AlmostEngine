@@ -15,7 +15,9 @@ enum class CullMode : uint8_t
 {
 	Back,
 	Front,
-	None
+	None,
+
+	_Size
 };
 
 struct RasterizerState

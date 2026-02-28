@@ -98,6 +98,8 @@ namespace interop
         uint _padding[3];
     };
 
+    SHADER_FLAG(MaterialFlags_DoubleSided, 0x00000001)
+
     struct MaterialData
     {
         TextureSampledViewIndex baseColorTextureDI;

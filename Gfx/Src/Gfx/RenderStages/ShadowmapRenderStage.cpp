@@ -47,7 +47,7 @@ void st::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 		}
 
 		// Recreate PSO (psodesc keeps the same)
-		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage");
+		m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "ShadowmapRenderStage");
 	}
 }
 
@@ -108,8 +108,9 @@ void st::gfx::ShadowmapRenderStage::ReleaseResources()
 {
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
+	m_RenderContext = {};
+
 	device->ReleaseQueued(std::move(m_FB));
-	device->ReleaseQueued(std::move(m_PSO));
 	device->ReleaseQueued(std::move(m_PS));
 	device->ReleaseQueued(std::move(m_VS));
 
@@ -154,7 +155,7 @@ void st::gfx::ShadowmapRenderStage::RecreatePSO()
 		.rasterState = rasterState
 	};
 
-	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage");
+	m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "ShadowmapRenderStage");
 }
 
 void st::gfx::ShadowmapRenderStage::Render()
@@ -180,12 +181,11 @@ void st::gfx::ShadowmapRenderStage::Render()
 		{},
 		rhi::RenderPassFlags::None);
 
-	commandList->SetPipelineState(m_PSO.get());
-
 	RenderSetInstanced(
 		m_RenderView->GetSunVisibleSet(),
 		m_RenderView->GetSceneBufferUniformView(),
 		m_RenderView->GetSunVisibilityBufferROView(),
+		m_RenderContext,
 		commandList.get());
 
 	commandList->EndRenderPass();

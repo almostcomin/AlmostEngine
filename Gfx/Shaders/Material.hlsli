@@ -103,7 +103,7 @@ MaterialTextureSample SampleMaterialTextures(float2 uv, interop::MaterialData ma
     return ret;
 }
 
-MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::MaterialData mat, MaterialTextureSample textures)
+MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::MaterialData mat, MaterialTextureSample textures, bool isFrontFace)
 {
     MaterialSample result = DefaultMaterialSample();
     
@@ -159,7 +159,11 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
     {
         result.normal = normalize(normal);
     }
-    
+    if (!isFrontFace)
+    {
+        result.normal = -result.normal;
+    }
+        
     return result;
 }
 

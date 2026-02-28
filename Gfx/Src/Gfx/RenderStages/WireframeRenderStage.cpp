@@ -30,12 +30,11 @@ void st::gfx::WireframeRenderStage::Render()
 		{},
 		rhi::RenderPassFlags::None);
 
-	commandList->SetPipelineState(m_PSO.get());
-
 	RenderSetInstanced(
 		m_RenderView->GetCameraVisibleSet(),
 		m_RenderView->GetSceneBufferUniformView(),
 		m_RenderView->GetCameraVisiblityBufferROView(),
+		m_RenderContext,
 		commandList.get());
 
 	commandList->EndRenderPass();
@@ -113,7 +112,7 @@ void st::gfx::WireframeRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage");
+		m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "WireframeRenderStage");
 	}
 }
 
@@ -121,8 +120,9 @@ void st::gfx::WireframeRenderStage::OnDetached()
 {
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
+	m_RenderContext = {};
+
 	device->ReleaseQueued(std::move(m_FB));
-	device->ReleaseQueued(std::move(m_PSO));
 	device->ReleaseQueued(std::move(m_PS));
 	device->ReleaseQueued(std::move(m_VS));
 }
@@ -142,5 +142,5 @@ void st::gfx::WireframeRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage");
+	m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "WireframeRenderStage");
 }

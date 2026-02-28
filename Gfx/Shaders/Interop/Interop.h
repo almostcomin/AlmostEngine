@@ -17,6 +17,8 @@ static_assert(sizeof(float4x4) == 64);
 
 #define ConstantBufferStruct struct alignas(256)
 
+#define SHADER_FLAG(name, value) static constexpr uint32_t name = value;
+
 #else
 
 static const uint INVALID_DESCRIPTOR_INDEX = 0xFFFFFFFFu;
@@ -28,6 +30,8 @@ static const uint INVALID_DESCRIPTOR_INDEX = 0xFFFFFFFFu;
 #define BufferUniformIndex uint
 #define BufferReadOnlyIndex uint
 #define BufferReadWriteIndex uint
+
+#define SHADER_FLAG(name, value) static const uint name = value;
 
 #endif // __cplusplus
 #endif // __SHADER_SHADERINTEROP_H__

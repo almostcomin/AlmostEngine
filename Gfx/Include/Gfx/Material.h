@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gfx/LoadedTexture.h"
+#include "RHI/RasterizerState.h"
 
 namespace st::rhi
 {
@@ -56,6 +57,9 @@ public:
 	float GetRoughnessFactor() const { return m_RoughnessFactor; };
 	const float2& GetNormalTextureScale() const { return m_NormalTextureScale; }
 
+	void SetCullMode(rhi::CullMode cm) { m_CullMode = cm; }
+	rhi::CullMode GetCullMode() const { return m_CullMode; }
+
 	const std::string& GetName() const { return m_Name; }
 
 	bool operator==(const Material& other) const;
@@ -75,6 +79,8 @@ private:
 	float m_RoughnessFactor;
 	float2 m_NormalTextureScale;
 	float m_OcclusionStrengh;
+
+	rhi::CullMode m_CullMode;
 
 	std::string m_Name;
 	std::string m_SourceFileName; // where this material originated from, e.g. GLTF file name

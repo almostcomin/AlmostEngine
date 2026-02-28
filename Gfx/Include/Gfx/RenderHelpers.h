@@ -1,19 +1,26 @@
 #pragma once
 
 #include "RHI/ShaderViews.h"
+#include "RHI/RasterizerState.h"
+#include "Gfx/RenderContext.h"
 
 namespace st::gfx
 {
-class MeshInstance;
+	class MeshInstance;
+}
+
+namespace st::gfx
+{
 
 void RenderSet(const std::vector<const st::gfx::MeshInstance*>& instancesSet, st::rhi::BufferUniformView sceneBuffer,
 	st::rhi::ICommandList* commandList);
 
-// instancesSet, list of instances to render
+// renderSet, list of instances to render
 // sceneBuffer, view of buffer with scene data
-// instancesIndexBuffer, view of a buffer with the index of the instances to render. Mush match instancesSet
+// renderSetIndecesBuffer, view of a buffer with the index of the instances to render. Mush match instancesSet
 // commandList, commanList to use
-void RenderSetInstanced(const std::vector<const st::gfx::MeshInstance*>& instancesSet, st::rhi::BufferUniformView sceneBuffer,
-	st::rhi::BufferReadOnlyView instancesIndexBuffer, st::rhi::ICommandList* commandList);
+void RenderSetInstanced(const std::vector<std::pair<rhi::CullMode, std::vector<const st::gfx::MeshInstance*>>>& renderSet,
+	st::rhi::BufferUniformView sceneBuffer, st::rhi::BufferReadOnlyView renderSetIndicesBuffer, const RenderContext& renderContext,
+	st::rhi::ICommandList* commandList);
 
 } //namespace st::gfx

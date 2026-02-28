@@ -598,6 +598,8 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         mat->SetNormalTextureScale(srcMat.normal_texture.has_transform ?
             float2{ srcMat.normal_texture.transform.scale[0], srcMat.normal_texture.transform.scale[1] } : float2{ 1.f });
 
+        mat->SetCullMode(srcMat.double_sided ? st::rhi::CullMode::None : st::rhi::CullMode::Back);
+
         // Log warnings for all unsupported texture coordinate transformations
         if (srcMat.pbr_metallic_roughness.base_color_texture.has_transform ||
             srcMat.pbr_metallic_roughness.metallic_roughness_texture.has_transform ||

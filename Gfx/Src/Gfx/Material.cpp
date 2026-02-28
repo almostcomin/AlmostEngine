@@ -9,6 +9,7 @@ st::gfx::Material::Material(st::rhi::Device* device, const char* name, const cha
 	m_RoughnessFactor{ 0.5f },
 	m_NormalTextureScale{ 1.f },
 	m_OcclusionStrengh{ 1.f },
+	m_CullMode{ rhi::CullMode::Back },
 	m_Device{ device },
 	m_Name{ name ? name : "<null>" },
 	m_SourceFileName{ filename ? filename : "<null>" }

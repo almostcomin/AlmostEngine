@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
+#include "Gfx/RenderContext.h"
 #include "RHI/PipelineState.h"
 
 namespace st::gfx
@@ -48,7 +49,7 @@ private:
 	st::rhi::ShaderOwner m_PS;
 	st::rhi::FramebufferOwner m_FB;
 	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
-	st::rhi::GraphicsPipelineStateOwner m_PSO;
+	st::gfx::RenderContext m_RenderContext;
 
 	int m_DepthBias;
 	float m_SlopeScaledDepthBias;

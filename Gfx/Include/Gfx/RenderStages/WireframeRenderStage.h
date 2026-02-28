@@ -1,9 +1,8 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
-#include "RHI/Shader.h"
+#include "Gfx/RenderContext.h"
 #include "RHI/PipelineState.h"
-#include "RHI/Framebuffer.h"
 
 namespace st::gfx
 {
@@ -28,7 +27,7 @@ private:
 	st::rhi::ShaderOwner m_VS;
 	st::rhi::ShaderOwner m_PS;
 	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
-	st::rhi::GraphicsPipelineStateOwner m_PSO;
+	st::gfx::RenderContext m_RenderContext;
 
 	st::rhi::FramebufferOwner m_FB;
 };

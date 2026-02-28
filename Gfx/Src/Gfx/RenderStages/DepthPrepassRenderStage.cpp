@@ -9,8 +9,6 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/RenderHelpers.h"
 
-#define MULTI_INSTANCE 1
-
 void st::gfx::DepthPrepassRenderStage::Render()
 {
 	auto scene = m_RenderView->GetScene();
@@ -30,24 +28,13 @@ void st::gfx::DepthPrepassRenderStage::Render()
 		{},
 		rhi::RenderPassFlags::None);
 
-	commandList->SetPipelineState(m_PSO.get());
-
-#if MULTI_INSTANCE
-
 	RenderSetInstanced(
 		m_RenderView->GetCameraVisibleSet(),
 		m_RenderView->GetSceneBufferUniformView(),
 		m_RenderView->GetCameraVisiblityBufferROView(),
+		m_RenderContext,
 		commandList.get());
 
-#else
-
-	RenderSet(
-		m_RenderView->GetCameraVisibleSet(),
-		m_RenderView->GetSceneBufferUniformView(),
-		commandList.get());
-
-#endif
 	commandList->EndRenderPass();
 }
 
@@ -73,11 +60,7 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-#if MULTI_INSTANCE
-		m_VS = shaderFactory->LoadShader("DepthPrepass2_vs", rhi::ShaderType::Vertex);
-#else
 		m_VS = shaderFactory->LoadShader("DepthPrepass_vs", rhi::ShaderType::Vertex);
-#endif
 	}
 
 	// Create PSO
@@ -102,7 +85,7 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage");
+		m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "DepthPrepassRenderStagePSO");
 	}
 }
 
@@ -111,7 +94,7 @@ void st::gfx::DepthPrepassRenderStage::OnDetached()
 	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_FB));
-	device->ReleaseQueued(std::move(m_PSO));
+	m_RenderContext = {};
 }
 
 void st::gfx::DepthPrepassRenderStage::OnBackbufferResize()
@@ -127,5 +110,5 @@ void st::gfx::DepthPrepassRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage");
+	m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "DepthPrepassRenderStagePSO");
 }
