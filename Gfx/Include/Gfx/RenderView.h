@@ -99,6 +99,7 @@ public:
 
 	st::rhi::BufferUniformView GetSceneBufferUniformView();
 	st::rhi::BufferReadOnlyView GetCameraVisiblityBufferROView();
+	st::rhi::BufferReadOnlyView GetSunVisibilityBufferROView();
 	
 	const std::vector<const st::gfx::MeshInstance*>& GetCameraVisibleSet() const { return m_CameraVisibleSet; }
 	const std::vector<const st::gfx::MeshInstance*>& GetSunVisibleSet() const { return m_SunVisibleSet; }
@@ -154,7 +155,7 @@ private:
 	void ClearRenderStages();
 	void UpdateSceneConstantBuffer();
 	void UpdateCameraVisibleSet(rhi::ICommandList* commandList);
-	void UpdateShadowmapData();
+	void UpdateShadowmapData(rhi::ICommandList* commandList);
 
 	std::vector<const st::gfx::MeshInstance*> GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
 
@@ -190,6 +191,8 @@ private:
 	void UpdateRequestedBufferViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 		const std::map<std::string, rhi::ResourceState> resourceStates);
 
+	void UpdateVisibilityShaderBuffer(const std::vector<const st::gfx::MeshInstance*>& visiblitySet, rhi::BufferOwner& buffer, rhi::ICommandList* commandList);
+
 private:
 
 	st::weak<Scene> m_Scene;
@@ -210,6 +213,7 @@ private:
 	std::vector<const st::gfx::MeshInstance*> m_CameraVisibleSet;
 	math::aabox3f m_CameraVisibleBounds;
 	std::vector<rhi::BufferOwner> m_CameraVisibleBuffer;
+	std::vector<rhi::BufferOwner> m_SunVisibleBuffer;
 
 	// Visible set for the sun (for shadowmapping)
 	std::vector<const st::gfx::MeshInstance*> m_SunVisibleSet;

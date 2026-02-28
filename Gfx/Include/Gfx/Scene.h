@@ -66,9 +66,9 @@ namespace st::gfx
 		AmbientParams m_AmbientParams;
 		SunParams m_SunParams;
 
-		rhi::BufferOwner m_InstancesBuffer;
-		rhi::BufferOwner m_MeshesBuffer;
-		rhi::BufferOwner m_MaterialsBuffer;
+		rhi::BufferOwner m_InstancesBuffer; // interop::InstanceData
+		rhi::BufferOwner m_MeshesBuffer;	// interop::MeshData
+		rhi::BufferOwner m_MaterialsBuffer;	// interop::MaterialData
 
 		DeviceManager* m_DeviceManager;
 	};

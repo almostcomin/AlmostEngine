@@ -183,9 +183,9 @@ void st::gfx::ShadowmapRenderStage::Render()
 	commandList->SetPipelineState(m_PSO.get());
 
 	RenderSetInstanced(
-		m_RenderView->GetCameraVisibleSet(),
+		m_RenderView->GetSunVisibleSet(),
 		m_RenderView->GetSceneBufferUniformView(),
-		m_RenderView->GetCameraVisiblityBufferROView(),
+		m_RenderView->GetSunVisibilityBufferROView(),
 		commandList.get());
 
 	commandList->EndRenderPass();

@@ -90,6 +90,7 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 	}
 
 	m_CameraVisibleBuffer.resize(m_DeviceManager->GetSwapchainBufferCount());
+	m_SunVisibleBuffer.resize(m_DeviceManager->GetSwapchainBufferCount());
 }
 
 st::gfx::RenderView::~RenderView()
@@ -227,6 +228,11 @@ st::rhi::BufferUniformView st::gfx::RenderView::GetSceneBufferUniformView()
 st::rhi::BufferReadOnlyView st::gfx::RenderView::GetCameraVisiblityBufferROView()
 {
 	return m_CameraVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()]->GetReadOnlyView();
+}
+
+st::rhi::BufferReadOnlyView st::gfx::RenderView::GetSunVisibilityBufferROView()
+{
+	return m_SunVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()]->GetReadOnlyView();
 }
 
 bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
@@ -591,7 +597,7 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 
 	// Update common data
 	UpdateCameraVisibleSet(beginCommandList);
-	UpdateShadowmapData();
+	UpdateShadowmapData(beginCommandList);
 	UpdateSceneConstantBuffer();
 
 	m_TimeDeltaSec = timeDeltaSec;
@@ -954,44 +960,10 @@ void st::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 		return;
 
 	m_CameraVisibleSet = GetVisibleSet(m_Camera->GetFrustum().get_planes(), &m_CameraVisibleBounds);
-
-	{
-		UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
-
-		rhi::BufferOwner& visBuf = m_CameraVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()];
-		const size_t reqSize = m_CameraVisibleSet.size() * sizeof(uint32_t);
-		if (!visBuf || visBuf->GetDesc().sizeBytes < reqSize)
-		{
-			visBuf = m_DeviceManager->GetDevice()->CreateBuffer(rhi::BufferDesc{
-				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-				.sizeBytes = reqSize * 2 },
-				rhi::ResourceState::COPY_DST, "CameraVisibleBuffer");
-		}
-		else
-		{
-			commandList->PushBarrier(
-				rhi::Barrier::Buffer(visBuf.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
-		}
-
-		// Copy to upload data
-		auto [ptr, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
-
-		uint32_t* it = (uint32_t*)ptr;
-		for (const st::gfx::MeshInstance* inst : m_CameraVisibleSet)
-		{
-			*it = inst->GetLeafSceneIndex();
-			it++;
-		}
-
-		// Copy to buffer
-		commandList->CopyBufferToBuffer(visBuf.get(), 0, uploadBuffer->GetBuffer().get(), offset, reqSize);
-
-		commandList->PushBarrier(
-			rhi::Barrier::Buffer(visBuf.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
-	}
+	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()], commandList);
 }
 
-void st::gfx::RenderView::UpdateShadowmapData()
+void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 {
 	m_SunVisibleSet.clear();
 	m_SunWoldToClipMatrix = {};
@@ -1073,6 +1045,7 @@ void st::gfx::RenderView::UpdateShadowmapData()
 		};
 
 		m_SunVisibleSet = GetVisibleSet(sunClipPlanes);
+		UpdateVisibilityShaderBuffer(m_SunVisibleSet, m_SunVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()], commandList);
 	}
 }
 
@@ -1266,4 +1239,40 @@ std::vector<const st::gfx::MeshInstance*> st::gfx::RenderView::GetVisibleSet(
 	});
 
 	return result;
+}
+
+void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const std::vector<const st::gfx::MeshInstance*>& visiblitySet, rhi::BufferOwner& buffer,
+	rhi::ICommandList* commandList)
+{
+	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
+
+	const size_t reqSize = visiblitySet.size() * sizeof(uint32_t);
+	if (!buffer || buffer->GetDesc().sizeBytes < reqSize)
+	{
+		buffer = m_DeviceManager->GetDevice()->CreateBuffer(rhi::BufferDesc{
+			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
+			.sizeBytes = reqSize * 2 },
+			rhi::ResourceState::COPY_DST, "CameraVisibleBuffer");
+	}
+	else
+	{
+		commandList->PushBarrier(
+			rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
+	}
+
+	// Copy to upload data
+	auto [ptr, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
+
+	uint32_t* it = (uint32_t*)ptr;
+	for (const st::gfx::MeshInstance* inst : visiblitySet)
+	{
+		*it = inst->GetLeafSceneIndex();
+		it++;
+	}
+
+	// Copy to buffer
+	commandList->CopyBufferToBuffer(buffer.get(), 0, uploadBuffer->GetBuffer().get(), offset, reqSize);
+
+	commandList->PushBarrier(
+		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 }

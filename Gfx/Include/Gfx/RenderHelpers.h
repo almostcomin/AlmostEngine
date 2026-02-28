@@ -9,6 +9,10 @@ class MeshInstance;
 void RenderSet(const std::vector<const st::gfx::MeshInstance*>& instancesSet, st::rhi::BufferUniformView sceneBuffer,
 	st::rhi::ICommandList* commandList);
 
+// instancesSet, list of instances to render
+// sceneBuffer, view of buffer with scene data
+// instancesIndexBuffer, view of a buffer with the index of the instances to render. Mush match instancesSet
+// commandList, commanList to use
 void RenderSetInstanced(const std::vector<const st::gfx::MeshInstance*>& instancesSet, st::rhi::BufferUniformView sceneBuffer,
 	st::rhi::BufferReadOnlyView instancesIndexBuffer, st::rhi::ICommandList* commandList);
 

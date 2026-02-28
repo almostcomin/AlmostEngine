@@ -267,6 +267,13 @@ namespace interop
         float textureWidth;
         float textureHeight;
     };
+
+    struct DrawChunk
+    {
+        float4x4 modelMatrix;
+        uint meshIndex;
+        uint materialIndex;
+    };
 }
 
 #endif // __SHADERS_INTEROP_RENDERRESOURCES_H__
