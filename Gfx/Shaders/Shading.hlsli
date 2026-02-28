@@ -26,7 +26,6 @@ void ShadeSurface(LightConstants light, MaterialSample surfaceMaterial, float3 s
     if(light.lighType == LightType_Directional)
     {
         lightIncident = normalize(mul(worldToViewMatrix, light.direction));
-        //lightIncident = light.direction;        
         halfAngularSize = light.angularSizeOrInvRange / 2;
         irradiance = light.intensity;
     }
@@ -35,9 +34,9 @@ void ShadeSurface(LightConstants light, MaterialSample surfaceMaterial, float3 s
         // TODO
         return;
     }
-    
+        
     out_diffuseRadiance = BRDF_Diffuse(surfaceMaterial.normal, lightIncident) * surfaceMaterial.diffuseAlbedo * irradiance;
-    out_specularRadiance = BRDF_Specular(surfaceMaterial.normal, viewIncident, lightIncident, surfaceMaterial.specularF0, 
+    out_specularRadiance = BRDF_Specular_NDotL(surfaceMaterial.normal, viewIncident, lightIncident, surfaceMaterial.specularF0,
         surfaceMaterial.roughness, halfAngularSize) * irradiance;
 }
 

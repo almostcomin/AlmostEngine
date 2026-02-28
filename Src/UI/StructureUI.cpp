@@ -665,7 +665,7 @@ void StructureUI::BuildSettingsWindow()
         m_Data.SunParamsUpdated |= ImGui::SliderFloat(
             "Irradiance", &m_Data.SunParams.Irradiance, 0.f, 100.f, "%.2f", ImGuiSliderFlags_Logarithmic);
         m_Data.SunParamsUpdated |= ImGui::SliderFloat(
-            "Angular Size", &m_Data.SunParams.AngularSizeDeg, 0.1f, 20.f);
+            "Angular Size", &m_Data.SunParams.AngularSizeDeg, 0.0f, 20.f);
     }
 
     if (ImGui::CollapsingHeader("Ambient"))

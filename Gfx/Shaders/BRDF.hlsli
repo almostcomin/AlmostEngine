@@ -55,7 +55,7 @@ float3 FresnelSchlick(float3 V, float3 H, float3 F0)
 }
 
 // BRDF: Cook-Torrance reflectance
-float3 BRDF_Specular(float3 normal, float3 viewIncident, float3 lightIncident, float3 F0, float roughness, float halfAngularSize)
+float3 BRDF_Specular_NDotL(float3 normal, float3 viewIncident, float3 lightIncident, float3 F0, float roughness, float halfAngularSize)
 {
     float3 N = normal;
     float3 L = -lightIncident;    

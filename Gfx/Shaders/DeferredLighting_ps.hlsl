@@ -133,7 +133,6 @@ float4 main(PS_INPUT input) : SV_Target
         if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
         {
             Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
-            //shadowFactor = SampleShadowMap(surfacePosView, sceneData.sunViewToClipMatrix, shadowMap);
             shadowFactor = SampleShadowMapPoissonDisk16(
                 surfacePosView, sceneData.sunViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
         }
@@ -155,7 +154,7 @@ float4 main(PS_INPUT input) : SV_Target
         float3 viewIncident = normalize(surfacePosView.xyz);
         float3 diffuseRadiance = 0.0;
         float3 specularRadiance = 0.0;
-        ShadeSurface(sunConstants, surfaceMat, surfacePosView.xyz, viewIncident, (float3x3) sceneData.camViewMatrix, diffuseRadiance, specularRadiance);
+        ShadeSurface(sunConstants, surfaceMat, surfacePosView.xyz, viewIncident, (float3x3)sceneData.camViewMatrix, diffuseRadiance, specularRadiance);
     
         float3 diffuseTerm = shadowFactor * diffuseRadiance * sceneData.sunColor.rgb;
         float3 specularTerm = shadowFactor * specularRadiance * sceneData.sunColor.rgb;

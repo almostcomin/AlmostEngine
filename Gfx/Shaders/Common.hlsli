@@ -28,7 +28,7 @@ float3 ApplyNormalMap(float3 vNormal, float4 vTangent, float3 tNormal, float2 no
     tangentNormal.xy *= normalScale;
     // Build TBN matrix
     float3 N = vNormal;
-    float3 T = normalize(vTangent.xyz);
+    float3 T = vTangent.xyz;
     float3 B = cross(N, T) * vTangent.w; // w is headedness
     float3x3 TBN = float3x3(T, B, N);
         

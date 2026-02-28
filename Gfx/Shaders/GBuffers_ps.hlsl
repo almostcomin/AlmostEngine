@@ -35,7 +35,7 @@ PS_OUTPUT main(PS_INPUT input)
     PS_OUTPUT output;
     
     MaterialTextureSample texturesSample = SampleMaterialTextures(input.uv, matData);
-    MaterialSample matSample = EvaluateSceneMaterial(input.normal, input.tangent, matData, texturesSample);
+    MaterialSample matSample = EvaluateSceneMaterial(normalize(input.normal), normalize(input.tangent), matData, texturesSample);
     
     // GBuffer0: diffuseAlbedo.rgb + opacity.w
     output.GBuffer0 = float4(matSample.diffuseAlbedo, matSample.opacity);
