@@ -4,9 +4,10 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/RenderView.h"
 #include "Interop/ImGUI_CB.h"
-#include "Gfx/DataUploader.h"
+#include "Gfx/UploadBuffer.h"
 #include "RHI/Device.h"
 #include <imgui/imgui.h>
+#include <imgui/imgui_impl_sdl3.h>
 
 void st::gfx::ImGuiRenderStage::OnAttached()
 {
@@ -26,14 +27,14 @@ void st::gfx::ImGuiRenderStage::OnDetached()
 void st::gfx::ImGuiRenderStage::BeginFullScreenWindow()
 {
     ImGuiIO const& io = ImGui::GetIO();
-    ImGui::SetNextWindowPos(ImVec2(0.f, 0.f), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(
-        io.DisplaySize.x / io.DisplayFramebufferScale.x,
-        io.DisplaySize.y / io.DisplayFramebufferScale.y),
-        ImGuiCond_Always);
+
+    const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(main_viewport->WorkPos);
+    ImGui::SetNextWindowSize(main_viewport->WorkSize);
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     ImGui::SetNextWindowBgAlpha(0.f);
-    ImGui::Begin(" ", 0, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
+    ImGui::Begin("Full-screen window ", 0, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
 }
 
 void st::gfx::ImGuiRenderStage::EndFullScreenWindow()
@@ -45,64 +46,44 @@ void st::gfx::ImGuiRenderStage::EndFullScreenWindow()
 void st::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
 {
     ImGuiIO const& io = ImGui::GetIO();
+
     ImVec2 textSize = ImGui::CalcTextSize(text);
+    ImVec2 contentPos = ImGui::GetCursorScreenPos();
+    ImVec2 contentSize = ImGui::GetContentRegionAvail();
 
-    ImVec2 vMin = ImGui::GetCursorScreenPos();
-    ImVec2 vMax = ImGui::GetContentRegionAvail();
+    ImGui::SetCursorScreenPos(ImVec2{
+        contentPos.x + (contentSize.x - textSize.x) * 0.5f,
+        contentPos.y + (contentSize.y - textSize.y) * 0.5f });
 
-    ImGui::SetCursorScreenPos(ImVec2{ (vMax.x - vMin.x - textSize.x) * 0.5f, (vMax.y - vMin.y - textSize.y) * 0.5f });
     ImGui::TextUnformatted(text);
 }
 
-st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentVB()
+st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentVB(GeometryBuffers& geometryBuffers)
 {
-    uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameIndex();
-    return m_VertexBuffer[currentFrameIdx % 3];
+    return geometryBuffers.VertexBuffer[m_RenderView->GetDeviceManager()->GetFrameModuleIndex()];
 }
 
-st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentIB()
+st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentIB(GeometryBuffers& geometryBuffers)
 {
-    uint32_t currentFrameIdx = m_RenderView->GetDeviceManager()->GetFrameIndex();
-    return m_IndexBuffer[currentFrameIdx % 3];
+    return geometryBuffers.IndexBuffer[m_RenderView->GetDeviceManager()->GetFrameModuleIndex()];
 }
 
 void st::gfx::ImGuiRenderStage::Render()
 {
-    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-    st::rhi::Device* device = deviceManager->GetDevice();
 	auto& io = ImGui::GetIO();
-
-    glm::ivec2 dim = deviceManager->GetWindowDimensions();
-    io.DisplaySize = ImVec2(dim.x, dim.y);
-
     rhi::CommandListHandle commandList = m_RenderView->GetCommandList();
 
     // Address any change in font data. Needs to be called before ImGui::NewFrame()
-    if (!UpdateFontTexture())
+    if (!UpdateFontTexture(commandList.get()))
     {
         LOG_ERROR("Failed to update ImGui font texture");
         return;
     }
 
+    ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
     BuildUI();
     ImGui::Render();
-
-    ImDrawData* drawData = ImGui::GetDrawData();
-    if (drawData->TotalIdxCount == 0)
-        return; // nothing to render
-
-    // Address any change in geometry data
-    if (!UpdateGeometry())
-    {
-        LOG_ERROR("Failed to update ImGui geometry buffer");
-        return;
-    }
-
-    // Handle DPI scaling
-    drawData->ScaleClipRects(io.DisplayFramebufferScale);
-
-    float2 invDisplaySize = { 1.f / io.DisplaySize.x, 1.f / io.DisplaySize.y };
 
     commandList->BeginRenderPass(
         m_FB.get(),
@@ -111,66 +92,7 @@ void st::gfx::ImGuiRenderStage::Render()
         {},
         rhi::RenderPassFlags::None);
 
-    commandList->SetPipelineState(m_PSO.get());
-    
-    commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
-        io.DisplaySize.x* io.DisplayFramebufferScale.x,
-        io.DisplaySize.y* io.DisplayFramebufferScale.y }));
-
-    int idxOffset = 0;
-    int vtxOffset = 0;
-    for (int n = 0; n < drawData->CmdLists.Size; n++)
-    {
-        const ImDrawList* cmdList = drawData->CmdLists[n];
-        for (int i = 0; i < cmdList->CmdBuffer.Size; i++)
-        {
-            const ImDrawCmd* pCmd = &cmdList->CmdBuffer[i];
-
-            if (pCmd->UserCallback)
-            {
-                pCmd->UserCallback(cmdList, pCmd);
-            }
-            else
-            {
-                commandList->SetViewport(rhi::ViewportState().AddViewport({
-                    io.DisplaySize.x * io.DisplayFramebufferScale.x,
-                    io.DisplaySize.y * io.DisplayFramebufferScale.y }).AddScissorRect({
-                    int2 { pCmd->ClipRect.x, pCmd->ClipRect.y }, int2{pCmd->ClipRect.z, pCmd->ClipRect.w} }));
-
-                interop::ImGUI_CB cb = {};
-                cb.invDisplaySize = invDisplaySize;
-                cb.indexBuffer = GetCurrentIB()->GetReadOnlyView();
-                cb.indexOffset = idxOffset;
-                cb.vertexBuffer = GetCurrentVB()->GetReadOnlyView();
-                cb.vertexBufferOffset = vtxOffset;
-                if (pCmd->TexRef._TexID != NULL && !((ImGuiTexture*)pCmd->TexRef._TexID)->tex.expired())
-                {
-                    auto* guiTex = (ImGuiTexture*)pCmd->TexRef._TexID;
-                    cb.textureIndex = guiTex->tex->GetSampledView();
-                    cb.flags = guiTex->flags;
-                    // Delete guiTex if it was a requested one (via ShowImage).
-                    for(auto it = m_CurrentTextures.begin(); it != m_CurrentTextures.end(); ++it)
-                    {
-                        if (it->get() == guiTex)
-                        {
-                            m_CurrentTextures.erase(it);
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    cb.textureIndex = {};
-                }
-
-                commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0, false);
-                
-                commandList->Draw(pCmd->ElemCount);
-            }
-            idxOffset += pCmd->ElemCount;
-        }
-        vtxOffset += cmdList->VtxBuffer.Size;
-    }
+    RenderDrawData(ImGui::GetDrawData(), m_GeometryBuffers, commandList.get());
 
     commandList->EndRenderPass();
 }
@@ -270,11 +192,7 @@ void st::gfx::ImGuiRenderStage::Release()
 
     device->ReleaseQueued(std::move(m_FontTexture));
     device->ReleaseQueued(std::move(m_PSO));
-    for (int i = 0; i < 3; ++i)
-    {
-        device->ReleaseQueued(std::move(m_VertexBuffer[i]));
-        device->ReleaseQueued(std::move(m_IndexBuffer[i]));
-    }
+    m_GeometryBuffers = {};
 
     device->ReleaseQueued(std::move(m_PSO));
     device->ReleaseQueued(std::move(m_FB));
@@ -282,16 +200,62 @@ void st::gfx::ImGuiRenderStage::Release()
     device->ReleaseQueued(std::move(m_VS));
 }
 
-bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
+bool st::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandList)
 {
     st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+    st::gfx::UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
     auto* device = deviceManager->GetDevice();
     ImGuiIO& io = ImGui::GetIO();
+    ImTextureData* texData = io.Fonts->TexRef._TexData;
+
+    if (!texData || texData->Status == ImTextureStatus_WantCreate || texData->Status == ImTextureStatus_WantUpdates)
+    {
+        unsigned char* pixels;
+        int width, height;
+        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+        rhi::TextureDesc textureDesc;
+        textureDesc.width = width;
+        textureDesc.height = height;
+        textureDesc.format = rhi::Format::RGBA8_UNORM;
+        textureDesc.shaderUsage = rhi::TextureShaderUsage::Sampled;
+        m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rhi::ResourceState::COPY_DST, "ImGuiFontTexture");
+        if (!m_FontTexture)
+            return false;
+
+        auto [uploadData, offset] = uploadBuffer->RequestSpaceForTextureDataUpload(textureDesc);
+        std::memcpy(uploadData, pixels, width * height * 4);
+
+        commandList->WriteTexture(m_FontTexture.get(), rhi::AllSubresources, uploadBuffer->GetBuffer().get(), offset);
+
+        commandList->PushBarrier(
+            rhi::Barrier::Texture(m_FontTexture.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+
+        m_GuiFontTexture = st::make_unique_with_weak<ImGuiTexture>(m_FontTexture.get_weak(), ImGuiTexFlags_None);
+        io.Fonts->SetTexID((ImTextureID)m_GuiFontTexture.get());
+        io.Fonts->TexRef._TexData->Status = ImTextureStatus_OK;
+    }
+    else if (texData->Status == ImTextureStatus_WantDestroy)
+    {
+        m_GuiFontTexture.reset();
+        m_FontTexture.reset();
+        texData->SetTexID(0);
+        texData->Status = ImTextureStatus_Destroyed;
+    }
+
+#if 0
 
     // If the font texture exists and is bound to ImGui, we're done.
     // Note: ImGui_Renderer will reset io.Fonts->TexID when new fonts are added.
     if (m_GuiFontTexture && io.Fonts->TexRef.GetTexID())
         return true;
+
+    if (m_GuiFontTexture)
+    {
+        // Asegúrate de que ImGui siempre tiene el puntero correcto
+        io.Fonts->TexRef = m_GuiFontTexture.get();
+        return true;
+    }
 
     // Get font texture atlas memory
     unsigned char* pixels;
@@ -319,22 +283,20 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture()
     std::memcpy(uploadData, pixels, width * height * 4);
     textureUploadBuffer->Unmap();
 
-    m_RenderView->GetCommandList()->WriteTexture(m_FontTexture.get(), rhi::AllSubresources, textureUploadBuffer.get(), 0);
-    m_RenderView->GetCommandList()->PushBarrier(
+    commandList->WriteTexture(m_FontTexture.get(), rhi::AllSubresources, textureUploadBuffer.get(), 0);
+    commandList->PushBarrier(
         rhi::Barrier::Texture(m_FontTexture.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 
     m_GuiFontTexture = st::make_unique_with_weak<ImGuiTexture>(m_FontTexture.get_weak(), ImGuiTexFlags_None);
     io.Fonts->TexRef = m_GuiFontTexture.get();
-
+#endif
     return true;
 }
 
-bool st::gfx::ImGuiRenderStage::UpdateGeometry()
+bool st::gfx::ImGuiRenderStage::UpdateGeometry(ImDrawData* drawData, GeometryBuffers& geometryBuffers)
 {
-    rhi::BufferOwner& currentVB = GetCurrentVB();
-    rhi::BufferOwner& currentIB = GetCurrentIB();
-
-    const ImDrawData* drawData = ImGui::GetDrawData();
+    rhi::BufferOwner& currentVB = GetCurrentVB(geometryBuffers);
+    rhi::BufferOwner& currentIB = GetCurrentIB(geometryBuffers);
 
     // Create/resize vertex and index buffers if needed
     if (!ReallocateBuffer(currentVB,
@@ -385,7 +347,6 @@ bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_
         desc.sizeBytes = uint32_t(reallocateSize);
         if (indexBuffer)
         {
-            //desc.format = rhi::Format::R16_UINT;
             desc.stride = 2;
         }
         else
@@ -399,6 +360,93 @@ bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_
             return false;
     }
     return true;
+}
+
+void st::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList)
+{
+    if (drawData->TotalIdxCount == 0)
+        return; // nothing to render
+
+    // Address any change in geometry data
+    if (!UpdateGeometry(drawData, geometryBuffers))
+    {
+        LOG_ERROR("Failed to update ImGui geometry buffer");
+        return;
+    }
+
+    const float2 invDisplaySize = { 1.0f / drawData->DisplaySize.x, 1.0f / drawData->DisplaySize.y };
+    const float2 vpClipOffset = { drawData->DisplayPos.x, drawData->DisplayPos.y };
+    const st::rhi::Viewport vp = {
+        drawData->DisplaySize.x * drawData->FramebufferScale.x,
+        drawData->DisplaySize.y * drawData->FramebufferScale.y
+    };
+
+    commandList->SetPipelineState(m_PSO.get());
+
+    int idxOffset = 0;
+    int vtxOffset = 0;
+    for (int n = 0; n < drawData->CmdLists.Size; n++)
+    {
+        const ImDrawList* cmdList = drawData->CmdLists[n];
+        for (int i = 0; i < cmdList->CmdBuffer.Size; i++)
+        {
+            const ImDrawCmd* pCmd = &cmdList->CmdBuffer[i];
+
+            if (pCmd->UserCallback)
+            {
+                pCmd->UserCallback(cmdList, pCmd);
+            }
+            else
+            {
+                int2 scissorMin = {
+                    (int)(pCmd->ClipRect.x - vpClipOffset.x),
+                    (int)(pCmd->ClipRect.y - vpClipOffset.y)
+                };
+                int2 scissorMax = {
+                    (int)(pCmd->ClipRect.z - vpClipOffset.x),
+                    (int)(pCmd->ClipRect.w - vpClipOffset.y)
+                };
+
+                commandList->SetViewport(rhi::ViewportState()
+                    .AddViewport(vp)
+                    .AddScissorRect({ scissorMin, scissorMax }));
+
+                interop::ImGUI_CB cb = {};
+                cb.invDisplaySize = invDisplaySize;
+                cb.clipOffset = vpClipOffset;
+                cb.indexBuffer = GetCurrentIB(geometryBuffers)->GetReadOnlyView();
+                cb.indexOffset = idxOffset;
+                cb.vertexBuffer = GetCurrentVB(geometryBuffers)->GetReadOnlyView();
+                cb.vertexBufferOffset = vtxOffset;
+
+                if (pCmd->TexRef._TexData && pCmd->TexRef._TexData->TexID && !((ImGuiTexture*)pCmd->TexRef._TexData->TexID)->tex.expired())
+                {
+                    auto* guiTex = (ImGuiTexture*)pCmd->TexRef._TexData->TexID;
+                    cb.textureIndex = guiTex->tex->GetSampledView();
+                    cb.flags = guiTex->flags;
+                    // Delete guiTex if it was a requested one (via ShowImage).
+                    for (auto it = m_CurrentTextures.begin(); it != m_CurrentTextures.end(); ++it)
+                    {
+                        if (it->get() == guiTex)
+                        {
+                            m_CurrentTextures.erase(it);
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    cb.textureIndex = {};
+                }
+
+                commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0, false);
+
+                commandList->Draw(pCmd->ElemCount);
+            }
+            idxOffset += pCmd->ElemCount;
+        }
+        vtxOffset += cmdList->VtxBuffer.Size;
+    }
 }
 
 void st::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, ImGuiTexFlags flags)

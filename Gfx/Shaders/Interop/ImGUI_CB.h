@@ -14,6 +14,7 @@ namespace interop
         uint vertexBufferOffset;
         TextureSampledViewIndex textureIndex;
         uint flags;
+        float2 clipOffset;
     };
 
 } // namespace interlop

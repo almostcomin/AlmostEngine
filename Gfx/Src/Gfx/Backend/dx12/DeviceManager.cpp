@@ -2,11 +2,36 @@
 #include "RHI/dx12/Device.h"
 #include "RHI/DxgiFormatMapping.h"
 #include "RHI/Format.h"
+#include "Gfx/UploadBuffer.h"
+#include "Gfx/CommonResources.h"
+#include "Gfx/TextureCache.h"
+#include "Gfx/DataUploader.h"
+#include "Gfx/ShaderFactory.h"
 #include <SDL3/SDL_video.h>
 
 using namespace Microsoft::WRL;
 
-#define HR_RETURN(hr) if(FAILED(hr)) { LOG_ERROR("HRESULT error code = {:#x}", hr); return false; }
+#define HR_RETURN(hr, val) if(FAILED(hr)) { LOG_ERROR("HRESULT error code = {:#x}", hr); return val; }
+
+namespace st::gfx::dx12
+{
+    struct ViewportSwapChain
+    {
+        st::gfx::ViewportSwapChainInitParams InitParams;
+        int Width;
+        int Height;
+
+        std::vector<st::rhi::FramebufferOwner> Framebuffers;
+
+        DXGI_SWAP_CHAIN_DESC1 SwapChainDesc;
+        DXGI_SWAP_CHAIN_FULLSCREEN_DESC	FullScreenDesc;
+
+        ComPtr<IDXGISwapChain3> SwapChain;
+        std::vector<st::rhi::TextureOwner> Buffers;
+
+        std::string DebugName;
+    };
+} // namespace st::gfx
 
 namespace
 {
@@ -23,6 +48,12 @@ std::string GetAdapterName(DXGI_ADAPTER_DESC1 const& aDesc)
 }
 
 } // anonymous namespace
+
+st::gfx::dx12::DeviceManager::DeviceManager()
+{}
+
+st::gfx::dx12::DeviceManager::~DeviceManager()
+{}
 
 bool st::gfx::dx12::DeviceManager::ResizeSwapChain()
 {
@@ -116,6 +147,8 @@ bool st::gfx::dx12::DeviceManager::Present()
         rhi::dx12::CheckDRED(m_Device->GetNativeDevice());
     }
     assert(SUCCEEDED(result));
+
+    PresentViewports();
 
     ResetEvent(m_FrameFenceEvents[bufferIndex].first);
     m_FrameFence->SetEventOnCompletion(m_FrameIndex, m_FrameFenceEvents[bufferIndex].first);
@@ -281,7 +314,7 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
         {
             queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
             hr = m_D3d12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_ComputeQueue));
-            HR_RETURN(hr);
+            HR_RETURN(hr, false);
             m_ComputeQueue->SetName(L"Compute Queue");
         }
 
@@ -289,7 +322,7 @@ bool st::gfx::dx12::DeviceManager::CreateDevice()
         {
             queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
             hr = m_D3d12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_CopyQueue));
-            HR_RETURN(hr);
+            HR_RETURN(hr, false);
             m_CopyQueue->SetName(L"Copy Queue");
         }
     }
@@ -318,8 +351,6 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
     {
         m_DeviceParams.SwapChainFormat = m_DeviceParams.ForceSDR ? 
             rhi::Format::SRGBA8_UNORM : rhi::Format::R10G10B10A2_UNORM;
-
-        //m_DeviceParams.SwapChainFormat = rhi::Format::R10G10B10A2_UNORM;
     }
 
     m_SwapChainDesc = {};
@@ -373,10 +404,10 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
 
     ComPtr<IDXGISwapChain1> pSwapChain1;
     HRESULT hr = m_DxgiFactory2->CreateSwapChainForHwnd(m_GraphicsQueue.Get(), hWnd, &m_SwapChainDesc, &m_FullScreenDesc, nullptr, &pSwapChain1);
-    HR_RETURN(hr);
+    HR_RETURN(hr, false);
 
     hr = pSwapChain1->QueryInterface(IID_PPV_ARGS(&m_SwapChain));
-    HR_RETURN(hr);
+    HR_RETURN(hr, false);
 
     const bool hdr = !m_DeviceParams.ForceSDR && CheckHDRSupport();
     SetColorSpace(m_SwapChainDesc.Format, hdr);
@@ -385,7 +416,7 @@ bool st::gfx::dx12::DeviceManager::CreateSwapChain()
         return false;
 
     hr = m_D3d12Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_FrameFence));
-    HR_RETURN(hr);
+    HR_RETURN(hr, false);
 
     for (UINT bufferIndex = 0; bufferIndex < m_SwapChainDesc.BufferCount; bufferIndex++)
     {
@@ -433,9 +464,25 @@ glm::ivec2 st::gfx::dx12::DeviceManager::GetWindowDimensions() const
     return { m_SwapChainDesc.Width, m_SwapChainDesc.Height };
 }
 
+st::rhi::FramebufferHandle st::gfx::dx12::DeviceManager::GetViewportCurrentFramebuffer(ViewportSwapChainId id)
+{
+    auto it = m_ViewportSwapChains.find(id);
+    assert(it != m_ViewportSwapChains.end());
+
+    return it->second->Framebuffers[it->second->SwapChain->GetCurrentBackBufferIndex()].get_weak();
+}
+
 uint32_t st::gfx::dx12::DeviceManager::GetCurrentBackBufferIndex() const
 {
     return m_SwapChain->GetCurrentBackBufferIndex();
+}
+
+uint32_t st::gfx::dx12::DeviceManager::GetViewportCurrentBackBufferIndex(ViewportSwapChainId id)
+{
+    auto it = m_ViewportSwapChains.find(id);
+    assert(it != m_ViewportSwapChains.end());
+
+    return it->second->SwapChain->GetCurrentBackBufferIndex();
 }
 
 st::rhi::TextureHandle st::gfx::dx12::DeviceManager::GetCurrentBackBuffer()
@@ -448,6 +495,111 @@ st::rhi::TextureHandle st::gfx::dx12::DeviceManager::GetBackBuffer(uint32_t inde
     return m_SwapChainBuffers[index].get_weak();
 }
 
+st::gfx::ViewportSwapChainId st::gfx::dx12::DeviceManager::CreateViewportSwapChain(const ViewportSwapChainInitParams& initParams, const std::string& debugName)
+{
+    std::unique_ptr<ViewportSwapChain> vpsc{ new ViewportSwapChain };
+
+    vpsc->InitParams = initParams;
+    vpsc->DebugName = debugName;
+
+    if (SDL_GetWindowSize(initParams.WindowHandle, (int*)&vpsc->Width, (int*)&vpsc->Height) == false)
+    {
+        LOG_ERROR("SDL_GetWindowSize failed");
+        return nullptr;
+    }
+
+    vpsc->SwapChainDesc = m_SwapChainDesc;
+    vpsc->SwapChainDesc.Width = vpsc->Width;
+    vpsc->SwapChainDesc.Height = vpsc->Height;
+    vpsc->SwapChainDesc.Format = st::rhi::GetDxgiFormatMapping(initParams.Format).srvFormat;
+
+    vpsc->FullScreenDesc = m_FullScreenDesc;
+    vpsc->FullScreenDesc.Windowed = true;
+
+    SDL_PropertiesID windowProps = SDL_GetWindowProperties(initParams.WindowHandle);
+    HWND hWnd = (HWND)SDL_GetPointerProperty(windowProps, SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+
+    ComPtr<IDXGISwapChain1> pSwapChain1;
+    HRESULT hr = m_DxgiFactory2->CreateSwapChainForHwnd(m_GraphicsQueue.Get(), hWnd, &vpsc->SwapChainDesc, &vpsc->FullScreenDesc, nullptr, &pSwapChain1);
+    HR_RETURN(hr, nullptr);
+
+    hr = pSwapChain1->QueryInterface(IID_PPV_ARGS(&vpsc->SwapChain));
+    HR_RETURN(hr, nullptr);
+
+    // Create viewport render targets
+    CreateViewportRenderTargets(vpsc.get());
+
+    ViewportSwapChainId id = vpsc.get();
+    m_ViewportSwapChains.emplace(id, std::move(vpsc));
+
+    return id;
+}
+
+bool st::gfx::dx12::DeviceManager::ResizeViewportSwapChain(ViewportSwapChainId id)
+{
+    auto it = m_ViewportSwapChains.find(id);
+    assert(it != m_ViewportSwapChains.end());
+
+    ViewportSwapChain* vs = it->second.get();
+
+    if (m_Device)
+    {
+        // Make sure that all frames have finished rendering
+        m_Device->WaitForIdle();
+    }
+    // Set the events so that WaitForSingleObject in OneFrame will not hang later
+    for (auto e : m_FrameFenceEvents)
+        SetEvent(e.first);
+
+    for (auto& fb : vs->Framebuffers)
+    {
+        m_Device->ReleaseImmediately(std::move(fb));
+    }
+    vs->Framebuffers.clear();
+
+    for (auto& texture : vs->Buffers)
+    {
+        m_Device->ReleaseImmediately(std::move(texture));
+    }
+    vs->Buffers.clear();
+
+    if (SDL_GetWindowSize(vs->InitParams.WindowHandle, (int*)&vs->Width, (int*)&vs->Height) == false)
+    {
+        LOG_ERROR("SDL_GetWindowSize failed");
+        return false;
+    }
+
+    vs->SwapChainDesc.Width = vs->Width;
+    vs->SwapChainDesc.Height = vs->Height;
+    const HRESULT hr = vs->SwapChain->ResizeBuffers(
+        m_DeviceParams.SwapChainBufferCount,
+        vs->SwapChainDesc.Width,
+        vs->SwapChainDesc.Height,
+        vs->SwapChainDesc.Format,
+        vs->SwapChainDesc.Flags);
+    if (FAILED(hr))
+    {
+        LOG_FATAL("Swapchain ResizeBuffers failed");
+        return false;
+    }
+
+    if(!CreateViewportRenderTargets(vs))
+    {
+        LOG_FATAL("CreateRenderTarget failed");
+        return false;
+    }
+
+    return true;
+}
+
+void st::gfx::dx12::DeviceManager::DestroyViewportSwapChain(ViewportSwapChainId id)
+{
+    auto it = m_ViewportSwapChains.find(id);
+    assert(it != m_ViewportSwapChains.end());
+
+    m_ViewportSwapChains.erase(it);
+}
+
 bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
 {
     m_SwapChainBuffers.resize(m_SwapChainDesc.BufferCount);
@@ -456,7 +608,7 @@ bool st::gfx::dx12::DeviceManager::CreateRenderTargets()
     {
         ComPtr<ID3D12Resource> nativeBuffer;
         const HRESULT hr = m_SwapChain->GetBuffer(n, IID_PPV_ARGS(&nativeBuffer));
-        HR_RETURN(hr);        
+        HR_RETURN(hr, false);        
         
         rhi::TextureDesc textureDesc;
         textureDesc.width = m_SwapChainDesc.Width;
@@ -566,5 +718,42 @@ void st::gfx::dx12::DeviceManager::SetColorSpace(DXGI_FORMAT swapChainFormat, bo
                 m_DxgiColorSpace = result;
             }
         }
+    }
+}
+
+bool st::gfx::dx12::DeviceManager::CreateViewportRenderTargets(ViewportSwapChain* vs)
+{
+    vs->Buffers.resize(vs->SwapChainDesc.BufferCount);
+    vs->Framebuffers.resize(vs->SwapChainDesc.BufferCount);
+
+    for (UINT n = 0; n < vs->Buffers.size(); n++)
+    {
+        ComPtr<ID3D12Resource> nativeBuffer;
+        const HRESULT hr = vs->SwapChain->GetBuffer(n, IID_PPV_ARGS(&nativeBuffer));
+        HR_RETURN(hr, false);
+
+        rhi::TextureDesc textureDesc;
+        textureDesc.width = vs->Width;
+        textureDesc.height = vs->Height;
+        textureDesc.sampleCount = vs->SwapChainDesc.SampleDesc.Count;
+        textureDesc.sampleQuality = vs->SwapChainDesc.SampleDesc.Quality;
+        textureDesc.format = vs->InitParams.Format;
+        textureDesc.shaderUsage = rhi::TextureShaderUsage::ColorTarget;
+
+        vs->Buffers[n] = m_Device->CreateHandleForNativeTexture(
+            nativeBuffer.Get(), textureDesc, std::format("{} - BackBuffer[{}]", vs->DebugName, n));
+
+        vs->Framebuffers[n] = m_Device->CreateFramebuffer(st::rhi::FramebufferDesc()
+            .AddColorAttachment(vs->Buffers[n].get_weak()), std::format("Viewport Swapchain FrameBuffer[{}]", n));
+    }
+
+    return true;
+}
+
+void st::gfx::dx12::DeviceManager::PresentViewports()
+{
+    for (const auto& vp : m_ViewportSwapChains)
+    {
+        vp.second->SwapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
     }
 }

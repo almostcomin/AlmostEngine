@@ -42,6 +42,7 @@ float4 main(PS_INPUT input) : SV_Target
     
     if (CB.flags & ImGuiTexFlags_HideBlueChannel)
         out_col.b = 0.0;
-        
+
+    //out_col = 1.0;
     return out_col;
 }

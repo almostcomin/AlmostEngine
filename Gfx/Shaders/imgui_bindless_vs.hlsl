@@ -41,7 +41,7 @@ PS_INPUT main(uint vertexID : SV_VertexID)
     ImDrawVert v = vertexBuffer[baseIndex + vertexOffset];
     
     // Transform to NDC
-    output.out_pos.xy = v.pos.xy * CB.invDisplaySize * float2(2.0, -2.0) + float2(-1.0, 1.0);
+    output.out_pos.xy = (v.pos.xy - CB.clipOffset) * CB.invDisplaySize * float2(2.0, -2.0) + float2(-1.0, 1.0);
     output.out_pos.zw = float2(0, 1);
     
     output.out_col = UnpackColor(v.color);

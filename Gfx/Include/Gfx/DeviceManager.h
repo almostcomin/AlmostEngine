@@ -6,6 +6,7 @@
 #include "Core/Common.h"
 #include "RHI/Format.h"
 #include "RHI/FrameBuffer.h"
+#include "Gfx/ViewportSwapChain.h"
 
 struct SDL_Window;
 
@@ -106,10 +107,17 @@ public:
     virtual glm::ivec2 GetWindowDimensions() const = 0;
     
     st::rhi::FramebufferHandle GetCurrentFramebuffer();
+    virtual st::rhi::FramebufferHandle GetViewportCurrentFramebuffer(ViewportSwapChainId id) = 0;
 
     virtual uint32_t GetCurrentBackBufferIndex() const = 0;
+    virtual uint32_t GetViewportCurrentBackBufferIndex(ViewportSwapChainId id) = 0;
+
     virtual st::rhi::TextureHandle GetCurrentBackBuffer() = 0;
     virtual st::rhi::TextureHandle GetBackBuffer(uint32_t index) = 0;
+
+    virtual ViewportSwapChainId CreateViewportSwapChain(const ViewportSwapChainInitParams& initParams, const std::string& debugName) = 0;
+    virtual bool ResizeViewportSwapChain(ViewportSwapChainId id) = 0;
+    virtual void DestroyViewportSwapChain(ViewportSwapChainId id) = 0;
     
     bool IsWindowVisible() const { return m_WindowVisible; }
 

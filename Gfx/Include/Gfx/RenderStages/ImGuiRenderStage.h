@@ -33,7 +33,17 @@ public:
 
 public:
 
+	struct GeometryBuffers
+	{
+		rhi::BufferOwner VertexBuffer[3];
+		rhi::BufferOwner IndexBuffer[3];
+	};
+
+public:
+
 	virtual void BuildUI() = 0;
+
+	void RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList);
 
 	const char* GetDebugName() const override { return "ImGuiRenderStage"; }
 
@@ -49,8 +59,8 @@ private:
 	bool Init();
 	void Release();
 
-	bool UpdateFontTexture();
-	bool UpdateGeometry();
+	bool UpdateFontTexture(rhi::ICommandList* commandList);
+	bool UpdateGeometry(ImDrawData* drawData, GeometryBuffers& geometryBuffers);
 
 	bool ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
 
@@ -65,8 +75,8 @@ protected:
 
 	bool ShowToggleButton(const char* label, bool* v);
 
-	rhi::BufferOwner& GetCurrentVB();
-	rhi::BufferOwner& GetCurrentIB();
+	rhi::BufferOwner& GetCurrentVB(GeometryBuffers& geometryBuffers);
+	rhi::BufferOwner& GetCurrentIB(GeometryBuffers& geometryBuffers);
 
 private:
 
@@ -89,9 +99,7 @@ private:
 	rhi::TextureOwner m_FontTexture;
 	st::unique<ImGuiTexture> m_GuiFontTexture;
 
-	rhi::BufferOwner m_VertexBuffer[3];
-	rhi::BufferOwner m_IndexBuffer[3];
-
+	GeometryBuffers m_GeometryBuffers;
 	std::vector<st::unique<ImGuiTexture>> m_CurrentTextures;
 };
 

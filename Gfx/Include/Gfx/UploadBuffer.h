@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/RingBuffer.h"
+#include "RHI/Texture.h"
 
 namespace st::rhi
 {
@@ -25,7 +26,11 @@ public:
 
 	// Returns a pair of first, the pointer to the data, second the buffer offset
 	std::pair<void*, uint64_t> RequestSpaceForBufferDataUpload(size_t size);
+
 	std::pair<void*, uint64_t> RequestSpaceForTextureDataUpload(size_t size);
+	std::pair<void*, uint64_t> RequestSpaceForTextureDataUpload(
+		const st::rhi::TextureDesc& desc, const st::rhi::TextureSubresourceSet& subresources = st::rhi::AllSubresources);
+
 	std::pair<void*, uint64_t> RequestSpace(size_t size, size_t alignment);
 
 	void OnNextFrame(uint64_t frameIndex);

@@ -8,9 +8,14 @@
 namespace st::gfx::dx12
 {
 
+struct ViewportSwapChain;
+
 class DeviceManager : public st::gfx::DeviceManager
 {
 public:
+
+	DeviceManager();
+	~DeviceManager() override;
 
 	bool ResizeSwapChain() override;
 
@@ -22,9 +27,15 @@ public:
 
 	glm::ivec2 GetWindowDimensions() const override;
 
+	st::rhi::FramebufferHandle GetViewportCurrentFramebuffer(ViewportSwapChainId id) override;
+	uint32_t GetViewportCurrentBackBufferIndex(ViewportSwapChainId id) override;
 	uint32_t GetCurrentBackBufferIndex() const override;
 	st::rhi::TextureHandle GetCurrentBackBuffer() override;
 	st::rhi::TextureHandle GetBackBuffer(uint32_t index) override;
+
+	ViewportSwapChainId CreateViewportSwapChain(const ViewportSwapChainInitParams& initParams, const std::string& debugName) override;
+	bool ResizeViewportSwapChain(ViewportSwapChainId id) override;
+	void DestroyViewportSwapChain(ViewportSwapChainId id) override;
 
 	rhi::ColorSpace GetColorSpace() const override;
 	const std::string& GetBackEndHWName() const override { return m_RendererString; }
@@ -47,6 +58,9 @@ private:
 	bool CheckHDRSupport();
 	void SetColorSpace(DXGI_FORMAT swapChainFormat, bool allowHdr);
 
+	bool CreateViewportRenderTargets(ViewportSwapChain* vs);
+	void PresentViewports();
+
 private:
 
 	ComPtr<IDXGIFactory2>		m_DxgiFactory2;
@@ -58,17 +72,19 @@ private:
 	ComPtr<ID3D12CommandQueue>	m_ComputeQueue;
 	ComPtr<ID3D12CommandQueue>	m_CopyQueue;
 
-	DXGI_SWAP_CHAIN_DESC1			m_SwapChainDesc;
+	DXGI_SWAP_CHAIN_DESC1		m_SwapChainDesc;
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC	m_FullScreenDesc;
-	bool							m_TearingSupported;
+	bool						m_TearingSupported;
 	std::vector<st::rhi::TextureOwner> m_SwapChainBuffers;
 
-	ComPtr<ID3D12Fence>				m_FrameFence;
+	ComPtr<ID3D12Fence>			m_FrameFence;
 	std::vector<std::pair<HANDLE, uint64_t>> m_FrameFenceEvents;
 
 	DXGI_COLOR_SPACE_TYPE		m_DxgiColorSpace;
 
-	std::string						m_RendererString;
+	std::unordered_map<ViewportSwapChainId, std::unique_ptr<ViewportSwapChain>> m_ViewportSwapChains;
+
+	std::string					m_RendererString;
 };
 
 }

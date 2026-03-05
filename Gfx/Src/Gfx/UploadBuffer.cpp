@@ -34,6 +34,13 @@ std::pair<void*, uint64_t> st::gfx::UploadBuffer::RequestSpaceForTextureDataUplo
 	return RequestSpace(size, m_Device->GetCopyDataAlignment(rhi::CopyMethod::Buffer2Texture));
 }
 
+std::pair<void*, uint64_t> st::gfx::UploadBuffer::RequestSpaceForTextureDataUpload(const st::rhi::TextureDesc& desc,
+	const st::rhi::TextureSubresourceSet& subresources)
+{
+	st::rhi::StorageRequirements req = m_Device->GetCopyableRequirements(desc, subresources);
+	return RequestSpace(req.size, req.alignment);		
+}
+
 std::pair<void*, uint64_t> st::gfx::UploadBuffer::RequestSpace(size_t size, size_t alignment)
 {
 	if (alignment == 0)

@@ -68,6 +68,11 @@ st::rhi::TextureShaderUsage GetTextureShaderUsage(st::gfx::RenderView::TextureRe
 } // anonymous namespace
 
 st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
+	RenderView{ nullptr, deviceManager, debugName }
+{}
+
+st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* deviceManager, const char* debugName) :
+	m_ViewportSwapChainId{ viewportId },
 	m_SceneCB{ deviceManager->GetSwapchainBufferCount(), sizeof(interop::Scene), deviceManager->GetDevice(), "SceneCB" },
 	m_TimeDeltaSec{ 0.f },
 	m_IsDirty{ false },
@@ -82,7 +87,7 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
 	{
 		m_CommandLists.push_back(device->CreateCommandList(params, m_DebugName));
-		
+
 		m_BeginCommandLists.push_back(device->CreateCommandList(
 			params, std::format("{} - BeginCmdList[{}]", m_DebugName, i)));
 		m_EndCommandLists.push_back(device->CreateCommandList(
@@ -209,7 +214,15 @@ std::vector<std::string> st::gfx::RenderView::GetRenderModes() const
 
 st::rhi::FramebufferHandle st::gfx::RenderView::GetFramebuffer()
 {
-	return m_OffscreenFramebuffer ? m_OffscreenFramebuffer : m_DeviceManager->GetCurrentFramebuffer();
+	if (m_OffscreenFramebuffer)
+	{
+		return m_OffscreenFramebuffer;
+	}
+	if (m_ViewportSwapChainId != nullptr)
+	{
+		return m_DeviceManager->GetViewportCurrentFramebuffer(m_ViewportSwapChainId);
+	}
+	return m_DeviceManager->GetCurrentFramebuffer();
 }
 
 st::rhi::TextureHandle st::gfx::RenderView::GetBackBuffer(int idx)

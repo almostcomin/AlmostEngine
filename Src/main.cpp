@@ -23,6 +23,7 @@
 #include "Gfx/RenderStages/LinearizeDepthRenderStage.h"
 #include "Gfx/RenderStages/SSAORenderStage.h"
 #include "Gfx/RenderStages/WireframeRenderStage.h"
+#include "Gfx/ImGUIViewportsRenderer.h"
 #include "UI/StructureUI.h"
 #include <thread>
 #include <sstream>
@@ -168,6 +169,8 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_RequestLoadFile = [&requestLoadFile](const char* filename) { requestLoadFile = filename; };
 	uiRS->m_RequestClose = [&requestClose] { requestClose = true; };
 	uiRS->m_RequestQuit = [&requestQuit] { requestQuit = true; };
+
+	st::gfx::InitImGuiViewportsRenderer(uiRS, deviceManager.get());
 
 	// Create composite render stage
 	std::shared_ptr<st::gfx::CompositeRenderStage> compositeRS{ new st::gfx::CompositeRenderStage };
@@ -334,6 +337,12 @@ int SDL_main(int argc, char* argv[])
 			case SDL_EVENT_QUIT:
 				requestQuit = true;
 				break;
+
+			case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+				if (event.window.windowID == SDL_GetWindowID(window))
+				{
+					requestQuit = true;
+				}
 			}
 		}
 
@@ -465,10 +474,12 @@ int SDL_main(int argc, char* argv[])
 	toneMappingRS.reset();
 	scene.reset();
 
-	deviceManager->Shutdown();
-
+	ImGui::DestroyPlatformWindows();
+	st::gfx::ReleaseImGuiViewportsRenderer();
 	ImGui_ImplSDL3_Shutdown();
 	ImGui::DestroyContext();
+
+	deviceManager->Shutdown();
 
 	SDL_DestroyWindow(window);
 	SDL_Quit();

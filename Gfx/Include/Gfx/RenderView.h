@@ -10,6 +10,7 @@
 #include "RHI/RasterizerState.h"
 #include "Gfx/FrameUniformBuffer.h"
 #include "Gfx/Scene.h"
+#include "Gfx/ViewportSwapChain.h"
 
 namespace st::gfx
 {
@@ -78,6 +79,7 @@ public:
 	static constexpr int c_HalfBBSize = -1;
 
 	RenderView(DeviceManager* deviceManager, const char* debugName);
+	RenderView(ViewportSwapChainId, DeviceManager* deviceManager, const char* debugName);
 	~RenderView();
 
 	void SetScene(st::weak<Scene> scene);
@@ -197,6 +199,8 @@ private:
 	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, rhi::BufferOwner& buffer, rhi::ICommandList* commandList);
 
 private:
+
+	ViewportSwapChainId m_ViewportSwapChainId;
 
 	st::weak<Scene> m_Scene;
 	std::shared_ptr<Camera> m_Camera;

@@ -292,7 +292,7 @@ void StructureUI::BuildUI()
     EndFullScreenWindow();
 
     BuildMainMenu();
-    BuildBottomBar();
+    //BuildBottomBar();
 
     ImGui::DockSpaceOverViewport(
         0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
@@ -358,6 +358,8 @@ void StructureUI::BuildBottomBar()
 {
     const auto renderStats = m_DeviceManager->GetDevice()->GetStats();
 
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(0, 0));
+
     ImGuiViewport* vp = ImGui::GetMainViewport();
     const float statusBarHeight = ImGui::GetFrameHeight();
 
@@ -404,6 +406,8 @@ void StructureUI::BuildBottomBar()
         ImGui::Text("| CPU: %1.2f ms", m_Data.CPUTime);
     }
     ImGui::End();
+
+    ImGui::PopStyleVar();
 }
 
 void StructureUI::BuildMenuFile()

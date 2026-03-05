@@ -9,9 +9,9 @@
 #include "Gfx/UploadBuffer.h"
 #include "RHI/Device.h"
 #include "RHI/TimerQuery.h"
+#include <imgui/imgui.h>
 
-st::gfx::DeviceManager::~DeviceManager()
-{}
+st::gfx::DeviceManager::~DeviceManager() = default;
 
 st::gfx::DeviceManager* st::gfx::DeviceManager::Create(st::gfx::GraphicsAPI api)
 {
@@ -169,6 +169,14 @@ void st::gfx::DeviceManager::Render(std::function<void(void)> cb)
 
 		// Render callback
 		cb();
+
+		// Update and Render of additional ImGui viewports
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+		}
 
 		// End time query
 		{
