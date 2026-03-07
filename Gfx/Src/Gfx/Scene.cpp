@@ -6,6 +6,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/Material.h"
+#include "Gfx/SceneLights.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 #include "Core/unique_vector.h"
@@ -33,6 +34,7 @@ st::gfx::Scene::~Scene()
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_PointLightsBuffer));
 
 	m_SceneGraph.reset();
 }
@@ -45,135 +47,165 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_PointLightsBuffer));
 
 	m_SceneGraph = std::move(graph);
 	m_SceneGraph->Refresh(); // Make sure it is up to date
 
-	const std::vector<st::gfx::MeshInstance*> meshInstances = m_SceneGraph->GetMeshInstances();
-
 	// Each MeshInstance has a, unique transform and a index to a shared mesh
-	if (!meshInstances.empty())
+	if (!m_SceneGraph->GetMeshInstances().empty())
 	{
+		const std::vector<st::gfx::MeshInstance*> meshInstances = m_SceneGraph->GetMeshInstances();
+
 		// Fill instances buffer
+		rhi::BufferDesc desc{
+			.memoryAccess = rhi::MemoryAccess::Default,
+			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
+			.sizeBytes = meshInstances.size() * sizeof(interop::InstanceData),
+			.format = rhi::Format::UNKNOWN,
+			.stride = sizeof(interop::InstanceData) };
+
+		m_InstancesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Instances Buffer");
+
+		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
+		auto* instanceDataPtr = (interop::InstanceData*)uploadTicket->GetPtr();
+		for (const auto* meshInstance : meshInstances)
 		{
-			rhi::BufferDesc desc{
-				.memoryAccess = rhi::MemoryAccess::Default,
-				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-				.sizeBytes = meshInstances.size() * sizeof(interop::InstanceData),
-				.format = rhi::Format::UNKNOWN,
-				.stride = sizeof(interop::InstanceData) };
+			instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
+			instanceDataPtr->inverseModelMatrix = glm::inverse(instanceDataPtr->modelMatrix);
+			instanceDataPtr->meshIndex = meshInstance->GetMeshSceneIndex();
 
-			m_InstancesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Instances Buffer");
-
-			auto uploadTicket = dataUploader->RequestUploadTicket(desc);
-			auto* instanceDataPtr = (interop::InstanceData*)uploadTicket->GetPtr();
-			for (const auto* meshInstance : meshInstances)
-			{
-				instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
-				instanceDataPtr->inverseModelMatrix = glm::inverse(instanceDataPtr->modelMatrix);
-				instanceDataPtr->meshIndex = meshInstance->GetMeshSceneIndex();
-
-				instanceDataPtr++;
-			}
-			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer.get_weak(),
-				rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
-			uploadResult->Wait();
+			instanceDataPtr++;
 		}
+		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer.get_weak(),
+			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
+		uploadResult->Wait();
+	}
+
+	if(!m_SceneGraph->GetMeshes().empty())
+	{
+		const auto& meshes = m_SceneGraph->GetMeshes();
 
 		// Fill meshes buffer
-		const auto& meshes = m_SceneGraph->GetMeshes();
-		//st::unique_vector<Material*> materials;
-		if(!meshes.empty())
+		assert(!meshes.empty());
+		rhi::BufferDesc desc{
+			.memoryAccess = rhi::MemoryAccess::Default,
+			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
+			.sizeBytes = meshes.size() * sizeof(interop::MeshData),
+			.format = rhi::Format::UNKNOWN,
+			.stride = sizeof(interop::MeshData) };
+
+		m_MeshesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Meshes Buffer");
+
+		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
+		auto* meshDataPtr = (interop::MeshData*)uploadTicket->GetPtr();
+		for (const st::gfx::Mesh* mesh : meshes)
 		{
-			assert(!meshes.empty());
-			rhi::BufferDesc desc{
-				.memoryAccess = rhi::MemoryAccess::Default,
-				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-				.sizeBytes = meshes.size() * sizeof(interop::MeshData),
-				.format = rhi::Format::UNKNOWN,
-				.stride = sizeof(interop::MeshData) };
+			meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetReadOnlyView();
+			meshDataPtr->indexSize = mesh->GetIndexSize();
+			meshDataPtr->indexOffsetBytes = 0;
+			meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetReadOnlyView();
+			meshDataPtr->vertexBufferOffsetBytes = 0;
+			const auto& vertexFormat = mesh->GetVertexFormat();
+			meshDataPtr->vertexStride = vertexFormat.VertexStride;
+			meshDataPtr->vertexPositionOffset = vertexFormat.PositionOffset;
+			meshDataPtr->vertexNormalOffset = vertexFormat.NormalOffset;
+			meshDataPtr->vertexTangetOffset = vertexFormat.TangentOffset;
+			meshDataPtr->vertexTexCoord0Offset = vertexFormat.TexCoord0Offset;
+			meshDataPtr->vertexTexCoord1Offset = vertexFormat.TexCoord1Offset;
+			meshDataPtr->vertexColorOffset = vertexFormat.ColorOffset;
+			//meshDataPtr->materialIdx = mesh->GetMaterial() ? materials.insert(mesh->GetMaterial().get()).first : rhi::c_InvalidDescriptorIndex;
+			meshDataPtr->materialIdx = m_SceneGraph->GetMaterialIndex(mesh);
 
-			m_MeshesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Meshes Buffer");
-
-			auto uploadTicket = dataUploader->RequestUploadTicket(desc);
-			auto* meshDataPtr = (interop::MeshData*)uploadTicket->GetPtr();
-			for (const st::gfx::Mesh* mesh : meshes)
-			{
-				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetReadOnlyView();
-				meshDataPtr->indexSize = mesh->GetIndexSize();
-				meshDataPtr->indexOffsetBytes = 0;
-				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetReadOnlyView();
-				meshDataPtr->vertexBufferOffsetBytes = 0;
-				const auto& vertexFormat = mesh->GetVertexFormat();
-				meshDataPtr->vertexStride = vertexFormat.VertexStride;
-				meshDataPtr->vertexPositionOffset = vertexFormat.PositionOffset;
-				meshDataPtr->vertexNormalOffset = vertexFormat.NormalOffset;
-				meshDataPtr->vertexTangetOffset = vertexFormat.TangentOffset;
-				meshDataPtr->vertexTexCoord0Offset = vertexFormat.TexCoord0Offset;
-				meshDataPtr->vertexTexCoord1Offset = vertexFormat.TexCoord1Offset;
-				meshDataPtr->vertexColorOffset = vertexFormat.ColorOffset;
-				//meshDataPtr->materialIdx = mesh->GetMaterial() ? materials.insert(mesh->GetMaterial().get()).first : rhi::c_InvalidDescriptorIndex;
-				meshDataPtr->materialIdx = m_SceneGraph->GetMaterialIndex(mesh);
-
-				meshDataPtr++;
-			}
-			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer.get_weak(),
-				rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
-			uploadResult->Wait();
+			meshDataPtr++;
 		}
 
-		// Materials buffer
+		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer.get_weak(),
+			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
+		uploadResult->Wait();
+	} // meshes buffer
+
+	// Materials buffer
+	if(!m_SceneGraph->GetMaterials().empty())
+	{
 		const auto& materials = m_SceneGraph->GetMaterials();
-		if(!materials.empty())
-		{
-			rhi::BufferDesc desc{
-				.memoryAccess = rhi::MemoryAccess::Default,
-				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-				.sizeBytes = materials.size() * sizeof(interop::MaterialData),
-				.format = rhi::Format::UNKNOWN,
-				.stride = sizeof(interop::MaterialData) };
 
-			m_MaterialsBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Materials Buffer");
+		rhi::BufferDesc desc{
+			.memoryAccess = rhi::MemoryAccess::Default,
+			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
+			.sizeBytes = materials.size() * sizeof(interop::MaterialData),
+			.format = rhi::Format::UNKNOWN,
+			.stride = sizeof(interop::MaterialData) };
+
+		m_MaterialsBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Materials Buffer");
 			
-			auto uploadTicket = dataUploader->RequestUploadTicket(desc);
-			auto* matDataPtr = (interop::MaterialData*)uploadTicket->GetPtr();
-			for (const st::gfx::Material* mat : materials)
+		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
+		auto* matDataPtr = (interop::MaterialData*)uploadTicket->GetPtr();
+		for (const st::gfx::Material* mat : materials)
+		{
+			*matDataPtr = {};
+			if (mat->GetBaseColorTextureHandle())
 			{
-				*matDataPtr = {};
-				if (mat->GetBaseColorTextureHandle())
-				{
-					matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle()->GetSampledView();
-				}
-				if (mat->GetEmissiveTextureHandle())
-				{
-					matDataPtr->emissiveTextureDI = mat->GetEmissiveTextureHandle()->GetSampledView();
-				}
-				if (mat->GetMetalRoughTextureHandle())
-				{
-					matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle()->GetSampledView();
-				}
-				if (mat->GetNormalTextureHandle())
-				{
-					matDataPtr->normalTextureDI = mat->GetNormalTextureHandle()->GetSampledView();
-				}
-				if (mat->GetOcclusionTextureHandle())
-				{
-					matDataPtr->occlusionTextureDI = mat->GetOcclusionTextureHandle()->GetSampledView();
-				}
-
-				matDataPtr->normalScale = mat->GetNormalTextureScale();
-				matDataPtr->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
-				matDataPtr->emissiveColor = mat->GetEmissiveColor();
-				matDataPtr->occlusion = mat->GetOcclusionStrengh();
-				matDataPtr->metalness = mat->GetMetallicFactor();
-				matDataPtr->roughness = mat->GetRoughnessFactor();
-
-				matDataPtr++;
+				matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle()->GetSampledView();
 			}
-			auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MaterialsBuffer.get_weak(),
-				rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
-			uploadResult->Wait();
+			if (mat->GetEmissiveTextureHandle())
+			{
+				matDataPtr->emissiveTextureDI = mat->GetEmissiveTextureHandle()->GetSampledView();
+			}
+			if (mat->GetMetalRoughTextureHandle())
+			{
+				matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle()->GetSampledView();
+			}
+			if (mat->GetNormalTextureHandle())
+			{
+				matDataPtr->normalTextureDI = mat->GetNormalTextureHandle()->GetSampledView();
+			}
+			if (mat->GetOcclusionTextureHandle())
+			{
+				matDataPtr->occlusionTextureDI = mat->GetOcclusionTextureHandle()->GetSampledView();
+			}
+
+			matDataPtr->normalScale = mat->GetNormalTextureScale();
+			matDataPtr->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
+			matDataPtr->emissiveColor = mat->GetEmissiveColor();
+			matDataPtr->occlusion = mat->GetOcclusionStrengh();
+			matDataPtr->metalness = mat->GetMetallicFactor();
+			matDataPtr->roughness = mat->GetRoughnessFactor();
+
+			matDataPtr++;
 		}
+		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MaterialsBuffer.get_weak(),
+			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
+		uploadResult->Wait();
+	} // material buffer
+
+	if (!m_SceneGraph->GetScenePointLights().empty())
+	{
+		const auto& pointLights = m_SceneGraph->GetScenePointLights();
+
+		rhi::BufferDesc desc{
+			.memoryAccess = rhi::MemoryAccess::Default,
+			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
+			.sizeBytes = pointLights.size() * sizeof(interop::PointLightData),
+			.format = rhi::Format::UNKNOWN,
+			.stride = sizeof(interop::PointLightData) };
+
+		m_PointLightsBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene PointLights Buffer");
+
+		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
+		auto* pointLightDataPtr = (interop::PointLightData*)uploadTicket->GetPtr();
+
+		for (const st::gfx::ScenePointLight* pointLight : pointLights)
+		{
+			pointLightDataPtr->position = pointLight->GetNode()->GetWorldPosition();
+			pointLightDataPtr->range = pointLight->GetRange();
+			pointLightDataPtr->color = pointLight->GetColor();
+			pointLightDataPtr->intensity = pointLight->GetIntensity();
+		}
+
+		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_PointLightsBuffer.get_weak(),
+			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
+		uploadResult->Wait();
 	}
 }
 
@@ -185,11 +217,11 @@ void st::gfx::Scene::Update()
 	}
 }
 
-const st::math::aabox3f st::gfx::Scene::GetWorldBounds() const
+const st::math::aabox3f st::gfx::Scene::GetWorldBounds(BoundsType boundsType) const
 {
-	if (m_SceneGraph && m_SceneGraph->GetRoot() && m_SceneGraph->GetRoot()->HasBounds())
+	if (m_SceneGraph && m_SceneGraph->GetRoot() && m_SceneGraph->GetRoot()->HasBounds(boundsType))
 	{
-		return m_SceneGraph->GetRoot()->GetWorldBounds();
+		return m_SceneGraph->GetRoot()->GetWorldBounds(boundsType);
 	}
 	return math::aabox3f::get_empty();
 }
@@ -207,4 +239,9 @@ st::rhi::BufferReadOnlyView st::gfx::Scene::GetMeshesBufferView() const
 st::rhi::BufferReadOnlyView st::gfx::Scene::GetMaterialsBufferView() const
 {
 	return m_MaterialsBuffer ? m_MaterialsBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
+}
+
+st::rhi::BufferReadOnlyView st::gfx::Scene::GetPointLightsBufferView() const
+{
+	return m_PointLightsBuffer ? m_PointLightsBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }

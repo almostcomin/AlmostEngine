@@ -98,8 +98,6 @@ namespace interop
         uint _padding[3];
     };
 
-    SHADER_FLAG(MaterialFlags_DoubleSided, 0x00000001)
-
     struct MaterialData
     {
         TextureSampledViewIndex baseColorTextureDI;
@@ -113,6 +111,22 @@ namespace interop
         float occlusion;
         float metalness;
         float roughness;
+    };
+
+    struct DirLightData
+    {
+        float3 direction;
+        float intensity;
+        float3 color;
+        uint _padding;
+    };
+
+    struct PointLightData
+    {
+        float3 position;
+        float range;
+        float3 color;
+        float intensity;
     };
 
     struct Scene
@@ -138,11 +152,21 @@ namespace interop
         float4 ambientTop;      // rgb
         float4 ambientBottom;   // rgb
 
+        // Lights
+        uint dirLightCount;
+        BufferReadOnlyIndex dirLightIndicesDI;
+        uint pointLightCount;
+        BufferReadOnlyIndex pointLightIndicesDI;
+        uint spotLightCount;
+        BufferReadOnlyIndex spotLightIndicesDI;
+
         // Global descriptors indices
         BufferReadOnlyIndex instanceBufferDI;
         BufferReadOnlyIndex meshesBufferDI;
         BufferReadOnlyIndex materialsBufferDI;
-        uint _padding3;
+        BufferReadOnlyIndex dirLightsBufferDI;
+        BufferReadOnlyIndex pointLightsBufferDI; // PointLightData
+        BufferReadOnlyIndex spotLightsBufferDI;
     };
 
     struct SingleInstanceDrawData

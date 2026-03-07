@@ -136,9 +136,9 @@ std::pair<st::rhi::BufferReadOnlyView, size_t> st::gfx::DebugRenderStage::GetAAB
 	while (walker)
 	{
 		auto node = *walker;
-		if (node->HasBounds())
+		if (node->HasBounds(BoundsType::Mesh))
 		{
-			aabboxes.push_back(node->GetWorldBounds());
+			aabboxes.push_back(node->GetWorldBounds(BoundsType::Mesh));
 			walker.Next();
 		}
 		else

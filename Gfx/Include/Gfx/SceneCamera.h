@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Gfx/SceneGraphLeaf.h"
-#include <optional>
 
 namespace st::gfx
 {
@@ -12,8 +11,8 @@ public:
 
 	SceneCamera() = default;
 
-	virtual bool HasBounds() const { return false; }
-	virtual SceneContentFlags GetContentFlags() const { return st::gfx::SceneContentFlags::Cameras; }
+	bool HasBounds() const override { return false; }
+	SceneContentFlags GetContentFlags() const override { return st::gfx::SceneContentFlags::Cameras; }
 	Type GetType() const override { return Type::Camera; }
 
 private:

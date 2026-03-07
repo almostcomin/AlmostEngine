@@ -49,6 +49,9 @@ float4 main(PS_INPUT input) : SV_Target
     Texture2D GBuffer1 = ResourceDescriptorHeap[Constants.GBuffer1DI];
     Texture2D GBuffer2 = ResourceDescriptorHeap[Constants.GBuffer2DI];
     Texture2D GBuffer3 = ResourceDescriptorHeap[Constants.GBuffer3DI];
+    
+    StructuredBuffer<interop::PointLightData> pointLightsDataBuffer = ResourceDescriptorHeap[sceneData.pointLightsBufferDI];
+    ByteAddressBuffer pointLightIndices = ResourceDescriptorHeap[sceneData.pointLightIndicesDI];
                     
     // Sample G-Buffers
     float4 gbuffers[4];
@@ -156,6 +159,21 @@ float4 main(PS_INPUT input) : SV_Target
         float3 specularRadiance = 0.0;
         ShadeSurface(sunConstants, surfaceMat, surfacePosView.xyz, viewIncident, (float3x3)sceneData.camViewMatrix, diffuseRadiance, specularRadiance);
     
+        for (uint i = 0; i < sceneData.pointLightCount; i++)
+        {
+            float3 lightDiffuseRadiance = 0.0;
+            float3 lightSpecularRadiance = 0.0;
+            
+            uint lightIdx = pointLightIndices.Load(i * 4);
+            interop::PointLightData pointLight = pointLightsDataBuffer[lightIdx];
+            
+            ShadeSurface_PointLight(pointLight, surfaceMat, surfacePosView.xyz, viewIncident, (float3x3) sceneData.camViewMatrix,
+                lightDiffuseRadiance, lightSpecularRadiance);
+            
+            diffuseRadiance += lightDiffuseRadiance;
+            specularRadiance += lightSpecularRadiance;
+        }
+        
         float3 diffuseTerm = shadowFactor * diffuseRadiance * sceneData.sunColor.rgb;
         float3 specularTerm = shadowFactor * specularRadiance * sceneData.sunColor.rgb;
             

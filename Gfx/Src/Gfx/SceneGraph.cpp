@@ -3,6 +3,7 @@
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/SceneCamera.h"
+#include "Gfx/SceneLights.h"
 #include "Gfx/Mesh.h"
 
 int st::gfx::SceneGraph::Walker::Next(IterationMode mode)
@@ -192,12 +193,12 @@ int st::gfx::SceneGraph::GetMaterialIndex(const st::gfx::Mesh* mesh) const
 void st::gfx::SceneGraph::Refresh()
 {
     // Root dirty?
-    if (any(m_Root->m_DirtyFlags & SceneGraphNode::DirtyFlags::Subgraph))
+    if (has_any_flag(m_Root->m_DirtyFlags, SceneGraphNode::DirtyFlags::Subgraph))
     {
         Walker walker{ m_Root.get_weak() };
         while (walker)
         {
-            if (any(walker->m_DirtyFlags & (SceneGraphNode::DirtyFlags::LocalTransform | SceneGraphNode::DirtyFlags::Leaf)))
+            if (has_any_flag(walker->m_DirtyFlags, (SceneGraphNode::DirtyFlags::LocalTransform | SceneGraphNode::DirtyFlags::Leaf)))
             {
                 // --- Subgraph needs update
 
@@ -218,15 +219,15 @@ void st::gfx::SceneGraph::Refresh()
                     node->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::LocalTransform;
 
                     // Reset world bounds using leaf data
+                    node->m_HasBounds = { false };
                     if (node->m_Leaf && node->m_Leaf->HasBounds())
                     {
-                        node->m_WorldBounds = node->m_Leaf->GetBounds().transform(node->m_WorldMatrix);
-                        node->m_HasBounds = true;
+                        BoundsType boundsType = node->m_Leaf->GetBoundsType();
+                        assert(boundsType != BoundsType::_Size);
+                        node->m_WorldBounds[(int)boundsType] = node->m_Leaf->GetBounds().transform(node->m_WorldMatrix);
+                        node->m_HasBounds[(int)boundsType] = true;
                     }
-                    else
-                    {
-                        node->m_HasBounds = false;
-                    }
+
                     // Set content flags
                     if (node->m_Leaf)
                     {
@@ -242,8 +243,9 @@ void st::gfx::SceneGraph::Refresh()
                     int depth = subgraphWalker.Next();
 
                     // Update parent bounds and content flags if next is sibling or parent
-                    bool updateBounds = node->m_HasBounds;
-                    bool updateContentFlags = any(node->m_ContentFlags);
+                    const auto& hasBounds = node->m_HasBounds;
+                    bool updateBounds = st::any(hasBounds);
+                    bool updateContentFlags = node->m_ContentFlags != 0;
                     if ((updateBounds || updateContentFlags) && depth <= 0) // Sibling or going up.
                     {
                         for (int i = depth; i <= 0; ++i)
@@ -254,8 +256,14 @@ void st::gfx::SceneGraph::Refresh()
                             // Update parent bounds
                             if (updateBounds)
                             {
-                                node->m_Parent->m_WorldBounds.merge(node->m_WorldBounds);
-                                node->m_Parent->m_HasBounds = true;
+                                for (int boundsIdx = 0; boundsIdx < (int)BoundsType::_Size; ++boundsIdx)
+                                {
+                                    if (hasBounds[boundsIdx])
+                                    {
+                                        node->m_Parent->m_WorldBounds[boundsIdx].merge(node->m_WorldBounds[boundsIdx]);
+                                        node->m_Parent->m_HasBounds[boundsIdx] = true;
+                                    }
+                                }
                             }
 
                             // Update content flags
@@ -270,13 +278,19 @@ void st::gfx::SceneGraph::Refresh()
                 } // Subgraph loop
 
                 // Since we have updated a sub-graph, we need to update parent bounds
-                if (walker->m_HasBounds)
+                if (st::any(walker->m_HasBounds))
                 {
                     auto node = *walker;
                     while (node->m_Parent)
                     {
-                        node->m_Parent->m_WorldBounds.merge(node->m_WorldBounds);
-                        node->m_Parent->m_HasBounds = true;
+                        for (int boundsIdx = 0; boundsIdx < (int)BoundsType::_Size; ++boundsIdx)
+                        {
+                            if (node->m_HasBounds[boundsIdx])
+                            {
+                                node->m_Parent->m_WorldBounds[boundsIdx].merge(node->m_WorldBounds[boundsIdx]);
+                                node->m_Parent->m_HasBounds[boundsIdx] = true;
+                            }
+                        }
                         node = node->m_Parent;
                     }
                 }
@@ -331,6 +345,11 @@ void st::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
     case SceneGraphLeaf::Type::Camera:
         m_SceneCameraLeafs.push_back(checked_cast<SceneCamera*>(leaf));
         leaf->m_SceneIndex = m_SceneCameraLeafs.size() - 1;
+        break;
+
+    case SceneGraphLeaf::Type::PointLight:
+        m_ScenePointLightLeafs.push_back(checked_cast<ScenePointLight*>(leaf));
+        leaf->m_SceneIndex = m_ScenePointLightLeafs.size() - 1;
         break;
 
     default:

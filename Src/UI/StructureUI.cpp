@@ -3,6 +3,7 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/SceneLights.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
 #include "Gfx/DeviceManager.h"
@@ -65,6 +66,40 @@ void PropertyRowText(const char* label, const char* value)
     ImGui::PopID();
 }
 
+void PropertyRowInt(const char* label, int value)
+{
+    ImGui::TableNextRow();
+    // Label
+    ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    TextRightAligned(label);
+    // Value
+    ImGui::TableNextColumn();
+    ImGui::PushID(label);
+    ImGui::BeginDisabled();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
+    ImGui::EndDisabled();
+    ImGui::PopID();
+}
+
+void PropertyRowFloat(const char* label, float value)
+{
+    ImGui::TableNextRow();
+    // Label
+    ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    TextRightAligned(label);
+    // Value
+    ImGui::TableNextColumn();
+    ImGui::PushID(label);
+    ImGui::BeginDisabled();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputFloat("##value", &value, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_ReadOnly);
+    ImGui::EndDisabled();
+    ImGui::PopID();
+}
+
 RSDepResult ShowRSDep(const char* label, const char* value, bool selected, int id)
 {
     RSDepResult ret;
@@ -99,23 +134,6 @@ RSDepResult ShowRSDep(const char* label, const char* value, bool selected, int i
 
     ImGui::PopID();
     return ret;
-}
-
-void PropertyRowInt(const char* label, int value)
-{
-    ImGui::TableNextRow();
-    // Label
-    ImGui::TableNextColumn();
-    ImGui::AlignTextToFramePadding();
-    TextRightAligned(label);
-    // Value
-    ImGui::TableNextColumn();
-    ImGui::PushID(label);
-    ImGui::BeginDisabled();
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
-    ImGui::EndDisabled();
-    ImGui::PopID();
 }
 
 void ShowPropertyText(const char* label, float labelWidth, const char* value, float valueWidth, int id)
@@ -533,17 +551,19 @@ void StructureUI::BuildSettingsWindow()
             }
         }
 
-        ImGui::BeginListBox("##RenderModesListBox");
-        for (int n = 0; n < renderModes.size(); n++)
+        if (ImGui::BeginListBox("##RenderModesListBox"))
         {
-            const bool is_selected = (n == selectedIdx);
-            if (ImGui::Selectable(renderModes[n].c_str(), is_selected))
-                selectedIdx = n;
-            // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-            if (is_selected)
-                ImGui::SetItemDefaultFocus();
+            for (int n = 0; n < renderModes.size(); n++)
+            {
+                const bool is_selected = (n == selectedIdx);
+                if (ImGui::Selectable(renderModes[n].c_str(), is_selected))
+                    selectedIdx = n;
+                // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndListBox();
         }
-        ImGui::EndListBox();
 
         m_Data.RenderMode = renderModes[selectedIdx];
     }
@@ -777,7 +797,7 @@ void StructureUI::BuildSettingsWindow()
 void StructureUI::BuildSceneWindow(bool* p_open)
 {
     auto scene = m_RenderView->GetScene();
-    ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(800, 1000), ImGuiCond_Once);
     if (!ImGui::Begin("Scene view", p_open, ImGuiWindowFlags_None) || !scene || !scene->GetSceneGraph() || !scene->GetSceneGraph()->GetRoot())
     {
         ImGui::End();
@@ -878,17 +898,31 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     ImGui::InputFloat3("##worldScale", (float*)&(worldTransform.GetScale()), "%.3f", ImGuiInputTextFlags_ReadOnly);
                 }
 
-                if (node->HasBounds())
+                if (node->HasBounds(st::gfx::BoundsType::Mesh))
                 {
-                    ImGui::SeparatorText("Bounds");
+                    ImGui::SeparatorText("Mesh Bounds");
                     {
-                        const st::math::aabox3f& bbox = node->GetWorldBounds();
+                        const st::math::aabox3f& bbox = node->GetWorldBounds(st::gfx::BoundsType::Mesh);
                         ImGui::Text("Min");
                         ImGui::SetNextItemWidth(-FLT_MIN);
-                        ImGui::InputFloat3("##bboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                        ImGui::InputFloat3("##meshBboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
                         ImGui::Text("Max");
                         ImGui::SetNextItemWidth(-FLT_MIN);
-                        ImGui::InputFloat3("##bboxMax", (float*)&(bbox.max), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                        ImGui::InputFloat3("##meshBboxMax", (float*)&(bbox.max), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                    }
+                }
+
+                if (node->HasBounds(st::gfx::BoundsType::Light))
+                {
+                    ImGui::SeparatorText("Light Bounds");
+                    {
+                        const st::math::aabox3f& bbox = node->GetWorldBounds(st::gfx::BoundsType::Light);
+                        ImGui::Text("Min");
+                        ImGui::SetNextItemWidth(-FLT_MIN);
+                        ImGui::InputFloat3("##lightBboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
+                        ImGui::Text("Max");
+                        ImGui::SetNextItemWidth(-FLT_MIN);
+                        ImGui::InputFloat3("##lightBboxMax", (float*)&(bbox.max), "%.3f", ImGuiInputTextFlags_ReadOnly);
                     }
                 }
 
@@ -915,18 +949,18 @@ void StructureUI::BuildSceneWindow(bool* p_open)
 
                     // First row
                     ImGui::TableNextRow();
-                    flagCell("OpaqueMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::OpaqueMeshes));
-                    flagCell("Lights", st::has_flag(flags, st::gfx::SceneContentFlags::Lights));
+                    flagCell("OpaqueMeshes", st::has_any_flag(flags, st::gfx::SceneContentFlags::OpaqueMeshes));
+                    flagCell("PointLights", st::has_any_flag(flags, st::gfx::SceneContentFlags::PointLights));
 
                     // Second row
                     ImGui::TableNextRow();
-                    flagCell("AlphaTestedMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::AlphaTestedMeshes));
-                    flagCell("Cameras", st::has_flag(flags, st::gfx::SceneContentFlags::Cameras));
+                    flagCell("AlphaTestedMeshes", st::has_any_flag(flags, st::gfx::SceneContentFlags::AlphaTestedMeshes));
+                    flagCell("Cameras", st::has_any_flag(flags, st::gfx::SceneContentFlags::Cameras));
 
                     // Third row
                     ImGui::TableNextRow();
-                    flagCell("BlendedMeshes", st::has_flag(flags, st::gfx::SceneContentFlags::BlendedMeshes));
-                    flagCell("Animations", st::has_flag(flags, st::gfx::SceneContentFlags::Animations));
+                    flagCell("BlendedMeshes", st::has_any_flag(flags, st::gfx::SceneContentFlags::BlendedMeshes));
+                    flagCell("Animations", st::has_any_flag(flags, st::gfx::SceneContentFlags::Animations));
 
                     ImGui::EndTable();
                 }
@@ -942,6 +976,9 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     break;
                 case st::gfx::SceneGraphLeaf::Type::Camera:
                     assert(0);
+                    break;
+                case st::gfx::SceneGraphLeaf::Type::PointLight:
+                    BuildPointLightLeaf(st::checked_cast<const st::gfx::ScenePointLight*>(leaf));
                     break;
                 default:
                     assert(0);
@@ -1457,6 +1494,50 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
             if (auto tex = mat->GetOcclusionTexture())
                 BuildTexture("Occlusion texture", *tex);
         }
+    }
+}
+
+void StructureUI::BuildPointLightLeaf(const st::gfx::ScenePointLight* light)
+{
+    if (ImGui::CollapsingHeader("PointLight", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::BeginTable("PointLightProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+        PropertyRowText("Name", light->GetName().c_str());
+        ImGui::EndTable();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::BeginTable("MeshProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+        // Color
+        {
+            ImGui::TableNextRow();
+            // Label
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            TextRightAligned("Color");
+            // Value
+            ImGui::TableNextColumn();
+            ImGui::PushID("LightColor");
+            ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha, 1.0f);
+            ImGui::BeginDisabled();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::ColorEdit3("", (float*)&(light->GetColor().x), ImGuiColorEditFlags_Float);
+            ImGui::EndDisabled();
+            ImGui::PopStyleVar();
+            ImGui::PopID();
+        }
+
+        PropertyRowFloat("Intensity", light->GetIntensity());
+        PropertyRowFloat("Range", light->GetRange());
+
+        ImGui::EndTable();
     }
 }
 

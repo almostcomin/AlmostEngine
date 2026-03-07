@@ -10,6 +10,7 @@
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/SceneCamera.h"
+#include "Gfx/SceneLights.h"
 #include <filesystem>
 #include "Core/File.h"
 #include "Gfx/DeviceManager.h"
@@ -1360,9 +1361,6 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
 
         if (srcNode->has_matrix)
         {
-            //const glm::mat4 RHtoLH = glm::scale(glm::mat4(1.0f), glm::vec3(1, 1, -1));
-            //glm::mat4 m = RHtoLH * m * RHtoLH;
-            //dstNode->SetLocalTransform(st::gfx::Transform{ m });
             dstNode->SetLocalTransform(st::gfx::Transform{ glm::make_mat4(srcNode->matrix) });
         }
         else
@@ -1382,6 +1380,8 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
 
         if (srcNode->mesh)
         {
+            assert(!srcNode->camera && !srcNode->light);
+
             auto found = meshMap.find(srcNode->mesh);
             if (found != meshMap.end() && !found->second.empty())
             {
@@ -1417,10 +1417,47 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
 
         if (srcNode->camera)
         {
+            assert(!srcNode->mesh && !srcNode->light);
+
             auto found = cameraMap.find(srcNode->camera);
             if (found != cameraMap.end())
             {
                 auto camera = found->second;
+            }
+        }
+
+        if (srcNode->light)
+        {
+            assert(!srcNode->mesh && !srcNode->camera);
+            switch (srcNode->light->type)
+            {
+            case cgltf_light_type_directional:
+                assert(0);
+                break;
+            case cgltf_light_type_point:
+            {
+                auto leaf = st::make_unique_with_weak<st::gfx::ScenePointLight>();
+                if(srcNode->light->name)
+                    leaf->SetName(srcNode->light->name);
+                leaf->SetColor(*(float3*)&srcNode->light->color);
+                leaf->SetIntensity(srcNode->light->intensity);
+                if (srcNode->light->range > 1.0e-05f)
+                {
+                    leaf->SetRange(srcNode->light->range);
+                }
+                else
+                {
+                    const float threshold = 1.0f / 256.0f;
+                    leaf->SetRange(sqrtf(srcNode->light->intensity / threshold));
+                }
+
+                dstNode->SetLeaf(std::move(leaf));                
+            } break;
+            case cgltf_light_type_spot:
+                assert(0);
+                break;
+            default:
+                assert(0);
             }
         }
 

@@ -1,0 +1,70 @@
+#pragma once
+
+#include "Gfx/SceneGraphLeaf.h"
+
+namespace st::gfx
+{
+
+class SceneLight : public SceneGraphLeaf
+{
+public:
+
+	enum class LightType
+	{
+		Directional,
+		Point,
+		Spot
+	};
+
+public:
+
+	SceneLight() : m_Name{ "<noname>" }, m_Color{ 1.f }, m_Intensity{ 1.f }
+	{}
+	
+	virtual LightType	GetLightType() const = 0;
+
+	// Setters
+	void				SetName(const std::string& name)		{ m_Name = name; }
+	void				SetColor(const float3& c)				{ m_Color = c; }
+	void				SetIntensity(float v)					{ m_Intensity = v; }
+
+	// Getters
+	const std::string&	GetName() const							{ return m_Name; }
+	const float3&		GetColor() const						{ return m_Color; }
+	float				GetIntensity() const					{ return m_Intensity; }
+
+protected:
+
+	std::string m_Name;
+	float3 m_Color;
+	float m_Intensity;
+};
+
+class ScenePointLight : public SceneLight
+{
+public:
+
+	ScenePointLight();
+
+	// Overrides
+	bool				HasBounds()			const override { return true; }
+	BoundsType			GetBoundsType()		const override { return BoundsType::Light; }
+	const st::math::aabox3f& GetBounds()	const override { return m_Bounds; }
+	SceneContentFlags	GetContentFlags()	const override { return st::gfx::SceneContentFlags::PointLights; }
+	Type				GetType()			const override { return Type::PointLight; }
+	LightType			GetLightType()		const override { return LightType::Point; }
+
+	// Setters
+	void				SetRange(float v);
+
+	// Getters
+	float				GetRange() const					{ return m_Range; }
+
+private:
+
+	float m_Range;
+	st::math::aabox3f m_Bounds;
+
+};
+
+} // namespace st::gfx

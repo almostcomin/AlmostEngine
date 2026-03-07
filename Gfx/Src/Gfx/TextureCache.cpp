@@ -169,7 +169,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
     auto getMipsMethod = DataUploader::GenMipsMethod::None;
     if ((flags & Flags::GenerateMips) && (originalMips != texture->GetDesc().mipLevels))
     {
-        getMipsMethod = any(flags & Flags::IsNormalMap) ?
+        getMipsMethod = has_any_flag(flags, Flags::IsNormalMap) ?
             DataUploader::GenMipsMethod::GenMips_NormalMap : DataUploader::GenMipsMethod::GenMips_Color;
     }
 

@@ -10,6 +10,7 @@ namespace st::gfx
 class SceneGraphNode;
 class MeshInstance;
 class SceneCamera;
+class ScenePointLight;
 class Mesh;
 class Material;
 
@@ -103,6 +104,8 @@ public:
 
     const std::vector<MeshInstance*>& GetMeshInstances() const { return m_MeshInstanceLeafs; }
     const std::vector<SceneCamera*>& GetSceneCameras() const { return m_SceneCameraLeafs; }
+    const std::vector<ScenePointLight*>& GetScenePointLights() const { return m_ScenePointLightLeafs; }
+
     const st::unique_vector<Mesh*>& GetMeshes() const { return m_Meshes; }
     const std::vector<int>& GetMeshesMaterialIndices() const { return m_MeshMaterialIndices; }
     const st::unique_vector<Material*>& GetMaterials() const { return m_Materials; }
@@ -121,6 +124,7 @@ private:
 
     std::vector<MeshInstance*> m_MeshInstanceLeafs;
     std::vector<SceneCamera*> m_SceneCameraLeafs;
+    std::vector<ScenePointLight*> m_ScenePointLightLeafs;
 
     st::unique_vector<Mesh*> m_Meshes;
     std::vector<int> m_MeshMaterialIndices;

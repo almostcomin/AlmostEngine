@@ -48,12 +48,19 @@ void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
         else
             ss << walker->GetName();
 
-        if (walker->HasBounds())
+        if (walker->HasBounds(st::gfx::BoundsType::Mesh))
         {
-            const auto& bbox = walker->GetWorldBounds();
+            const auto& bbox = walker->GetWorldBounds(st::gfx::BoundsType::Mesh);
             ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
                 << bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
         }
+
+		if (walker->HasBounds(st::gfx::BoundsType::Light))
+		{
+			const auto& bbox = walker->GetWorldBounds(st::gfx::BoundsType::Light);
+			ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
+				<< bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
+		}
 
         if (walker->GetLeaf())
         {
@@ -64,6 +71,9 @@ void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
 				break;
 			case st::gfx::SceneGraphLeaf::Type::Camera:
 				ss << " : CAMERA ";
+				break;
+			case st::gfx::SceneGraphLeaf::Type::PointLight:
+				ss << " : POINT_LIGHT ";
 				break;
 			default:
 				ss << " : UNKNOWN_LEAF ";
@@ -237,7 +247,7 @@ int SDL_main(int argc, char* argv[])
 				scene->SetSceneGraph(std::move(*importResult));
 				mainRenderView->SetScene(scene.get_weak());
 
-				const st::math::aabox3f& bounds = scene->GetSceneGraph()->GetRoot()->GetWorldBounds();
+				const st::math::aabox3f& bounds = scene->GetSceneGraph()->GetRoot()->GetWorldBounds(st::gfx::BoundsType::Mesh);
 				const float radius = glm::length(bounds.extents()) / 2.f;
 				camera->SetZNear(radius * 0.05f);
 

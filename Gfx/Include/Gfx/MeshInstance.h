@@ -21,6 +21,7 @@ public:
 	virtual ~MeshInstance();
 
 	bool HasBounds() const override;
+	BoundsType GetBoundsType() const override { return BoundsType::Mesh; }
 	const st::math::aabox3f& GetBounds() const override;
 
 	SceneContentFlags GetContentFlags() const override { return SceneContentFlags::OpaqueMeshes; }

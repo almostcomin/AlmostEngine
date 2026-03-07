@@ -3,6 +3,7 @@
 #include "Core/Memory.h"
 #include "Core/Common.h"
 #include "RHI/Buffer.h"
+#include "Gfx/SceneBounds.h"
 #include <map>
 
 namespace st::gfx
@@ -44,7 +45,7 @@ namespace st::gfx
 		void SetSceneGraph(unique<SceneGraph>&& graph);
 		weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
 
-		const math::aabox3f GetWorldBounds() const;
+		const math::aabox3f GetWorldBounds(BoundsType boundsType) const;
 
 		const AmbientParams& GetAmbientParams() const { return m_AmbientParams; }
 		void SetAmbientParams(const AmbientParams& v) { m_AmbientParams = v; }
@@ -55,6 +56,7 @@ namespace st::gfx
 		rhi::BufferReadOnlyView GetInstancesBufferView() const;
 		rhi::BufferReadOnlyView GetMeshesBufferView() const;
 		rhi::BufferReadOnlyView GetMaterialsBufferView() const;
+		rhi::BufferReadOnlyView GetPointLightsBufferView() const;
 
 		// Updates scene graph
 		void Update();
@@ -66,9 +68,10 @@ namespace st::gfx
 		AmbientParams m_AmbientParams;
 		SunParams m_SunParams;
 
-		rhi::BufferOwner m_InstancesBuffer; // interop::InstanceData
-		rhi::BufferOwner m_MeshesBuffer;	// interop::MeshData
-		rhi::BufferOwner m_MaterialsBuffer;	// interop::MaterialData
+		rhi::BufferOwner m_InstancesBuffer;		// interop::InstanceData
+		rhi::BufferOwner m_MeshesBuffer;		// interop::MeshData
+		rhi::BufferOwner m_MaterialsBuffer;		// interop::MaterialData
+		rhi::BufferOwner m_PointLightsBuffer;	// interop::PointLightData
 
 		DeviceManager* m_DeviceManager;
 	};

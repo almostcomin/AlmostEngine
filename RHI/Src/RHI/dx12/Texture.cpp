@@ -9,11 +9,11 @@ st::rhi::dx12::Texture::Texture(const st::rhi::TextureDesc& desc, ComPtr<ID3D12R
 	, m_D3d12Resource{ resource }
 {
     GpuDevice* gpuDevice = checked_cast<GpuDevice*>(device);
-    if (has_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
+    if (has_any_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
     {
         m_SampledView = device->CreateTextureSampledView(this);
     }
-    if (has_flag(desc.shaderUsage, TextureShaderUsage::Storage))
+    if (has_any_flag(desc.shaderUsage, TextureShaderUsage::Storage))
     {
         m_StorageView = device->CreateTextureStorageView(this);
     }

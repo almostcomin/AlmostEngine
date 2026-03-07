@@ -7,6 +7,7 @@
 #include "Interop/RenderResources.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/SceneLights.h"
 #include "Gfx/UploadBuffer.h"
 #include "Gfx/Util.h"
 #include "Gfx/Mesh.h"
@@ -96,8 +97,12 @@ st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* d
 		m_SubmitFences.push_back(device->CreateFence(0, std::format("{} - Fence[{}]", m_DebugName, i)));
 	}
 
-	m_CameraVisibleBuffer.resize(m_DeviceManager->GetSwapchainBufferCount());
-	m_SunVisibleBuffer.resize(m_DeviceManager->GetSwapchainBufferCount());
+	m_CameraVisibleBuffer.Init(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
+		m_DeviceManager, "CameraVisibleIndices");
+	m_SunVisibleBuffer.Init(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
+		m_DeviceManager, "SunVisibleIndices");
+	m_PointLightsVisibleBuffer.Init(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
+		m_DeviceManager, "PointLightsVisibleIndices");
 }
 
 st::gfx::RenderView::~RenderView()
@@ -242,12 +247,12 @@ st::rhi::BufferUniformView st::gfx::RenderView::GetSceneBufferUniformView()
 
 st::rhi::BufferReadOnlyView st::gfx::RenderView::GetCameraVisiblityBufferROView()
 {
-	return m_CameraVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()]->GetReadOnlyView();
+	return m_CameraVisibleBuffer.GetCurrentBuffer()->GetReadOnlyView();
 }
 
 st::rhi::BufferReadOnlyView st::gfx::RenderView::GetSunVisibilityBufferROView()
 {
-	return m_SunVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()]->GetReadOnlyView();
+	return m_SunVisibleBuffer.GetCurrentBuffer()->GetReadOnlyView();
 }
 
 bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
@@ -269,7 +274,7 @@ bool st::gfx::RenderView::CreateTexture(const char* id, TextureResourceType type
 		// No problem, this is allowed as far as the texture properties match
 		const auto& desc = it->second->texture->GetDesc();
 		if (it->second->requestedWidth == width && it->second->requestedHeight == height && it->second->type == type && desc.arraySize == arraySize &&
-			desc.format == format && needsUAV == has_flag(desc.shaderUsage, rhi::TextureShaderUsage::Storage))
+			desc.format == format && needsUAV == has_any_flag(desc.shaderUsage, rhi::TextureShaderUsage::Storage))
 		{
 			return true;
 		}
@@ -613,6 +618,8 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 	// Update common data
 	UpdateCameraVisibleSet(beginCommandList);
 	UpdateShadowmapData(beginCommandList);
+	UpdateLightsVisibleSet(beginCommandList);
+
 	UpdateSceneConstantBuffer();
 
 	m_TimeDeltaSec = timeDeltaSec;
@@ -960,10 +967,21 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->ambientTop = float4{ ambientParams.SkyColor * ambientParams.Intensity, 0.f };
 		sceneShaderConstant->ambientBottom = float4{ ambientParams.GroundColor * ambientParams.Intensity, 0.f };
 
+		// Lights
+		sceneShaderConstant->dirLightCount = 0;
+		sceneShaderConstant->dirLightIndicesDI = {};
+		sceneShaderConstant->pointLightCount = m_PointLightsVisibleCount;
+		sceneShaderConstant->pointLightIndicesDI = m_PointLightsVisibleBuffer.GetCurrentBuffer() ? m_PointLightsVisibleBuffer.GetCurrentBuffer()->GetReadOnlyView() : INVALID_DESCRIPTOR_INDEX;
+		sceneShaderConstant->spotLightCount = 0;
+		sceneShaderConstant->spotLightIndicesDI = {};
+
 		// Data buffers
 		sceneShaderConstant->instanceBufferDI = m_Scene->GetInstancesBufferView();
 		sceneShaderConstant->meshesBufferDI = m_Scene->GetMeshesBufferView();
 		sceneShaderConstant->materialsBufferDI = m_Scene->GetMaterialsBufferView();
+		sceneShaderConstant->dirLightsBufferDI = {};
+		sceneShaderConstant->pointLightsBufferDI = m_Scene->GetPointLightsBufferView();
+		sceneShaderConstant->spotLightsBufferDI = {};
 	}
 }
 
@@ -975,7 +993,7 @@ void st::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 		return;
 
 	m_CameraVisibleSet = GetVisibleSet(m_Camera->GetFrustum().get_planes(), &m_CameraVisibleBounds);
-	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()], commandList);
+	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList);
 }
 
 void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
@@ -991,7 +1009,7 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	const float3 sunDir = st::ElevationAzimuthRadToDir(
 		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
-	const st::math::aabox3f& worldBounds = m_Scene->GetWorldBounds();
+	const st::math::aabox3f& worldBounds = m_Scene->GetWorldBounds(BoundsType::Mesh);
 	const st::math::aabox3f& visibleSceneBounds = m_CameraVisibleBounds;
 	const float3 worldCenter = worldBounds.center();
 	const float3 worldExtents = worldBounds.extents();
@@ -1060,8 +1078,79 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 		};
 
 		m_SunVisibleSet = GetVisibleSet(sunClipPlanes);
-		UpdateVisibilityShaderBuffer(m_SunVisibleSet, m_SunVisibleBuffer[m_DeviceManager->GetFrameModuleIndex()], commandList);
+		UpdateVisibilityShaderBuffer(m_SunVisibleSet, m_SunVisibleBuffer, commandList);
 	}
+}
+
+void st::gfx::RenderView::UpdateLightsVisibleSet(rhi::ICommandList* commandList)
+{
+	if (!m_Scene || !m_Scene->GetSceneGraph())
+		return;
+
+	const auto& frustum = m_Camera->GetFrustum();
+	auto testFrustum = [&frustum](const float3 & pos, float radius) -> bool
+	{
+		for (const auto& plane : frustum.get_planes())
+		{
+			if (plane.distance(pos) < -radius)
+				return false;
+		}
+		return true;
+	};
+
+	std::vector<const st::gfx::ScenePointLight*> visiblePointLights;
+	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
+	while (walker)
+	{
+		auto node = *walker;
+		if (has_any_flag(node->GetContentFlags(), SceneContentFlags::PointLights) &&
+			node->HasBounds(BoundsType::Light) && node->Test(BoundsType::Light, frustum.get_planes()))
+		{
+			auto leaf = node->GetLeaf();
+			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::PointLight)
+			{
+				const auto* pointLight = st::checked_cast<const st::gfx::ScenePointLight*>(leaf.get());
+				if (testFrustum(node->GetWorldPosition(), pointLight->GetRange()))
+				{
+					visiblePointLights.push_back(pointLight);
+				}
+			}
+			walker.Next();
+		}
+		else
+		{
+			walker.NextSibling();
+		}
+	}
+	m_PointLightsVisibleCount = visiblePointLights.size();
+
+	if (m_PointLightsVisibleCount == 0)
+		return;
+
+	uint32_t reqSize = m_PointLightsVisibleCount * sizeof(uint32_t);
+	m_PointLightsVisibleBuffer.Grow(reqSize * 2);
+
+	rhi::BufferHandle buffer = m_PointLightsVisibleBuffer.GetCurrentBuffer();
+	commandList->PushBarrier(
+		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
+
+	// Copy to upload data
+	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
+	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
+
+	uint32_t* ptr = (uint32_t*)data;
+	for (const auto* pointLight : visiblePointLights)
+	{
+		*ptr = pointLight->GetLeafSceneIndex();
+		ptr++;
+	}
+
+	// Copy to buffer
+	commandList->CopyBufferToBuffer(buffer.get(), 0, uploadBuffer->GetBuffer().get(), offset, reqSize);
+
+	commandList->PushBarrier(
+		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+
 }
 
 std::vector<st::gfx::RenderView::TextureViewRequest*> st::gfx::RenderView::GetTexViewRequests(RenderStage* rs, AccessMode accessMode)
@@ -1213,24 +1302,15 @@ st::gfx::RenderView::RenderSet st::gfx::RenderView::GetVisibleSet(const std::spa
 	if (opt_outBounds)
 		opt_outBounds->reset();
 
-	auto boundsVisible = [&planes](const math::aabox3f bounds) -> bool
-	{
-		for (const auto& plane : planes)
-		{
-			if (!bounds.test(plane))
-				return false;
-		}
-		return true;
-	};
-
 	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
 	while (walker)
 	{
 		auto node = *walker;
-		if (has_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) && node->HasBounds() && boundsVisible(node->GetWorldBounds()))
+		if (has_any_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) &&
+			node->HasBounds(BoundsType::Mesh) && node->Test(BoundsType::Mesh, planes))
 		{
 			auto leaf = node->GetLeaf();
-			if (leaf)
+			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::MeshInstance)
 			{
 				const auto* meshInstance = st::checked_cast<const st::gfx::MeshInstance*>(leaf.get());
 				assert(meshInstance && meshInstance->GetMesh() && meshInstance->GetMesh()->GetMaterial());
@@ -1238,7 +1318,7 @@ st::gfx::RenderView::RenderSet st::gfx::RenderView::GetVisibleSet(const std::spa
 				cullBase[(int)meshInstance->GetMesh()->GetMaterial()->GetCullMode()].push_back(meshInstance);
 
 				if(opt_outBounds)
-					opt_outBounds->merge(node->GetWorldBounds());
+					opt_outBounds->merge(node->GetWorldBounds(BoundsType::Mesh));
 			}
 			walker.Next();
 		}
@@ -1248,7 +1328,7 @@ st::gfx::RenderView::RenderSet st::gfx::RenderView::GetVisibleSet(const std::spa
 		}
 	}
 
-	// Lets sort by mesh to be friendly for DrawIndirect
+	// Sort by mesh to be friendly with DrawIndirect
 	for(int i = 0; i < (int)rhi::CullMode::_Size; ++i)
 	{
 		std::sort(cullBase[i].begin(), cullBase[i].end(), [](const st::gfx::MeshInstance* a, const st::gfx::MeshInstance* b)
@@ -1266,7 +1346,7 @@ st::gfx::RenderView::RenderSet st::gfx::RenderView::GetVisibleSet(const std::spa
 	return result;
 }
 
-void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSet, rhi::BufferOwner& buffer,
+void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer,
 	rhi::ICommandList* commandList)
 {
 	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
@@ -1275,18 +1355,11 @@ void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSe
 	for(const auto& instances : renderSet)
 		reqSize += instances.second.size() * sizeof(uint32_t);
 
-	if (!buffer || buffer->GetDesc().sizeBytes < reqSize)
-	{
-		buffer = m_DeviceManager->GetDevice()->CreateBuffer(rhi::BufferDesc{
-			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-			.sizeBytes = reqSize * 2 },
-			rhi::ResourceState::COPY_DST, "CameraVisibleBuffer");
-	}
-	else
-	{
-		commandList->PushBarrier(
-			rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
-	}
+	multiBuffer.Grow(reqSize * 2);
+
+	rhi::BufferHandle buffer = multiBuffer.GetCurrentBuffer();
+	commandList->PushBarrier(
+		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
 
 	// Copy to upload data
 	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);

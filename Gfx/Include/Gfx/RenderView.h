@@ -11,6 +11,12 @@
 #include "Gfx/FrameUniformBuffer.h"
 #include "Gfx/Scene.h"
 #include "Gfx/ViewportSwapChain.h"
+#include "Gfx/MultiBuffer.h"
+
+namespace interop
+{
+	struct Scene;
+}
 
 namespace st::gfx
 {
@@ -157,15 +163,6 @@ public:
 
 private:
 
-	void ClearRenderStages();
-	void UpdateSceneConstantBuffer();
-	void UpdateCameraVisibleSet(rhi::ICommandList* commandList);
-	void UpdateShadowmapData(rhi::ICommandList* commandList);
-
-	RenderSet GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
-
-private:
-
 	struct TextureViewRequest
 	{
 		RenderStage* rs;
@@ -188,6 +185,14 @@ private:
 
 	void Refresh();
 
+	void ClearRenderStages();
+	void UpdateSceneConstantBuffer();
+	void UpdateCameraVisibleSet(rhi::ICommandList* commandList);
+	void UpdateShadowmapData(rhi::ICommandList* commandList);
+	void UpdateLightsVisibleSet(rhi::ICommandList* commandList);
+
+	RenderSet GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
+
 	std::vector<TextureViewRequest*> GetTexViewRequests(RenderStage* rs, AccessMode accessMode);
 	void UpdateRequestedTextureViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 		const std::map<std::string, rhi::ResourceState> resourceStates);
@@ -196,7 +201,7 @@ private:
 	void UpdateRequestedBufferViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 		const std::map<std::string, rhi::ResourceState> resourceStates);
 
-	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, rhi::BufferOwner& buffer, rhi::ICommandList* commandList);
+	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer, rhi::ICommandList* commandList);
 
 private:
 
@@ -216,18 +221,26 @@ private:
 	std::map<std::string, std::unique_ptr<DeclaredTexture>> m_DeclaredTextures;
 	std::map<std::string, std::unique_ptr<DeclaredBuffer>> m_DeclaredBuffers;
 
-	// Visible set for the current camera
-	RenderSet m_CameraVisibleSet;
+	// Bounds of the visible scene
 	math::aabox3f m_CameraVisibleBounds;
-	std::vector<rhi::BufferOwner> m_CameraVisibleBuffer;
-	std::vector<rhi::BufferOwner> m_SunVisibleBuffer;
+
+	// Visible set for the current camera
+	gfx::MultiBuffer m_CameraVisibleBuffer;
+	RenderSet m_CameraVisibleSet;
 
 	// Visible set for the sun (for shadowmapping)
+	gfx::MultiBuffer m_SunVisibleBuffer;
 	RenderSet m_SunVisibleSet;
+
+	// Visible set for point lights
+	gfx::MultiBuffer m_PointLightsVisibleBuffer;
+	uint32_t m_PointLightsVisibleCount;
+
+	// Matrices for cascade shadowmap
 	float4x4 m_SunWoldToClipMatrix;
 	float4x4 m_ViewToSunClipMatrix;
 
-	// Scene constant buffer, set at begin frame, no changes during frame render
+	// Scene constant buffer, set at begin frame, no change during frame render
 	FrameUniformBufferRaw m_SceneCB;
 
 	// Living requests for visualizing resources

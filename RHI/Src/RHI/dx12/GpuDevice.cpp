@@ -491,7 +491,7 @@ st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetStorageRequirements(co
 		.size = desc.sizeBytes, 
 		.alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT };
 
-	if (has_flag(desc.shaderUsage, BufferShaderUsage::Uniform))
+	if (has_any_flag(desc.shaderUsage, BufferShaderUsage::Uniform))
 	{
 		ret.size = AlignUp(desc.sizeBytes, (size_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 	}
@@ -574,7 +574,7 @@ st::rhi::TextureSampledView st::rhi::dx12::GpuDevice::CreateTextureSampledView(I
 {
 	const auto& desc = texture->GetDesc();
 
-	if (!has_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
+	if (!has_any_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
 	{
 		LOG_ERROR("Can't create SRV: Texture not create with TextureShaderUsage::ShaderResource");
 		return {};
@@ -593,7 +593,7 @@ st::rhi::TextureStorageView st::rhi::dx12::GpuDevice::CreateTextureStorageView(I
 {
 	const auto& desc = texture->GetDesc();
 
-	if (!has_flag(desc.shaderUsage, TextureShaderUsage::Storage))
+	if (!has_any_flag(desc.shaderUsage, TextureShaderUsage::Storage))
 	{
 		LOG_ERROR("Can't create UAV: Texture not create with TextureShaderUsage::UnorderedAccess");
 		return {};
@@ -611,7 +611,7 @@ st::rhi::TextureColorTargetView st::rhi::dx12::GpuDevice::CreateTextureColorTarg
 {
 	const auto& desc = texture->GetDesc();
 
-	if (!has_flag(desc.shaderUsage, TextureShaderUsage::ColorTarget))
+	if (!has_any_flag(desc.shaderUsage, TextureShaderUsage::ColorTarget))
 	{
 		LOG_ERROR("Can't create UAV: Texture not create with TextureShaderUsage::UnorderedAccess");
 		return {};
@@ -629,7 +629,7 @@ st::rhi::TextureDepthTargetView st::rhi::dx12::GpuDevice::CreateTextureDepthTarg
 {
 	const auto& desc = texture->GetDesc();
 
-	if (!has_flag(desc.shaderUsage, TextureShaderUsage::DepthTarget))
+	if (!has_any_flag(desc.shaderUsage, TextureShaderUsage::DepthTarget))
 	{
 		LOG_ERROR("Can't create UAV: Texture not create with TextureShaderUsage::UnorderedAccess");
 		return {};
@@ -718,7 +718,7 @@ void st::rhi::dx12::GpuDevice::ReleaseTextureDepthTargetView(TextureDepthTargetV
 st::rhi::BufferUniformView st::rhi::dx12::GpuDevice::CreateBufferUniformView(IBuffer* buffer, uint32_t start, int size)
 {
 	const auto& desc = buffer->GetDesc();
-	if (!has_flag(desc.shaderUsage, BufferShaderUsage::Uniform))
+	if (!has_any_flag(desc.shaderUsage, BufferShaderUsage::Uniform))
 	{
 		LOG_ERROR("Can't create CBV: Buffer not created with BufferShaderUsage::Uniform");
 		return {};
@@ -734,7 +734,7 @@ st::rhi::BufferUniformView st::rhi::dx12::GpuDevice::CreateBufferUniformView(IBu
 st::rhi::BufferReadOnlyView st::rhi::dx12::GpuDevice::CreateBufferReadOnlyView(IBuffer* buffer, uint32_t start, int size)
 {
 	const auto& desc = buffer->GetDesc();
-	if (!has_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly))
+	if (!has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly))
 	{
 		LOG_ERROR("Can't create CBV: Buffer not created with BufferShaderUsage::ReadOnly");
 		return {};
@@ -750,7 +750,7 @@ st::rhi::BufferReadOnlyView st::rhi::dx12::GpuDevice::CreateBufferReadOnlyView(I
 st::rhi::BufferReadWriteView st::rhi::dx12::GpuDevice::CreateBufferReadWriteView(IBuffer* buffer, uint32_t start, int size)
 {
 	const auto& desc = buffer->GetDesc();
-	if (!has_flag(desc.shaderUsage, BufferShaderUsage::ReadWrite))
+	if (!has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadWrite))
 	{
 		LOG_ERROR("Can't create CBV: Buffer not created with BufferShaderUsage::ReadOnly");
 		return {};
@@ -1162,13 +1162,13 @@ D3D12_RESOURCE_DESC st::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& 
 	d3d12Desc.Format = formatMap.srvFormat;
 	d3d12Desc.SampleDesc.Count = desc.sampleCount;
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
-	if (!has_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
+	if (!has_any_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-	if (has_flag(desc.shaderUsage, TextureShaderUsage::Storage))
+	if (has_any_flag(desc.shaderUsage, TextureShaderUsage::Storage))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-	if (has_flag(desc.shaderUsage, TextureShaderUsage::ColorTarget))
+	if (has_any_flag(desc.shaderUsage, TextureShaderUsage::ColorTarget))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	if (has_flag(desc.shaderUsage, TextureShaderUsage::DepthTarget))
+	if (has_any_flag(desc.shaderUsage, TextureShaderUsage::DepthTarget))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	if (desc.isTiled)
 		d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;

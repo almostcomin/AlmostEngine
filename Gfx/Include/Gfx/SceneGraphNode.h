@@ -7,6 +7,7 @@
 #include "Core/Math/aabox.h"
 #include "Core/Math.h"
 #include "Gfx/SceneContentFlags.h"
+#include "Gfx/SceneBounds.h"
 
 namespace st::gfx
 {
@@ -23,7 +24,7 @@ class SceneGraphNode : public st::enable_weak_from_this<SceneGraphNode>, private
 
 public:
 
-	enum struct DirtyFlags : uint32_t
+	enum class DirtyFlags : uint32_t
 	{
 		None = 0,
 		LocalTransform = 0x01,	// Local transoform has changed
@@ -41,6 +42,7 @@ public:
 	void SetName(const char* name) { m_Name = name; }
 
 	void SetLeaf(st::unique<SceneGraphLeaf>&& leaf);
+	void OnLeafBoundsChanged();
 
 	void SetLocalTransform(const Transform& t);
 
@@ -53,9 +55,12 @@ public:
 
 	const Transform& GetLocalTransform() const { return m_LocalTransform; }
 	const float4x4& GetWorldTransform() const { return m_WorldMatrix; }
+	const float3& GetWorldPosition() const;
 
-	bool HasBounds() const { return m_HasBounds; }
-	const st::math::aabox3f& GetWorldBounds() const { return m_WorldBounds; }
+	bool HasBounds(BoundsType type) const { return m_HasBounds[(int)type]; }
+	const st::math::aabox3f& GetWorldBounds(BoundsType type) const { return m_WorldBounds[(int)type]; }
+
+	bool Test(BoundsType boundsType, std::span<const math::plane3f> planes) const;
 
 	SceneContentFlags GetContentFlags() const { return m_ContentFlags; }
 
@@ -75,8 +80,8 @@ private:
 	Transform m_LocalTransform;
 	float4x4 m_WorldMatrix;
 
-	bool m_HasBounds;
-	st::math::aabox3f m_WorldBounds;
+	std::array<bool, (int)BoundsType::_Size> m_HasBounds;
+	std::array<st::math::aabox3f, (int)BoundsType::_Size> m_WorldBounds;
 
 	SceneContentFlags m_ContentFlags; // This leaf content flags plus children content flags
 
@@ -85,15 +90,5 @@ private:
 };
 
 ENUM_CLASS_FLAG_OPERATORS(SceneGraphNode::DirtyFlags);
-/*
-inline SceneGraphNode::DirtyFlags operator | (SceneGraphNode::DirtyFlags a, SceneGraphNode::DirtyFlags b) { return SceneGraphNode::DirtyFlags(uint32_t(a) | uint32_t(b)); }
-inline SceneGraphNode::DirtyFlags operator & (SceneGraphNode::DirtyFlags a, SceneGraphNode::DirtyFlags b) { return SceneGraphNode::DirtyFlags(uint32_t(a) & uint32_t(b)); }
-inline SceneGraphNode::DirtyFlags operator ~ (SceneGraphNode::DirtyFlags a) { return SceneGraphNode::DirtyFlags(~uint32_t(a)); }
-inline SceneGraphNode::DirtyFlags operator |= (SceneGraphNode::DirtyFlags& a, SceneGraphNode::DirtyFlags b) { a = SceneGraphNode::DirtyFlags(uint32_t(a) | uint32_t(b)); return a; }
-inline SceneGraphNode::DirtyFlags operator &= (SceneGraphNode::DirtyFlags& a, SceneGraphNode::DirtyFlags b) { a = SceneGraphNode::DirtyFlags(uint32_t(a) & uint32_t(b)); return a; }
-inline bool operator !(SceneGraphNode::DirtyFlags a) { return uint32_t(a) == 0; }
-inline bool operator ==(SceneGraphNode::DirtyFlags a, uint32_t b) { return uint32_t(a) == b; }
-inline bool operator !=(SceneGraphNode::DirtyFlags a, uint32_t b) { return uint32_t(a) != b; }
-inline bool any(SceneGraphNode::DirtyFlags a) { return a != 0; }
-*/
+
 } // namespace st::gfx

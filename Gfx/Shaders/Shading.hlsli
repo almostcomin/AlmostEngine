@@ -40,4 +40,21 @@ void ShadeSurface(LightConstants light, MaterialSample surfaceMaterial, float3 s
         surfaceMaterial.roughness, halfAngularSize) * irradiance;
 }
 
+void ShadeSurface_PointLight(interop::PointLightData pointLight, MaterialSample surfaceMaterial, float3 surfacePos, float3 viewIncident, float3x3 worldToViewMatrix,
+    out float3 out_diffuseRadiance, out float3 out_specularRadiance)
+{
+    float dist = length(surfacePos - pointLight.position);
+    float attenuation = 1.0 / (dist * dist);    
+    float rangeAttenuation = square(saturate(1.0 - square(dist / pointLight.range)));
+    attenuation *= rangeAttenuation;
+
+    float3 lightIncident = (surfacePos - pointLight.position) / dist;
+    float halfAngularSize = 0;
+    float3 irradiance = pointLight.color * pointLight.intensity * attenuation;
+    
+    out_diffuseRadiance = BRDF_Diffuse(surfaceMaterial.normal, lightIncident) * surfaceMaterial.diffuseAlbedo * irradiance;
+    out_specularRadiance = BRDF_Specular_NDotL(surfaceMaterial.normal, viewIncident, lightIncident, surfaceMaterial.specularF0,
+        surfaceMaterial.roughness, halfAngularSize) * irradiance;
+}
+
 #endif //__SHADING_HLSLI__

@@ -3,6 +3,7 @@
 #include <string>
 #include <string_view>
 #include <cassert>
+#include <algorithm>
 
 namespace st
 {
@@ -112,12 +113,23 @@ T checked_cast(U u)
     inline bool operator !(const T& a) { return uint32_t(a) == 0; } \
     inline bool operator ==(const T& a, const uint32_t& b) { return uint32_t(a) == b; } \
     inline bool operator !=(const T& a, const uint32_t& b) { return uint32_t(a) != b; } \
-    inline bool any(T a) { return uint32_t(a) != 0; }
 
 template<typename T>
-constexpr bool has_flag(T lhs, T rhs)
+constexpr bool has_all_flags(T lhs, T rhs)
 {
     return (lhs & rhs) == rhs;
+}
+
+template<typename T>
+constexpr bool has_any_flag(T lhs, T rhs)
+{
+    return (lhs & rhs) != 0;
+}
+
+template<class T>
+constexpr bool any(const T& c)
+{
+    return std::any_of(c.begin(), c.end(), std::identity{});
 }
 
 } // namespace st

@@ -7,7 +7,7 @@ st::gfx::SceneGraphNode::SceneGraphNode() :
 	m_WorldBounds{ st::math::aabox3f::InitEmpty },
 	m_ContentFlags{ SceneContentFlags::None },
 	m_DirtyFlags{ DirtyFlags::None },
-	m_Name{ "noname" }
+	m_Name{ "<noname>" }
 {}
 
 st::gfx::SceneGraphNode::~SceneGraphNode()
@@ -31,6 +31,12 @@ void st::gfx::SceneGraphNode::SetLeaf(st::unique<SceneGraphLeaf>&& leaf)
 	PropagateDirtyFlags(DirtyFlags::Subgraph);
 }
 
+void st::gfx::SceneGraphNode::OnLeafBoundsChanged()
+{
+	m_DirtyFlags |= DirtyFlags::Leaf;
+	PropagateDirtyFlags(DirtyFlags::Subgraph);
+}
+
 st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraphNode::GetChild(size_t idx) const
 {
 	return idx < m_Children.size() ? m_Children[idx].get_weak() : st::weak<st::gfx::SceneGraphNode>{};
@@ -46,6 +52,23 @@ void st::gfx::SceneGraphNode::SetLocalTransform(const Transform& t)
 	m_LocalTransform = t;
 	m_DirtyFlags |= DirtyFlags::LocalTransform;
 	PropagateDirtyFlags(DirtyFlags::Subgraph);
+}
+
+const float3& st::gfx::SceneGraphNode::GetWorldPosition() const
+{
+	// Column major matrix
+	return *(float3*)&m_WorldMatrix[3];
+}
+
+bool st::gfx::SceneGraphNode::Test(BoundsType boundsType, std::span<const math::plane3f> planes) const
+{
+	assert(m_HasBounds[(int)boundsType] && "Test on a node without bounds!");
+	for (const auto& plane : planes)
+	{
+		if (!m_WorldBounds[(int)boundsType].test(plane))
+			return false;
+	}
+	return true;
 }
 
 void st::gfx::SceneGraphNode::PropagateDirtyFlags(DirtyFlags flags)

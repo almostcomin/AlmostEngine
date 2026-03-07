@@ -15,15 +15,15 @@ st::rhi::dx12::Buffer::Buffer(const BufferDesc& desc, ID3D12Resource* buffer, De
         m_Resource->Map(0, nullptr, (void**)&m_mapAddr);
     }
 
-    if (has_flag(desc.shaderUsage, BufferShaderUsage::Uniform))
+    if (has_any_flag(desc.shaderUsage, BufferShaderUsage::Uniform))
     {
         m_UniformView = device->CreateBufferUniformView(this);
     }
-    if (has_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly))
+    if (has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly))
     {
         m_ReadOnlyView = device->CreateBufferReadOnlyView(this);
     }
-    if (has_flag(desc.shaderUsage, BufferShaderUsage::ReadWrite))
+    if (has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadWrite))
     {
         m_ReadWriteView = device->CreateBufferReadWriteView(this);
     }
