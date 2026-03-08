@@ -240,41 +240,31 @@ void st::gfx::SceneGraph::Refresh()
 
                     node->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::Leaf;
 
-                    int depth = subgraphWalker.Next();
+                    // Next node
+                    int depth = subgraphWalker.Next(); 
 
                     // Update parent bounds and content flags if next is sibling or parent
-                    const auto& hasBounds = node->m_HasBounds;
-                    bool updateBounds = st::any(hasBounds);
-                    bool updateContentFlags = node->m_ContentFlags != 0;
-                    if ((updateBounds || updateContentFlags) && depth <= 0) // Sibling or going up.
+                    for (int i = depth; i <= 0; ++i)
                     {
-                        for (int i = depth; i <= 0; ++i)
+                        if (!node->m_Parent)
+                            break;
+
+                        // Update parent bounds
+                        for (int boundsIdx = 0; boundsIdx < (int)BoundsType::_Size; ++boundsIdx)
                         {
-                            if (!node->m_Parent)
-                                break;
-
-                            // Update parent bounds
-                            if (updateBounds)
+                            if (node->m_HasBounds[boundsIdx])
                             {
-                                for (int boundsIdx = 0; boundsIdx < (int)BoundsType::_Size; ++boundsIdx)
-                                {
-                                    if (hasBounds[boundsIdx])
-                                    {
-                                        node->m_Parent->m_WorldBounds[boundsIdx].merge(node->m_WorldBounds[boundsIdx]);
-                                        node->m_Parent->m_HasBounds[boundsIdx] = true;
-                                    }
-                                }
+                                node->m_Parent->m_WorldBounds[boundsIdx].merge(node->m_WorldBounds[boundsIdx]);
+                                node->m_Parent->m_HasBounds[boundsIdx] = true;
                             }
-
-                            // Update content flags
-                            if (updateContentFlags)
-                            {
-                                node->m_Parent->m_ContentFlags |= node->m_ContentFlags;
-                            }
-
-                            node = node->m_Parent;
                         }
+
+                        // Update content flags
+                        node->m_Parent->m_ContentFlags |= node->m_ContentFlags;
+
+                        node = node->m_Parent;
                     }
+
                 } // Subgraph loop
 
                 // Since we have updated a sub-graph, we need to update parent bounds

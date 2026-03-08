@@ -430,78 +430,6 @@ void StructureUI::BuildBottomBar()
 
 void StructureUI::BuildMenuFile()
 {
-#if 0
-    if (ImGui::MenuItem("New")) {}
-    if (ImGui::MenuItem("Open", "Ctrl+O")) 
-    {
-        std::string filename = OpenFileNativeDialog({}, { { "GlTF", "*.gltf" } });
-        if (!filename.empty() && m_RequestLoadFile)
-        {
-            m_RequestLoadFile(filename.c_str());
-        }
-    }
-    if (ImGui::BeginMenu("Open Recent"))
-    {
-        ImGui::MenuItem("fish_hat.c");
-        ImGui::MenuItem("fish_hat.inl");
-        ImGui::MenuItem("fish_hat.h");
-        ImGui::EndMenu();
-    }
-    if (ImGui::MenuItem("Save", "Ctrl+S")) {}
-    if (ImGui::MenuItem("Save As..")) {}
-
-    ImGui::Separator();
-
-    if (ImGui::BeginMenu("Options"))
-    {
-        static bool enabled = true;
-        ImGui::MenuItem("Enabled", "", &enabled);
-        ImGui::BeginChild("child", ImVec2(0, 60), ImGuiChildFlags_Borders);
-        for (int i = 0; i < 10; i++)
-            ImGui::Text("Scrolling Text %d", i);
-        ImGui::EndChild();
-        static float f = 0.5f;
-        static int n = 0;
-        ImGui::SliderFloat("Value", &f, 0.0f, 1.0f);
-        ImGui::InputFloat("Input", &f, 0.1f);
-        ImGui::Combo("Combo", &n, "Yes\0No\0Maybe\0\0");
-        ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Colors"))
-    {
-        float sz = ImGui::GetTextLineHeight();
-        for (int i = 0; i < ImGuiCol_COUNT; i++)
-        {
-            const char* name = ImGui::GetStyleColorName((ImGuiCol)i);
-            ImVec2 p = ImGui::GetCursorScreenPos();
-            ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + sz, p.y + sz), ImGui::GetColorU32((ImGuiCol)i));
-            ImGui::Dummy(ImVec2(sz, sz));
-            ImGui::SameLine();
-            ImGui::MenuItem(name);
-        }
-        ImGui::EndMenu();
-    }
-
-    // Here we demonstrate appending again to the "Options" menu (which we already created above)
-    // Of course in this demo it is a little bit silly that this function calls BeginMenu("Options") twice.
-    // In a real code-base using it would make senses to use this feature from very different code locations.
-    if (ImGui::BeginMenu("Options")) // <-- Append!
-    {
-        static bool b = true;
-        ImGui::Checkbox("SomeOption", &b);
-        ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Disabled", false)) // Disabled
-    {
-        IM_ASSERT(0);
-    }
-    if (ImGui::MenuItem("Checked", NULL, true)) {}
-    ImGui::Separator();
-    if (ImGui::MenuItem("Quit", "Alt+F4")) {}
-#else
-
     if (ImGui::MenuItem("Open", "Ctrl+O"))
     {
         std::string filename = OpenFileNativeDialog({}, { { "GlTF", "*.gltf" } });
@@ -522,7 +450,6 @@ void StructureUI::BuildMenuFile()
         if (m_RequestQuit)
             m_RequestQuit();
     }
-#endif
 }
 
 void StructureUI::BuildSettingsWindow()
@@ -622,7 +549,12 @@ void StructureUI::BuildSettingsWindow()
 
     if (ImGui::CollapsingHeader("Debug view", ImGuiTreeNodeFlags_None))
     {
-        ImGui::Checkbox("BBoxes", &m_Data.ShowBBoxes);
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
+
+        ImGui::Checkbox("Mesh BBoxes", &m_Data.ShowMeshBBoxes);
+        ImGui::SameLine(availWidth / 2);
+        ImGui::Checkbox("Light BBoxes", &m_Data.ShowLightBBoxes);
     }
 
     if (ImGui::CollapsingHeader("Shadowmap", ImGuiTreeNodeFlags_None) && m_ShadowmapRS)
@@ -830,11 +762,9 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     tree_flags |= ImGuiTreeNodeFlags_Selected;
                 if (node->GetChildrenCount() == 0)
                     tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
-                //if (node->DataMyBool == false)
-                //    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+
                 bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", node->GetName().c_str());
-                //if (node->DataMyBool == false)
-                //    ImGui::PopStyleColor();
+
                 if (ImGui::IsItemFocused())
                     m_SelectedNode = node;
 

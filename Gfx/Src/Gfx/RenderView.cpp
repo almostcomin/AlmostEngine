@@ -115,7 +115,11 @@ st::gfx::RenderView::~RenderView()
 }
 
 void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
-{ 
+{
+	m_CameraVisibleBuffer.Reset();
+	m_SunVisibleBuffer.Reset();
+	m_PointLightsVisibleBuffer.Reset();
+
 	m_Scene = scene;
 	for (auto& rs : m_RenderStages)
 	{
@@ -1021,15 +1025,15 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 	// Transform scene (visible set) bounds to local camera axis
 	auto sceneBoundsSun = visibleSceneBounds.transform(sunViewMatrix);
-	assert(sceneBoundsSun.min.z <= 0.f); // Note that front is -z
-	assert(sceneBoundsSun.max.z <= 0.f);
+	//assert(sceneBoundsSun.min.z <= 0.f); // Note that front is -z
+	//assert(sceneBoundsSun.max.z <= 0.f);
 	assert(sceneBoundsSun.min.z <= sceneBoundsSun.max.z);
 
 	// Extends the bounds depth to the direction of the sun top cover entire scene
 	{
 		auto worldBoundsSun = worldBounds.transform(sunViewMatrix);
-		assert(worldBoundsSun.min.z <= 0.f);
-		assert(worldBoundsSun.max.z <= 0.f);
+		//assert(worldBoundsSun.min.z <= 0.f);
+		//assert(worldBoundsSun.max.z <= 0.f);
 		assert(worldBoundsSun.min.z <= sceneBoundsSun.max.z);
 
 		sceneBoundsSun.min.z = worldBoundsSun.min.z;

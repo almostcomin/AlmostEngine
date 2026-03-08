@@ -13,7 +13,7 @@ void st::gfx::DebugRenderStage::Render()
 	if (!scene)
 		return;
 
-	if (!m_RenderBBoxes)
+	if (!any(m_RenderBBoxes))
 		return;
 
 	auto commandList = m_RenderView->GetCommandList();
@@ -30,14 +30,20 @@ void st::gfx::DebugRenderStage::Render()
 	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
 		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
 	
-	auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene.get(), commandList);
+	for (int i = 0; i < (int)BoundsType::_Size; ++i)
+	{
+		if (m_RenderBBoxes[i])
+		{
+			auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene.get(), (BoundsType)i, commandList);
 
-	interop::DebugStage shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
-	shaderConstants.aaboxDI = bboxBufferDI;	
-	commandList->PushGraphicsConstants(shaderConstants);
+			interop::DebugStage shaderConstants;
+			shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
+			shaderConstants.aaboxDI = bboxBufferDI;
+			commandList->PushGraphicsConstants(shaderConstants);
 
-	commandList->DrawInstanced(24, bboxCount, 0);
+			commandList->DrawInstanced(24, bboxCount, 0);
+		}
+	}
 
 	commandList->EndRenderPass();
 };
@@ -122,23 +128,23 @@ void st::gfx::DebugRenderStage::OnBackbufferResize()
 	}
 }
 
-std::pair<st::rhi::BufferReadOnlyView, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList)
+std::pair<st::rhi::BufferReadOnlyView, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, BoundsType boundsType, rhi::CommandListHandle commandList)
 {
 	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
 
 	// Check the number of aabox we need
 	if (!scene)
 		return { rhi::c_InvalidDescriptorIndex, 0 };
-
+	 
 	// Collect all bboxes
 	std::vector<st::math::aabox3f> aabboxes;
 	st::gfx::SceneGraph::Walker walker{ *scene->GetSceneGraph() };
 	while (walker)
 	{
 		auto node = *walker;
-		if (node->HasBounds(BoundsType::Mesh))
+		if (node->HasBounds(boundsType))
 		{
-			aabboxes.push_back(node->GetWorldBounds(BoundsType::Mesh));
+			aabboxes.push_back(node->GetWorldBounds(boundsType));
 			walker.Next();
 		}
 		else

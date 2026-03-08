@@ -33,7 +33,8 @@ public:
 		std::string RenderMode;
 
 		float CameraSpeed = 2.f;
-		bool ShowBBoxes = false;
+		bool ShowMeshBBoxes = false;
+		bool ShowLightBBoxes = false;
 
 		bool ShadowmapEnabled = true;
 		bool ShowShadowmap = false;

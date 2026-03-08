@@ -33,6 +33,7 @@ void st::gfx::RenderSetInstanced(const std::vector<std::pair<rhi::CullMode, std:
 	shaderConstants.sceneDI = sceneBuffer;
 	shaderConstants.instancesDI = renderSetIndicesBuffer;
 
+	int visibleInstanceIndex = 0; // Index to the visible buffer
 	for (auto& cullBase : renderSet)
 	{
 		if (cullBase.second.empty())
@@ -65,12 +66,12 @@ void st::gfx::RenderSetInstanced(const std::vector<std::pair<rhi::CullMode, std:
 
 			st::gfx::Mesh* currentMesh = instances[0]->GetMesh().get();
 			int prevIdx = 0;
-			for (int i = 0; i < instances.size(); ++i)
+			for (int i = 1; i < instances.size(); ++i)
 			{
 				const st::gfx::MeshInstance* meshInstance = instances[i];
 				if (currentMesh != meshInstance->GetMesh().get())
 				{
-					shaderConstants.baseInstanceIdx = prevIdx;
+					shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
 					shaderConstants.meshIndex = instances[prevIdx]->GetMeshSceneIndex();
 					shaderConstants.materialIndex = instances[prevIdx]->GetMaterialSceneIndex();
 					commandList->PushGraphicsConstants(shaderConstants);
@@ -81,11 +82,13 @@ void st::gfx::RenderSetInstanced(const std::vector<std::pair<rhi::CullMode, std:
 				}
 			}
 
-			shaderConstants.baseInstanceIdx = prevIdx;
+			shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
 			shaderConstants.meshIndex = instances[prevIdx]->GetMeshSceneIndex();
 			shaderConstants.materialIndex = instances[prevIdx]->GetMaterialSceneIndex();
 			commandList->PushGraphicsConstants(shaderConstants);
 			commandList->DrawInstanced(currentMesh->GetIndexCount(), instances.size() - prevIdx, 0);
+
+			visibleInstanceIndex += instances.size();
 		}
 	}
 }

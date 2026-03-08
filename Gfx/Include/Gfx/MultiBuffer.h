@@ -28,6 +28,8 @@ public:
 	void Init(const st::rhi::BufferShaderUsage usage, size_t size, rhi::ResourceState defaultState, st::gfx::DeviceManager* deviceManager, const std::string& debugName);
 	void Release();
 
+	void Reset();
+
 	size_t GetSize() const { return m_Size; }
 	void SetSize(size_t size);
 	void Grow(size_t size);

@@ -386,7 +386,8 @@ int SDL_main(int argc, char* argv[])
 				mainRenderView->SetCurrentRenderMode(uiRS->m_Data.RenderMode);
 			}
 
-			debugRS->SetRenderBBoxes(uiRS->m_Data.ShowBBoxes);
+			debugRS->ShowRenderBBoxes(st::gfx::BoundsType::Mesh, uiRS->m_Data.ShowMeshBBoxes);
+			debugRS->ShowRenderBBoxes(st::gfx::BoundsType::Light, uiRS->m_Data.ShowLightBBoxes);
 
 			lightingRS->ShowShadowmap(uiRS->m_Data.ShowShadowmap);
 			if (uiRS->m_Data.ShadowmapDepthBias != shadowmapRS->GetDepthBias())

@@ -3,12 +3,13 @@
 #include "Gfx/SceneGraph.h"
 
 st::gfx::SceneGraphNode::SceneGraphNode() :
-	m_HasBounds{ false },
-	m_WorldBounds{ st::math::aabox3f::InitEmpty },
+	m_HasBounds{},
 	m_ContentFlags{ SceneContentFlags::None },
 	m_DirtyFlags{ DirtyFlags::None },
 	m_Name{ "<noname>" }
-{}
+{
+	m_WorldBounds.fill(st::math::aabox3f::InitEmpty);
+}
 
 st::gfx::SceneGraphNode::~SceneGraphNode()
 {}

@@ -33,6 +33,13 @@ void st::gfx::MultiBuffer::Release()
 	m_DeviceManager = nullptr;
 }
 
+void st::gfx::MultiBuffer::Reset()
+{
+	m_Buffers.clear();
+	m_Buffers.resize(m_DeviceManager->GetSwapchainBufferCount());
+	m_Size = 0;
+}
+
 void st::gfx::MultiBuffer::SetSize(size_t size)
 {
 	m_Size = size;

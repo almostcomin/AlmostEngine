@@ -5,6 +5,7 @@
 #include "RHI/Buffer.h"
 #include "RHI/CommandList.h"
 #include "RHI/FrameBuffer.h"
+#include "Gfx/SceneBounds.h"
 
 namespace st::gfx
 {
@@ -20,7 +21,7 @@ public:
 
 	DebugRenderStage() = default;
 
-	void SetRenderBBoxes(bool b) { m_RenderBBoxes = b; }
+	void ShowRenderBBoxes(BoundsType boundsType, bool b) { m_RenderBBoxes[(int)boundsType] = b; }
 
 	const char* GetDebugName() const override { return "DebugRenderStage"; }
 
@@ -31,7 +32,7 @@ private:
 	void OnDetached() override;
 	void OnBackbufferResize() override;
 
-	std::pair<rhi::BufferReadOnlyView, size_t> GetAABBOXBuffer(const Scene* scene, rhi::CommandListHandle commandList);
+	std::pair<rhi::BufferReadOnlyView, size_t> GetAABBOXBuffer(const Scene* scene, BoundsType boundsType, rhi::CommandListHandle commandList);
 
 	rhi::GraphicsPipelineStateOwner m_PSO;
 	rhi::ShaderOwner m_VS;
@@ -39,7 +40,7 @@ private:
 	rhi::BufferOwner m_AABBOXBuffer;
 	rhi::FramebufferOwner m_FB;
 
-	bool m_RenderBBoxes = false;
+	std::array<bool, (int)BoundsType::_Size> m_RenderBBoxes;
 };
 
 } // namespace st::gfx

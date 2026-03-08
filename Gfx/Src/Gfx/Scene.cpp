@@ -201,6 +201,8 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			pointLightDataPtr->range = pointLight->GetRange();
 			pointLightDataPtr->color = pointLight->GetColor();
 			pointLightDataPtr->intensity = pointLight->GetIntensity();
+
+			pointLightDataPtr++;
 		}
 
 		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_PointLightsBuffer.get_weak(),
