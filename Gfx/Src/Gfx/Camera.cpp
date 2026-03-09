@@ -90,7 +90,7 @@ void st::gfx::Camera::Fit(const st::math::aabox3f& bounds)
 	SetForward(newFwd);
 }
 
-const float4x4& st::gfx::Camera::GeViewMatrix()
+const float4x4& st::gfx::Camera::GetViewMatrix()
 {
 	UpdateMatrices();
 	return m_ViewMatrix;

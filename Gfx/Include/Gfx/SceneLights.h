@@ -56,13 +56,16 @@ public:
 
 	// Setters
 	void				SetRange(float v);
+	void				SetRadius(float v)					{ m_Radius = v; }
 
 	// Getters
 	float				GetRange() const					{ return m_Range; }
+	float				GetRadius() const					{ return m_Radius; }
 
 private:
 
 	float m_Range;
+	float m_Radius;
 	st::math::aabox3f m_Bounds;
 
 };

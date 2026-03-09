@@ -50,8 +50,7 @@ float4 main(PS_INPUT input) : SV_Target
     Texture2D GBuffer2 = ResourceDescriptorHeap[Constants.GBuffer2DI];
     Texture2D GBuffer3 = ResourceDescriptorHeap[Constants.GBuffer3DI];
     
-    StructuredBuffer<interop::PointLightData> pointLightsDataBuffer = ResourceDescriptorHeap[sceneData.pointLightsBufferDI];
-    ByteAddressBuffer pointLightIndices = ResourceDescriptorHeap[sceneData.pointLightIndicesDI];
+    StructuredBuffer<interop::PointLightData> pointLightsDataBuffer = ResourceDescriptorHeap[sceneData.pointLightsDataDI];
                     
     // Sample G-Buffers
     float4 gbuffers[4];
@@ -158,24 +157,24 @@ float4 main(PS_INPUT input) : SV_Target
         float3 diffuseRadiance = 0.0;
         float3 specularRadiance = 0.0;
         ShadeSurface(sunConstants, surfaceMat, surfacePosView.xyz, viewIncident, (float3x3)sceneData.camViewMatrix, diffuseRadiance, specularRadiance);
+        diffuseRadiance *= shadowFactor;
+        specularRadiance *= shadowFactor;
     
         for (uint i = 0; i < sceneData.pointLightCount; i++)
         {
             float3 lightDiffuseRadiance = 0.0;
             float3 lightSpecularRadiance = 0.0;
             
-            uint lightIdx = pointLightIndices.Load(i * 4);
-            interop::PointLightData pointLight = pointLightsDataBuffer[lightIdx];
+            interop::PointLightData pointLight = pointLightsDataBuffer[i];
             
-            ShadeSurface_PointLight(pointLight, surfaceMat, surfacePosView.xyz, viewIncident, (float3x3) sceneData.camViewMatrix,
-                lightDiffuseRadiance, lightSpecularRadiance);
+            ShadeSurface_PointLight(pointLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
             
             diffuseRadiance += lightDiffuseRadiance;
             specularRadiance += lightSpecularRadiance;
         }
         
-        float3 diffuseTerm = shadowFactor * diffuseRadiance * sceneData.sunColor.rgb;
-        float3 specularTerm = shadowFactor * specularRadiance * sceneData.sunColor.rgb;
+        float3 diffuseTerm = diffuseRadiance * sceneData.sunColor.rgb;
+        float3 specularTerm = specularRadiance * sceneData.sunColor.rgb;
             
         // Ambient    
         float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);

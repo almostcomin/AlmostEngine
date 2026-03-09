@@ -97,12 +97,12 @@ st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* d
 		m_SubmitFences.push_back(device->CreateFence(0, std::format("{} - Fence[{}]", m_DebugName, i)));
 	}
 
-	m_CameraVisibleBuffer.Init(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
+	m_CameraVisibleBuffer.InitRaw(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
 		m_DeviceManager, "CameraVisibleIndices");
-	m_SunVisibleBuffer.Init(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
+	m_SunVisibleBuffer.InitRaw(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
 		m_DeviceManager, "SunVisibleIndices");
-	m_PointLightsVisibleBuffer.Init(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
-		m_DeviceManager, "PointLightsVisibleIndices");
+	m_PointLightsVisibleBuffer.InitStructured(st::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::PointLightData),
+		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "PointLightsVisibleIndices");
 }
 
 st::gfx::RenderView::~RenderView()
@@ -936,7 +936,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	if (m_Camera)
 	{
 		sceneShaderConstant->camViewProjMatrix = m_Camera->GetViewProjectionMatrix();
-		sceneShaderConstant->camViewMatrix = m_Camera->GeViewMatrix();
+		sceneShaderConstant->camViewMatrix = m_Camera->GetViewMatrix();
 		sceneShaderConstant->camProjMatrix = m_Camera->GetProjectionMatrix();
 		sceneShaderConstant->camWorldPos = float4{ m_Camera->GetPosition(), 0.f };
 	}
@@ -973,19 +973,17 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 
 		// Lights
 		sceneShaderConstant->dirLightCount = 0;
-		sceneShaderConstant->dirLightIndicesDI = {};
+		sceneShaderConstant->dirLightsDataDI = {};
 		sceneShaderConstant->pointLightCount = m_PointLightsVisibleCount;
-		sceneShaderConstant->pointLightIndicesDI = m_PointLightsVisibleBuffer.GetCurrentBuffer() ? m_PointLightsVisibleBuffer.GetCurrentBuffer()->GetReadOnlyView() : INVALID_DESCRIPTOR_INDEX;
+		sceneShaderConstant->pointLightsDataDI = m_PointLightsVisibleBuffer.GetCurrentBuffer() ?
+			m_PointLightsVisibleBuffer.GetCurrentBuffer()->GetReadOnlyView() : INVALID_DESCRIPTOR_INDEX;
 		sceneShaderConstant->spotLightCount = 0;
-		sceneShaderConstant->spotLightIndicesDI = {};
+		sceneShaderConstant->spotLightsDaraDI = {};
 
 		// Data buffers
 		sceneShaderConstant->instanceBufferDI = m_Scene->GetInstancesBufferView();
 		sceneShaderConstant->meshesBufferDI = m_Scene->GetMeshesBufferView();
 		sceneShaderConstant->materialsBufferDI = m_Scene->GetMaterialsBufferView();
-		sceneShaderConstant->dirLightsBufferDI = {};
-		sceneShaderConstant->pointLightsBufferDI = m_Scene->GetPointLightsBufferView();
-		sceneShaderConstant->spotLightsBufferDI = {};
 	}
 }
 
@@ -1067,7 +1065,7 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	m_SunWoldToClipMatrix = sunProjMatrix * sunViewMatrix;
 
 	// view -> world -> sun_view -> sun_clip
-	m_ViewToSunClipMatrix = sunProjMatrix * sunViewMatrix * glm::inverse(m_Camera->GeViewMatrix());
+	m_ViewToSunClipMatrix = sunProjMatrix * sunViewMatrix * glm::inverse(m_Camera->GetViewMatrix());
 
 	// Visible set from sun
 	{
@@ -1131,7 +1129,7 @@ void st::gfx::RenderView::UpdateLightsVisibleSet(rhi::ICommandList* commandList)
 	if (m_PointLightsVisibleCount == 0)
 		return;
 
-	uint32_t reqSize = m_PointLightsVisibleCount * sizeof(uint32_t);
+	uint32_t reqSize = m_PointLightsVisibleCount * sizeof(interop::PointLightData);
 	m_PointLightsVisibleBuffer.Grow(reqSize * 2);
 
 	rhi::BufferHandle buffer = m_PointLightsVisibleBuffer.GetCurrentBuffer();
@@ -1142,10 +1140,14 @@ void st::gfx::RenderView::UpdateLightsVisibleSet(rhi::ICommandList* commandList)
 	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
 	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
 
-	uint32_t* ptr = (uint32_t*)data;
+	auto* ptr = (interop::PointLightData*)data;
 	for (const auto* pointLight : visiblePointLights)
 	{
-		*ptr = pointLight->GetLeafSceneIndex();
+		ptr->viewSpacePosition = m_Camera->GetViewMatrix() * float4 { pointLight->GetNode()->GetWorldPosition(), 1.f };
+		ptr->range = pointLight->GetRange();
+		ptr->color = pointLight->GetColor();
+		ptr->intensity = pointLight->GetIntensity();
+		ptr->radius = pointLight->GetRadius();
 		ptr++;
 	}
 

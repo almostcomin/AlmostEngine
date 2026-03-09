@@ -56,7 +56,6 @@ namespace st::gfx
 		rhi::BufferReadOnlyView GetInstancesBufferView() const;
 		rhi::BufferReadOnlyView GetMeshesBufferView() const;
 		rhi::BufferReadOnlyView GetMaterialsBufferView() const;
-		rhi::BufferReadOnlyView GetPointLightsBufferView() const;
 
 		// Updates scene graph
 		void Update();
@@ -71,7 +70,6 @@ namespace st::gfx
 		rhi::BufferOwner m_InstancesBuffer;		// interop::InstanceData
 		rhi::BufferOwner m_MeshesBuffer;		// interop::MeshData
 		rhi::BufferOwner m_MaterialsBuffer;		// interop::MaterialData
-		rhi::BufferOwner m_PointLightsBuffer;	// interop::PointLightData
 
 		DeviceManager* m_DeviceManager;
 	};

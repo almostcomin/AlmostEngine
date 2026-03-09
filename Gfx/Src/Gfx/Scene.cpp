@@ -34,7 +34,6 @@ st::gfx::Scene::~Scene()
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_PointLightsBuffer));
 
 	m_SceneGraph.reset();
 }
@@ -47,7 +46,6 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_PointLightsBuffer));
 
 	m_SceneGraph = std::move(graph);
 	m_SceneGraph->Refresh(); // Make sure it is up to date
@@ -178,37 +176,6 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
 		uploadResult->Wait();
 	} // material buffer
-
-	if (!m_SceneGraph->GetScenePointLights().empty())
-	{
-		const auto& pointLights = m_SceneGraph->GetScenePointLights();
-
-		rhi::BufferDesc desc{
-			.memoryAccess = rhi::MemoryAccess::Default,
-			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-			.sizeBytes = pointLights.size() * sizeof(interop::PointLightData),
-			.format = rhi::Format::UNKNOWN,
-			.stride = sizeof(interop::PointLightData) };
-
-		m_PointLightsBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene PointLights Buffer");
-
-		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
-		auto* pointLightDataPtr = (interop::PointLightData*)uploadTicket->GetPtr();
-
-		for (const st::gfx::ScenePointLight* pointLight : pointLights)
-		{
-			pointLightDataPtr->position = pointLight->GetNode()->GetWorldPosition();
-			pointLightDataPtr->range = pointLight->GetRange();
-			pointLightDataPtr->color = pointLight->GetColor();
-			pointLightDataPtr->intensity = pointLight->GetIntensity();
-
-			pointLightDataPtr++;
-		}
-
-		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_PointLightsBuffer.get_weak(),
-			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
-		uploadResult->Wait();
-	}
 }
 
 void st::gfx::Scene::Update()
@@ -241,9 +208,4 @@ st::rhi::BufferReadOnlyView st::gfx::Scene::GetMeshesBufferView() const
 st::rhi::BufferReadOnlyView st::gfx::Scene::GetMaterialsBufferView() const
 {
 	return m_MaterialsBuffer ? m_MaterialsBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
-}
-
-st::rhi::BufferReadOnlyView st::gfx::Scene::GetPointLightsBufferView() const
-{
-	return m_PointLightsBuffer ? m_PointLightsBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
