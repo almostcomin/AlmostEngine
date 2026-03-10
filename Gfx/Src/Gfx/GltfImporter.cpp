@@ -1434,8 +1434,6 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
             case cgltf_light_type_directional:
             {
                 auto leaf = st::make_unique_with_weak<st::gfx::SceneDirectionalLight>();
-                if (srcNode->light->name)
-                    leaf->SetName(srcNode->light->name);
                 leaf->SetColor(*(float3*)&srcNode->light->color);
                 leaf->SetIrradiance(srcNode->light->intensity);
                 leaf->SetAngularSize(0.075f);

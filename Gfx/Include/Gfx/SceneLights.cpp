@@ -1,6 +1,15 @@
 #include "Gfx/SceneLights.h"
 #include "Gfx/SceneGraphNode.h"
 
+float3 st::gfx::SceneDirectionalLight::GetDirection() const
+{
+	constexpr float3 localDir = float3{ 0.0f, 0.0f, -1.0f };
+
+	const float4x4& worldMatrix = GetNode()->GetWorldTransform();
+	float3 worldDir = glm::normalize(worldMatrix * float4{ localDir, 0.f });
+	return worldDir;
+}
+
 st::gfx::ScenePointLight::ScenePointLight() : m_Range{ 0.f }, m_Radius{ 0.f }
 {}
 

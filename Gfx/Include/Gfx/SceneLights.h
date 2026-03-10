@@ -51,18 +51,16 @@ public:
 
 	// Setters
 	void				SetIrradiance(float v)				{ m_Irradiance = v; }
-	void				SetDirection(const float3& dir)		{ m_Direction = dir; }
 	void				SetAngularSize(float v)				{ m_AngularSize = v; }
 
 	// Getters
 	float				GetIrradiance() const				{ return m_Irradiance; }
-	float3				GetDirection() const				{ return m_Direction; }
+	float3				GetDirection() const;
 	float				GetAngularSize() const				{ return m_AngularSize; }
 
 private:
 
 	float				m_Irradiance; // Lux (lumen per square meter)
-	float3				m_Direction;
 	float				m_AngularSize;
 };
 
