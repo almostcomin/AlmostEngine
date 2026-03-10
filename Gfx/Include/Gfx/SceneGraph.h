@@ -12,6 +12,7 @@ class MeshInstance;
 class SceneCamera;
 class SceneDirectionalLight;
 class ScenePointLight;
+class SceneSpotLight;
 class Mesh;
 class Material;
 
@@ -107,6 +108,7 @@ public:
     const std::vector<SceneCamera*>& GetSceneCameras() const { return m_SceneCameraLeafs; }
     const std::vector<SceneDirectionalLight*>& GetSceneDirLights() const { return m_SceneDirLightLeafs; }
     const std::vector<ScenePointLight*>& GetScenePointLights() const { return m_ScenePointLightLeafs; }
+    const std::vector<SceneSpotLight*>& GetSceneSpotLights() const { return m_SceneSpotLightLeafs; }
 
     const st::unique_vector<Mesh*>& GetMeshes() const { return m_Meshes; }
     const std::vector<int>& GetMeshesMaterialIndices() const { return m_MeshMaterialIndices; }
@@ -128,6 +130,7 @@ private:
     std::vector<SceneCamera*> m_SceneCameraLeafs;
     std::vector<SceneDirectionalLight*> m_SceneDirLightLeafs;
     std::vector<ScenePointLight*> m_ScenePointLightLeafs;
+    std::vector<SceneSpotLight*> m_SceneSpotLightLeafs;
 
     st::unique_vector<Mesh*> m_Meshes;
     std::vector<int> m_MeshMaterialIndices;

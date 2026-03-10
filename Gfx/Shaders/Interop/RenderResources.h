@@ -107,6 +107,19 @@ namespace interop
         uint _padding[3];
     };
 
+    struct SpotLightData
+    {
+        float3 viewSpacePosition;
+        float range;
+        float3 viewSpaceDirection;
+        float intensity;
+        float3 color;        
+        float radius;
+        float innerAngle;
+        float outerAngle;
+        uint _padding[2];
+    };
+
     struct SceneConstants
     {
         // Camera
@@ -134,7 +147,7 @@ namespace interop
         uint pointLightCount;
         BufferReadOnlyIndex pointLightsDataDI; // PointLightData
         uint spotLightCount;
-        BufferReadOnlyIndex spotLightsDaraDI;
+        BufferReadOnlyIndex spotLightsDataDI;
 
         // Global descriptors indices
         BufferReadOnlyIndex instanceBufferDI;

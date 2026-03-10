@@ -13,7 +13,9 @@ namespace st::gfx
 {
 	class SceneGraphNode;
 	class MeshInstance;
+	class SceneDirectionalLight;
 	class ScenePointLight;
+	class SceneSpotLight;
 	class DeviceManager;
 	class ShadowmapRenderStage;
 	class ToneMappingRenderStage;
@@ -125,7 +127,9 @@ private:
 	bool BuildRSBufferView(RenderStageBufferView* rsBufferView);
 
 	void BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf);
+	void BuildDirLightLeaf(const st::gfx::SceneDirectionalLight* light);
 	void BuildPointLightLeaf(const st::gfx::ScenePointLight* light);
+	void BuildSpotLightLeaf(const st::gfx::SceneSpotLight* light);
 
 	void AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id);
 	void AddRenderStageBufferView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id);

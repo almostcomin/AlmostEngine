@@ -329,7 +329,6 @@ void st::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
             }
             assert(m_MeshMaterialIndices.size() == m_Meshes.size());
         }
-
     } break;
         
     case SceneGraphLeaf::Type::Camera:
@@ -347,10 +346,14 @@ void st::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
         leaf->m_SceneIndex = m_ScenePointLightLeafs.size() - 1;
         break;
 
+    case SceneGraphLeaf::Type::SpotLight:
+        m_SceneSpotLightLeafs.push_back(checked_cast<SceneSpotLight*>(leaf));
+        leaf->m_SceneIndex = m_SceneSpotLightLeafs.size() - 1;
+        break;
+
     default:
         assert(false && "Unknown leaf type");
     }
-    // TODO
 }
 
 void st::gfx::SceneGraph::UnregisterLeaf(SceneGraphLeaf* leaf)

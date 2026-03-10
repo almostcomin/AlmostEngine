@@ -106,6 +106,8 @@ st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* d
 		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "DirLightsVisibleBuffer");
 	m_PointLightsVisibleBuffer.InitStructured(st::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::PointLightData),
 		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "PointLightsVisibleBuffer");
+	m_SpotLightsVisibleBuffer.InitStructured(st::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::SpotLightData),
+		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "SpotLightsVisibleBuffer");
 }
 
 st::gfx::RenderView::~RenderView()
@@ -123,6 +125,7 @@ void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
 	m_ShadowMapVisibleBuffer.Reset();
 	m_DirLightsVisibleBuffer.Reset();
 	m_PointLightsVisibleBuffer.Reset();
+	m_SpotLightsVisibleBuffer.Reset();
 
 	m_Scene = scene;
 	for (auto& rs : m_RenderStages)
@@ -628,6 +631,7 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 	UpdateShadowmapData(beginCommandList);
 	UpdateDirLightsVisibleBuffer(beginCommandList);
 	UpdatePointLightsVisibleBuffer(beginCommandList);
+	UpdateSpotLightsVisibleBuffer(beginCommandList);
 
 	UpdateSceneConstantBuffer();
 
@@ -987,8 +991,8 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 			sceneShaderConstant->dirLightsDataDI = m_DirLightsVisibleBuffer.GetReadOnlyView();
 			sceneShaderConstant->pointLightCount = m_PointLightsVisibleCount;
 			sceneShaderConstant->pointLightsDataDI = m_PointLightsVisibleBuffer.GetReadOnlyView();
-			sceneShaderConstant->spotLightCount = 0;
-			sceneShaderConstant->spotLightsDaraDI = {};
+			sceneShaderConstant->spotLightCount = m_SpotLightsVisibleCount;
+			sceneShaderConstant->spotLightsDataDI = m_SpotLightsVisibleBuffer.GetReadOnlyView();;
 		}
 
 		// Data buffers
@@ -1103,6 +1107,8 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 void st::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList)
 {
+	m_DirLightsVisibleCount = 0;
+
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
 
@@ -1126,7 +1132,7 @@ void st::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* comman
 	auto* ptr = (interop::DirLightData*)data;
 	for (const auto* dirLight : visibleDirLights)
 	{
-		ptr->viewSpaceDirection = m_Camera->GetViewMatrix() * float4{ dirLight->GetDirection(), 0.f };
+		ptr->viewSpaceDirection = glm::normalize(m_Camera->GetViewMatrix() * float4{ dirLight->GetDirection(), 0.f });
 		ptr->irradiance = dirLight->GetIrradiance();
 		ptr->color = dirLight->GetColor();
 		ptr->halfAngularSize = dirLight->GetAngularSize() / 2.f;
@@ -1142,6 +1148,8 @@ void st::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* comman
 
 void st::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList)
 {
+	m_PointLightsVisibleCount = 0;
+
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
 
@@ -1204,6 +1212,85 @@ void st::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* comm
 		ptr->color = pointLight->GetColor();
 		ptr->intensity = pointLight->GetIntensity();
 		ptr->radius = pointLight->GetRadius();
+		ptr++;
+	}
+
+	// Copy to buffer
+	commandList->CopyBufferToBuffer(buffer.get(), 0, uploadBuffer->GetBuffer().get(), offset, reqSize);
+
+	commandList->PushBarrier(
+		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+}
+
+void st::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList)
+{
+	m_SpotLightsVisibleCount = 0;
+
+	if (!m_Scene || !m_Scene->GetSceneGraph())
+		return;
+
+	const auto& frustum = m_Camera->GetFrustum();
+	auto testFrustum = [&frustum](const float3& pos, float radius) -> bool
+		{
+			for (const auto& plane : frustum.get_planes())
+			{
+				if (plane.distance(pos) < -radius)
+					return false;
+			}
+			return true;
+		};
+
+	std::vector<const st::gfx::SceneSpotLight*> visibleSpotLights;
+	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
+	while (walker)
+	{
+		auto node = *walker;
+		if (has_any_flag(node->GetContentFlags(), SceneContentFlags::SpotLights) &&
+			node->HasBounds(BoundsType::Light) && node->Test(BoundsType::Light, frustum.get_planes()))
+		{
+			auto leaf = node->GetLeaf();
+			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::SpotLight)
+			{
+				const auto* spotLight = st::checked_cast<const st::gfx::SceneSpotLight*>(leaf.get());
+				if (testFrustum(node->GetWorldPosition(), spotLight->GetRange()))
+				{
+					visibleSpotLights.push_back(spotLight);
+				}
+			}
+			walker.Next();
+		}
+		else
+		{
+			walker.NextSibling();
+		}
+	}
+	m_SpotLightsVisibleCount = visibleSpotLights.size();
+
+	if (m_SpotLightsVisibleCount == 0)
+		return;
+
+	uint32_t reqSize = m_SpotLightsVisibleCount * sizeof(interop::SpotLightData);
+	m_SpotLightsVisibleBuffer.Grow(reqSize * 2);
+
+	rhi::BufferHandle buffer = m_SpotLightsVisibleBuffer.GetCurrentBuffer();
+	commandList->PushBarrier(
+		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
+
+	// Copy to upload data
+	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
+	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
+
+	auto* ptr = (interop::SpotLightData*)data;
+	for (const auto* spotLight : visibleSpotLights)
+	{
+		ptr->viewSpacePosition = m_Camera->GetViewMatrix() * float4 { spotLight->GetNode()->GetWorldPosition(), 1.f };
+		ptr->viewSpaceDirection = glm::normalize(m_Camera->GetViewMatrix() * float4 { spotLight->GetDirection(), 0.f });
+		ptr->range = spotLight->GetRange();
+		ptr->color = spotLight->GetColor();
+		ptr->intensity = spotLight->GetIntensity();
+		ptr->radius = spotLight->GetRadius();
+		ptr->innerAngle = spotLight->GetInnerConeAngle();
+		ptr->outerAngle = spotLight->GetOuterConeAngle();
 		ptr++;
 	}
 

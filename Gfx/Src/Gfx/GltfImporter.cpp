@@ -1128,6 +1128,13 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             else
             {
                 LOG_WARNING("Geometry {} for mesh {} doesn't have a material.", prim_idx, debugName.c_str());
+                
+                static std::shared_ptr<st::gfx::Material> emptyMaterial;
+                if (!emptyMaterial)
+                {
+                    emptyMaterial = std::make_shared<st::gfx::Material>(device, "(empty)", filename);
+                }
+                mesh->SetMaterial(emptyMaterial);
             }
 
             // Index buffer
@@ -1460,8 +1467,26 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
             } break;
 
             case cgltf_light_type_spot:
-                assert(0);
-                break;
+            {
+                auto leaf = st::make_unique_with_weak<st::gfx::SceneSpotLight>();
+                if (srcNode->light->name)
+                    leaf->SetName(srcNode->light->name);
+                leaf->SetColor(*(float3*)&srcNode->light->color);
+                leaf->SetIntensity(srcNode->light->intensity);
+                if (srcNode->light->range > 1.0e-05f)
+                {
+                    leaf->SetRange(srcNode->light->range);
+                }
+                else
+                {
+                    const float threshold = 1.0f / 256.0f;
+                    leaf->SetRange(sqrtf(srcNode->light->intensity / threshold));
+                }
+                leaf->SetInnerConeAngle(srcNode->light->spot_inner_cone_angle);
+                leaf->SetOuterConeAngle(srcNode->light->spot_outer_cone_angle);
+                dstNode->SetLeaf(std::move(leaf));
+            } break;
+
             default:
                 assert(0);
             }

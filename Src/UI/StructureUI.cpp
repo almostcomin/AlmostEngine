@@ -100,6 +100,23 @@ void PropertyRowFloat(const char* label, float value)
     ImGui::PopID();
 }
 
+void PropertyRowFloat3(const char* label, const float3& value)
+{
+    ImGui::TableNextRow();
+    // Label
+    ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    TextRightAligned(label);
+    // Value
+    ImGui::TableNextColumn();
+    ImGui::PushID(label);
+    ImGui::BeginDisabled();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputFloat3("##value", (float*)&value.x, "%.2f", ImGuiInputTextFlags_ReadOnly);
+    ImGui::EndDisabled();
+    ImGui::PopID();
+}
+
 RSDepResult ShowRSDep(const char* label, const char* value, bool selected, int id)
 {
     RSDepResult ret;
@@ -880,16 +897,20 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     // First row
                     ImGui::TableNextRow();
                     flagCell("OpaqueMeshes", st::has_any_flag(flags, st::gfx::SceneContentFlags::OpaqueMeshes));
-                    flagCell("PointLights", st::has_any_flag(flags, st::gfx::SceneContentFlags::PointLights));
+                    flagCell("DirLights", st::has_any_flag(flags, st::gfx::SceneContentFlags::DirectionalLights));
 
                     // Second row
                     ImGui::TableNextRow();
                     flagCell("AlphaTestedMeshes", st::has_any_flag(flags, st::gfx::SceneContentFlags::AlphaTestedMeshes));
-                    flagCell("Cameras", st::has_any_flag(flags, st::gfx::SceneContentFlags::Cameras));
+                    flagCell("PointLights", st::has_any_flag(flags, st::gfx::SceneContentFlags::PointLights));
 
                     // Third row
                     ImGui::TableNextRow();
                     flagCell("BlendedMeshes", st::has_any_flag(flags, st::gfx::SceneContentFlags::BlendedMeshes));
+                    flagCell("SpotLights", st::has_any_flag(flags, st::gfx::SceneContentFlags::SpotLights));
+
+                    // Four row
+                    flagCell("Cameras", st::has_any_flag(flags, st::gfx::SceneContentFlags::Cameras));
                     flagCell("Animations", st::has_any_flag(flags, st::gfx::SceneContentFlags::Animations));
 
                     ImGui::EndTable();
@@ -907,8 +928,14 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                 case st::gfx::SceneGraphLeaf::Type::Camera:
                     assert(0);
                     break;
+                case st::gfx::SceneGraphLeaf::Type::DirectionalLight:
+                    BuildDirLightLeaf(st::checked_cast<const st::gfx::SceneDirectionalLight*>(leaf));
+                    break;
                 case st::gfx::SceneGraphLeaf::Type::PointLight:
                     BuildPointLightLeaf(st::checked_cast<const st::gfx::ScenePointLight*>(leaf));
+                    break;
+                case st::gfx::SceneGraphLeaf::Type::SpotLight:
+                    BuildSpotLightLeaf(st::checked_cast<const st::gfx::SceneSpotLight*>(leaf));
                     break;
                 default:
                     assert(0);
@@ -1427,6 +1454,51 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
     }
 }
 
+void StructureUI::BuildDirLightLeaf(const st::gfx::SceneDirectionalLight* light)
+{
+    if (ImGui::CollapsingHeader("DirectionalLight", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::BeginTable("DirectionalLightProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+        PropertyRowText("Name", light->GetName().c_str());
+        ImGui::EndTable();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::BeginTable("MeshProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+        // Color
+        {
+            ImGui::TableNextRow();
+            // Label
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            TextRightAligned("Color");
+            // Value
+            ImGui::TableNextColumn();
+            ImGui::PushID("LightColor");
+            ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha, 1.0f);
+            ImGui::BeginDisabled();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::ColorEdit3("", (float*)&(light->GetColor().x), ImGuiColorEditFlags_Float);
+            ImGui::EndDisabled();
+            ImGui::PopStyleVar();
+            ImGui::PopID();
+        }
+
+        PropertyRowFloat3("Direction", light->GetDirection());
+        PropertyRowFloat("Irradiance", light->GetIrradiance());
+        PropertyRowFloat("AngularSize", light->GetAngularSize());
+
+        ImGui::EndTable();
+    }
+}
+
 void StructureUI::BuildPointLightLeaf(const st::gfx::ScenePointLight* light)
 {
     if (ImGui::CollapsingHeader("PointLight", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1466,6 +1538,56 @@ void StructureUI::BuildPointLightLeaf(const st::gfx::ScenePointLight* light)
 
         PropertyRowFloat("Intensity", light->GetIntensity());
         PropertyRowFloat("Range", light->GetRange());
+        PropertyRowFloat("Radius", light->GetRadius());
+
+        ImGui::EndTable();
+    }
+}
+
+void StructureUI::BuildSpotLightLeaf(const st::gfx::SceneSpotLight* light)
+{
+    if (ImGui::CollapsingHeader("SpotLight", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::BeginTable("SpotLightProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+        PropertyRowText("Name", light->GetName().c_str());
+        ImGui::EndTable();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::BeginTable("MeshProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+        // Color
+        {
+            ImGui::TableNextRow();
+            // Label
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            TextRightAligned("Color");
+            // Value
+            ImGui::TableNextColumn();
+            ImGui::PushID("LightColor");
+            ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha, 1.0f);
+            ImGui::BeginDisabled();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::ColorEdit3("", (float*)&(light->GetColor().x), ImGuiColorEditFlags_Float);
+            ImGui::EndDisabled();
+            ImGui::PopStyleVar();
+            ImGui::PopID();
+        }
+
+        PropertyRowFloat3("Direction", light->GetDirection());
+        PropertyRowFloat("Intensity", light->GetIntensity());
+        PropertyRowFloat("Range", light->GetRange());
+        PropertyRowFloat("Radius", light->GetRadius());
+        PropertyRowFloat("InnerConeAngle", light->GetInnerConeAngle());
+        PropertyRowFloat("OuterrConeAngle", light->GetOuterConeAngle());
+
 
         ImGui::EndTable();
     }

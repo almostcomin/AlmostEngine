@@ -52,6 +52,7 @@ float4 main(PS_INPUT input) : SV_Target
     
     StructuredBuffer<interop::DirLightData> dirLightsDataBuffer = ResourceDescriptorHeap[sceneData.dirLightsDataDI];
     StructuredBuffer<interop::PointLightData> pointLightsDataBuffer = ResourceDescriptorHeap[sceneData.pointLightsDataDI];
+    StructuredBuffer<interop::SpotLightData> spotLightsDataBuffer = ResourceDescriptorHeap[sceneData.spotLightsDataDI];
                     
     // Sample G-Buffers
     float4 gbuffers[4];
@@ -184,7 +185,20 @@ float4 main(PS_INPUT input) : SV_Target
             diffuseRadiance += lightDiffuseRadiance;
             specularRadiance += lightSpecularRadiance;
         }
-                    
+
+        // Spot lights
+        for (uint i = 0; i < sceneData.spotLightCount; i++)
+        {
+            float3 lightDiffuseRadiance;
+            float3 lightSpecularRadiance;
+            interop::SpotLightData spotLight = spotLightsDataBuffer[i];
+            
+            ShadeSurface_SpotLight(spotLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
+            
+            diffuseRadiance += lightDiffuseRadiance;
+            specularRadiance += lightSpecularRadiance;
+        }
+        
         // Ambient    
         float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
         diffuseRadiance += ambientColor * surfaceMat.diffuseAlbedo * ambientOcclusion;

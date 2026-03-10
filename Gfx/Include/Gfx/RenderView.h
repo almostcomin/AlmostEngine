@@ -191,6 +191,7 @@ private:
 	void UpdateShadowmapData(rhi::ICommandList* commandList);
 	void UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList);
+	void UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList);
 
 	RenderSet GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
 
@@ -243,6 +244,10 @@ private:
 	// Visible set for point lights
 	gfx::MultiBuffer m_PointLightsVisibleBuffer;
 	uint32_t m_PointLightsVisibleCount;
+
+	// Visible set for spot lights
+	gfx::MultiBuffer m_SpotLightsVisibleBuffer;
+	uint32_t m_SpotLightsVisibleCount;
 
 	// Scene constant buffer, set at begin frame, no change during frame render
 	gfx::MultiBuffer m_SceneConstants;

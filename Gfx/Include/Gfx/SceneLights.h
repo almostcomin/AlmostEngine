@@ -54,8 +54,8 @@ public:
 	void				SetAngularSize(float v)				{ m_AngularSize = v; }
 
 	// Getters
-	float				GetIrradiance() const				{ return m_Irradiance; }
 	float3				GetDirection() const;
+	float				GetIrradiance() const				{ return m_Irradiance; }
 	float				GetAngularSize() const				{ return m_AngularSize; }
 
 private:
@@ -93,8 +93,48 @@ private:
 	float m_Intensity; // Candela (lumen per steradian)
 	float m_Range;
 	float m_Radius;
-	st::math::aabox3f m_Bounds;
 
+	st::math::aabox3f m_Bounds;
+};
+
+class SceneSpotLight : public SceneLight
+{
+public:
+
+	SceneSpotLight();
+
+	// Overrides
+	bool				HasBounds()			const override	{ return true; }
+	BoundsType			GetBoundsType()		const override	{ return BoundsType::Light; }
+	const st::math::aabox3f& GetBounds()	const override	{ return m_Bounds; }
+	SceneContentFlags	GetContentFlags()	const override	{ return st::gfx::SceneContentFlags::SpotLights; }
+	Type				GetType()			const override	{ return Type::SpotLight; }
+	LightType			GetLightType()		const override	{ return LightType::Spot; }
+
+	// Setters
+	void				SetIntensity(float v)				{ m_Intensity = v; }
+	void				SetRange(float v);
+	void				SetRadius(float v)					{ m_Radius = v; }
+	void				SetInnerConeAngle(float v)			{ m_InnerAngle = v; }
+	void				SetOuterConeAngle(float v)			{ m_OuterAngle = v; }
+
+	// Getters
+	float3				GetDirection() const;
+	float				GetIntensity() const				{ return m_Intensity; }
+	float				GetRange() const					{ return m_Range; }
+	float				GetRadius() const					{ return m_Radius; }
+	float				GetInnerConeAngle() const			{ return m_InnerAngle; }
+	float				GetOuterConeAngle() const			{ return m_OuterAngle; }
+
+private:
+
+	float m_Intensity; // Candela (lumen per steradian)
+	float m_Range;
+	float m_Radius;
+	float m_InnerAngle;
+	float m_OuterAngle;
+
+	st::math::aabox3f m_Bounds;
 };
 
 } // namespace st::gfx
