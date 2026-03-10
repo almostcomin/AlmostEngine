@@ -48,6 +48,9 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
 
 	m_SceneGraph = std::move(graph);
+	if (!m_SceneGraph)
+		return;
+
 	m_SceneGraph->Refresh(); // Make sure it is up to date
 
 	// Each MeshInstance has a, unique transform and a index to a shared mesh

@@ -62,7 +62,7 @@ float ComputeAO(float3 V, float3 N, float InvR2)
 [numthreads(16, 16, 1)]
 void main(uint2 DTid : SV_DispatchThreadID)
 {
-    ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
+    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     Texture2D<float> depthTexture = ResourceDescriptorHeap[Constants.depthTextureDI]; // lienar depth
     Texture2D<float4> normalsTexture = ResourceDescriptorHeap[Constants.normalsTextureDI];
     RWTexture2D<float> outputAOTexture = ResourceDescriptorHeap[Constants.outputAOTextureDI];

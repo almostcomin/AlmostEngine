@@ -43,13 +43,14 @@ struct PS_INPUT
 [RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {
-    ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
+    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     Texture2D sceneDepth = ResourceDescriptorHeap[Constants.sceneDepthDI];
     Texture2D GBuffer0 = ResourceDescriptorHeap[Constants.GBuffer0DI];
     Texture2D GBuffer1 = ResourceDescriptorHeap[Constants.GBuffer1DI];
     Texture2D GBuffer2 = ResourceDescriptorHeap[Constants.GBuffer2DI];
     Texture2D GBuffer3 = ResourceDescriptorHeap[Constants.GBuffer3DI];
     
+    StructuredBuffer<interop::DirLightData> dirLightsDataBuffer = ResourceDescriptorHeap[sceneData.dirLightsDataDI];
     StructuredBuffer<interop::PointLightData> pointLightsDataBuffer = ResourceDescriptorHeap[sceneData.pointLightsDataDI];
                     
     // Sample G-Buffers
@@ -121,7 +122,7 @@ float4 main(PS_INPUT input) : SV_Target
         {
             Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
             color = SampleShadowMapPoissonDisk16(
-                surfacePosView, sceneData.sunViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
+                surfacePosView, sceneData.shadowMapViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
         }
     }
     else
@@ -130,41 +131,52 @@ float4 main(PS_INPUT input) : SV_Target
         float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
         float4 surfacePosView = PosReconstruction(input.uv, depth, sceneData.invCamProjMatrix);
     
-        // Retrieve shadow factor
+        // Sample cascade shadowmap
         float shadowFactor = 1.0;
         if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
         {
             Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
             shadowFactor = SampleShadowMapPoissonDisk16(
-                surfacePosView, sceneData.sunViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
+                surfacePosView, sceneData.shadowMapViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
         }
-        shadowFactor *= surfaceMat.occlusion;
     
+        // Sample ambient occlusion
+        float ambientOcclusion = surfaceMat.occlusion;
         if (Constants.SSAO_DI != INVALID_DESCRIPTOR_INDEX)
         {
             Texture2D<float> SSAOTex = ResourceDescriptorHeap[Constants.SSAO_DI];
-            shadowFactor *= SSAOTex.SampleLevel(pointClampSampler, input.uv, 0);
+            ambientOcclusion *= SSAOTex.SampleLevel(pointClampSampler, input.uv, 0);
         }
-    
-        LightConstants sunConstants;
-        sunConstants.lighType = LightType_Directional;
-        sunConstants.direction = sceneData.sunDirection;
-        sunConstants.intensity = sceneData.sunIrradiance;
-        sunConstants.angularSizeOrInvRange = sceneData.sunAngularSizeRad;
-    
+        
         // Shade
         float3 viewIncident = normalize(surfacePosView.xyz);
-        float3 diffuseRadiance = 0.0;
-        float3 specularRadiance = 0.0;
-        ShadeSurface(sunConstants, surfaceMat, surfacePosView.xyz, viewIncident, (float3x3)sceneData.camViewMatrix, diffuseRadiance, specularRadiance);
+        float3 diffuseRadiance;
+        float3 specularRadiance;
+
+        // Main directional light, the only onle with a cascade shadowmap
+        ShadeSurface_DirLight(sceneData.mainDirLight, surfaceMat, surfacePosView.xyz, viewIncident, diffuseRadiance, specularRadiance);
+        // Cascade shadow map only affects main directional light
         diffuseRadiance *= shadowFactor;
         specularRadiance *= shadowFactor;
-    
+
+        // Additional directional lights
+        for (uint i = 0; i < sceneData.dirLightCount; i++)
+        {
+            float3 lightDiffuseRadiance;
+            float3 lightSpecularRadiance;
+            interop::DirLightData dirLight = dirLightsDataBuffer[i];
+            
+            ShadeSurface_DirLight(dirLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
+            
+            diffuseRadiance += lightDiffuseRadiance;
+            specularRadiance += lightSpecularRadiance;
+        }
+
+        // Point lights
         for (uint i = 0; i < sceneData.pointLightCount; i++)
         {
-            float3 lightDiffuseRadiance = 0.0;
-            float3 lightSpecularRadiance = 0.0;
-            
+            float3 lightDiffuseRadiance;
+            float3 lightSpecularRadiance;            
             interop::PointLightData pointLight = pointLightsDataBuffer[i];
             
             ShadeSurface_PointLight(pointLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
@@ -172,16 +184,15 @@ float4 main(PS_INPUT input) : SV_Target
             diffuseRadiance += lightDiffuseRadiance;
             specularRadiance += lightSpecularRadiance;
         }
-        
-        float3 diffuseTerm = diffuseRadiance * sceneData.sunColor.rgb;
-        float3 specularTerm = specularRadiance * sceneData.sunColor.rgb;
-            
+                    
         // Ambient    
         float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
-        diffuseTerm += ambientColor * surfaceMat.diffuseAlbedo;
-        specularTerm += ambientColor * surfaceMat.specularF0;
+        diffuseRadiance += ambientColor * surfaceMat.diffuseAlbedo * ambientOcclusion;
+        
+        float specAO = GetSpecularAO(surfaceMat.normal, surfaceMat.roughness, viewIncident, ambientOcclusion);
+        specularRadiance += ambientColor * surfaceMat.specularF0 * specAO;
 
-        color = diffuseTerm + specularTerm + surfaceMat.emissiveColor;
+        color = diffuseRadiance + specularRadiance + surfaceMat.emissiveColor;
     }
     
     return float4(color, 1.0);

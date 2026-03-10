@@ -2,6 +2,7 @@
 
 #include "RHI/ResourceState.h"
 #include "RHI/Descriptors.h"
+#include "RHI/ShaderViews.h"
 
 namespace st::rhi
 {
@@ -25,10 +26,11 @@ public:
 
 	bool IsInitialized() const { return !m_Buffers.empty(); }
 
-	void InitRaw(const st::rhi::BufferShaderUsage usage, size_t sizeBytes, rhi::ResourceState defaultState, st::gfx::DeviceManager* deviceManager,
+	void InitRaw(st::rhi::BufferShaderUsage usage, size_t sizeBytes, rhi::ResourceState defaultState, st::gfx::DeviceManager* deviceManager,
 			  const std::string& debugName);
-	void InitStructured(const st::rhi::BufferShaderUsage usage, size_t sizeBytes, uint32_t stride, rhi::ResourceState defaultState,
+	void InitStructured(st::rhi::BufferShaderUsage usage, size_t sizeBytes, uint32_t stride, rhi::ResourceState defaultState,
 		st::gfx::DeviceManager* deviceManager, const std::string& debugName);
+	void InitUniformBuffer(size_t sizeBytes, st::gfx::DeviceManager* deviceManager, const std::string& debugName);
 
 	void Release();
 
@@ -38,10 +40,18 @@ public:
 	void SetSize(size_t size);
 	void Grow(size_t sizeBytes);
 
+	void* Map();
+	void Unmap();
+
+	rhi::BufferUniformView GetUniformView();
+	rhi::BufferReadOnlyView GetReadOnlyView();
+	rhi::BufferReadWriteView GetReadWriteView();
+
 	rhi::BufferHandle GetCurrentBuffer();
 
 private:
 
+	st::rhi::MemoryAccess m_MemoryAccess;
 	st::rhi::BufferShaderUsage m_Usage;
 	rhi::ResourceState m_DefaultState;
 

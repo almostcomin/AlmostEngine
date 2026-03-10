@@ -182,9 +182,9 @@ void st::gfx::ShadowmapRenderStage::Render()
 		rhi::RenderPassFlags::None);
 
 	RenderSetInstanced(
-		m_RenderView->GetSunVisibleSet(),
+		m_RenderView->GetShadowMapVisibleSet(),
 		m_RenderView->GetSceneBufferUniformView(),
-		m_RenderView->GetSunVisibilityBufferROView(),
+		m_RenderView->GetShadowMapVisibilityBufferROView(),
 		m_RenderContext,
 		commandList.get());
 

@@ -74,7 +74,6 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 
 st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* deviceManager, const char* debugName) :
 	m_ViewportSwapChainId{ viewportId },
-	m_SceneCB{ deviceManager->GetSwapchainBufferCount(), sizeof(interop::Scene), deviceManager->GetDevice(), "SceneCB" },
 	m_TimeDeltaSec{ 0.f },
 	m_IsDirty{ false },
 	m_DebugName{ debugName },
@@ -97,12 +96,16 @@ st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* d
 		m_SubmitFences.push_back(device->CreateFence(0, std::format("{} - Fence[{}]", m_DebugName, i)));
 	}
 
+	m_SceneConstants.InitUniformBuffer(sizeof(interop::SceneConstants), m_DeviceManager, "SceneUniformBuffer");
+
 	m_CameraVisibleBuffer.InitRaw(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
 		m_DeviceManager, "CameraVisibleIndices");
-	m_SunVisibleBuffer.InitRaw(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
-		m_DeviceManager, "SunVisibleIndices");
+	m_ShadowMapVisibleBuffer.InitRaw(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
+		m_DeviceManager, "ShadowMapVisibleIndices");
+	m_DirLightsVisibleBuffer.InitStructured(st::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::DirLightData),
+		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "DirLightsVisibleBuffer");
 	m_PointLightsVisibleBuffer.InitStructured(st::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::PointLightData),
-		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "PointLightsVisibleIndices");
+		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "PointLightsVisibleBuffer");
 }
 
 st::gfx::RenderView::~RenderView()
@@ -117,7 +120,8 @@ st::gfx::RenderView::~RenderView()
 void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
 {
 	m_CameraVisibleBuffer.Reset();
-	m_SunVisibleBuffer.Reset();
+	m_ShadowMapVisibleBuffer.Reset();
+	m_DirLightsVisibleBuffer.Reset();
 	m_PointLightsVisibleBuffer.Reset();
 
 	m_Scene = scene;
@@ -246,17 +250,17 @@ st::rhi::CommandListHandle st::gfx::RenderView::GetCommandList()
 
 st::rhi::BufferUniformView st::gfx::RenderView::GetSceneBufferUniformView()
 {
-	return m_SceneCB.GetUniformView();
+	return m_SceneConstants.GetUniformView();
 }
 
 st::rhi::BufferReadOnlyView st::gfx::RenderView::GetCameraVisiblityBufferROView()
 {
-	return m_CameraVisibleBuffer.GetCurrentBuffer()->GetReadOnlyView();
+	return m_CameraVisibleBuffer.GetReadOnlyView();
 }
 
-st::rhi::BufferReadOnlyView st::gfx::RenderView::GetSunVisibilityBufferROView()
+st::rhi::BufferReadOnlyView st::gfx::RenderView::GetShadowMapVisibilityBufferROView()
 {
-	return m_SunVisibleBuffer.GetCurrentBuffer()->GetReadOnlyView();
+	return m_ShadowMapVisibleBuffer.GetReadOnlyView();
 }
 
 bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
@@ -622,7 +626,8 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 	// Update common data
 	UpdateCameraVisibleSet(beginCommandList);
 	UpdateShadowmapData(beginCommandList);
-	UpdateLightsVisibleSet(beginCommandList);
+	UpdateDirLightsVisibleBuffer(beginCommandList);
+	UpdatePointLightsVisibleBuffer(beginCommandList);
 
 	UpdateSceneConstantBuffer();
 
@@ -929,7 +934,7 @@ void st::gfx::RenderView::ClearRenderStages()
 
 void st::gfx::RenderView::UpdateSceneConstantBuffer()
 {
-	interop::Scene* sceneShaderConstant = (interop::Scene*)m_SceneCB.GetNextPtrRaw();
+	interop::SceneConstants* sceneShaderConstant = (interop::SceneConstants*)m_SceneConstants.Map();
 	*sceneShaderConstant = {};
 
 	// Camera
@@ -954,45 +959,57 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	// Scene data
 	if (m_Scene)
 	{
-		// Sun directional light
-		const Scene::SunParams& sunParams = m_Scene->GetSunParams();
-		const float3 sunDir = st::ElevationAzimuthRadToDir(
-			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
+		// ShadowMap matrices
+		{
+			sceneShaderConstant->shadowMapWorldToClipMatrix = m_ShadowMapWoldToClipMatrix;
+			sceneShaderConstant->shadowMapViewToClipMatrix = m_ViewToShadowMapClipMatrix;
+		}
 
-		sceneShaderConstant->sunDirection = sunDir;
-		sceneShaderConstant->sunIrradiance = sunParams.Irradiance;
-		sceneShaderConstant->sunColor = float4{ sunParams.Color, 0.f };
-		sceneShaderConstant->sunAngularSizeRad = glm::radians(sunParams.AngularSizeDeg);
-		sceneShaderConstant->sunWorldToClipMatrix = m_SunWoldToClipMatrix;
-		sceneShaderConstant->sunViewToClipMatrix = m_ViewToSunClipMatrix;
-
-		// Ambient 
-		const Scene::AmbientParams& ambientParams = m_Scene->GetAmbientParams();
-		sceneShaderConstant->ambientTop = float4{ ambientParams.SkyColor * ambientParams.Intensity, 0.f };
-		sceneShaderConstant->ambientBottom = float4{ ambientParams.GroundColor * ambientParams.Intensity, 0.f };
+		// Ambient
+		{
+			const Scene::AmbientParams& ambientParams = m_Scene->GetAmbientParams();
+			sceneShaderConstant->ambientTop = float4{ ambientParams.SkyColor * ambientParams.Intensity, 0.f };
+			sceneShaderConstant->ambientBottom = float4{ ambientParams.GroundColor * ambientParams.Intensity, 0.f };
+		}
 
 		// Lights
-		sceneShaderConstant->dirLightCount = 0;
-		sceneShaderConstant->dirLightsDataDI = {};
-		sceneShaderConstant->pointLightCount = m_PointLightsVisibleCount;
-		sceneShaderConstant->pointLightsDataDI = m_PointLightsVisibleBuffer.GetCurrentBuffer() ?
-			m_PointLightsVisibleBuffer.GetCurrentBuffer()->GetReadOnlyView() : INVALID_DESCRIPTOR_INDEX;
-		sceneShaderConstant->spotLightCount = 0;
-		sceneShaderConstant->spotLightsDaraDI = {};
+		{
+			const Scene::SunParams& sunParams = m_Scene->GetSunParams();
+			const float3 sunDir = st::ElevationAzimuthRadToDir(
+				glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
+
+			sceneShaderConstant->mainDirLight.viewSpaceDirection = m_Camera->GetViewMatrix() * float4 { sunDir, 0.f };
+			sceneShaderConstant->mainDirLight.irradiance = sunParams.Irradiance;
+			sceneShaderConstant->mainDirLight.color = sunParams.Color;
+			sceneShaderConstant->mainDirLight.halfAngularSize = glm::radians(sunParams.AngularSizeDeg) / 2.f;
+
+			sceneShaderConstant->dirLightCount = m_DirLightsVisibleCount;
+			sceneShaderConstant->dirLightsDataDI = m_DirLightsVisibleBuffer.GetReadOnlyView();
+			sceneShaderConstant->pointLightCount = m_PointLightsVisibleCount;
+			sceneShaderConstant->pointLightsDataDI = m_PointLightsVisibleBuffer.GetReadOnlyView();
+			sceneShaderConstant->spotLightCount = 0;
+			sceneShaderConstant->spotLightsDaraDI = {};
+		}
 
 		// Data buffers
 		sceneShaderConstant->instanceBufferDI = m_Scene->GetInstancesBufferView();
 		sceneShaderConstant->meshesBufferDI = m_Scene->GetMeshesBufferView();
 		sceneShaderConstant->materialsBufferDI = m_Scene->GetMaterialsBufferView();
 	}
+
+	m_SceneConstants.Unmap();
 }
 
 void st::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 {
 	m_CameraVisibleSet.clear();
 	m_CameraVisibleBounds.reset();
-	if (!m_Camera || !m_Scene || !m_Scene->GetSceneGraph())
+	if (!m_Camera ||
+		!m_Scene ||
+		!m_Scene->GetSceneGraph())
+	{
 		return;
+	}
 
 	m_CameraVisibleSet = GetVisibleSet(m_Camera->GetFrustum().get_planes(), &m_CameraVisibleBounds);
 	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList);
@@ -1000,9 +1017,9 @@ void st::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 
 void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 {
-	m_SunVisibleSet.clear();
-	m_SunWoldToClipMatrix = {};
-	m_ViewToSunClipMatrix = {};
+	m_ShadowMapVisibleSet.clear();
+	m_ShadowMapWoldToClipMatrix = {};
+	m_ViewToShadowMapClipMatrix = {};
 
 	if (!m_CameraVisibleBounds.valid())
 		return;
@@ -1062,10 +1079,10 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	}
 #endif
 
-	m_SunWoldToClipMatrix = sunProjMatrix * sunViewMatrix;
+	m_ShadowMapWoldToClipMatrix = sunProjMatrix * sunViewMatrix;
 
 	// view -> world -> sun_view -> sun_clip
-	m_ViewToSunClipMatrix = sunProjMatrix * sunViewMatrix * glm::inverse(m_Camera->GetViewMatrix());
+	m_ViewToShadowMapClipMatrix = sunProjMatrix * sunViewMatrix * glm::inverse(m_Camera->GetViewMatrix());
 
 	// Visible set from sun
 	{
@@ -1079,12 +1096,51 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 			{{ 0.f, 0.f, -1.f }, aabb.max.z },	// far		
 		};
 
-		m_SunVisibleSet = GetVisibleSet(sunClipPlanes);
-		UpdateVisibilityShaderBuffer(m_SunVisibleSet, m_SunVisibleBuffer, commandList);
+		m_ShadowMapVisibleSet = GetVisibleSet(sunClipPlanes);
+		UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList);
 	}
 }
 
-void st::gfx::RenderView::UpdateLightsVisibleSet(rhi::ICommandList* commandList)
+void st::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList)
+{
+	if (!m_Scene || !m_Scene->GetSceneGraph())
+		return;
+
+	const auto& visibleDirLights = m_Scene->GetSceneGraph()->GetSceneDirLights();
+	m_DirLightsVisibleCount = visibleDirLights.size();
+
+	if (m_DirLightsVisibleCount == 0)
+		return;
+
+	uint32_t reqSize = m_DirLightsVisibleCount * sizeof(interop::DirLightData);
+	m_DirLightsVisibleBuffer.Grow(reqSize * 2);
+
+	rhi::BufferHandle buffer = m_DirLightsVisibleBuffer.GetCurrentBuffer();
+	commandList->PushBarrier(
+		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
+
+	// Copy to upload data
+	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
+	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
+
+	auto* ptr = (interop::DirLightData*)data;
+	for (const auto* dirLight : visibleDirLights)
+	{
+		ptr->viewSpaceDirection = m_Camera->GetViewMatrix() * float4{ dirLight->GetDirection(), 0.f };
+		ptr->irradiance = dirLight->GetIrradiance();
+		ptr->color = dirLight->GetColor();
+		ptr->halfAngularSize = dirLight->GetAngularSize() / 2.f;
+		ptr++;
+	}
+
+	// Copy to buffer
+	commandList->CopyBufferToBuffer(buffer.get(), 0, uploadBuffer->GetBuffer().get(), offset, reqSize);
+
+	commandList->PushBarrier(
+		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+}
+
+void st::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList)
 {
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
@@ -1156,7 +1212,6 @@ void st::gfx::RenderView::UpdateLightsVisibleSet(rhi::ICommandList* commandList)
 
 	commandList->PushBarrier(
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
-
 }
 
 std::vector<st::gfx::RenderView::TextureViewRequest*> st::gfx::RenderView::GetTexViewRequests(RenderStage* rs, AccessMode accessMode)
@@ -1360,6 +1415,9 @@ void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSe
 	size_t reqSize = 0;
 	for(const auto& instances : renderSet)
 		reqSize += instances.second.size() * sizeof(uint32_t);
+
+	if (reqSize == 0)
+		return;
 
 	multiBuffer.Grow(reqSize * 2);
 

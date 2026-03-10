@@ -337,6 +337,11 @@ void st::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
         leaf->m_SceneIndex = m_SceneCameraLeafs.size() - 1;
         break;
 
+    case SceneGraphLeaf::Type::DirectionalLight:
+        m_SceneDirLightLeafs.push_back(checked_cast<SceneDirectionalLight*>(leaf));
+        leaf->m_SceneIndex = m_SceneDirLightLeafs.size() - 1;
+        break;
+
     case SceneGraphLeaf::Type::PointLight:
         m_ScenePointLightLeafs.push_back(checked_cast<ScenePointLight*>(leaf));
         leaf->m_SceneIndex = m_ScenePointLightLeafs.size() - 1;

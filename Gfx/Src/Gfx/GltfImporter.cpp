@@ -1432,8 +1432,16 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
             switch (srcNode->light->type)
             {
             case cgltf_light_type_directional:
-                assert(0);
-                break;
+            {
+                auto leaf = st::make_unique_with_weak<st::gfx::SceneDirectionalLight>();
+                if (srcNode->light->name)
+                    leaf->SetName(srcNode->light->name);
+                leaf->SetColor(*(float3*)&srcNode->light->color);
+                leaf->SetIrradiance(srcNode->light->intensity);
+                leaf->SetAngularSize(0.075f);
+                dstNode->SetLeaf(std::move(leaf));
+            } break;
+
             case cgltf_light_type_point:
             {
                 auto leaf = st::make_unique_with_weak<st::gfx::ScenePointLight>();
@@ -1450,9 +1458,9 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
                     const float threshold = 1.0f / 256.0f;
                     leaf->SetRange(sqrtf(srcNode->light->intensity / threshold));
                 }
-
                 dstNode->SetLeaf(std::move(leaf));                
             } break;
+
             case cgltf_light_type_spot:
                 assert(0);
                 break;

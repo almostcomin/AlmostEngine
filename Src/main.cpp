@@ -268,7 +268,7 @@ int SDL_main(int argc, char* argv[])
 		{
 			if (scene)
 			{
-				scene.reset();
+				scene->SetSceneGraph(nullptr);
 			}
 			requestClose = false;
 		}

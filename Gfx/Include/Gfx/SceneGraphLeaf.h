@@ -25,7 +25,7 @@ public:
 	{
 		MeshInstance,
 		Camera,
-		DirLight,
+		DirectionalLight,
 		PointLight,
 		SpotLight
 	};

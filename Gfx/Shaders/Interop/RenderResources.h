@@ -91,10 +91,10 @@ namespace interop
 
     struct DirLightData
     {
-        float3 direction;
-        float intensity;
+        float3 viewSpaceDirection;
+        float irradiance;
         float3 color;
-        uint _padding;
+        float halfAngularSize;
     };
 
     struct PointLightData
@@ -107,7 +107,7 @@ namespace interop
         uint _padding[3];
     };
 
-    struct Scene
+    struct SceneConstants
     {
         // Camera
         float4x4 camViewProjMatrix;
@@ -118,23 +118,21 @@ namespace interop
         float4x4 invCamProjMatrix;
         float4 camWorldPos; // xyz
 
-        // Sun light
-        float3 sunDirection; // Normalized, from light
-        float sunIrradiance;
-        float3 sunColor;
-        float sunAngularSizeRad;
-        float4x4 sunWorldToClipMatrix;
-        float4x4 sunViewToClipMatrix;
+        // Shadomap matrices
+        float4x4 shadowMapWorldToClipMatrix;
+        float4x4 shadowMapViewToClipMatrix;
 
         // Sky/ambient light
         float4 ambientTop;      // rgb
         float4 ambientBottom;   // rgb
 
+        DirLightData mainDirLight;
+
         // Lights
         uint dirLightCount;
-        BufferReadOnlyIndex dirLightsDataDI;
+        BufferReadOnlyIndex dirLightsDataDI; // DirLightData
         uint pointLightCount;
-        BufferReadOnlyIndex pointLightsDataDI; // VisiblePointLightData
+        BufferReadOnlyIndex pointLightsDataDI; // PointLightData
         uint spotLightCount;
         BufferReadOnlyIndex spotLightsDaraDI;
 

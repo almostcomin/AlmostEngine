@@ -11,7 +11,7 @@ enum class SceneContentFlags : uint32_t
     OpaqueMeshes        = 0x01,
     AlphaTestedMeshes   = 0x02,
     BlendedMeshes       = 0x04,
-    DirLights           = 0x08,
+    DirectionalLights    = 0x08,
     PointLights         = 0x10,
     SpotLights          = 0x20,
     Cameras             = 0x40,

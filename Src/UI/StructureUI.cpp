@@ -310,7 +310,7 @@ void StructureUI::BuildUI()
     EndFullScreenWindow();
 
     BuildMainMenu();
-    //BuildBottomBar();
+    BuildBottomBar();
 
     ImGui::DockSpaceOverViewport(
         0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);

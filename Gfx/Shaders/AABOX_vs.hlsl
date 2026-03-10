@@ -19,7 +19,7 @@ static const uint edgeIndices[24] =
 [RootSignature(BindlessRootSignature)]
 VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
 {
-    ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
+    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     StructuredBuffer<interop::AABB> aabboxBuffer = ResourceDescriptorHeap[Constants.aaboxDI];
     
     interop::AABB box = aabboxBuffer[instanceID];

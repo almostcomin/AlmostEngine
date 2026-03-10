@@ -12,7 +12,7 @@ struct VS_OUTPUT
 [RootSignature(BindlessRootSignature)]
 VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
 {    
-    ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
+    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     ByteAddressBuffer instancesIndexBuffer = ResourceDescriptorHeap[Constants.instancesDI];
     StructuredBuffer<interop::InstanceData> instancesDataBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
     StructuredBuffer<interop::MeshData> meshesDataBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
@@ -33,7 +33,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
         
     // Transform
     float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));    
-    float4 posClip = mul(sceneData.sunWorldToClipMatrix, posWorld);
+    float4 posClip = mul(sceneData.shadowMapWorldToClipMatrix, posWorld);
         
     // Output
     VS_OUTPUT output;

@@ -110,10 +110,10 @@ public:
 
 	st::rhi::BufferUniformView GetSceneBufferUniformView();
 	st::rhi::BufferReadOnlyView GetCameraVisiblityBufferROView();
-	st::rhi::BufferReadOnlyView GetSunVisibilityBufferROView();
+	st::rhi::BufferReadOnlyView GetShadowMapVisibilityBufferROView();
 	
 	const RenderSet& GetCameraVisibleSet() const { return m_CameraVisibleSet; }
-	const RenderSet& GetSunVisibleSet() const { return m_SunVisibleSet; }
+	const RenderSet& GetShadowMapVisibleSet() const { return m_ShadowMapVisibleSet; }
 
 	// Texture creation / release
 	bool CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format);
@@ -189,7 +189,8 @@ private:
 	void UpdateSceneConstantBuffer();
 	void UpdateCameraVisibleSet(rhi::ICommandList* commandList);
 	void UpdateShadowmapData(rhi::ICommandList* commandList);
-	void UpdateLightsVisibleSet(rhi::ICommandList* commandList);
+	void UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList);
+	void UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList);
 
 	RenderSet GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
 
@@ -228,20 +229,23 @@ private:
 	gfx::MultiBuffer m_CameraVisibleBuffer;
 	RenderSet m_CameraVisibleSet;
 
-	// Visible set for the sun (for shadowmapping)
-	gfx::MultiBuffer m_SunVisibleBuffer;
-	RenderSet m_SunVisibleSet;
+	// Visible set for the shadowmapping
+	gfx::MultiBuffer m_ShadowMapVisibleBuffer;
+	RenderSet m_ShadowMapVisibleSet;
+	// Matrices for cascade shadowmap
+	float4x4 m_ShadowMapWoldToClipMatrix;
+	float4x4 m_ViewToShadowMapClipMatrix;
+
+	// Visible set for directional lights
+	gfx::MultiBuffer m_DirLightsVisibleBuffer;
+	uint32_t m_DirLightsVisibleCount;
 
 	// Visible set for point lights
 	gfx::MultiBuffer m_PointLightsVisibleBuffer;
 	uint32_t m_PointLightsVisibleCount;
 
-	// Matrices for cascade shadowmap
-	float4x4 m_SunWoldToClipMatrix;
-	float4x4 m_ViewToSunClipMatrix;
-
 	// Scene constant buffer, set at begin frame, no change during frame render
-	FrameUniformBufferRaw m_SceneCB;
+	gfx::MultiBuffer m_SceneConstants;
 
 	// Living requests for visualizing resources
 	std::vector<TextureViewRequest*> m_TexViewRequests;

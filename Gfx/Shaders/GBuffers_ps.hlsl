@@ -23,7 +23,7 @@ struct PS_OUTPUT
 [RootSignature(BindlessRootSignature)]
 PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
 {
-    ConstantBuffer<interop::Scene> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
+    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
     StructuredBuffer<interop::MaterialData> materialsBuffer = ResourceDescriptorHeap[sceneData.materialsBufferDI];    
     
     interop::MaterialData matData = materialsBuffer[Constants.materialIndex];
