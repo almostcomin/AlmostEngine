@@ -87,10 +87,28 @@ void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
     }
 }
 
+std::unordered_map<std::string, std::string> ParseArgs(int argc, char* argv[])
+{
+	std::unordered_map<std::string, std::string> args;
+	for (int i = 1; i < argc - 1; i++)
+	{
+		if (argv[i][0] == '-')
+		{
+			args[argv[i] + 1] = argv[i + 1];
+			i++;
+		}
+	}
+	return args;
+}
+
 } // anonymous namespace
 
 int SDL_main(int argc, char* argv[]) 
 {
+	auto args = ParseArgs(argc, argv);
+	const bool graphicsDebug = args["gd"] == "1";
+	const bool vSync = args["vsync"] == "1";
+
 	// Your SDL application code goes here
 	// For example, initializing SDL and creating a window
 	// Initialize SDL
@@ -112,9 +130,9 @@ int SDL_main(int argc, char* argv[])
 	std::unique_ptr<st::gfx::DeviceManager> deviceManager{ st::gfx::DeviceManager::Create(st::gfx::GraphicsAPI::D3D12) };
 	st::gfx::DeviceManager::DeviceParams initParams{
 		.WindowHandle = window,
-		.DebugRuntime = true,
-		.GPUValidation = true,
-		.VSyncEnabled = false,
+		.DebugRuntime = graphicsDebug,
+		.GPUValidation = graphicsDebug,
+		.VSyncEnabled = vSync,
 		.ForceSDR = false
 	};
 	deviceManager->Init(initParams);
@@ -153,7 +171,7 @@ int SDL_main(int argc, char* argv[])
 	auto mainRenderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
 
 	// Create shadowmap render stage
-	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 2048, 4, st::rhi::Format::D32 }};
+	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 4096, 4, st::rhi::Format::D32 }};
 	// Create depth prepass render stage
 	std::shared_ptr<st::gfx::DepthPrepassRenderStage> depthPrepassRS{ new st::gfx::DepthPrepassRenderStage };
 	// Create linearize-depth render stage

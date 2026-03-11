@@ -782,6 +782,10 @@ void StructureUI::BuildSceneWindow(bool* p_open)
 
                 bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", node->GetName().c_str());
 
+                // Make an additional PopID here in case the node was no open because it will not be done in the depth 'while'
+                if (!node_open)
+                    ImGui::PopID();
+
                 if (ImGui::IsItemFocused())
                     m_SelectedNode = node;
 
@@ -797,9 +801,6 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     ImGui::PopID();
                     ++depth;
                 }
-                // Make an additional PopID here in case the node was no open because it was nor done in the depth 'while'
-                if (!node_open)
-                    ImGui::PopID();
             }
             ImGui::EndTable();
         }
