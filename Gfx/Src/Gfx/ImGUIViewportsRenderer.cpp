@@ -4,6 +4,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/RenderStages/ImGuiViewportRenderStage.h"
 #include "Gfx/RenderView.h"
+#include "Gfx/RenderGraph.h"
 
 namespace
 {
@@ -37,8 +38,8 @@ void ImGui_Impl_CreateWindow(ImGuiViewport* viewport)
 	auto renderStage = std::make_shared<st::gfx::ImGuiViewportRenderStage>(bd->MainRenderStage.get(), viewport);
 
 	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(viewportId, bd->DeviceManager, "ImGui Viewport");
-	renderView->SetRenderStages({ renderStage });
-	renderView->SetRenderMode("Default", { renderStage.get() });
+	renderView->GetRenderGraph()->SetRenderStages({ renderStage });
+	renderView->GetRenderGraph()->SetRenderMode("Default", { renderStage.get() });
 
 	viewport->RendererUserData = new ImGuiImplViewportData{ 
 		.ViewportId = viewportId,

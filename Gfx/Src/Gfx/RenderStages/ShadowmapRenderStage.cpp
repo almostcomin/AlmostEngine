@@ -8,6 +8,7 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/RenderHelpers.h"
+#include "Gfx/RenderGraphBuilder.h"
 
 #define DEBUG_STAGE
 
@@ -22,7 +23,7 @@ st::gfx::ShadowmapRenderStage::ShadowmapRenderStage(size_t resolution, size_t nu
 
 void st::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 {
-	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	m_TextureWidth = textureSize.x;
@@ -31,18 +32,18 @@ void st::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 	if (IsEnabled() && IsAttached())
 	{
 		// Create render target
-		m_RenderView->RecreateTexture("Shadowmap", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
+		m_RenderGraph->RecreateTexture(m_ShadowMapTexture, m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
 #ifdef DEBUG_STAGE
-		m_RenderView->RecreateTexture("ShadowmapColor", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, rhi::Format::RGBA8_UNORM);
+		m_RenderGraph->RecreateTexture(m_ShadowMapColorTexture, m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, rhi::Format::RGBA8_UNORM);
 #endif
 
 		// Recreate Framebuffer
 		{
 			auto fbDesc = rhi::FramebufferDesc()
 #ifdef DEBUG_STAGE
-				.AddColorAttachment(m_RenderView->GetTexture("ShadowmapColor"))
+				.AddColorAttachment(m_RenderGraph->GetTexture(m_ShadowMapColorTexture))
 #endif
-				.SetDepthAttachment(m_RenderView->GetTexture("Shadowmap"));
+				.SetDepthAttachment(m_RenderGraph->GetTexture(m_ShadowMapTexture));
 			m_FB = device->CreateFramebuffer(fbDesc, "ShadowmapRenderStage");
 		}
 
@@ -65,29 +66,16 @@ void st::gfx::ShadowmapRenderStage::SetSlopeScaledDepthBias(float v)
 
 void st::gfx::ShadowmapRenderStage::InitResources()
 {
-	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-	st::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
+	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
-
-	// Create render target
-	m_RenderView->CreateDepthTarget("Shadowmap", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
-#ifdef DEBUG_STAGE
-	m_RenderView->CreateColorTarget("ShadowmapColor", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, rhi::Format::RGBA8_UNORM);
-#endif
-
-	// Request access
-#ifdef DEBUG_STAGE
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ShadowmapColor", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-#endif
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "Shadowmap", rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 
 	// Create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
 #ifdef DEBUG_STAGE
-			.AddColorAttachment(m_RenderView->GetTexture("ShadowmapColor"))
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_ShadowMapColorTexture))
 #endif
-			.SetDepthAttachment(m_RenderView->GetTexture("Shadowmap"));
+			.SetDepthAttachment(m_RenderGraph->GetTexture(m_ShadowMapTexture));
 		m_FB = device->CreateFramebuffer(fbDesc, "ShadowmapRenderStage");
 	}
 
@@ -106,23 +94,18 @@ void st::gfx::ShadowmapRenderStage::InitResources()
 
 void st::gfx::ShadowmapRenderStage::ReleaseResources()
 {
-	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	st::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	m_RenderContext = {};
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_PS));
 	device->ReleaseQueued(std::move(m_VS));
-
-	m_RenderView->ReleaseTexture("Shadowmap");
-#ifdef DEBUG_STAGE
-	m_RenderView->ReleaseTexture("ShadowmapColor");
-#endif
 }
 
 void st::gfx::ShadowmapRenderStage::RecreatePSO()
 {
-	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	st::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	rhi::BlendState blendState;
 	blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
@@ -158,17 +141,29 @@ void st::gfx::ShadowmapRenderStage::RecreatePSO()
 	m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "ShadowmapRenderStage");
 }
 
-void st::gfx::ShadowmapRenderStage::Render()
+void st::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	auto scene = m_RenderView->GetScene();
+	m_ShadowMapTexture = builder.CreateDepthTarget("Shadowmap", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
+#ifdef DEBUG_STAGE
+	m_ShadowMapColorTexture = builder.CreateColorTarget("ShadowmapColor", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, rhi::Format::RGBA8_UNORM);
+#endif
+
+	builder.AddTextureDependency(m_ShadowMapTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+#ifdef DEBUG_STAGE
+	builder.AddTextureDependency(m_ShadowMapColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+#endif
+}
+
+void st::gfx::ShadowmapRenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	auto scene = GetScene();
 	if (!scene)
 	{
 		//LOG_WARNING("No scene set. Nothing to render");
 		return;
 	}
 
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
-	auto commandList = m_RenderView->GetCommandList();
+	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -182,9 +177,9 @@ void st::gfx::ShadowmapRenderStage::Render()
 		rhi::RenderPassFlags::None);
 
 	RenderSetInstanced(
-		m_RenderView->GetShadowMapVisibleSet(),
-		m_RenderView->GetSceneBufferUniformView(),
-		m_RenderView->GetShadowMapVisibilityBufferROView(),
+		GetRenderView()->GetShadowMapVisibleSet(),
+		GetRenderView()->GetSceneBufferUniformView(),
+		GetRenderView()->GetShadowMapVisibilityBufferROView(),
 		m_RenderContext,
 		commandList.get());
 
@@ -211,10 +206,22 @@ void st::gfx::ShadowmapRenderStage::OnBackbufferResize()
 void st::gfx::ShadowmapRenderStage::OnEnabled()
 {
 	if (IsAttached())
+	{
+		m_RenderGraph->EnableTexture(m_ShadowMapTexture);
+#ifdef DEBUG_STAGE
+		m_RenderGraph->EnableTexture(m_ShadowMapColorTexture);
+#endif
+
 		InitResources();
+	}
 }
 
 void st::gfx::ShadowmapRenderStage::OnDisabled()
 {
+	m_RenderGraph->DisableTexture(m_ShadowMapTexture);
+#ifdef DEBUG_STAGE
+	m_RenderGraph->DisableTexture(m_ShadowMapColorTexture);
+#endif
+
 	ReleaseResources();
 }

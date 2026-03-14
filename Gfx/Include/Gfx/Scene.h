@@ -2,6 +2,7 @@
 
 #include "Core/Memory.h"
 #include "Core/Common.h"
+#include "Core/Math/aabox.h"
 #include "RHI/Buffer.h"
 #include "Gfx/SceneBounds.h"
 #include <map>

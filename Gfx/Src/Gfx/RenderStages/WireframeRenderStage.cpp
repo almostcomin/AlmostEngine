@@ -8,20 +8,40 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
+#include "Gfx/RenderGraphBuilder.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 #include "Gfx/RenderHelpers.h"
 
-void st::gfx::WireframeRenderStage::Render()
+void st::gfx::WireframeRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	auto scene = m_RenderView->GetScene();
+	// Create textures
+	{
+		// Note that we create the ToneMapped resource here (as it does ToneMappingRenderStage).
+		// That should not be a probleam as far as the properties are the same in both places
+		m_ToneMappedTexture = builder.CreateTexture("ToneMapped", RenderGraph::TextureResourceType::RenderTarget,
+			RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
+		m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+	}
+
+	// Request texture access access
+	{
+		builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+		builder.AddTextureDependency(m_ToneMappedTexture, RenderGraph::AccessMode::Write,
+			rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	}
+}
+
+void st::gfx::WireframeRenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	auto scene = GetScene();
 	if (!scene)
 	{
 		return;
 	}
 
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
-	auto commandList = m_RenderView->GetCommandList();
+	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -31,9 +51,9 @@ void st::gfx::WireframeRenderStage::Render()
 		rhi::RenderPassFlags::None);
 
 	RenderSetInstanced(
-		m_RenderView->GetCameraVisibleSet(),
-		m_RenderView->GetSceneBufferUniformView(),
-		m_RenderView->GetCameraVisiblityBufferROView(),
+		GetRenderView()->GetCameraVisibleSet(),
+		GetRenderView()->GetSceneBufferUniformView(),
+		GetRenderView()->GetCameraVisiblityBufferROView(),
 		m_RenderContext,
 		commandList.get());
 
@@ -42,29 +62,13 @@ void st::gfx::WireframeRenderStage::Render()
 
 void st::gfx::WireframeRenderStage::OnAttached()
 {
-	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
-
-	// Create textures
-	{
-		// Note that we create the ToneMapped resource here (as it does ToneMappingRenderStage).
-		// That should not be a probleam as far as the properties are the same in both places
-		m_RenderView->CreateTexture("ToneMapped", RenderView::TextureResourceType::RenderTarget,
-			RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
-	}
-
-	// Request texture access access
-	{
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth",
-			rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ToneMapped",
-			rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	}
 
 	// Create Framebuffer
 	{
-		st::rhi::TextureHandle renderTarget = m_RenderView->GetTexture("ToneMapped");
-		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
+		st::rhi::TextureHandle renderTarget = m_RenderGraph->GetTexture(m_ToneMappedTexture);
+		st::rhi::TextureHandle depthStencil = m_RenderGraph->GetTexture(m_SceneDepthTexture);
 		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(renderTarget)
 			.SetDepthAttachment(depthStencil);
@@ -118,7 +122,7 @@ void st::gfx::WireframeRenderStage::OnAttached()
 
 void st::gfx::WireframeRenderStage::OnDetached()
 {
-	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	st::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	m_RenderContext = {};
 
@@ -129,12 +133,12 @@ void st::gfx::WireframeRenderStage::OnDetached()
 
 void st::gfx::WireframeRenderStage::OnBackbufferResize()
 {
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	// Re-create Framebuffer
 	{
-		st::rhi::TextureHandle renderTarget = m_RenderView->GetTexture("ToneMapped");
-		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
+		st::rhi::TextureHandle renderTarget = m_RenderGraph->GetTexture(m_ToneMappedTexture);
+		st::rhi::TextureHandle depthStencil = m_RenderGraph->GetTexture(m_SceneDepthTexture);
 		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(renderTarget)
 			.SetDepthAttachment(depthStencil);

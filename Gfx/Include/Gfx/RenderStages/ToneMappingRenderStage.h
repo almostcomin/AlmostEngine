@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
+#include "Gfx/RenderGraphBuilder.h"
 
 namespace st::gfx
 {
@@ -50,14 +51,20 @@ public:
 
 private:
 
-	void Render() override;
+	void Setup(RenderGraphBuilder& builder) override;
+	void Render(st::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 
-	void TonemapHDR();
-	void TonemapSDR();
+	void TonemapHDR(st::rhi::CommandListHandle commandList);
+	void TonemapSDR(st::rhi::CommandListHandle commandList);
 
 private:
+
+	RGBufferHandle m_LuminanceHistogramBuffer;
+	RGTextureHandle m_LuminanceAverageTexture;
+	RGTextureHandle m_ToneMappedTexture;
+	RGTextureHandle m_SceneColorTexture;
 
 	rhi::ShaderOwner m_BuildHistogramCS;
 	rhi::ComputePipelineStateOwner m_BuildHistogramPSO;

@@ -3,6 +3,7 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderContext.h"
 #include "RHI/PipelineState.h"
+#include "Gfx/RenderGraphTypes.h"
 
 namespace st::gfx
 {
@@ -16,12 +17,19 @@ public:
 
 private:
 
-	void Render() override;
+	void Setup(RenderGraphBuilder& builder) override;
+	void Render(st::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
 
 private:
+
+	RGTextureHandle m_GBuffer0Texture;
+	RGTextureHandle m_GBuffer1Texture;
+	RGTextureHandle m_GBuffer2Texture;
+	RGTextureHandle m_GBuffer3Texture;
+	RGTextureHandle m_SceneDepthTexture;
 
 	st::rhi::ShaderOwner m_VS;
 	st::rhi::ShaderOwner m_PS;

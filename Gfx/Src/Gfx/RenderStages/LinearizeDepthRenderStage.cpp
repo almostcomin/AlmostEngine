@@ -3,25 +3,37 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/Camera.h"
+#include "Gfx/RenderGraphBuilder.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-void st::gfx::LinearizeDepthRenderStage::Render()
+void st::gfx::LinearizeDepthRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	const auto& camera = m_RenderView->GetCamera();
+	m_LinearDepthTexture = builder.CreateTexture("LinearDepth", RenderGraph::TextureResourceType::ShaderResource,
+		st::gfx::RenderGraph::c_BBSize, st::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R32_FLOAT, true);
+	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+
+	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+
+	builder.AddTextureDependency(m_LinearDepthTexture, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+}
+
+void st::gfx::LinearizeDepthRenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	const auto& camera = GetRenderView()->GetCamera();
 	if (!camera)
 		return;
 
-	auto depthTex = m_RenderView->GetTexture("SceneDepth");
+	auto depthTex = m_RenderGraph->GetTexture(m_SceneDepthTexture);
 	const auto& desc = depthTex->GetDesc();
-
-	rhi::CommandListHandle commandList = m_RenderView->GetCommandList();
 
 	commandList->SetPipelineState(m_LinearizeDepthPSO.get());
 	
 	interop::LinearizeDepthConstants shaderConstants;
-	shaderConstants.srcDepthTexDI = m_RenderView->GetTextureSampledView("SceneDepth");
-	shaderConstants.outLinearDepthTexDI = m_RenderView->GetTextureStorageView("LinearDepth");
+	shaderConstants.srcDepthTexDI = m_RenderGraph->GetTextureSampledView(m_SceneDepthTexture);
+	shaderConstants.outLinearDepthTexDI = m_RenderGraph->GetTextureStorageView(m_LinearDepthTexture);
 	shaderConstants.width = desc.width;
 	shaderConstants.height = desc.height;
 	shaderConstants.nearPlaneDist = camera->GetZNear();
@@ -32,22 +44,8 @@ void st::gfx::LinearizeDepthRenderStage::Render()
 
 void st::gfx::LinearizeDepthRenderStage::OnAttached()
 {
-	DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
-
-	// Create resources
-	{
-		m_RenderView->CreateTexture("LinearDepth", RenderView::TextureResourceType::ShaderResource,
-			st::gfx::RenderView::c_BBSize, st::gfx::RenderView::c_BBSize, 1, rhi::Format::R32_FLOAT, true);
-	}
-
-	// Declare resource access
-	{
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth",
-			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "LinearDepth",
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
-	}
 
 	// Load shaders
 	{

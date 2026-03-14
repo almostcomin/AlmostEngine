@@ -3,7 +3,8 @@
 #include "Core/Math/plane.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
-#include "Gfx/RenderView.h"
+#include "Gfx/RenderGraph.h"
+#include "Gfx/Scene.h"
 #include <functional>
 #include "Core/Memory.h"
 
@@ -89,9 +90,9 @@ private:
 	struct RenderStageTextureView
 	{
 		st::gfx::RenderStage* renderStage;
-		st::gfx::RenderView::AccessMode accessMode;
+		st::gfx::RenderGraph::AccessMode accessMode;
 		std::string id;
-		st::gfx::RenderView::TextureViewTicket ticket;
+		st::gfx::RGTextureViewTicket ticket;
 		bool applyAlpha = false;
 		bool redChannel = true;
 		bool greenChannel = true;
@@ -104,9 +105,9 @@ private:
 	struct RenderStageBufferView
 	{
 		st::gfx::RenderStage* renderStage;
-		st::gfx::RenderView::AccessMode accessMode;
+		st::gfx::RenderGraph::AccessMode accessMode;
 		std::string id;
-		st::gfx::RenderView::BufferViewTicket ticket;
+		st::gfx::RGBufferViewTicket ticket;
 		std::unique_ptr<MemoryEditor> memEditor;
 	};
 
@@ -131,8 +132,8 @@ private:
 	void BuildPointLightLeaf(const st::gfx::ScenePointLight* light);
 	void BuildSpotLightLeaf(const st::gfx::SceneSpotLight* light);
 
-	void AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id);
-	void AddRenderStageBufferView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id);
+	void AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderGraph::AccessMode accessMode, const std::string& id);
+	void AddRenderStageBufferView(st::gfx::RenderStage* renderStage, st::gfx::RenderGraph::AccessMode accessMode, const std::string& id);
 
 	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
 	std::string SaveFileNativeDialog(const std::string& filename);
@@ -157,10 +158,11 @@ private:
 
 	std::vector<RenderStageTextureView> m_RSTextureViews;
 	std::vector<RenderStageBufferView> m_RSBufferViews;
-	st::gfx::RenderView::TextureViewTicket m_RSViewFocus;
+	st::gfx::RGTextureViewTicket m_RSTexViewFocus;
+	st::gfx::RGBufferViewTicket m_RSBufferViewFocus;
 
 	bool m_ShowLuminanceHistogram;
-	st::gfx::RenderView::BufferViewTicket m_LumHistogramBufferTicket;
+	st::gfx::RGBufferViewTicket m_LumHistogramBufferTicket;
 	int m_LumHistogramMode = 0;
 	st::gfx::ToneMappingRenderStage* m_TonemappingRS;
 };

@@ -1,16 +1,28 @@
 #include "Gfx/RenderStages/CompositeRenderStage.h"
-#include "Gfx/RenderView.h"
+#include "Gfx/RenderGraph.h"
+#include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/CommonResources.h"
 #include "Gfx/ShaderFactory.h"
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
-void st::gfx::CompositeRenderStage::Render()
+void st::gfx::CompositeRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	auto commandList = m_RenderView->GetCommandList();
+	m_ToneMappedTexture = builder.GetTextureHandle("ToneMapped");
+	m_ImGuiTexture = builder.GetTextureHandle("ImGui");
 
-	auto fb = m_RenderView->GetFramebuffer();
+	builder.AddTextureDependency(m_ToneMappedTexture, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_ImGuiTexture, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+
+	builder.AddRenderTargetWriteDependency();
+}
+
+void st::gfx::CompositeRenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	auto fb = m_RenderGraph->GetFramebuffer();
 	commandList->BeginRenderPass(
 		fb.get(),
 		{ rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack()} },
@@ -21,9 +33,9 @@ void st::gfx::CompositeRenderStage::Render()
 	commandList->SetPipelineState(m_PSO.get());
 
 	interop::CompositeConstants shaderConstants;
-	shaderConstants.sceneTextureDI = m_RenderView->GetTextureSampledView("ToneMapped");
-	shaderConstants.uiTextureDI = m_RenderView->GetTextureSampledView("ImGui");
-	shaderConstants.colorSpace = (uint)m_RenderView->GetDeviceManager()->GetColorSpace();
+	shaderConstants.sceneTextureDI = m_RenderGraph->GetTextureSampledView(m_ToneMappedTexture);
+	shaderConstants.uiTextureDI = m_RenderGraph->GetTextureSampledView(m_ImGuiTexture);
+	shaderConstants.colorSpace = (uint)m_RenderGraph->GetDeviceManager()->GetColorSpace();
 	shaderConstants.paperWhiteNits = m_PaperWhiteNits;
 
 	commandList->PushGraphicsConstants(shaderConstants);
@@ -35,22 +47,17 @@ void st::gfx::CompositeRenderStage::Render()
 
 void st::gfx::CompositeRenderStage::OnAttached()
 {
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "ToneMapped",
-		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "ImGui",
-		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = m_RenderView->GetDeviceManager()->GetShaderFactory();
+		st::gfx::ShaderFactory* shaderFactory = m_RenderGraph->GetDeviceManager()->GetShaderFactory();
 		m_PS = shaderFactory->LoadShader("Composite_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO
 	{
-		st::gfx::CommonResources* commonResurces = m_RenderView->GetDeviceManager()->GetCommonResources();
+		st::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
 		m_PSO = commonResurces->CreateBlitGraphicsPSO(
-			m_RenderView->GetFramebuffer()->GetFramebufferInfo(),
+			m_RenderGraph->GetFramebuffer()->GetFramebufferInfo(),
 			commonResurces->GetBlitVS(),
 			m_PS.get_weak(),
 			"Composite Render Stage");
@@ -59,7 +66,7 @@ void st::gfx::CompositeRenderStage::OnAttached()
 
 void st::gfx::CompositeRenderStage::OnDetached()
 {
-	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	st::rhi::Device* device = m_RenderGraph->GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_PSO));
 	device->ReleaseQueued(std::move(m_PS));
@@ -69,9 +76,9 @@ void st::gfx::CompositeRenderStage::OnBackbufferResize()
 {
 	// Recreate PSO
 	{
-		st::gfx::CommonResources* commonResurces = m_RenderView->GetDeviceManager()->GetCommonResources();
+		st::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
 		m_PSO = commonResurces->CreateBlitGraphicsPSO(
-			m_RenderView->GetFramebuffer()->GetFramebufferInfo(),
+			m_RenderGraph->GetFramebuffer()->GetFramebufferInfo(),
 			commonResurces->GetBlitVS(),
 			m_PS.get_weak(),
 			"Composite Render Stage");

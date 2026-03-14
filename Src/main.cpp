@@ -210,14 +210,15 @@ int SDL_main(int argc, char* argv[])
 	camera->SetAspect((float)windowWidth / windowHeight);
 	camera->SetPosition({ 0.f, 0.f, 5.f });
 
-	// Add stages to render view
-	mainRenderView->SetRenderStages({ shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, toneMappingRS, debugRS, uiRS, compositeRS, wireframeRS });
+	// Add stages to render graph
+	st::gfx::RenderGraph* renderGraph = mainRenderView->GetRenderGraph().get();
+	renderGraph->SetRenderStages({ shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, toneMappingRS, debugRS, uiRS, compositeRS, wireframeRS });
 	// Define default render mode
-	mainRenderView->SetRenderMode("Default", 
+	renderGraph->SetRenderMode("Default",
 		{ shadowmapRS.get(), depthPrepassRS.get(), linearizeDepthRS.get(), gBufRS.get(), SSAORS.get(), lightingRS.get(), toneMappingRS.get(), 
 		  debugRS.get(), uiRS.get(), compositeRS.get() });
 	// Define wireframe render mode
-	mainRenderView->SetRenderMode("Wireframe",
+	renderGraph->SetRenderMode("Wireframe",
 		{ depthPrepassRS.get(), wireframeRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
 
 	mainRenderView->SetCamera(camera);
@@ -399,9 +400,9 @@ int SDL_main(int argc, char* argv[])
 
 		// Update UI values
 		{
-			if (!uiRS->m_Data.RenderMode.empty() && uiRS->m_Data.RenderMode != mainRenderView->GetCurrentRenderMode())
+			if (!uiRS->m_Data.RenderMode.empty() && uiRS->m_Data.RenderMode != renderGraph->GetCurrentRenderMode())
 			{
-				mainRenderView->SetCurrentRenderMode(uiRS->m_Data.RenderMode);
+				renderGraph->SetCurrentRenderMode(uiRS->m_Data.RenderMode);
 			}
 
 			debugRS->ShowRenderBBoxes(st::gfx::BoundsType::Mesh, uiRS->m_Data.ShowMeshBBoxes);

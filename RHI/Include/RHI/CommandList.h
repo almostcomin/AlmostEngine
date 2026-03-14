@@ -134,6 +134,4 @@ protected:
 	ICommandList(Device* device, const std::string& debugName) : IResource{ device, debugName } {};
 };
 
-using CommandListHandle = st::weak<ICommandList>;
-
 } // namespace st::rhi

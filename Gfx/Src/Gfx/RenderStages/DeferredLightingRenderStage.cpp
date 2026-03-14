@@ -1,17 +1,41 @@
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/DeviceManager.h"
 #include "RHI/Device.h"
-#include "Gfx/RenderView.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/CommonResources.h"
 #include "Interop/RenderResources.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
+#include "Gfx/RenderGraphBuilder.h"
+#include "Gfx/RenderView.h"
 
-void st::gfx::DeferredLightingRenderStage::Render()
+void st::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
-	auto shadowmapTex = m_RenderView->GetTexture("Shadowmap");
+	m_SceneColorTexture = builder.CreateColorTarget("SceneColor", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
+
+	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+	m_ShadowmapTexture = builder.GetTextureHandle("Shadowmap");
+	m_GBuffer0Texture = builder.GetTextureHandle("GBuffer0");
+	m_GBuffer1Texture = builder.GetTextureHandle("GBuffer1");
+	m_GBuffer2Texture = builder.GetTextureHandle("GBuffer2");
+	m_GBuffer3Texture = builder.GetTextureHandle("GBuffer3");
+	m_AmbientOcclusionTexture = builder.GetTextureHandle("AmbientOcclusion");
+
+	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+
+	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_ShadowmapTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_GBuffer0Texture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_GBuffer1Texture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_GBuffer2Texture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_GBuffer3Texture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_AmbientOcclusionTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+}
+
+void st::gfx::DeferredLightingRenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	rhi::Device* device = GetDeviceManager()->GetDevice();
+	auto shadowmapTex = m_RenderGraph->GetTexture(m_ShadowmapTexture);
 	float2 shadowMapResolution = { 0.f, 0.f };
 	rhi::TextureSampledView shadowmapSampled = {};
 	if (shadowmapTex)
@@ -19,8 +43,6 @@ void st::gfx::DeferredLightingRenderStage::Render()
 		shadowMapResolution = { (float)shadowmapTex->GetDesc().width, (float)shadowmapTex->GetDesc().height };
 		shadowmapSampled = shadowmapTex->GetSampledView();
 	}
-
-	auto commandList = m_RenderView->GetCommandList();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -35,14 +57,14 @@ void st::gfx::DeferredLightingRenderStage::Render()
 		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
 
 	interop::DeferredLightingConstants shaderConstants;
-	shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
-	shaderConstants.sceneDepthDI = m_RenderView->GetTextureSampledView("SceneDepth");
+	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
+	shaderConstants.sceneDepthDI = m_RenderGraph->GetTextureSampledView(m_SceneDepthTexture);
 	shaderConstants.shadowMapDI = shadowmapSampled;
-	shaderConstants.GBuffer0DI = m_RenderView->GetTextureSampledView("GBuffer0");
-	shaderConstants.GBuffer1DI = m_RenderView->GetTextureSampledView("GBuffer1");
-	shaderConstants.GBuffer2DI = m_RenderView->GetTextureSampledView("GBuffer2");
-	shaderConstants.GBuffer3DI = m_RenderView->GetTextureSampledView("GBuffer3");
-	shaderConstants.SSAO_DI = m_RenderView->GetTextureSampledView("AmbientOcclusion");
+	shaderConstants.GBuffer0DI = m_RenderGraph->GetTextureSampledView(m_GBuffer0Texture);
+	shaderConstants.GBuffer1DI = m_RenderGraph->GetTextureSampledView(m_GBuffer1Texture);
+	shaderConstants.GBuffer2DI = m_RenderGraph->GetTextureSampledView(m_GBuffer2Texture);
+	shaderConstants.GBuffer3DI = m_RenderGraph->GetTextureSampledView(m_GBuffer3Texture);
+	shaderConstants.SSAO_DI = m_RenderGraph->GetTextureSampledView(m_AmbientOcclusionTexture);
 	shaderConstants.oneOverShadowmapResolution = 1.f / shadowMapResolution;
 	shaderConstants.MaterialChannel = (uint)m_MaterialChannel;
 	shaderConstants.ShowSSAO = m_ShowSSAO;
@@ -56,27 +78,14 @@ void st::gfx::DeferredLightingRenderStage::Render()
 
 void st::gfx::DeferredLightingRenderStage::OnAttached()
 {
-	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	st::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
 	rhi::Device* device = deviceManager->GetDevice();
-
-	// Create render target
-	m_RenderView->CreateColorTarget("SceneColor", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
-
-	// Request access
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneColor", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "Shadowmap", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer0", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer1", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer2", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer3", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "AmbientOcclusion", rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 
 	// Create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("SceneColor"));
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_SceneColorTexture));
 		m_FB = device->CreateFramebuffer(fbDesc, "DeferredBaseRenderStage");
 	}
 
@@ -122,7 +131,7 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 
 void st::gfx::DeferredLightingRenderStage::OnDetached()
 {
-	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	st::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_PSO));
@@ -131,12 +140,12 @@ void st::gfx::DeferredLightingRenderStage::OnDetached()
 
 void st::gfx::DeferredLightingRenderStage::OnBackbufferResize()
 {
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	// Re-create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("SceneColor"));
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_SceneColorTexture));
 		m_FB = device->CreateFramebuffer(fbDesc, "DeferredLightingRenderStage");
 	}
 

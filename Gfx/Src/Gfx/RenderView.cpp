@@ -12,61 +12,7 @@
 #include "Gfx/Util.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
-
-namespace
-{
-
-int GetActualSize(int desired, int ref)
-{
-	if (desired > 0)
-	{
-		return desired;
-	}
-
-	return ref / (-desired + 1);
-}
-
-st::rhi::ResourceState GetInitialState(st::gfx::RenderView::TextureResourceType type)
-{
-	switch (type)
-	{
-	case st::gfx::RenderView::TextureResourceType::RenderTarget:
-		return st::rhi::ResourceState::RENDERTARGET;
-	case st::gfx::RenderView::TextureResourceType::DepthStencil:
-		return st::rhi::ResourceState::DEPTHSTENCIL;
-	case st::gfx::RenderView::TextureResourceType::ShaderResource:
-		return st::rhi::ResourceState::SHADER_RESOURCE;
-	default:
-		assert(0);
-		return st::rhi::ResourceState::SHADER_RESOURCE;
-	}
-}
-
-st::rhi::TextureShaderUsage GetTextureShaderUsage(st::gfx::RenderView::TextureResourceType type, bool needUAV)
-{
-	st::rhi::TextureShaderUsage usage;
-	switch (type)
-	{
-	case st::gfx::RenderView::TextureResourceType::RenderTarget:
-		usage = st::rhi::TextureShaderUsage::Sampled | st::rhi::TextureShaderUsage::ColorTarget;
-		break;
-	case st::gfx::RenderView::TextureResourceType::DepthStencil:
-		usage = st::rhi::TextureShaderUsage::Sampled | st::rhi::TextureShaderUsage::DepthTarget;
-		break;
-	case st::gfx::RenderView::TextureResourceType::ShaderResource:
-		usage = st::rhi::TextureShaderUsage::Sampled;
-		break;
-	default:		
-		assert(0);
-		usage = st::rhi::TextureShaderUsage::Sampled;
-	}
-	if (needUAV)
-		usage |= st::rhi::TextureShaderUsage::Storage;
-	
-	return usage;
-}
-
-} // anonymous namespace
+#include "Gfx/RenderGraph.h"
 
 st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	RenderView{ nullptr, deviceManager, debugName }
@@ -75,7 +21,6 @@ st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugN
 st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* deviceManager, const char* debugName) :
 	m_ViewportSwapChainId{ viewportId },
 	m_TimeDeltaSec{ 0.f },
-	m_IsDirty{ false },
 	m_DebugName{ debugName },
 	m_DeviceManager{ deviceManager }
 {
@@ -86,14 +31,10 @@ st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* d
 	};
 	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
 	{
-		m_CommandLists.push_back(device->CreateCommandList(params, m_DebugName));
-
 		m_BeginCommandLists.push_back(device->CreateCommandList(
 			params, std::format("{} - BeginCmdList[{}]", m_DebugName, i)));
 		m_EndCommandLists.push_back(device->CreateCommandList(
 			params, std::format("{} - EndCmdList[{}]", m_DebugName, i)));
-
-		m_SubmitFences.push_back(device->CreateFence(0, std::format("{} - Fence[{}]", m_DebugName, i)));
 	}
 
 	m_SceneConstants.InitUniformBuffer(sizeof(interop::SceneConstants), m_DeviceManager, "SceneUniformBuffer");
@@ -108,15 +49,13 @@ st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* d
 		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "PointLightsVisibleBuffer");
 	m_SpotLightsVisibleBuffer.InitStructured(st::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::SpotLightData),
 		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "SpotLightsVisibleBuffer");
+
+	m_RenderGraph = st::make_unique_with_weak<RenderGraph>(this, debugName);
 }
 
 st::gfx::RenderView::~RenderView()
 {
-	ClearRenderStages();
-	for (int i = 0; i < m_CommandLists.size(); ++i)
-	{
-		m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_CommandLists[i]));
-	}
+	m_RenderGraph.reset();
 }
 
 void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
@@ -128,10 +67,8 @@ void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
 	m_SpotLightsVisibleBuffer.Reset();
 
 	m_Scene = scene;
-	for (auto& rs : m_RenderStages)
-	{
-		rs->renderStage->OnSceneChanged();
-	}
+
+	m_RenderGraph->OnSceneChanged();
 }
 
 void st::gfx::RenderView::SetCamera(std::shared_ptr<st::gfx::Camera> camera)
@@ -142,90 +79,6 @@ void st::gfx::RenderView::SetCamera(std::shared_ptr<st::gfx::Camera> camera)
 void st::gfx::RenderView::SetOffscreenFrameBuffer(st::rhi::FramebufferHandle frameBuffer)
 {
 	m_OffscreenFramebuffer = frameBuffer;
-}
-
-void st::gfx::RenderView::SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages)
-{
-	ClearRenderStages();
-
-	m_RenderStages.reserve(renderStages.size());
-	for (auto& rs : renderStages)
-	{
-		auto rsd = new RenderStageData;
-		rsd->renderStage = rs;
-		rsd->timerQueries.reserve(m_DeviceManager->GetSwapchainBufferCount());
-		rsd->cpuElapsed.resize(8, 0.f); // 8 samples
-		m_RenderStages.emplace_back(rsd);
-	}
-
-	// Init timer queries
-	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
-	{
-		for (auto& rsd : m_RenderStages)
-		{
-			rsd->timerQueries.push_back(m_DeviceManager->GetDevice()->CreateTimerQuery(
-				std::format("{} - TimerQuery[{}]", rsd->renderStage->GetDebugName(), i)));
-		}
-	}
-
-	for (auto& rs : m_RenderStages)
-	{
-		rs->renderStage->Attach(this);
-	}
-
-	m_IsDirty = true;
-}
-
-void st::gfx::RenderView::SetRenderMode(const std::string& name, const std::vector<RenderStage*>& renderStages)
-{
-	if (m_RenderModes.find(name) != m_RenderModes.end())
-	{
-		m_RenderModes.erase(name);
-	}
-
-	std::vector<RenderStageData*> stages;
-	stages.reserve(renderStages.size());
-
-	for (auto* rs : renderStages)
-	{
-		// Check that the stage actually belongs to this
-		auto it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const std::unique_ptr<RenderStageData>& rsd) -> bool
-		{
-			return rs == rsd->renderStage.get();
-		});
-		if (it == m_RenderStages.end())
-		{
-			LOG_ERROR("Render stage '{}' is not part of the render view '{}'", rs->GetDebugName(), m_DebugName);
-			return;
-		}
-		stages.push_back(it->get());
-	}
-
-	m_RenderModes[name] = std::move(stages);
-
-	if (m_CurrentRenderMode.empty())
-		m_CurrentRenderMode = name;
-}
-
-void st::gfx::RenderView::SetCurrentRenderMode(const std::string& name)
-{
-	if (m_RenderModes.find(name) == m_RenderModes.end())
-	{
-		LOG_WARNING("Render mode '{}' not found", name);
-		return;
-	}
-	m_CurrentRenderMode = name;
-}
-
-std::vector<std::string> st::gfx::RenderView::GetRenderModes() const
-{
-	std::vector<std::string> result;
-	result.reserve(m_RenderModes.size());
-	for (const auto& rm : m_RenderModes)
-	{
-		result.push_back(rm.first);
-	}
-	return result;
 }
 
 st::rhi::FramebufferHandle st::gfx::RenderView::GetFramebuffer()
@@ -246,11 +99,6 @@ st::rhi::TextureHandle st::gfx::RenderView::GetBackBuffer(int idx)
 	return GetFramebuffer()->GetBackBuffer(idx);
 }
 
-st::rhi::CommandListHandle st::gfx::RenderView::GetCommandList()
-{
-	return m_CommandLists[m_DeviceManager->GetFrameModuleIndex()].get_weak();
-}
-
 st::rhi::BufferUniformView st::gfx::RenderView::GetSceneBufferUniformView()
 {
 	return m_SceneConstants.GetUniformView();
@@ -266,331 +114,14 @@ st::rhi::BufferReadOnlyView st::gfx::RenderView::GetShadowMapVisibilityBufferROV
 	return m_ShadowMapVisibleBuffer.GetReadOnlyView();
 }
 
-bool st::gfx::RenderView::CreateColorTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
-{
-	return CreateTexture(id, TextureResourceType::RenderTarget, width, height, arraySize, format, false);
-}
-
-bool st::gfx::RenderView::CreateDepthTarget(const char* id, int width, int height, int arraySize, rhi::Format format)
-{
-	return CreateTexture(id, TextureResourceType::DepthStencil, width, height, arraySize, format, false);
-}
-
-bool st::gfx::RenderView::CreateTexture(const char* id, TextureResourceType type, int width, int height, int arraySize, rhi::Format format, bool needsUAV)
-{
-	// Check if that texture is already created
-	auto it = m_DeclaredTextures.find(id);
-	if (it != m_DeclaredTextures.end())
-	{
-		// No problem, this is allowed as far as the texture properties match
-		const auto& desc = it->second->texture->GetDesc();
-		if (it->second->requestedWidth == width && it->second->requestedHeight == height && it->second->type == type && desc.arraySize == arraySize &&
-			desc.format == format && needsUAV == has_any_flag(desc.shaderUsage, rhi::TextureShaderUsage::Storage))
-		{
-			return true;
-		}
-		else
-		{
-			LOG_ERROR("Texture with id {} already created", id);
-			return false;
-		}
-	}
-
-	rhi::TextureDesc desc{
-		.width = (uint32_t)GetActualSize(width, GetFramebuffer()->GetFramebufferInfo().width),
-		.height = (uint32_t)GetActualSize(height, GetFramebuffer()->GetFramebufferInfo().height),
-		.arraySize = (uint32_t)arraySize,
-		.format = format,
-		.shaderUsage = GetTextureShaderUsage(type, needsUAV) };
-
-	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(type), id);
-	m_DeclaredTextures.insert({ id, std::make_unique<DeclaredTexture>(std::move(texture), type, width, height) });
-
-	return true;
-}
-
-bool st::gfx::RenderView::RecreateTexture(const char* id, int width, int height, int arraySize, rhi::Format format)
-{
-	// Check that texture has been already created
-	auto it = m_DeclaredTextures.find(id);
-	if (it == m_DeclaredTextures.end())
-	{
-		LOG_ERROR("Texture with id {} does not exist", id);
-		return false;
-	}
-
-	rhi::TextureDesc desc = it->second->texture->GetDesc();
-	desc.width = width;
-	desc.height = height;
-	desc.arraySize = arraySize;
-	desc.format = format;
-
-	rhi::TextureOwner newTexture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(it->second->type), id);
-	rhi::TextureOwner& oldTexture = it->second->texture;
-
-	// Swap
-	oldTexture->Swap(*newTexture.get());
-
-	// newTexture (actually the old old since it has been swap-ed) would be released when the owner pointer gets out of scope
-	// but lets do it explicitly
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(newTexture));
-
-	it->second->requestedWidth = width;
-	it->second->requestedHeight = height;
-
-	return true;
-}
-
-bool st::gfx::RenderView::ReleaseTexture(const char* id)
-{
-	// Check that the texture exists
-	auto it = m_DeclaredTextures.find(id);
-	if (it == m_DeclaredTextures.end())
-	{
-		LOG_ERROR("Texture with id {} does not exist", id);
-		return false;
-	}
-
-	m_DeclaredTextures.erase(it);
-	return true;
-}
-
-bool st::gfx::RenderView::CreateBuffer(const std::string& id, const rhi::BufferDesc& desc)
-{
-	// Check that texture has not been already created
-	auto it = m_DeclaredBuffers.find(id);
-	if (it != m_DeclaredBuffers.end())
-	{
-		LOG_ERROR("Buffer with id {} already created", id);
-		return false;
-	}
-
-	rhi::BufferOwner buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, id);
-	m_DeclaredBuffers.insert({ id, std::make_unique<DeclaredBuffer>(std::move(buffer)) });
-
-	return true;
-}
-
-bool st::gfx::RenderView::RecreateBuffer(const std::string& id, const rhi::BufferDesc& desc)
-{
-	// Check that texture has not been already created
-	auto it = m_DeclaredBuffers.find(id);
-	if (it == m_DeclaredBuffers.end())
-	{
-		LOG_ERROR("Buffer with id {} does not exists", id);
-		return false;
-	}
-
-	// Create new buffer
-	rhi::BufferOwner newBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, id);
-	rhi::BufferOwner& oldBuffer = it->second->buffer;
-
-	// Swap
-	oldBuffer->Swap(*newBuffer.get());
-
-	return true;
-}
-
-bool st::gfx::RenderView::ReleaseBuffer(const std::string& id)
-{
-	// Check that texture has not been already created
-	auto it = m_DeclaredBuffers.find(id);
-	if (it == m_DeclaredBuffers.end())
-	{
-		LOG_ERROR("Buffer with id {} does not exists", id);
-		return false;
-	}
-
-	m_DeclaredBuffers.erase(it);
-	return true;
-}
-
-bool st::gfx::RenderView::RequestTextureAccess(RenderStage* rs, AccessMode accessMode, const std::string& id,
-	rhi::ResourceState inputState, rhi::ResourceState outputState)
-{
-	// Find render pass deps
-	auto rs_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const auto& entry) -> bool
-		{
-			return entry->renderStage.get() == rs;
-		});
-	if (rs_it == m_RenderStages.end())
-	{
-		LOG_ERROR("Render pass with debug name {} not registered", rs->GetDebugName());
-		return false;
-	}
-
-	// Remove prev dependency if exists
-	auto removeDeps = [&id](std::vector<RenderStageResourceDep>& deps)
-	{
-		auto it = std::find_if(deps.begin(), deps.end(), [&id](const RenderStageResourceDep& dep)
-			{ return dep.id == id; });
-		if (it != deps.end())
-		{
-			deps.erase(it);
-		}
-	};
-	removeDeps((*rs_it)->textureReads);
-	removeDeps((*rs_it)->textureWrites);
-
-	// Add new dependency
-	if (accessMode == AccessMode::Read)
-	{
-		(*rs_it)->textureReads.emplace_back(id, inputState, outputState);
-	}
-	else
-	{
-		(*rs_it)->textureWrites.emplace_back(id, inputState, outputState);
-	}
-
-	return true;
-}
-
-bool st::gfx::RenderView::RequestBufferAccess(RenderStage* rs, AccessMode accessMode, const std::string& id, 
-	rhi::ResourceState inputState, rhi::ResourceState outputState)
-{
-	// Find render pass deps
-	auto rs_it = std::find_if(m_RenderStages.begin(), m_RenderStages.end(), [rs](const auto& entry) -> bool
-		{
-			return entry->renderStage.get() == rs;
-		});
-	if (rs_it == m_RenderStages.end())
-	{
-		LOG_ERROR("Render pass with debug name {} not registered", rs->GetDebugName());
-		return false;
-	}
-
-	// Remove prev dependency if exists
-	auto removeDeps = [&id](std::vector<RenderStageResourceDep>& deps)
-	{
-		auto it = std::find_if(deps.begin(), deps.end(), [&id](const RenderStageResourceDep& dep)
-			{ return dep.id == id; });
-		if (it != deps.end())
-		{
-			deps.erase(it);
-		}
-	};
-	removeDeps((*rs_it)->bufferReads);
-	removeDeps((*rs_it)->bufferWrites);
-
-	// Add new dependency
-	if (accessMode == AccessMode::Read)
-	{
-		(*rs_it)->bufferReads.emplace_back(id, inputState, outputState);
-	}
-	else
-	{
-		(*rs_it)->bufferWrites.emplace_back(id, inputState, outputState);
-	}
-
-	return true;
-}
-
-st::rhi::TextureHandle st::gfx::RenderView::GetTexture(const std::string& id) const
-{
-	auto texture_it = m_DeclaredTextures.find(id);
-	if (texture_it != m_DeclaredTextures.end())
-	{
-		return texture_it->second->texture.get_weak();
-	}
-	return nullptr;
-}
-
-st::rhi::BufferHandle st::gfx::RenderView::GetBuffer(const std::string& id) const
-{
-	auto buffer_it = m_DeclaredBuffers.find(id);
-	if (buffer_it != m_DeclaredBuffers.end())
-	{
-		return buffer_it->second->buffer.get_weak();
-	}
-	return nullptr;
-}
-
-st::rhi::TextureSampledView st::gfx::RenderView::GetTextureSampledView(const std::string& id)
-{
-	auto tex = GetTexture(id);
-	if (tex)
-	{
-		return tex->GetSampledView();
-	}
-	return {};
-}
-
-st::rhi::TextureStorageView st::gfx::RenderView::GetTextureStorageView(const std::string& id)
-{
-	auto tex = GetTexture(id);
-	if (tex)
-	{
-		return tex->GetStorageView();
-	}
-	return {};
-}
-
-st::rhi::BufferUniformView st::gfx::RenderView::GetBufferUniformView(const std::string& id)
-{
-	auto buffer = GetBuffer(id);
-	if (buffer)
-	{
-		return buffer->GetUniformView();
-	}
-	return {};
-}
-
-st::rhi::BufferReadOnlyView st::gfx::RenderView::GetBufferReadOnlyView(const std::string& id)
-{
-	auto buffer = GetBuffer(id);
-	if (buffer)
-	{
-		return buffer->GetReadOnlyView();
-	}
-	return {};
-}
-
-st::rhi::BufferReadWriteView st::gfx::RenderView::GetBufferReadWriteView(const std::string& id)
-{
-	auto buffer = GetBuffer(id);
-	if (buffer)
-	{
-		return buffer->GetReadWriteView();
-	}
-	return {};
-}
-
 void st::gfx::RenderView::OnWindowSizeChanged()
 {
-	// Actually we are only interested in this if we are rendering to the swap chain BB
-	if (!m_OffscreenFramebuffer)
+	// Actually we are only interested in this if we are rendering to the main swap chain BB
+	if (!m_OffscreenFramebuffer && !m_ViewportSwapChainId)
 	{
 		const auto newSize = m_DeviceManager->GetWindowDimensions();
-		// Update all the textures whose size is dependant on BB size
-		for (auto& it : m_DeclaredTextures)
-		{
-			auto& declTex = it.second;
-			if (declTex->requestedWidth <= 0 || declTex->requestedHeight <= 0)
-			{
-				rhi::TextureDesc newDesc = declTex->texture->GetDesc();
-				newDesc.width = GetActualSize(declTex->requestedWidth, newSize.x);
-				newDesc.height = GetActualSize(declTex->requestedHeight, newSize.y);
-				
-				m_DeviceManager->GetDevice()->ReleaseImmediately(std::move(declTex->texture));
-				declTex->texture = m_DeviceManager->GetDevice()->CreateTexture(newDesc, 
-					GetInitialState(declTex->type), it.first);
-			}
-		}
-
-		// Forward to render stages
-		for (auto& rs : m_RenderStages)
-		{
-			rs->renderStage->OnBackbufferResize();
-		}
-
-		// Recreate texture view requests
-		for (auto* req : m_TexViewRequests)
-		{
-			m_DeviceManager->GetDevice()->ReleaseImmediately(std::move(req->tex));
-		}
+		m_RenderGraph->OnRenderTargetChanged(newSize);
 	}
-
-	// TODO: Check if we are resized (or changed) the offscreen BB
 }
 
 void st::gfx::RenderView::Render(float timeDeltaSec)
@@ -601,25 +132,6 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 		LOG_ERROR("No frame buffer specified. Nothing to render");
 		return;
 	}
-
-	if (m_IsDirty)
-	{
-		Refresh();
-	}
-
-	// Get render mode
-	if (m_RenderModes.empty() || m_CurrentRenderMode.empty())
-	{
-		LOG_WARNING("Render mode not set");
-		return;
-	}
-	auto it = m_RenderModes.find(m_CurrentRenderMode);
-	if (it == m_RenderModes.end())
-	{
-		LOG_ERROR("Render mode set '{}' not defined", m_CurrentRenderMode);
-		return;
-	}
-	const std::vector<RenderStageData*>& renderStages = it->second;
 
 	rhi::ICommandList* beginCommandList = m_BeginCommandLists[m_DeviceManager->GetFrameModuleIndex()].get();
 	beginCommandList->Open();
@@ -641,167 +153,24 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 	beginCommandList->PushBarrier(rhi::Barrier::Texture(
 		frameBuffer->GetDesc().ColorAttachments[0].texture.get(), rhi::ResourceState::PRESENT, rhi::ResourceState::RENDERTARGET));
 
+	// Give the oportunity to the rendergraph to do some initial setup using beginCommandList
+	m_RenderGraph->BeginRender(beginCommandList);
+
 	// Done with beginCommandList
 	beginCommandList->EndMarker();
 	beginCommandList->Close();
 	m_DeviceManager->GetDevice()->ExecuteCommandList(beginCommandList, st::rhi::QueueType::Graphics);
 
-	// Get initial textures state
-	std::map<std::string, rhi::ResourceState> texturesState;
-	for (auto& entry : m_DeclaredTextures)
-		texturesState.emplace(entry.first, GetInitialState(entry.second->type));
-	// Get initial buffers state
-	std::map<std::string, rhi::ResourceState> buffersState;
-	for (auto& entry : m_DeclaredBuffers)
-		buffersState.emplace(entry.first, rhi::ResourceState::SHADER_RESOURCE);
+	// Render the stages
+	m_RenderGraph->Render(GetFramebuffer());
 
-	// Stages render
-	auto stageCommandList = GetCommandList().get();
-	stageCommandList->Open();
-
-	stageCommandList->BeginMarker("Render stages");
-	for (auto* rs : renderStages)
-	{
-		// Update view of reads
-		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, texturesState);
-		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, buffersState);
-
-		if (rs->renderStage->IsEnabled())
-		{
-			stageCommandList->BeginMarker(rs->renderStage->GetDebugName());
-				
-			// GPU time query
-			rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()]->Reset();
-			stageCommandList->BeginTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
-
-			// Entry barriers
-			{
-				std::vector<rhi::Barrier> barriers;
-				auto getTextureBarriers = [&texturesState, &barriers, this](const std::vector<RenderStageResourceDep>& deps)
-				{
-					for (const auto& dep : deps)
-					{
-						auto state_it = texturesState.find(dep.id);
-						if (state_it != texturesState.end() && state_it->second != dep.inputState)
-						{
-							barriers.push_back(rhi::Barrier::Texture(
-								GetTexture(dep.id).get(), state_it->second, dep.inputState));
-							state_it->second = dep.inputState;
-						}
-					}
-				};
-				auto getBufferBarriers = [&buffersState, &barriers, this](const std::vector< RenderStageResourceDep>& deps)
-				{
-					for(const auto& dep : deps)
-					{
-						auto state_it = buffersState.find(dep.id);
-						if (state_it != buffersState.end() && state_it->second != dep.inputState)
-						{
-							barriers.push_back(rhi::Barrier::Buffer(
-								GetBuffer(dep.id).get(), state_it->second, dep.inputState));
-							state_it->second = dep.inputState;
-						}
-					}
-				};
-				getTextureBarriers(rs->textureReads);
-				getTextureBarriers(rs->textureWrites);
-				getBufferBarriers(rs->bufferReads);
-				getBufferBarriers(rs->bufferWrites);
-
-				if (!barriers.empty())
-				{
-					std::string markerName = rs->renderStage->GetDebugName();
-					markerName.append(" - Entry barriers");
-					stageCommandList->BeginMarker(markerName.c_str());
-					stageCommandList->PushBarriers(barriers);
-					stageCommandList->EndMarker();
-				}
-			} // end entry barriers
-
-			// Render
-			{
-				std::chrono::steady_clock::time_point tbegin = std::chrono::steady_clock::now();
-
-				rs->renderStage->Render();
-
-				std::chrono::steady_clock::time_point tend = std::chrono::steady_clock::now();
-				float ms = std::chrono::duration<float, std::milli>(tend - tbegin).count();
-				rs->cpuElapsed[m_DeviceManager->GetFrameIndex() % rs->cpuElapsed.size()] = ms;
-			}
-
-			stageCommandList->EndTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
-			stageCommandList->EndMarker();
-
-			// Update the resource states
-			{
-				auto updateTextureStates = [&texturesState, this](const std::vector<RenderStageResourceDep>& deps)
-				{
-					for (const auto& dep : deps)
-					{
-						auto state_it = texturesState.find(dep.id);
-						if (state_it != texturesState.end() && state_it->second != dep.outputState)
-						{
-							state_it->second = dep.outputState;
-						}
-					}
-				};
-				auto updateBufferStates = [&buffersState, this](const std::vector<RenderStageResourceDep>& deps)
-				{
-					for (const auto& dep : deps)
-					{
-						auto state_it = buffersState.find(dep.id);
-						if (state_it != buffersState.end() && state_it->second != dep.outputState)
-						{
-							state_it->second = dep.outputState;
-						}
-					}
-				};
-				updateTextureStates(rs->textureReads);
-				updateTextureStates(rs->textureWrites);
-				updateBufferStates(rs->bufferReads);
-				updateBufferStates(rs->bufferWrites);
-			}
-		} // if (rs->renderStage->IsEnabled())
-
-		// Update view of writes
-		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, texturesState);
-		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, buffersState);
-	} // end render stages iteration
-
-	stageCommandList->EndMarker();
-	stageCommandList->Close();
-	m_DeviceManager->GetDevice()->ExecuteCommandList(stageCommandList, st::rhi::QueueType::Graphics);
-
+	// Finish rendering
 	rhi::ICommandList* endCommandList = m_EndCommandLists[m_DeviceManager->GetFrameModuleIndex()].get();
 	endCommandList->Open();
 	endCommandList->BeginMarker("End commands");
 
-	// Frame End. All the resources need to go back to its initial state.
-	{
-		std::vector<rhi::Barrier> barriers;
-		for (auto& tex : m_DeclaredTextures)
-		{
-			rhi::ResourceState initialState = GetInitialState(tex.second->type);
-			rhi::ResourceState currentState = texturesState.find(tex.first)->second;
-			if (initialState != currentState)
-			{
-				barriers.push_back(rhi::Barrier::Texture(tex.second->texture.get(), currentState, initialState));
-			}
-		}
-		for (auto& buffer : m_DeclaredBuffers)
-		{
-			rhi::ResourceState initialState = rhi::ResourceState::SHADER_RESOURCE;
-			rhi::ResourceState currentState = buffersState.find(buffer.first)->second;
-			if (initialState != currentState)
-			{
-				barriers.push_back(rhi::Barrier::Buffer(buffer.second->buffer.get(), currentState, initialState));
-			}
-		}
-		if (!barriers.empty())
-		{
-			endCommandList->PushBarriers(barriers);
-		}
-	}
+	// Give the oportunity to the rendergraph to do some final operations using endCommandList
+	m_RenderGraph->EndRender(endCommandList);
 
 	// Back buffer to common so it can be presented
 	endCommandList->PushBarrier(rhi::Barrier().Texture(
@@ -811,129 +180,8 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 	endCommandList->EndMarker();
 	endCommandList->Close();
 
-	// Execute!
+	// Done with endCommandList
 	m_DeviceManager->GetDevice()->ExecuteCommandList(endCommandList, st::rhi::QueueType::Graphics);
-}
-
-size_t st::gfx::RenderView::GetNumRenderStages(const std::string& mode) const
-{ 
-	auto it = m_RenderModes.find(mode.empty() ? m_CurrentRenderMode : mode);
-	if(it == m_RenderModes.end())
-	{
-		LOG_WARNING("Render mode requested '{}' does not exists", m_CurrentRenderMode);
-		return 0;
-	}
-	return it->second.size();
-}
-
-const st::gfx::RenderView::RenderStageData* st::gfx::RenderView::GetRenderStage(uint32_t idx, const std::string& mode) const
-{
-	auto it = m_RenderModes.find(mode.empty() ? m_CurrentRenderMode : mode);
-	if (it == m_RenderModes.end())
-	{
-		LOG_WARNING("Render mode requested '{}' does not exists", m_CurrentRenderMode);
-		return 0;
-	}
-
-	return it->second.at(idx);
-}
-
-st::gfx::RenderView::TextureViewTicket st::gfx::RenderView::RequestTextureView(RenderStage* rs, AccessMode accessMode, const std::string& id)
-{
-	for (auto& entry : m_TexViewRequests)
-	{
-		if (entry->rs == rs && entry->accessMode == accessMode && entry->id == id)
-		{
-			++entry->refCount;
-			return entry;
-		}
-	}
-
-	auto* ticket = new TextureViewRequest{ rs, accessMode, id, 1 };
-	m_TexViewRequests.push_back(ticket);
-	return ticket;
-}
-
-st::gfx::RenderView::BufferViewTicket st::gfx::RenderView::RequestBufferView(RenderStage* rs, AccessMode accessMode, const std::string& id)
-{
-	for (auto& entry : m_BufferViewRequests)
-	{
-		if (entry->rs == rs && entry->accessMode == accessMode && entry->id == id)
-		{
-			++entry->refCount;
-			return entry;
-		}
-	}
-
-	auto* ticket = new BufferViewRequest{ rs, accessMode, id, 1 };
-	m_BufferViewRequests.push_back(ticket);
-	return ticket;
-}
-
-void st::gfx::RenderView::ReleaseTextureView(TextureViewTicket ticket)
-{
-	auto it = std::find(m_TexViewRequests.begin(), m_TexViewRequests.end(), ticket);
-	if (it != m_TexViewRequests.end())
-	{
-		if (--((*it)->refCount) == 0)
-		{
-			delete *it;
-			m_TexViewRequests.erase(it);
-		}
-	}
-}
-
-void st::gfx::RenderView::ReleaseBufferView(BufferViewTicket ticket)
-{
-	auto it = std::find(m_BufferViewRequests.begin(), m_BufferViewRequests.end(), ticket);
-	if (it != m_BufferViewRequests.end())
-	{
-		if (--((*it)->refCount) == 0)
-		{
-			delete* it;
-			m_BufferViewRequests.erase(it);
-		}
-	}
-}
-
-st::rhi::TextureHandle st::gfx::RenderView::GetTextureView(TextureViewTicket ticket)
-{
-	auto it = std::find(m_TexViewRequests.begin(), m_TexViewRequests.end(), ticket);
-	if (it == m_TexViewRequests.end())
-		return nullptr;
-
-	return (*it)->tex.get_weak();
-}
-
-st::rhi::BufferHandle st::gfx::RenderView::GetBufferView(BufferViewTicket ticket)
-{
-	auto it = std::find(m_BufferViewRequests.begin(), m_BufferViewRequests.end(), ticket);
-	if (it == m_BufferViewRequests.end())
-		return nullptr;
-
-	return (*it)->buffer.get_weak();
-}
-
-void st::gfx::RenderView::Refresh()
-{
-	m_IsDirty = false;
-}
-
-void st::gfx::RenderView::ClearRenderStages()
-{
-	m_RenderModes.clear();
-
-	for (auto& rs : m_RenderStages)
-	{
-		rs->renderStage->Detach();
-	}
-	m_RenderStages.clear();
-
-	for (auto& dt : m_DeclaredTextures)
-	{
-		m_DeviceManager->GetDevice()->ReleaseQueued(std::move(dt.second->texture));
-	}
-	m_DeclaredTextures.clear();
 }
 
 void st::gfx::RenderView::UpdateSceneConstantBuffer()
@@ -1299,145 +547,6 @@ void st::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comma
 
 	commandList->PushBarrier(
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
-}
-
-std::vector<st::gfx::RenderView::TextureViewRequest*> st::gfx::RenderView::GetTexViewRequests(RenderStage* rs, AccessMode accessMode)
-{
-	std::vector<st::gfx::RenderView::TextureViewRequest*> ret;
-	for (auto& entry : m_TexViewRequests)
-	{
-		if (entry->rs == rs && entry->accessMode == accessMode)
-		{
-			ret.push_back(entry);
-		}
-	}
-	return ret;
-}
-
-void st::gfx::RenderView::UpdateRequestedTextureViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
-	const std::map<std::string, rhi::ResourceState> resourceStates)
-{
-	auto requests = GetTexViewRequests(rs, accessMode);
-	for (auto req : requests)
-	{
-		auto it = m_DeclaredTextures.find(req->id);
-		if (it == m_DeclaredTextures.end())
-			continue;
-
-		rhi::TextureHandle sourceTex = it->second->texture.get_weak();
-		if (!sourceTex)
-			continue;
-
-		const rhi::TextureDesc& sourceTexDesc = sourceTex->GetDesc();
-
-		// Create the target texture if does not exists
-		// TODO: If the source texture changed (resized for example) we need to re-create de texture
-		if (!req->tex)
-		{
-			rhi::TextureDesc desc{
-				.width = sourceTexDesc.width,
-				.height = sourceTexDesc.height,
-				.depth = sourceTexDesc.depth,
-				.arraySize = sourceTexDesc.arraySize,
-				.mipLevels = sourceTexDesc.mipLevels,
-				.format = sourceTexDesc.format,//rhi::Format::RGBA8_UNORM,
-				.shaderUsage = rhi::TextureShaderUsage::Sampled
-			};
-
-			std::stringstream debugName;
-			debugName << rs->GetDebugName() << " - ";
-			if (accessMode == st::gfx::RenderView::AccessMode::Read)
-				debugName << "Read";
-			else
-				debugName << "Write";
-			debugName << " - " << sourceTex->GetDebugName();
-
-			req->tex = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::SHADER_RESOURCE, debugName.str().c_str());
-			assert(req->tex);
-		}
-
-		rhi::ResourceState srcTexState = resourceStates.find(req->id)->second;
-
-		rhi::Barrier entryBarriers[] = {
-			rhi::Barrier::Texture(sourceTex.get(), srcTexState, rhi::ResourceState::COPY_SRC),
-			rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST) };
-		commandList->PushBarriers(entryBarriers);
-
-		commandList->CopyTextureToTexture(req->tex.get(), rhi::AllSubresources, sourceTex.get(), rhi::AllSubresources);
-		
-		rhi::Barrier exitBarriers[] = {
-			rhi::Barrier::Texture(sourceTex.get(), rhi::ResourceState::COPY_SRC, srcTexState),
-			rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE) };
-		commandList->PushBarriers(exitBarriers);
-	}
-}
-
-std::vector<st::gfx::RenderView::BufferViewRequest*> st::gfx::RenderView::GetBufferViewRequests(RenderStage* rs, AccessMode accessMode)
-{
-	std::vector<st::gfx::RenderView::BufferViewRequest*> ret;
-	for (auto& entry : m_BufferViewRequests)
-	{
-		if (entry->rs == rs && entry->accessMode == accessMode)
-		{
-			ret.push_back(entry);
-		}
-	}
-	return ret;
-}
-
-void st::gfx::RenderView::UpdateRequestedBufferViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
-	const std::map<std::string, rhi::ResourceState> resourceStates)
-{
-	auto requests = GetBufferViewRequests(rs, accessMode);
-	for (auto req : requests)
-	{
-		auto it = m_DeclaredBuffers.find(req->id);
-		if (it == m_DeclaredBuffers.end())
-			continue;
-
-		rhi::BufferHandle srcBuffer = it->second->buffer.get_weak();
-		if (!srcBuffer)
-			continue;
-
-		// Create the target buffer if does not exists
-		// TODO: If the source buffer changed we need to re-create it
-		if (!req->buffer)
-		{
-			const rhi::BufferDesc& srcBufferDesc = srcBuffer->GetDesc();
-
-			rhi::BufferDesc desc{
-				.memoryAccess = rhi::MemoryAccess::Readback,
-				.shaderUsage = rhi::BufferShaderUsage::None,
-				.sizeBytes = srcBufferDesc.sizeBytes,
-				.format = rhi::Format::UNKNOWN,
-				.stride = 0 };
-
-			std::stringstream debugName;
-			debugName << rs->GetDebugName() << " - ";
-			if (accessMode == st::gfx::RenderView::AccessMode::Read)
-				debugName << "Read";
-			else
-				debugName << "Write";
-			debugName << " - " << srcBuffer->GetDebugName();
-
-			req->buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COMMON, debugName.str().c_str());
-			assert(req->buffer);
-		}
-
-		rhi::ResourceState srcBufferState = resourceStates.find(req->id)->second;
-
-		rhi::Barrier entryBarriers[] = {
-			rhi::Barrier::Buffer(srcBuffer.get(), srcBufferState, rhi::ResourceState::COPY_SRC),
-			rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST) };
-		commandList->PushBarriers(entryBarriers);
-
-		commandList->CopyBufferToBuffer(req->buffer.get(), 0, srcBuffer.get(), 0, req->buffer->GetDesc().sizeBytes);
-
-		rhi::Barrier exitBarriers[] = {
-			rhi::Barrier::Buffer(srcBuffer.get(), rhi::ResourceState::COPY_SRC, srcBufferState),
-			rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON) };
-		commandList->PushBarriers(exitBarriers);
-	}
 }
 
 st::gfx::RenderView::RenderSet st::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds) const

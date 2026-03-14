@@ -3,6 +3,7 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderContext.h"
 #include "RHI/PipelineState.h"
+#include "Gfx/RenderGraphTypes.h"
 
 namespace st::gfx
 {
@@ -29,7 +30,9 @@ private:
 
 	void RecreatePSO();
 
-	void Render() override;
+	// Overrides
+	void Setup(RenderGraphBuilder& builder) override;
+	void Render(st::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
@@ -39,6 +42,9 @@ private:
 	virtual const char* GetDebugName() const { return "ShadowmapRenderStage"; }
 
 private:
+
+	RGTextureHandle m_ShadowMapTexture;
+	RGTextureHandle m_ShadowMapColorTexture;
 
 	size_t m_TextureWidth;
 	size_t m_TextureHeight;

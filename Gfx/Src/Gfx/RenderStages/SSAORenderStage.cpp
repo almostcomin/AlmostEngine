@@ -4,24 +4,51 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/CommonResources.h"
+#include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/Camera.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-void st::gfx::SSAORenderStage::Render()
+void st::gfx::SSAORenderStage::Setup(RenderGraphBuilder& builder)
 {
-	if (!m_RenderView->GetScene() || !m_SSAOEnabled)
+	// Create resources
 	{
-		Passthrough();
+		m_AmbientOcclusionTexture = builder.CreateTexture("AmbientOcclusion", RenderGraph::TextureResourceType::ShaderResource, 
+			st::gfx::RenderGraph::c_BBSize, st::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
+		m_AOBlurTempTexture = builder.CreateTexture("AOBlurTemp", RenderGraph::TextureResourceType::ShaderResource, 
+			st::gfx::RenderGraph::c_BBSize, st::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
+
+		m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
+		m_GBuffer2Texture = builder.GetTextureHandle("GBuffer2");
+	}
+
+	// Declare resource access
+	{
+		builder.AddTextureDependency(m_LinearDepthTexture, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+		builder.AddTextureDependency(m_GBuffer2Texture, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+		builder.AddTextureDependency(m_AmbientOcclusionTexture, RenderGraph::AccessMode::Write,
+			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+		builder.AddTextureDependency(m_AOBlurTempTexture, RenderGraph::AccessMode::Write,
+			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE);
+	}
+}
+
+void st::gfx::SSAORenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	if (!GetScene() || !m_SSAOEnabled)
+	{
+		Passthrough(commandList);
 		return;
 	}
 
-	auto camera = m_RenderView->GetCamera();
+	auto camera = GetRenderView()->GetCamera();
 	const float4x4& projMatrix = camera->GetProjectionMatrix();
 
-	rhi::TextureHandle linearDepthTex = m_RenderView->GetTexture("LinearDepth");
-	rhi::TextureHandle AOTex = m_RenderView->GetTexture("AmbientOcclusion");
-	rhi::TextureHandle blurTexTemp = m_RenderView->GetTexture("AOBlurTemp");
+	rhi::TextureHandle linearDepthTex = m_RenderGraph->GetTexture(m_LinearDepthTexture);
+	rhi::TextureHandle AOTex = m_RenderGraph->GetTexture(m_AmbientOcclusionTexture);
+	rhi::TextureHandle blurTexTemp = m_RenderGraph->GetTexture(m_AOBlurTempTexture);
 
 	auto AOTexSampled = AOTex->GetSampledView();
 	auto AOTexStorage = AOTex->GetStorageView();
@@ -30,8 +57,6 @@ void st::gfx::SSAORenderStage::Render()
 	auto linearDepthSampled = linearDepthTex->GetSampledView();
 	const uint32_t width = linearDepthTex->GetDesc().width;
 	const uint32_t height = linearDepthTex->GetDesc().height;
-
-	rhi::CommandListHandle commandList = m_RenderView->GetCommandList();
 
 	//
 	// SSAO
@@ -42,9 +67,9 @@ void st::gfx::SSAORenderStage::Render()
 		commandList->SetPipelineState(m_SSAO_PSO.get());
 
 		interop::SSAOConstants shaderConstants;
-		shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
+		shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
 		shaderConstants.depthTextureDI = linearDepthSampled;
-		shaderConstants.normalsTextureDI = m_RenderView->GetTextureSampledView("GBuffer2");
+		shaderConstants.normalsTextureDI = m_RenderGraph->GetTextureSampledView(m_GBuffer2Texture);
 		shaderConstants.outputAOTextureDI = AOTexStorage;
 		shaderConstants.textureWidth = width;
 		shaderConstants.textureHeight = height;
@@ -120,28 +145,8 @@ void st::gfx::SSAORenderStage::Render()
 
 void st::gfx::SSAORenderStage::OnAttached()
 {
-	DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
-
-	// Create resources
-	{
-		m_RenderView->CreateTexture("AmbientOcclusion", RenderView::TextureResourceType::ShaderResource,
-			st::gfx::RenderView::c_BBSize, st::gfx::RenderView::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
-		m_RenderView->CreateTexture("AOBlurTemp", RenderView::TextureResourceType::ShaderResource,
-			st::gfx::RenderView::c_BBSize, st::gfx::RenderView::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
-	}
-
-	// Declare resource access
-	{
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "LinearDepth",
-			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "GBuffer2",
-			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "AmbientOcclusion",
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "AOBlurTemp",
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE);
-	}
 
 	// Load shaders
 	{
@@ -171,23 +176,22 @@ void st::gfx::SSAORenderStage::OnDetached()
 
 }
 
-void st::gfx::SSAORenderStage::Passthrough()
+void st::gfx::SSAORenderStage::Passthrough(st::rhi::CommandListHandle commandList)
 {
-	rhi::TextureHandle linearDepthTex = m_RenderView->GetTexture("LinearDepth");
+	rhi::TextureHandle linearDepthTex = m_RenderGraph->GetTexture(m_LinearDepthTexture);
 	const uint32_t width = linearDepthTex->GetDesc().width;
 	const uint32_t height = linearDepthTex->GetDesc().height;
 
-	rhi::CommandListHandle commandList = m_RenderView->GetCommandList();
-	auto* commonResources = m_RenderView->GetDeviceManager()->GetCommonResources();
+	auto* commonResources = GetDeviceManager()->GetCommonResources();
 
 	commandList->SetPipelineState(commonResources->GetClearTexturePSO().get());
 
 	// Transition temp texture to keep validation happy
-	commandList->PushBarrier(
-		rhi::Barrier::Texture(m_RenderView->GetTexture("AOBlurTemp").get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
+	commandList->PushBarrier(rhi::Barrier::Texture(
+		m_RenderGraph->GetTexture(m_AOBlurTempTexture).get(),rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
 
 	interop::ClearTextureConstants shaderConstants;
-	shaderConstants.textureDI = m_RenderView->GetTextureStorageView("AmbientOcclusion");
+	shaderConstants.textureDI = m_RenderGraph->GetTextureStorageView(m_AmbientOcclusionTexture);
 	shaderConstants.textureDim = float2{ width, height };
 	shaderConstants.clearValue = float4{ 1.f };
 

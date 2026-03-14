@@ -5,18 +5,28 @@
 #include "RHI/Device.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
+#include "Gfx/RenderGraphBuilder.h"
 #include "Interop/RenderResources.h"
 
-void st::gfx::DebugRenderStage::Render()
+void st::gfx::DebugRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	auto scene = m_RenderView->GetScene();
+	m_TonemappedTexture = builder.GetTextureHandle("ToneMapped");
+	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+
+	builder.AddTextureDependency(m_TonemappedTexture, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+}
+
+void st::gfx::DebugRenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	const auto* scene = GetScene();
 	if (!scene)
 		return;
 
 	if (!any(m_RenderBBoxes))
 		return;
-
-	auto commandList = m_RenderView->GetCommandList();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -34,10 +44,10 @@ void st::gfx::DebugRenderStage::Render()
 	{
 		if (m_RenderBBoxes[i])
 		{
-			auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene.get(), (BoundsType)i, commandList);
+			auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene, (BoundsType)i, commandList);
 
 			interop::DebugStage shaderConstants;
-			shaderConstants.sceneDI = m_RenderView->GetSceneBufferUniformView();
+			shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
 			shaderConstants.aaboxDI = bboxBufferDI;
 			commandList->PushGraphicsConstants(shaderConstants);
 
@@ -52,22 +62,17 @@ void st::gfx::DebugRenderStage::OnAttached()
 {
 	// Create Framebuffer
 	{
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ToneMapped",
-			rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth",
-			rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
-
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("ToneMapped"))
-			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
-		m_FB = m_RenderView->GetDeviceManager()->GetDevice()->CreateFramebuffer(fbDesc, "DebugRenderStage");
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_TonemappedTexture))
+			.SetDepthAttachment(m_RenderGraph->GetTexture(m_SceneDepthTexture));
+		m_FB = GetDeviceManager()->GetDevice()->CreateFramebuffer(fbDesc, "DebugRenderStage");
 	}
 
 	// Load shaders
 	{
-		m_VS = m_RenderView->GetDeviceManager()->GetShaderFactory()->LoadShader(
+		m_VS = GetDeviceManager()->GetShaderFactory()->LoadShader(
 			"AABOX_vs", rhi::ShaderType::Vertex);
-		m_PS = m_RenderView->GetDeviceManager()->GetShaderFactory()->LoadShader(
+		m_PS = GetDeviceManager()->GetShaderFactory()->LoadShader(
 			"AABOX_ps", rhi::ShaderType::Pixel);
 	}
 
@@ -85,7 +90,7 @@ void st::gfx::DebugRenderStage::OnAttached()
 			.primTopo = rhi::PrimitiveTopology::LineList
 		};
 
-		m_PSO = m_RenderView->GetDeviceManager()->GetDevice()->CreateGraphicsPipelineState(
+		m_PSO = GetDeviceManager()->GetDevice()->CreateGraphicsPipelineState(
 			desc, m_FB->GetFramebufferInfo(), "DebugRenderStage");
 	}
 }
@@ -104,9 +109,9 @@ void st::gfx::DebugRenderStage::OnBackbufferResize()
 	// Re-create fb
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("ToneMapped"))
-			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
-		m_FB = m_RenderView->GetDeviceManager()->GetDevice()->CreateFramebuffer(fbDesc, "DebugRenderStage");
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_TonemappedTexture))
+			.SetDepthAttachment(m_RenderGraph->GetTexture(m_SceneDepthTexture));
+		m_FB = GetDeviceManager()->GetDevice()->CreateFramebuffer(fbDesc, "DebugRenderStage");
 	}
 
 	// Re-create PSO
@@ -123,14 +128,14 @@ void st::gfx::DebugRenderStage::OnBackbufferResize()
 			.primTopo = rhi::PrimitiveTopology::LineList
 		};
 
-		m_PSO = m_RenderView->GetDeviceManager()->GetDevice()->CreateGraphicsPipelineState(
+		m_PSO = GetDeviceManager()->GetDevice()->CreateGraphicsPipelineState(
 			desc, m_FB->GetFramebufferInfo(), "DebugRenderStage");
 	}
 }
 
 std::pair<st::rhi::BufferReadOnlyView, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, BoundsType boundsType, rhi::CommandListHandle commandList)
 {
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	// Check the number of aabox we need
 	if (!scene)

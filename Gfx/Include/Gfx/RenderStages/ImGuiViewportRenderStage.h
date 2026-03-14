@@ -32,7 +32,9 @@ private:
 
 protected:
 
-	void Render() override;
+	void Setup(RenderGraphBuilder& builder) override;
+
+	void Render(st::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 };

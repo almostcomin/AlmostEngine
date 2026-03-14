@@ -8,17 +8,51 @@
 #include "Gfx/Mesh.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/RenderHelpers.h"
+#include "Gfx/RenderGraphBuilder.h"
 
-void st::gfx::GBuffersRenderStage::Render()
+void st::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	auto scene = m_RenderView->GetScene();
+	// Create render targets
+	{
+		// GBuffer0
+		//	RGB = Base color (albedo)
+		//	A = Opacity
+		m_GBuffer0Texture = builder.CreateColorTarget("GBuffer0", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
+
+		// GBuffer1
+		//	RGB = SpecularF0
+		//	A = Occlusion
+		m_GBuffer1Texture = builder.CreateColorTarget("GBuffer1", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
+
+		// GBuffer2
+		//	RG = Material (encoded)
+		//  B = Roughness
+		//  A = Metalness
+		m_GBuffer2Texture = builder.CreateColorTarget("GBuffer2", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
+
+		// GBuffer3
+		//	RGB = Emissive color
+		//	A = unused
+		m_GBuffer3Texture = builder.CreateColorTarget("GBuffer3", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
+
+		m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+	}
+
+	// Request RT access
+	builder.AddTextureDependency(m_GBuffer0Texture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	builder.AddTextureDependency(m_GBuffer1Texture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	builder.AddTextureDependency(m_GBuffer2Texture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	builder.AddTextureDependency(m_GBuffer3Texture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+}
+
+void st::gfx::GBuffersRenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	auto scene = GetScene();
 	if (!scene)
 	{
 		return;
 	}
-
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
-	auto commandList = m_RenderView->GetCommandList();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -33,9 +67,9 @@ void st::gfx::GBuffersRenderStage::Render()
 		rhi::RenderPassFlags::None);
 
 	RenderSetInstanced(
-		m_RenderView->GetCameraVisibleSet(),
-		m_RenderView->GetSceneBufferUniformView(),
-		m_RenderView->GetCameraVisiblityBufferROView(),
+		GetRenderView()->GetCameraVisibleSet(),
+		GetRenderView()->GetSceneBufferUniformView(),
+		GetRenderView()->GetCameraVisiblityBufferROView(),
 		m_RenderContext,
 		commandList.get());
 
@@ -44,48 +78,17 @@ void st::gfx::GBuffersRenderStage::Render()
 
 void st::gfx::GBuffersRenderStage::OnAttached()
 {
-	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
-
-	// Create render targets
-	{
-		// GBuffer0
-		//	RGB = Base color (albedo)
-		//	A = Opacity
-		m_RenderView->CreateColorTarget("GBuffer0", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
-
-		// GBuffer1
-		//	RGB = SpecularF0
-		//	A = Occlusion
-		m_RenderView->CreateColorTarget("GBuffer1", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
-
-		// GBuffer2
-		//	RG = Material (encoded)
-		//  B = Roughness
-		//  A = Metalness
-		m_RenderView->CreateColorTarget("GBuffer2", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
-
-		// GBuffer3
-		//	RGB = Emissive color
-		//	A = unused
-		m_RenderView->CreateColorTarget("GBuffer3", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
-	}
-
-	// Request RT access
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "GBuffer0", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "GBuffer1", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "GBuffer2", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "GBuffer3", rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneDepth", rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 
 	// Create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer0"))
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer1"))
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer2"))
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer3"))
-			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_GBuffer0Texture))
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_GBuffer1Texture))
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_GBuffer2Texture))
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_GBuffer3Texture))
+			.SetDepthAttachment(m_RenderGraph->GetTexture(m_SceneDepthTexture));
 		m_FB = device->CreateFramebuffer(fbDesc, "GBuffersRenderStage");
 	}
 
@@ -133,7 +136,7 @@ void st::gfx::GBuffersRenderStage::OnAttached()
 
 void st::gfx::GBuffersRenderStage::OnDetached()
 {
-	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	st::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_FB));
 	m_RenderContext = {};
@@ -141,16 +144,16 @@ void st::gfx::GBuffersRenderStage::OnDetached()
 
 void st::gfx::GBuffersRenderStage::OnBackbufferResize()
 {
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	// Re-create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer0"))
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer1"))
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer2"))
-			.AddColorAttachment(m_RenderView->GetTexture("GBuffer3"))
-			.SetDepthAttachment(m_RenderView->GetTexture("SceneDepth"));
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_GBuffer0Texture))
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_GBuffer1Texture))
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_GBuffer2Texture))
+			.AddColorAttachment(m_RenderGraph->GetTexture(m_GBuffer3Texture))
+			.SetDepthAttachment(m_RenderGraph->GetTexture(m_SceneDepthTexture));
 		m_FB = device->CreateFramebuffer(fbDesc, "GBuffersRenderStage");
 	}
 

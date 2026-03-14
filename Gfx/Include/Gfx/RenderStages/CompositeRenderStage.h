@@ -3,6 +3,7 @@
 #include "Gfx/RenderStage.h"
 #include "RHI/Texture.h"
 #include "RHI/PipelineState.h"
+#include "Gfx/RenderGraphTypes.h"
 
 namespace st::gfx
 {
@@ -20,12 +21,16 @@ public:
 
 private:
 
+	RGTextureHandle m_ToneMappedTexture;
+	RGTextureHandle m_ImGuiTexture;
+
 	float m_PaperWhiteNits = 203.f;
 
 	rhi::ShaderOwner m_PS;
 	rhi::GraphicsPipelineStateOwner m_PSO;
 
-	void Render() override;
+	void Setup(RenderGraphBuilder& builder) override;
+	void Render(st::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;

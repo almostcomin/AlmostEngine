@@ -6,21 +6,17 @@
 #include "Interop/ImGUI_CB.h"
 #include "Gfx/UploadBuffer.h"
 #include "RHI/Device.h"
+#include "Gfx/RenderGraphBuilder.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_sdl3.h>
 
 void st::gfx::ImGuiRenderStage::OnAttached()
 {
-    m_RenderView->CreateColorTarget("ImGui", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
-    m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ImGui",
-        rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-
     Init();
 }
 
 void st::gfx::ImGuiRenderStage::OnDetached()
 {
-    m_RenderView->ReleaseTexture("ImGui");
     Release();
 }
 
@@ -60,18 +56,25 @@ void st::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
 
 st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentVB(GeometryBuffers& geometryBuffers)
 {
-    return geometryBuffers.VertexBuffer[m_RenderView->GetDeviceManager()->GetFrameModuleIndex()];
+    return geometryBuffers.VertexBuffer[GetDeviceManager()->GetFrameModuleIndex()];
 }
 
 st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentIB(GeometryBuffers& geometryBuffers)
 {
-    return geometryBuffers.IndexBuffer[m_RenderView->GetDeviceManager()->GetFrameModuleIndex()];
+    return geometryBuffers.IndexBuffer[GetDeviceManager()->GetFrameModuleIndex()];
 }
 
-void st::gfx::ImGuiRenderStage::Render()
+void st::gfx::ImGuiRenderStage::Setup(RenderGraphBuilder& builder)
+{
+    m_ImGuiTexture = builder.CreateColorTarget("ImGui", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
+
+    builder.AddTextureDependency(m_ImGuiTexture, RenderGraph::AccessMode::Write,
+        rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+}
+
+void st::gfx::ImGuiRenderStage::Render(st::rhi::CommandListHandle commandList)
 {
 	auto& io = ImGui::GetIO();
-    rhi::CommandListHandle commandList = m_RenderView->GetCommandList();
 
     // Address any change in font data. Needs to be called before ImGui::NewFrame()
     if (!UpdateFontTexture(commandList.get()))
@@ -99,13 +102,13 @@ void st::gfx::ImGuiRenderStage::Render()
 
 void st::gfx::ImGuiRenderStage::OnBackbufferResize()
 {
-    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+    st::gfx::DeviceManager* deviceManager = GetDeviceManager();
     st::rhi::Device* device = deviceManager->GetDevice();
 
     // Recreate framebuffer
     {
         m_FB = device->CreateFramebuffer(rhi::FramebufferDesc()
-            .AddColorAttachment(m_RenderView->GetTexture("ImGui")), "ImGui");
+            .AddColorAttachment(m_RenderGraph->GetTexture(m_ImGuiTexture)), "ImGui");
     }
 
     // Recreatre PSO
@@ -118,7 +121,7 @@ void st::gfx::ImGuiRenderStage::OnBackbufferResize()
 
 bool st::gfx::ImGuiRenderStage::Init()
 {
-    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+    st::gfx::DeviceManager* deviceManager = GetDeviceManager();
     st::rhi::Device* device = deviceManager->GetDevice();
     st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 
@@ -136,7 +139,7 @@ bool st::gfx::ImGuiRenderStage::Init()
     // Create framebuffer
     {
         m_FB = device->CreateFramebuffer(rhi::FramebufferDesc()
-            .AddColorAttachment(m_RenderView->GetTexture("ImGui")), "ImGui");
+            .AddColorAttachment(m_RenderGraph->GetTexture(m_ImGuiTexture)), "ImGui");
     }
 
     // Create PSO
@@ -185,7 +188,7 @@ bool st::gfx::ImGuiRenderStage::Init()
 
 void st::gfx::ImGuiRenderStage::Release()
 {
-    auto* device = m_RenderView->GetDeviceManager()->GetDevice();
+    auto* device = GetDeviceManager()->GetDevice();
 
     m_GuiFontTexture.reset();
     m_CurrentTextures.clear();
@@ -202,7 +205,7 @@ void st::gfx::ImGuiRenderStage::Release()
 
 bool st::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandList)
 {
-    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+    st::gfx::DeviceManager* deviceManager = GetDeviceManager();
     st::gfx::UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
     auto* device = deviceManager->GetDevice();
     ImGuiIO& io = ImGui::GetIO();
@@ -243,53 +246,6 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandList
         texData->Status = ImTextureStatus_Destroyed;
     }
 
-#if 0
-
-    // If the font texture exists and is bound to ImGui, we're done.
-    // Note: ImGui_Renderer will reset io.Fonts->TexID when new fonts are added.
-    if (m_GuiFontTexture && io.Fonts->TexRef.GetTexID())
-        return true;
-
-    if (m_GuiFontTexture)
-    {
-        // Asegúrate de que ImGui siempre tiene el puntero correcto
-        io.Fonts->TexRef = m_GuiFontTexture.get();
-        return true;
-    }
-
-    // Get font texture atlas memory
-    unsigned char* pixels;
-    int width, height;
-    io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-    if (!pixels)
-        return false;
-
-    rhi::TextureDesc textureDesc;
-    textureDesc.width = width;
-    textureDesc.height = height;
-    textureDesc.format = rhi::Format::RGBA8_UNORM;
-    textureDesc.shaderUsage = rhi::TextureShaderUsage::Sampled;
-    m_FontTexture = deviceManager->GetDevice()->CreateTexture(textureDesc, rhi::ResourceState::COPY_DST, "ImGuiFontTexture");
-    if (!m_FontTexture)
-        return false;
-    
-    rhi::BufferOwner textureUploadBuffer = device->CreateBuffer(rhi::BufferDesc{
-        .memoryAccess = rhi::MemoryAccess::Upload,
-        .shaderUsage = rhi::BufferShaderUsage::None,
-        .sizeBytes = (size_t)width * height * 4 }, 
-        rhi::ResourceState::COMMON, "ImGui TextureUploadBuffer");
-    
-    void* uploadData = textureUploadBuffer->Map();
-    std::memcpy(uploadData, pixels, width * height * 4);
-    textureUploadBuffer->Unmap();
-
-    commandList->WriteTexture(m_FontTexture.get(), rhi::AllSubresources, textureUploadBuffer.get(), 0);
-    commandList->PushBarrier(
-        rhi::Barrier::Texture(m_FontTexture.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
-
-    m_GuiFontTexture = st::make_unique_with_weak<ImGuiTexture>(m_FontTexture.get_weak(), ImGuiTexFlags_None);
-    io.Fonts->TexRef = m_GuiFontTexture.get();
-#endif
     return true;
 }
 
@@ -337,7 +293,7 @@ bool st::gfx::ImGuiRenderStage::UpdateGeometry(ImDrawData* drawData, GeometryBuf
 
 bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
 {
-    st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+    st::gfx::DeviceManager* deviceManager = GetDeviceManager();
 
     if (!buffer || size_t(buffer->GetDesc().sizeBytes) < requiredSize)
     {

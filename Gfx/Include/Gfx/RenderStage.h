@@ -4,18 +4,29 @@
 #include "Core/Memory.h"
 #include <string>
 #include "RHI/ResourceState.h"
+#include "RHI/TypeForwards.h"
 #include "Core/Math.h"
 
 namespace st::rhi
 {
 	class IFramebuffer;
-};
+}
 
 namespace st::gfx
 {
+	class RenderGraphBuilder;
+	class Scene;
+	class RenderGraph;
+	class DeviceManager;
+}
+
+namespace st::gfx
+{
+
 class RenderStage
 {
 	friend class RenderView;
+	friend class RenderGraph;
 
 	struct TextureDeclaration
 	{
@@ -26,8 +37,12 @@ class RenderStage
 
 public:
 
+	RenderView* GetRenderView() const;
+	Scene* GetScene() const;
+	DeviceManager* GetDeviceManager() const;
+
 	bool IsEnabled() const { return m_Enabled; }
-	bool IsAttached() const { return m_RenderView; }
+	bool IsAttached() const { return m_RenderGraph; }
 
 	void SetEnabled(bool b);
 
@@ -35,9 +50,11 @@ public:
 
 protected:
 
-	st::weak<RenderView> m_RenderView;
+	st::weak<RenderGraph> m_RenderGraph;
 
-	virtual void Render() = 0;
+	virtual void Setup(RenderGraphBuilder& builder) = 0;
+
+	virtual void Render(st::rhi::CommandListHandle commandList) = 0;
 	virtual void OnAttached() {};
 	virtual void OnDetached() {};
 	virtual void OnBackbufferResize() {};
@@ -45,7 +62,7 @@ protected:
 	virtual void OnEnabled() {};
 	virtual void OnDisabled() {};
 
-	void Attach(RenderView* renderView);
+	void Attach(RenderGraph* renderGraph);
 	void Detach();
 
 private:

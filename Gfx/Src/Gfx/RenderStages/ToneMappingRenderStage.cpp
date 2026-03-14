@@ -27,7 +27,7 @@ st::gfx::ToneMappingRenderStage::Stats st::gfx::ToneMappingRenderStage::GetStats
 
 	m_StatsBufferReadBack->Unmap();
 
-	st::rhi::TextureHandle outputTexture = m_RenderView->GetTexture("ToneMapped");
+	st::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ToneMappedTexture);
 	const uint32_t width = outputTexture->GetDesc().width;
 	const uint32_t height = outputTexture->GetDesc().height;
 
@@ -36,18 +36,47 @@ st::gfx::ToneMappingRenderStage::Stats st::gfx::ToneMappingRenderStage::GetStats
 	return result;
 }
 
-void st::gfx::ToneMappingRenderStage::Render()
+void st::gfx::ToneMappingRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	// Create resources
+	{
+		m_LuminanceHistogramBuffer = builder.CreateBuffer("LuminanceHistogram", rhi::BufferDesc{
+			.shaderUsage = rhi::BufferShaderUsage::ReadOnly | rhi::BufferShaderUsage::ReadWrite,
+			.sizeBytes = 256 * sizeof(uint32_t) });
+
+		m_LuminanceAverageTexture = builder.CreateTexture("LuminanceAverage", RenderGraph::TextureResourceType::ShaderResource, 
+			1, 1, 1, rhi::Format::R32_FLOAT, true);
+
+		m_ToneMappedTexture = builder.CreateTexture("ToneMapped", RenderGraph::TextureResourceType::RenderTarget,
+			RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
+
+		m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
+	}
+
+	// Request resources access
+	{
+		builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+		builder.AddBufferDependency(m_LuminanceHistogramBuffer, RenderGraph::AccessMode::Write,
+			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+		builder.AddTextureDependency(m_LuminanceAverageTexture, RenderGraph::AccessMode::Write,
+			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE);
+		builder.AddTextureDependency(m_ToneMappedTexture, RenderGraph::AccessMode::Write,
+			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+	}
+}
+
+void st::gfx::ToneMappingRenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	DeviceManager* deviceManager = GetDeviceManager();
 	CommonResources* commonResources = deviceManager->GetCommonResources();
 	UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
 	rhi::Device* device = deviceManager->GetDevice();
-	auto commandList = m_RenderView->GetCommandList();
 
-	st::rhi::TextureHandle inputTexture = m_RenderView->GetTexture("SceneColor");
-	st::rhi::TextureHandle outputTexture = m_RenderView->GetTexture("ToneMapped");
-	st::rhi::BufferHandle histogramBuffer = m_RenderView->GetBuffer("LuminanceHistogram");
-	st::rhi::TextureHandle avgLuminanceTexture = m_RenderView->GetTexture("LuminanceAverage");
+	st::rhi::TextureHandle inputTexture = m_RenderGraph->GetTexture(m_SceneColorTexture);
+	st::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ToneMappedTexture);
+	st::rhi::BufferHandle histogramBuffer = m_RenderGraph->GetBuffer(m_LuminanceHistogramBuffer);
+	st::rhi::TextureHandle avgLuminanceTexture = m_RenderGraph->GetTexture(m_LuminanceAverageTexture);
 	const uint32_t width = outputTexture->GetDesc().width;
 	const uint32_t height = outputTexture->GetDesc().height;
 	assert(width == inputTexture->GetDesc().width);
@@ -155,7 +184,7 @@ void st::gfx::ToneMappingRenderStage::Render()
 			shaderConstants.pixelCount = width * height;
 			shaderConstants.minLogLuminance = m_MinLogLuminance;
 			shaderConstants.logLuminanceRange = m_LogLuminanceRange;
-			shaderConstants.timeDelta = m_RenderView->GetTimeDelta();
+			shaderConstants.timeDelta = GetRenderView()->GetTimeDelta();
 			shaderConstants.adaptionSpeedUp = m_AdaptationUpSpeed;
 			shaderConstants.adaptionSpeedDown = m_AdaptationDownSpeed;
 
@@ -169,10 +198,10 @@ void st::gfx::ToneMappingRenderStage::Render()
 		switch (deviceManager->GetColorSpace())
 		{
 		case rhi::ColorSpace::SRGB:
-			TonemapSDR();
+			TonemapSDR(commandList);
 			break;
 		case rhi::ColorSpace::HDR10_ST2084:
-			TonemapHDR();
+			TonemapHDR(commandList);
 			break;
 		default:
 			assert(0);
@@ -195,33 +224,8 @@ void st::gfx::ToneMappingRenderStage::Render()
 
 void st::gfx::ToneMappingRenderStage::OnAttached()
 {
-	DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
+	DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
-
-	// Create resources
-	{
-		m_RenderView->CreateBuffer("LuminanceHistogram", rhi::BufferDesc{
-			.shaderUsage = rhi::BufferShaderUsage::ReadOnly | rhi::BufferShaderUsage::ReadWrite,
-			.sizeBytes = 256 * sizeof(uint32_t) });
-
-		m_RenderView->CreateTexture("LuminanceAverage", RenderView::TextureResourceType::ShaderResource,
-			1, 1, 1, rhi::Format::R32_FLOAT, true);
-
-		m_RenderView->CreateTexture("ToneMapped", RenderView::TextureResourceType::RenderTarget,
-			RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
-	}
-
-	// Request resources access
-	{
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Read, "SceneColor",
-			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-		m_RenderView->RequestBufferAccess(this, RenderView::AccessMode::Write, "LuminanceHistogram",
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "LuminanceAverage",
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE);
-		m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "ToneMapped",
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
-	}
 
 	// Load shaders
 	{
@@ -283,12 +287,11 @@ void st::gfx::ToneMappingRenderStage::OnDetached()
 	m_BuildHistogramCS = nullptr;
 }
 
-void st::gfx::ToneMappingRenderStage::TonemapHDR()
+void st::gfx::ToneMappingRenderStage::TonemapHDR(st::rhi::CommandListHandle commandList)
 {
-	auto commandList = m_RenderView->GetCommandList();
-	st::rhi::TextureHandle avgLuminanceTexture = m_RenderView->GetTexture("LuminanceAverage");
-	st::rhi::TextureHandle inputTexture = m_RenderView->GetTexture("SceneColor");
-	st::rhi::TextureHandle outputTexture = m_RenderView->GetTexture("ToneMapped");
+	st::rhi::TextureHandle avgLuminanceTexture = m_RenderGraph->GetTexture(m_LuminanceAverageTexture);
+	st::rhi::TextureHandle inputTexture = m_RenderGraph->GetTexture(m_SceneColorTexture);
+	st::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ToneMappedTexture);
 	const uint32_t width = outputTexture->GetDesc().width;
 	const uint32_t height = outputTexture->GetDesc().height;
 
@@ -312,12 +315,11 @@ void st::gfx::ToneMappingRenderStage::TonemapHDR()
 	commandList->EndMarker();
 }
 
-void st::gfx::ToneMappingRenderStage::TonemapSDR()
+void st::gfx::ToneMappingRenderStage::TonemapSDR(st::rhi::CommandListHandle commandList)
 {
-	auto commandList = m_RenderView->GetCommandList();
-	st::rhi::TextureHandle avgLuminanceTexture = m_RenderView->GetTexture("LuminanceAverage");
-	st::rhi::TextureHandle inputTexture = m_RenderView->GetTexture("SceneColor");
-	st::rhi::TextureHandle outputTexture = m_RenderView->GetTexture("ToneMapped");
+	st::rhi::TextureHandle avgLuminanceTexture = m_RenderGraph->GetTexture(m_LuminanceAverageTexture);
+	st::rhi::TextureHandle inputTexture = m_RenderGraph->GetTexture(m_SceneColorTexture);
+	st::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ToneMappedTexture);
 	const uint32_t width = outputTexture->GetDesc().width;
 	const uint32_t height = outputTexture->GetDesc().height;
 

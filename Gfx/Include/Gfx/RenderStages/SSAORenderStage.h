@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
+#include "Gfx/RenderGraphTypes.h"
 
 namespace st::gfx
 {
@@ -27,13 +28,19 @@ public:
 
 private:
 
-	void Render() override;
+	void Setup(RenderGraphBuilder& builder) override;
+	void Render(st::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 
-	void Passthrough();
+	void Passthrough(st::rhi::CommandListHandle commandList);
 
 private:
+
+	RGTextureHandle m_AmbientOcclusionTexture;
+	RGTextureHandle m_AOBlurTempTexture;
+	RGTextureHandle m_LinearDepthTexture;
+	RGTextureHandle m_GBuffer2Texture;
 
 	rhi::ShaderOwner m_SSAO_CS;
 	rhi::ComputePipelineStateOwner m_SSAO_PSO;

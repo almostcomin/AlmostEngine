@@ -6,6 +6,7 @@
 #include "RHI/CommandList.h"
 #include "RHI/FrameBuffer.h"
 #include "Gfx/SceneBounds.h"
+#include "Gfx/RenderGraphTypes.h"
 
 namespace st::gfx
 {
@@ -27,12 +28,18 @@ public:
 
 private:
 
-	void Render() override;
+	void Setup(RenderGraphBuilder& builder) override;
+	void Render(st::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
 
 	std::pair<rhi::BufferReadOnlyView, size_t> GetAABBOXBuffer(const Scene* scene, BoundsType boundsType, rhi::CommandListHandle commandList);
+
+private:
+
+	RGTextureHandle m_TonemappedTexture;
+	RGTextureHandle m_SceneDepthTexture;
 
 	rhi::GraphicsPipelineStateOwner m_PSO;
 	rhi::ShaderOwner m_VS;

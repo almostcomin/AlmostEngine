@@ -8,18 +8,23 @@
 #include "Gfx/Mesh.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/RenderHelpers.h"
+#include "Gfx/RenderGraphBuilder.h"
 
-void st::gfx::DepthPrepassRenderStage::Render()
+void st::gfx::DepthPrepassRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	auto scene = m_RenderView->GetScene();
+	m_SceneDepthTexture = builder.CreateDepthTarget("SceneDepth", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::D24S8);
+
+	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+}
+
+void st::gfx::DepthPrepassRenderStage::Render(st::rhi::CommandListHandle commandList)
+{
+	auto scene = GetScene();
 	if (!scene)
 	{
 		//LOG_WARNING("No scene set. Nothing to render");
 		return;
 	}
-
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
-	auto commandList = m_RenderView->GetCommandList();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -29,9 +34,9 @@ void st::gfx::DepthPrepassRenderStage::Render()
 		rhi::RenderPassFlags::None);
 
 	RenderSetInstanced(
-		m_RenderView->GetCameraVisibleSet(),
-		m_RenderView->GetSceneBufferUniformView(),
-		m_RenderView->GetCameraVisiblityBufferROView(),
+		GetRenderView()->GetCameraVisibleSet(),
+		GetRenderView()->GetSceneBufferUniformView(),
+		GetRenderView()->GetCameraVisiblityBufferROView(),
 		m_RenderContext,
 		commandList.get());
 
@@ -40,18 +45,11 @@ void st::gfx::DepthPrepassRenderStage::Render()
 
 void st::gfx::DepthPrepassRenderStage::OnAttached()
 {
-	st::gfx::DeviceManager* deviceManager = m_RenderView->GetDeviceManager();
-	rhi::Device* device = deviceManager->GetDevice();
-
-	// Create depth stencil
-	m_RenderView->CreateDepthTarget("SceneDepth", RenderView::c_BBSize, RenderView::c_BBSize, 1, rhi::Format::D24S8);
-
-	// Request access
-	m_RenderView->RequestTextureAccess(this, RenderView::AccessMode::Write, "SceneDepth", rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	// Create Framebuffer
 	{
-		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
+		st::rhi::TextureHandle depthStencil = m_RenderGraph->GetTexture(m_SceneDepthTexture);
 		auto fbDesc = rhi::FramebufferDesc()
 			.SetDepthAttachment(depthStencil);
 		m_FB = device->CreateFramebuffer(fbDesc, "DepthPrepassRenderStage");
@@ -59,7 +57,7 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		st::gfx::ShaderFactory* shaderFactory = GetDeviceManager()->GetShaderFactory();
 		m_VS = shaderFactory->LoadShader("DepthPrepass_vs", rhi::ShaderType::Vertex);
 	}
 
@@ -91,19 +89,17 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 
 void st::gfx::DepthPrepassRenderStage::OnDetached()
 {
-	st::rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
-
-	device->ReleaseQueued(std::move(m_FB));
+	GetDeviceManager()->GetDevice()->ReleaseQueued(std::move(m_FB));
 	m_RenderContext = {};
 }
 
 void st::gfx::DepthPrepassRenderStage::OnBackbufferResize()
 {
-	rhi::Device* device = m_RenderView->GetDeviceManager()->GetDevice();
+	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	// Re-create Framebuffer
 	{
-		st::rhi::TextureHandle depthStencil = m_RenderView->GetTexture("SceneDepth");
+		st::rhi::TextureHandle depthStencil = m_RenderGraph->GetTexture(m_SceneDepthTexture);
 		auto fbDesc = rhi::FramebufferDesc()
 			.SetDepthAttachment(depthStencil);
 		m_FB = device->CreateFramebuffer(fbDesc, "DepthPrepassRenderStage");

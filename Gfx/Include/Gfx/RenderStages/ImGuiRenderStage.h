@@ -4,6 +4,7 @@
 #include "RHI/Buffer.h"
 #include "RHI/PipelineState.h"
 #include "RHI/CommandList.h"
+#include "Gfx/RenderGraphTypes.h"
 #include <imgui/imgui.h>
 #include <unordered_map>
 #include <array>
@@ -49,7 +50,8 @@ public:
 
 protected:
 
-	void Render() override;
+	void Setup(RenderGraphBuilder& builder) override;
+	void Render(st::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
@@ -87,6 +89,8 @@ private:
 	};
 
 private:
+
+	RGTextureHandle m_ImGuiTexture;
 
 	rhi::ShaderOwner m_VS;
 	rhi::ShaderOwner m_PS;

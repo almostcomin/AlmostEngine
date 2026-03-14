@@ -13,6 +13,8 @@
 #include <cassert>
 #include <filesystem>
 #include <span>
+#include <map>
+#include <set>
 
 #if _WIN32
 

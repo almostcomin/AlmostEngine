@@ -484,11 +484,11 @@ void StructureUI::BuildSettingsWindow()
 
     if (ImGui::CollapsingHeader("Render modes", ImGuiTreeNodeFlags_None))
     {
-        std::vector<std::string> renderModes = m_RenderView->GetRenderModes();
+        std::vector<std::string> renderModes = m_RenderView->GetRenderGraph()->GetRenderModes();
         int selectedIdx = 0;
         for (int i = 0; i < renderModes.size(); ++i)
         {
-            if (renderModes[i] == m_RenderView->GetCurrentRenderMode())
+            if (renderModes[i] == m_RenderView->GetRenderGraph()->GetCurrentRenderMode())
             {
                 selectedIdx = i;
                 break;
@@ -966,13 +966,14 @@ void StructureUI::BuildResourcesWindow(bool* p_open)
 
 void StructureUI::BuildRenderStagesWindow()
 {
+    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
     const float parentHeight = ImGui::GetIO().DisplaySize.y;
     const float windowHeight = parentHeight * 0.9f;
     const ImGuiStyle& style = ImGui::GetStyle();
     const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
 
     ImGui::SetNextWindowSize(ImVec2(320, windowHeight), ImGuiCond_Once);
-    std::string title = m_RenderView->GetName() + " - " + m_RenderView->GetCurrentRenderMode() + "###RenderViewWindow";
+    std::string title = m_RenderView->GetName() + " - " + renderGraph->GetCurrentRenderMode() + "###RenderViewWindow";
     if (!ImGui::Begin(title.c_str(), &m_ShowRenderStages, ImGuiWindowFlags_None))
     {
         ImGui::End();
@@ -981,28 +982,39 @@ void StructureUI::BuildRenderStagesWindow()
 
     int propid = 0;
     std::string newHoveredId;
-    for (int rs_idx = 0; rs_idx < m_RenderView->GetNumRenderStages(); ++rs_idx)
+    for (int rs_idx = 0; rs_idx < renderGraph->GetNumRenderStages(); ++rs_idx)
     {
-        const auto* rs = m_RenderView->GetRenderStage(rs_idx);
+        const auto* rs = renderGraph->GetRenderStage(rs_idx);
         if (ImGui::CollapsingHeader(rs->renderStage->GetDebugName(), ImGuiTreeNodeFlags_DefaultOpen))
         {
-            auto addDep = [this, &newHoveredId, &propid, rs](const std::vector<st::gfx::RenderView::RenderStageResourceDep>& deps, bool isWrite, bool isBuffer)
+            auto addDep = [this, &newHoveredId, &propid, rs]<typename T>(const std::vector<T>& deps, bool isWrite, bool isBuffer)
             {
                 for (const auto& dep : deps)
                 {
-                    bool selected = (m_RenderStageIOHoveredId == dep.id);
+                    const std::string& id = m_RenderView->GetRenderGraph()->GetId(dep.handle);
+                    bool selected = (m_RenderStageIOHoveredId == id);
 
-                    RSDepResult result = ShowRSDep(isBuffer ? "BUFFER" : "TEXTURE", dep.id.c_str(), selected, propid++);
+                    RSDepResult result = ShowRSDep(isBuffer ? "BUFFER" : "TEXTURE", id.c_str(), selected, propid++);
                     if (result.hovered)
                     {
-                        newHoveredId = dep.id;
+                        newHoveredId = id;
                     }
                     if (result.clicked)
                     {
-                        if(isBuffer)
-                            AddRenderStageBufferView(rs->renderStage.get(), isWrite ? st::gfx::RenderView::AccessMode::Write : st::gfx::RenderView::AccessMode::Read, dep.id);
+                        if (isBuffer)
+                        {
+                            AddRenderStageBufferView(
+                                rs->renderStage.get(),
+                                isWrite ? st::gfx::RenderGraph::AccessMode::Write : st::gfx::RenderGraph::AccessMode::Read,
+                                id);
+                        }
                         else
-                            AddRenderStageTextureView(rs->renderStage.get(), isWrite ? st::gfx::RenderView::AccessMode::Write : st::gfx::RenderView::AccessMode::Read, dep.id);
+                        {
+                            AddRenderStageTextureView(
+                                rs->renderStage.get(),
+                                isWrite ? st::gfx::RenderGraph::AccessMode::Write : st::gfx::RenderGraph::AccessMode::Read,
+                                id);
+                        }
                     }
                 }
             };
@@ -1061,7 +1073,7 @@ void StructureUI::BuildRSViews()
 {
     for (auto it = m_RSTextureViews.begin(); it != m_RSTextureViews.end();)
     {
-        if (m_RSViewFocus == it->ticket)
+        if (m_RSTexViewFocus == it->ticket)
         {
             ImGui::SetNextWindowFocus();
         }
@@ -1072,14 +1084,14 @@ void StructureUI::BuildRSViews()
         }
         else
         {
-            m_RenderView->ReleaseTextureView(it->ticket);
+            m_RenderView->GetRenderGraph()->ReleaseTextureView(it->ticket);
             it = m_RSTextureViews.erase(it);
         }
     }
 
     for (auto it = m_RSBufferViews.begin(); it != m_RSBufferViews.end();)
     {
-        if (m_RSViewFocus == it->ticket)
+        if (m_RSBufferViewFocus == it->ticket)
         {
             ImGui::SetNextWindowFocus();
         }
@@ -1090,12 +1102,13 @@ void StructureUI::BuildRSViews()
         }
         else
         {
-            m_RenderView->ReleaseBufferView(it->ticket);
+            m_RenderView->GetRenderGraph()->ReleaseBufferView(it->ticket);
             it = m_RSBufferViews.erase(it);
         }
     }
 
-    m_RSViewFocus = nullptr;
+    m_RSTexViewFocus = { nullptr };
+    m_RSBufferViewFocus = { nullptr };
 }
 
 void StructureUI::BuildLumnincaHistogram()
@@ -1103,13 +1116,16 @@ void StructureUI::BuildLumnincaHistogram()
     if (!m_ShowLuminanceHistogram)
         return;
 
-    if (m_LumHistogramBufferTicket == nullptr)
+    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
+
+    if (!m_LumHistogramBufferTicket.IsValid())
     {
-        m_LumHistogramBufferTicket = m_RenderView->RequestBufferView(m_TonemappingRS, st::gfx::RenderView::AccessMode::Write, "LuminanceHistogram");
+        m_LumHistogramBufferTicket = renderGraph->RequestBufferView(
+            m_TonemappingRS, st::gfx::RenderGraph::AccessMode::Write, renderGraph->GetBufferHandle("LuminanceHistogram"));
     }
-    if (!m_LumHistogramBufferTicket)
+    if (!m_LumHistogramBufferTicket.IsValid())
     {
-        LOG_ERROR("Failed to requesting histogram buffer ticketr");
+        LOG_ERROR("Failed to requesting histogram buffer ticket");
         return;
     }
 
@@ -1119,18 +1135,18 @@ void StructureUI::BuildLumnincaHistogram()
         ImGui::End();
         if (!m_ShowLuminanceHistogram)
         {
-            m_RenderView->ReleaseBufferView(m_LumHistogramBufferTicket);
-            m_LumHistogramBufferTicket = nullptr;
+            renderGraph->ReleaseBufferView(m_LumHistogramBufferTicket);
+            m_LumHistogramBufferTicket = { nullptr };
         }
         return;
     }
 
     st::gfx::ToneMappingRenderStage::Stats stats = m_TonemappingRS->GetStats();
 
-    st::rhi::TextureHandle toneMappedTex = m_RenderView->GetTexture("ToneMapped");
+    st::rhi::TextureHandle toneMappedTex = renderGraph->GetTexture("ToneMapped");
     assert(toneMappedTex);
 
-    st::rhi::BufferHandle buffer = m_RenderView->GetBufferView(m_LumHistogramBufferTicket);
+    st::rhi::BufferHandle buffer = renderGraph->GetBufferView(m_LumHistogramBufferTicket);
     if (buffer)
     {
         void* data_ptr = buffer->Map();
@@ -1174,15 +1190,16 @@ void StructureUI::BuildLumnincaHistogram()
 
 bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)
 {
+    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
     bool isOpen = true;
 
-    st::rhi::TextureHandle tex = m_RenderView->GetTextureView(rsTexView->ticket);
+    st::rhi::TextureHandle tex = renderGraph->GetTextureView(rsTexView->ticket);
     if (!tex)
         return isOpen;
 
     std::stringstream title;
     title << rsTexView->renderStage->GetDebugName() << " - ";
-    if (rsTexView->accessMode == st::gfx::RenderView::AccessMode::Read)
+    if (rsTexView->accessMode == st::gfx::RenderGraph::AccessMode::Read)
         title << "Read";
     else
         title << "Write";
@@ -1321,13 +1338,13 @@ bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)
 bool StructureUI::BuildRSBufferView(RenderStageBufferView* rsBufferView)
 {
     bool isOpen = true;
-    st::rhi::BufferHandle buffer = m_RenderView->GetBufferView(rsBufferView->ticket);
+    st::rhi::BufferHandle buffer = m_RenderView->GetRenderGraph()->GetBufferView(rsBufferView->ticket);
     if (!buffer)
         return isOpen;
 
     std::stringstream title;
     title << rsBufferView->renderStage->GetDebugName() << " - ";
-    if (rsBufferView->accessMode == st::gfx::RenderView::AccessMode::Read)
+    if (rsBufferView->accessMode == st::gfx::RenderGraph::AccessMode::Read)
         title << "Read";
     else
         title << "Write";
@@ -1594,35 +1611,39 @@ void StructureUI::BuildSpotLightLeaf(const st::gfx::SceneSpotLight* light)
     }
 }
 
-void StructureUI::AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id)
+void StructureUI::AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderGraph::AccessMode accessMode, const std::string& id)
 {
+    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
+
     // Check if it already exists
     for (auto& entry : m_RSTextureViews)
     {
         if (entry.renderStage == renderStage && entry.accessMode == accessMode && entry.id == id)
         {
-            m_RSViewFocus = entry.ticket;
+            m_RSTexViewFocus = entry.ticket;
             return;
         }
     }
 
-    auto ticket = m_RenderView->RequestTextureView(renderStage, accessMode, id);
+    auto ticket = renderGraph->RequestTextureView(renderStage, accessMode, renderGraph->GetTextureHandle(id));
     m_RSTextureViews.emplace_back(renderStage, accessMode, id, ticket);
 }
 
-void StructureUI::AddRenderStageBufferView(st::gfx::RenderStage* renderStage, st::gfx::RenderView::AccessMode accessMode, const std::string& id)
+void StructureUI::AddRenderStageBufferView(st::gfx::RenderStage* renderStage, st::gfx::RenderGraph::AccessMode accessMode, const std::string& id)
 {
+    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
+
     // Check if it already exists
     for (auto& entry : m_RSBufferViews)
     {
         if (entry.renderStage == renderStage && entry.accessMode == accessMode && entry.id == id)
         {
-            m_RSViewFocus = entry.ticket;
+            m_RSBufferViewFocus = entry.ticket;
             return;
         }
     }
 
-    auto ticket = m_RenderView->RequestBufferView(renderStage, accessMode, id);
+    auto ticket = renderGraph->RequestBufferView(renderStage, accessMode, renderGraph->GetBufferHandle(id));
     MemoryEditor* memEditor = new MemoryEditor;
     memEditor->ReadOnly = true;
     m_RSBufferViews.emplace_back(renderStage, accessMode, id, ticket, std::unique_ptr<MemoryEditor>{ memEditor });

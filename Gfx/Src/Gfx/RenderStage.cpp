@@ -1,10 +1,33 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderView.h"
+#include "Gfx/RenderGraph.h"
 
-void st::gfx::RenderStage::Attach(st::gfx::RenderView* renderView)
+st::gfx::RenderView* st::gfx::RenderStage::GetRenderView() const
 {
-	assert(m_RenderView.expired() && "Trying to attach an already attached render pass");
-	m_RenderView = renderView->weak_from_this();
+	if (!m_RenderGraph)
+	{
+		LOG_ERROR("Render stage {} is not attached", GetDebugName());
+		return {};
+	}
+
+	return m_RenderGraph->GetRenderView();
+}
+
+st::gfx::Scene* st::gfx::RenderStage::GetScene() const
+{
+	auto scene = GetRenderView()->GetScene();
+	return scene ? scene.get() : nullptr;
+}
+
+st::gfx::DeviceManager* st::gfx::RenderStage::GetDeviceManager() const
+{
+	return GetRenderView()->GetDeviceManager();
+}
+
+void st::gfx::RenderStage::Attach(RenderGraph* renderGraph)
+{
+	assert(m_RenderGraph.expired() && "Trying to attach an already attached render pass");
+	m_RenderGraph = renderGraph->weak_from_this();
 
 	OnAttached();
 }
@@ -12,7 +35,7 @@ void st::gfx::RenderStage::Attach(st::gfx::RenderView* renderView)
 void st::gfx::RenderStage::Detach()
 {
 	OnDetached();
-	m_RenderView.reset();
+	m_RenderGraph.reset();
 }
 
 void st::gfx::RenderStage::SetEnabled(bool b) 
