@@ -76,18 +76,21 @@ namespace interop
 
     struct MaterialData
     {
-        TextureSampledViewIndex baseColorTextureDI;
-        TextureSampledViewIndex emissiveTextureDI;
-        TextureSampledViewIndex metalRoughTextureDI;
-        TextureSampledViewIndex occlusionTextureDI;
-        TextureSampledViewIndex normalTextureDI;
-        float2 normalScale;
-        float4 baseColor; // rgb + opacity
-        float3 emissiveColor;
-        float occlusion;
-        float metalness;
-        float roughness;
-    };
+        TextureSampledViewIndex baseColorTextureDI;     // offset 0
+        TextureSampledViewIndex emissiveTextureDI;      // offset 4
+        TextureSampledViewIndex metalRoughTextureDI;    // offset 8
+        TextureSampledViewIndex occlusionTextureDI;     // offset 12
+        TextureSampledViewIndex normalTextureDI;        // offset 16
+        uint _padding0;                                 // offset 20
+        float2 normalScale;                             // offset 24
+        float4 baseColor; // rgb + opacity              // offset 32
+        float3 emissiveColor;                           // offset 48
+        float occlusion;                                // offset 60
+        float metalness;                                // offset 64
+        float roughness;                                // offset 68
+        float alphaCutoff;                              // offset 72
+        uint _padding1;                                 // offset 76
+    };                                                  // size 80
 
     struct DirLightData
     {
@@ -143,11 +146,11 @@ namespace interop
 
         // Lights
         uint dirLightCount;
-        BufferReadOnlyIndex dirLightsDataDI; // DirLightData
+        BufferReadOnlyIndex dirLightsDataDI;    // DirLightData
         uint pointLightCount;
-        BufferReadOnlyIndex pointLightsDataDI; // PointLightData
+        BufferReadOnlyIndex pointLightsDataDI;  // PointLightData
         uint spotLightCount;
-        BufferReadOnlyIndex spotLightsDataDI;
+        BufferReadOnlyIndex spotLightsDataDI;   // SpotLightData
 
         // Global descriptors indices
         BufferReadOnlyIndex instanceBufferDI;
@@ -157,14 +160,14 @@ namespace interop
 
     struct SingleInstanceDrawData
     {
-        BufferUniformIndex sceneDI; // DI for the scene constants
-        uint instanceIdx;           // Index in the instance data buffer to render
+        BufferUniformIndex sceneDI;     // DI for the scene constants
+        uint instanceIdx;               // Index in the instance data buffer to render
     };
 
     struct MultiInstanceDrawConstants
     {
-        BufferUniformIndex sceneDI;
-        BufferReadOnlyIndex instancesDI;
+        BufferUniformIndex sceneDI;         // SceneConstants
+        BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
         uint baseInstanceIdx;
         uint meshIndex;
         uint materialIndex;

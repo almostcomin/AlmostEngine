@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gfx/LoadedTexture.h"
+#include "Gfx/MaterialDomain.h"
 #include "RHI/RasterizerState.h"
 
 namespace st::rhi
@@ -34,8 +35,9 @@ public:
 	void SetEmissiveColor(const float3& color) { m_EmissiveColor = color; }
 	void SetMetallicFactor(float factor) { m_MetallicFactor = factor; }
 	void SetRoughnessFactor(float factor) { m_RoughnessFactor = factor; }
-	void SetNormalTextureScale(const float2 scale) { m_NormalTextureScale = scale; }
-	void SetOcclusionStrengh(const float v) { m_OcclusionStrengh = v; }
+	void SetNormalTextureScale(const float2& scale) { m_NormalTextureScale = scale; }
+	void SetOcclusionStrengh(float v) { m_OcclusionStrengh = v; }
+	void SetAlphaCutoff(float v) { m_AlphaCutoff = v; }
 
 	const std::shared_ptr<st::gfx::LoadedTexture> GetBaseColorTexture() const { return m_BaseColorTexture; }
 	const std::shared_ptr<st::gfx::LoadedTexture> GetMetalRoughTexture() const { return m_MetalRoughTexture; }
@@ -56,9 +58,13 @@ public:
 	float GetMetallicFactor() const { return m_MetallicFactor; }
 	float GetRoughnessFactor() const { return m_RoughnessFactor; };
 	const float2& GetNormalTextureScale() const { return m_NormalTextureScale; }
+	float GetAlphaCutoff() const { return m_AlphaCutoff; }
 
 	void SetCullMode(rhi::CullMode cm) { m_CullMode = cm; }
 	rhi::CullMode GetCullMode() const { return m_CullMode; }
+
+	void SetDomain(MaterialDomain v) { m_Domain = v; }
+	MaterialDomain GetDomain() const { return m_Domain; }
 
 	const std::string& GetName() const { return m_Name; }
 
@@ -79,8 +85,11 @@ private:
 	float m_RoughnessFactor;
 	float2 m_NormalTextureScale;
 	float m_OcclusionStrengh;
+	float m_AlphaCutoff;
 
 	rhi::CullMode m_CullMode;
+
+	MaterialDomain m_Domain;
 
 	std::string m_Name;
 	std::string m_SourceFileName; // where this material originated from, e.g. GLTF file name

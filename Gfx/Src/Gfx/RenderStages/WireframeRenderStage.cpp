@@ -50,10 +50,10 @@ void st::gfx::WireframeRenderStage::Render(st::rhi::CommandListHandle commandLis
 		{},
 		rhi::RenderPassFlags::None);
 
-	RenderSetInstanced(
+	DrawRenderSetInstanced(
 		GetRenderView()->GetCameraVisibleSet(),
-		GetRenderView()->GetSceneBufferUniformView(),
 		GetRenderView()->GetCameraVisiblityBufferROView(),
+		GetRenderView()->GetSceneBufferUniformView(),
 		m_RenderContext,
 		commandList.get());
 
@@ -109,14 +109,13 @@ void st::gfx::WireframeRenderStage::OnAttached()
 
 		m_PSODesc = rhi::GraphicsPipelineStateDesc
 		{
-			.VS = m_VS.get_weak(),
-			.PS = m_PS.get_weak(),
 			.blendState = blendState,
 			.depthStencilState = depthStencilState,
 			.rasterState = rasterState
 		};
 
-		m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "WireframeRenderStage");
+		m_RenderContext.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage", device);
+		m_RenderContext.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS.get_weak());
 	}
 }
 
@@ -146,5 +145,5 @@ void st::gfx::WireframeRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "WireframeRenderStage");
+	m_RenderContext.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

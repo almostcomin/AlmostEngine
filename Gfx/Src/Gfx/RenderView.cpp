@@ -254,7 +254,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 
 void st::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 {
-	m_CameraVisibleSet.clear();
+	m_CameraVisibleSet.Elements.clear();
 	m_CameraVisibleBounds.reset();
 	if (!m_Camera ||
 		!m_Scene ||
@@ -263,13 +263,13 @@ void st::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 		return;
 	}
 
-	m_CameraVisibleSet = GetVisibleSet(m_Camera->GetFrustum().get_planes(), &m_CameraVisibleBounds);
+	GetVisibleSet(m_Camera->GetFrustum().get_planes(), m_CameraVisibleSet, &m_CameraVisibleBounds);
 	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList);
 }
 
 void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 {
-	m_ShadowMapVisibleSet.clear();
+	m_ShadowMapVisibleSet.Elements.clear();
 	m_ShadowMapWoldToClipMatrix = {};
 	m_ViewToShadowMapClipMatrix = {};
 
@@ -348,7 +348,7 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 			{{ 0.f, 0.f, -1.f }, aabb.max.z },	// far		
 		};
 
-		m_ShadowMapVisibleSet = GetVisibleSet(sunClipPlanes);
+		GetVisibleSet(sunClipPlanes, m_ShadowMapVisibleSet, nullptr);
 		UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList);
 	}
 }
@@ -549,12 +549,14 @@ void st::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comma
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 }
 
-st::gfx::RenderView::RenderSet st::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds) const
+void st::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, RenderSet& out_renderSet, math::aabox3f* opt_outBounds) const
 {
+	out_renderSet.Elements.clear();
+
 	if (!m_Scene || !m_Scene->GetSceneGraph())
-		return {};
+		return;
 	
-	std::vector<const st::gfx::MeshInstance*> cullBase[(int)rhi::CullMode::_Size];
+	std::vector<const st::gfx::MeshInstance*> instances[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
 
 	if (opt_outBounds)
 		opt_outBounds->reset();
@@ -572,7 +574,7 @@ st::gfx::RenderView::RenderSet st::gfx::RenderView::GetVisibleSet(const std::spa
 				const auto* meshInstance = st::checked_cast<const st::gfx::MeshInstance*>(leaf.get());
 				assert(meshInstance && meshInstance->GetMesh() && meshInstance->GetMesh()->GetMaterial());
 
-				cullBase[(int)meshInstance->GetMesh()->GetMaterial()->GetCullMode()].push_back(meshInstance);
+				instances[(int)meshInstance->GetMaterialDomain()][(int)meshInstance->GetCullMode()].push_back(meshInstance);
 
 				if(opt_outBounds)
 					opt_outBounds->merge(node->GetWorldBounds(BoundsType::Mesh));
@@ -586,21 +588,33 @@ st::gfx::RenderView::RenderSet st::gfx::RenderView::GetVisibleSet(const std::spa
 	}
 
 	// Sort by mesh to be friendly with DrawIndirect
-	for(int i = 0; i < (int)rhi::CullMode::_Size; ++i)
+	for(int domain = 0; domain < (int)MaterialDomain::_Size; ++domain)
 	{
-		std::sort(cullBase[i].begin(), cullBase[i].end(), [](const st::gfx::MeshInstance* a, const st::gfx::MeshInstance* b)
+		for(int cullMode = 0; cullMode < (int)rhi::CullMode::_Size; ++cullMode)
 		{
-			return a->GetMesh().get() < b->GetMesh().get();
-		});
+			std::ranges::sort(instances[domain][cullMode], [](const st::gfx::MeshInstance* a, const st::gfx::MeshInstance* b)
+			{
+				return a->GetMesh().get() < b->GetMesh().get();
+			});
+		}
 	}
 
 	// Move to result
-	std::vector<std::pair<st::rhi::CullMode, std::vector<const st::gfx::MeshInstance*>>> result;
-	for (int i = 0; i < (int)rhi::CullMode::_Size; ++i)
+	for (int domain = 0; domain < (int)MaterialDomain::_Size; ++domain)
 	{
-		result.emplace_back((rhi::CullMode)i, std::move(cullBase[i]));
+		RenderSet::MaterialDomainSet domainSet{ (MaterialDomain)domain, {} };
+		for (int cullMode = 0; cullMode < (int)rhi::CullMode::_Size; ++cullMode)
+		{
+			if (!instances[domain][cullMode].empty())
+			{
+				domainSet.second.emplace_back((rhi::CullMode)cullMode, std::move(instances[domain][cullMode]));
+			}
+		}
+		if (!domainSet.second.empty())
+		{
+			out_renderSet.Elements.emplace_back(std::move(domainSet));
+		}
 	}
-	return result;
 }
 
 void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer,
@@ -608,10 +622,7 @@ void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSe
 {
 	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
 
-	size_t reqSize = 0;
-	for(const auto& instances : renderSet)
-		reqSize += instances.second.size() * sizeof(uint32_t);
-
+	size_t reqSize = std::ranges::distance(renderSet.AllInstances()) * sizeof(uint32_t);
 	if (reqSize == 0)
 		return;
 
@@ -625,13 +636,10 @@ void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSe
 	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
 
 	uint32_t* ptr = (uint32_t*)data;
-	for (const auto& instances : renderSet)
+	for (const st::gfx::MeshInstance* inst : renderSet.AllInstances())
 	{
-		for (const st::gfx::MeshInstance* inst : instances.second)
-		{
-			*ptr = inst->GetLeafSceneIndex();
-			ptr++;
-		}
+		*ptr = inst->GetLeafSceneIndex();
+		ptr++;
 	}
 
 	// Copy to buffer

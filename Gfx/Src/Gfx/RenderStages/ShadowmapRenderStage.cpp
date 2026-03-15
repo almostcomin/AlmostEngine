@@ -48,7 +48,7 @@ void st::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 		}
 
 		// Recreate PSO (psodesc keeps the same)
-		m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "ShadowmapRenderStage");
+		m_RenderContext.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 	}
 }
 
@@ -82,9 +82,16 @@ void st::gfx::ShadowmapRenderStage::InitResources()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("CascadeShadowmap_vs", rhi::ShaderType::Vertex);
 #ifdef DEBUG_STAGE
-		m_PS = shaderFactory->LoadShader("CascadeShadowmap_ps", rhi::ShaderType::Pixel);
+		m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_CO_vs", rhi::ShaderType::Vertex);
+		m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_CO_vs", rhi::ShaderType::Vertex);
+		m_PS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_CO_ps", rhi::ShaderType::Pixel);
+		m_PS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_CO_ps", rhi::ShaderType::Pixel);
+#else
+		m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_vs", rhi::ShaderType::Vertex);
+		m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_vs", rhi::ShaderType::Vertex);
+		//m_PS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_ps", rhi::ShaderType::Pixel);
+		m_PS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_ps", rhi::ShaderType::Pixel);
 #endif
 	}
 
@@ -99,8 +106,10 @@ void st::gfx::ShadowmapRenderStage::ReleaseResources()
 	m_RenderContext = {};
 
 	device->ReleaseQueued(std::move(m_FB));
-	device->ReleaseQueued(std::move(m_PS));
-	device->ReleaseQueued(std::move(m_VS));
+	device->ReleaseQueued(std::move(m_PS_AlphaTest));
+	device->ReleaseQueued(std::move(m_VS_AlphaTest));
+	device->ReleaseQueued(std::move(m_PS_Opaque));
+	device->ReleaseQueued(std::move(m_VS_Opaque));
 }
 
 void st::gfx::ShadowmapRenderStage::RecreatePSO()
@@ -129,16 +138,15 @@ void st::gfx::ShadowmapRenderStage::RecreatePSO()
 
 	m_PSODesc = rhi::GraphicsPipelineStateDesc
 	{
-		.VS = m_VS.get_weak(),
-#ifdef DEBUG_STAGE
-		.PS = m_PS.get_weak(),
-#endif
 		.blendState = blendState,
 		.depthStencilState = depthStencilState,
 		.rasterState = rasterState
 	};
 
-	m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "ShadowmapRenderStage");
+	m_RenderContext.Reset();
+	m_RenderContext.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage", device);
+	m_RenderContext.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
+	m_RenderContext.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
 }
 
 void st::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
@@ -176,10 +184,10 @@ void st::gfx::ShadowmapRenderStage::Render(st::rhi::CommandListHandle commandLis
 		{},
 		rhi::RenderPassFlags::None);
 
-	RenderSetInstanced(
+	DrawRenderSetInstanced(
 		GetRenderView()->GetShadowMapVisibleSet(),
-		GetRenderView()->GetSceneBufferUniformView(),
 		GetRenderView()->GetShadowMapVisibilityBufferROView(),
+		GetRenderView()->GetSceneBufferUniformView(),
 		m_RenderContext,
 		commandList.get());
 

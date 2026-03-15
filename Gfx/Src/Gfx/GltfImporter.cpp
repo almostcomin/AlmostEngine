@@ -601,6 +601,8 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
 
         mat->SetCullMode(srcMat.double_sided ? st::rhi::CullMode::None : st::rhi::CullMode::Back);
 
+        mat->SetAlphaCutoff(srcMat.alpha_cutoff);
+
         // Log warnings for all unsupported texture coordinate transformations
         if (srcMat.pbr_metallic_roughness.base_color_texture.has_transform ||
             srcMat.pbr_metallic_roughness.metallic_roughness_texture.has_transform ||
@@ -615,6 +617,19 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         {
             LOG_WARNING("Material '{}' uses the KHR_texture_transform extension, which is not supported on non-scale transformations and all textures except normal",
                 srcMat.name ? srcMat.name : "<Unnamed>");
+        }
+
+        switch (srcMat.alpha_mode)
+        {
+        case cgltf_alpha_mode_opaque:
+            mat->SetDomain(st::gfx::MaterialDomain::Opaque);
+            break;
+        case cgltf_alpha_mode_mask:
+            mat->SetDomain(st::gfx::MaterialDomain::AlphaTested);
+            break;
+        case cgltf_alpha_mode_blend:
+            mat->SetDomain(st::gfx::MaterialDomain::AlphaBlended);
+            break;
         }
 
         // Avoid duplicated materials

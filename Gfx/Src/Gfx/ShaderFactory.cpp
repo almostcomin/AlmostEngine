@@ -23,6 +23,11 @@ st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const std::string& name,
 		const bool binExists = std::filesystem::exists(binPath);
 		bool compileShader = false;
 
+		if (!srcExists)
+		{
+			LOG_WARNING("Source shader '{}' not found", srcPath.string());
+		}
+
 		if (!binExists)
 		{
 			compileShader = true;
@@ -109,6 +114,7 @@ st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const std::string& name,
 	}
 	else
 	{
+		LOG_ERROR("Failed to load shader '{}'", name);
 		return {};
 	}
 }

@@ -33,6 +33,10 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     MaterialTextureSample texturesSample = SampleMaterialTextures(input.uv, matData);
     MaterialSample matSample = EvaluateSceneMaterial(input.normal, input.tangent, matData, texturesSample, isFrontFace);
     
+#if ALPHA_TEST
+    clip(matSample.opacity - matData.alphaCutoff);
+#endif
+    
     // GBuffer0: diffuseAlbedo.rgb + opacity.w
     output.GBuffer0 = float4(matSample.diffuseAlbedo, matSample.opacity);
 

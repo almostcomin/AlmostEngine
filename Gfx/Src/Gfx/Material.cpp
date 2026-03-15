@@ -9,15 +9,16 @@ st::gfx::Material::Material(st::rhi::Device* device, const char* name, const cha
 	m_RoughnessFactor{ 0.5f },
 	m_NormalTextureScale{ 1.f },
 	m_OcclusionStrengh{ 1.f },
+	m_AlphaCutoff{ 0.f },
 	m_CullMode{ rhi::CullMode::Back },
+	m_Domain{ MaterialDomain::Opaque },
 	m_Device{ device },
 	m_Name{ name ? name : "<null>" },
 	m_SourceFileName{ filename ? filename : "<null>" }
 {}
 
 st::gfx::Material::~Material()
-{
-}
+{}
 
 void st::gfx::Material::SetBaseColorTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle)
 {
@@ -83,5 +84,7 @@ bool st::gfx::Material::operator==(const Material& other) const
 		AlmostEqual(m_MetallicFactor, other.m_MetallicFactor) &&
 		AlmostEqual(m_RoughnessFactor, other.m_RoughnessFactor) &&
 		AlmostEqual(m_NormalTextureScale, other.m_NormalTextureScale) &&
-		AlmostEqual(m_OcclusionStrengh, other.m_OcclusionStrengh);
+		AlmostEqual(m_OcclusionStrengh, other.m_OcclusionStrengh) &&
+		AlmostEqual(m_AlphaCutoff, other.m_AlphaCutoff) &&
+		m_Domain == other.m_Domain;
 }

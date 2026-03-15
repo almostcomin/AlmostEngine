@@ -3,8 +3,9 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 #include "RHI/CommandList.h"
+#include "Gfx/RenderSet.h"
 
-void st::gfx::RenderSet(const std::vector<const st::gfx::MeshInstance*>& instancesSet, st::rhi::BufferUniformView sceneBuffer,
+void st::gfx::DrawElements(const std::vector<const st::gfx::MeshInstance*>& instancesSet, st::rhi::BufferUniformView sceneBuffer,
 	st::rhi::ICommandList* commandList)
 {
 	if (instancesSet.empty())
@@ -22,11 +23,10 @@ void st::gfx::RenderSet(const std::vector<const st::gfx::MeshInstance*>& instanc
 	}
 }
 
-void st::gfx::RenderSetInstanced(const std::vector<std::pair<rhi::CullMode, std::vector<const st::gfx::MeshInstance*>>>& renderSet,
-	st::rhi::BufferUniformView sceneBuffer, st::rhi::BufferReadOnlyView renderSetIndicesBuffer, const RenderContext& renderContext,
-	st::rhi::ICommandList* commandList)
+void st::gfx::DrawRenderSetInstanced(const RenderSet& renderSet, st::rhi::BufferReadOnlyView renderSetIndicesBuffer,
+	st::rhi::BufferUniformView sceneBuffer, const RenderContext& renderContext, st::rhi::ICommandList* commandList)
 {
-	if (renderSet.empty())
+	if (renderSet.Elements.empty())
 		return;
 
 	interop::MultiInstanceDrawConstants shaderConstants = {};
@@ -34,33 +34,26 @@ void st::gfx::RenderSetInstanced(const std::vector<std::pair<rhi::CullMode, std:
 	shaderConstants.instancesDI = renderSetIndicesBuffer;
 
 	int visibleInstanceIndex = 0; // Index to the visible buffer
-	for (auto& cullBase : renderSet)
+	for(const auto& domainBase : renderSet.Elements)
 	{
-		if (cullBase.second.empty())
+		if (domainBase.first == MaterialDomain::AlphaBlended)
 			continue;
 
-		rhi::IGraphicsPipelineState* PSO = nullptr;
-		switch (cullBase.first)
+		for (const auto& cullBase : domainBase.second)
 		{
-		case rhi::CullMode::Back:
-			PSO = renderContext.PSO_BackCull.get();
-			break;
-		case rhi::CullMode::Front:
-			PSO = renderContext.PSO_FrontCull.get();
-			break;
-		case rhi::CullMode::None:
-			PSO = renderContext.PSO_NoCull.get();
-			break;
-		}
+			if (cullBase.second.empty())
+				continue;
 
-		if (!PSO)
-		{
-			LOG_ERROR("Cull mode '{}' not set in RenderContext",
-				cullBase.first == rhi::CullMode::Back ? "Back" : cullBase.first == rhi::CullMode::Front ? "Front" : "None");
-		}
+			rhi::IGraphicsPipelineState* PSO = renderContext.Get(domainBase.first, cullBase.first);
+			if (!PSO)
+			{
+				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in RenderContext '{}'",
+					GetMaterialDomainString(domainBase.first),
+					cullBase.first == rhi::CullMode::Back ? "Back" : cullBase.first == rhi::CullMode::Front ? "Front" : "None",
+					renderContext.GetDebugName());
+				continue;
+			}
 
-		if (PSO)
-		{
 			commandList->SetPipelineState(PSO);
 			const auto& instances = cullBase.second;
 

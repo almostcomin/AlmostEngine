@@ -12,6 +12,8 @@
 #include "Gfx/Scene.h"
 #include "Gfx/ViewportSwapChain.h"
 #include "Gfx/MultiBuffer.h"
+#include "Gfx/MaterialDomain.h"
+#include "Gfx/RenderSet.h"
 
 namespace interop
 {
@@ -31,10 +33,6 @@ namespace st::gfx
 
 class RenderView : public st::enable_weak_from_this<RenderView>, private st::noncopyable_nonmovable
 {
-public:
-
-	using RenderSet = std::vector<std::pair<rhi::CullMode, std::vector<const st::gfx::MeshInstance*>>>;
-
 public:
 
 	RenderView(DeviceManager* deviceManager, const char* debugName);
@@ -80,7 +78,7 @@ private:
 	void UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList);
 
-	RenderSet GetVisibleSet(const std::span<const math::plane3f>& planes, math::aabox3f* opt_outBounds = nullptr) const;
+	void GetVisibleSet(const std::span<const math::plane3f>& planes, RenderSet& out_renderSet, math::aabox3f* opt_outBounds = nullptr) const;
 	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer, rhi::ICommandList* commandList);
 
 private:

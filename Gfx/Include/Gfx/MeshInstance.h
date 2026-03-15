@@ -2,6 +2,8 @@
 
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/SceneContentFlags.h"
+#include "Gfx/MaterialDomain.h"
+#include "RHI/RasterizerState.h"
 
 namespace st::gfx
 {
@@ -34,6 +36,9 @@ public:
 
 	void SetMaterialSceneIndex(int i) { m_MaterialSceneIndex = i; }
 	int GetMaterialSceneIndex() const { return m_MaterialSceneIndex; }
+
+	rhi::CullMode GetCullMode() const;
+	MaterialDomain GetMaterialDomain() const;
 
 private:
 

@@ -66,10 +66,10 @@ void st::gfx::GBuffersRenderStage::Render(st::rhi::CommandListHandle commandList
 		{},
 		rhi::RenderPassFlags::None);
 
-	RenderSetInstanced(
+	DrawRenderSetInstanced(
 		GetRenderView()->GetCameraVisibleSet(),
-		GetRenderView()->GetSceneBufferUniformView(),
 		GetRenderView()->GetCameraVisiblityBufferROView(),
+		GetRenderView()->GetSceneBufferUniformView(),
 		m_RenderContext,
 		commandList.get());
 
@@ -96,7 +96,8 @@ void st::gfx::GBuffersRenderStage::OnAttached()
 	{
 		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_VS = shaderFactory->LoadShader("GBuffers_vs", rhi::ShaderType::Vertex);
-		m_PS = shaderFactory->LoadShader("GBuffers_ps", rhi::ShaderType::Pixel);
+		m_PS_Opaque = shaderFactory->LoadShader("GBuffers_OP_ps", rhi::ShaderType::Pixel);
+		m_PS_AlphaTest = shaderFactory->LoadShader("GBuffers_AT_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO
@@ -123,14 +124,14 @@ void st::gfx::GBuffersRenderStage::OnAttached()
 
 		m_PSODesc = rhi::GraphicsPipelineStateDesc
 		{
-			.VS = m_VS.get_weak(),
-			.PS = m_PS.get_weak(),
 			.blendState = blendState,
 			.depthStencilState = depthStencilState,
 			.rasterState = rasterState
 		};
 
-		m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "GBuffersRenderStage");
+		m_RenderContext.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "GBuffersRenderStage", device);
+		m_RenderContext.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS_Opaque.get_weak());
+		m_RenderContext.AddDomain(MaterialDomain::AlphaTested, m_VS.get_weak(), m_PS_AlphaTest.get_weak());
 	}
 }
 
@@ -158,5 +159,5 @@ void st::gfx::GBuffersRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "GBuffersRenderStage");
+	m_RenderContext.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

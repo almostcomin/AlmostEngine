@@ -1,4 +1,6 @@
 #include "StructureUI.h"
+#include <Windows.h>
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphLeaf.h"
@@ -11,15 +13,10 @@
 #include "Gfx/Camera.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
-#include "Core/Log.h"
 #include "RHI/Device.h"
 #include "RHI/Buffer.h"
-#include <format>
-#include <Windows.h>
 #include <SDL3/SDL.h>
 #include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
-#include <sstream>
-#include <numeric>
 #include "imgui_memory_editor.h"
 
 namespace

@@ -15,6 +15,11 @@
 #include <span>
 #include <map>
 #include <set>
+#include <ranges>
+#include <numeric>
+#include <sstream>
+#include <format>
+#include <thread>
 
 #if _WIN32
 

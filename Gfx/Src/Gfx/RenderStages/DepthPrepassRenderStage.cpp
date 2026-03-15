@@ -33,10 +33,10 @@ void st::gfx::DepthPrepassRenderStage::Render(st::rhi::CommandListHandle command
 		{},
 		rhi::RenderPassFlags::None);
 
-	RenderSetInstanced(
+	DrawRenderSetInstanced(
 		GetRenderView()->GetCameraVisibleSet(),
-		GetRenderView()->GetSceneBufferUniformView(),
 		GetRenderView()->GetCameraVisiblityBufferROView(),
+		GetRenderView()->GetSceneBufferUniformView(),
 		m_RenderContext,
 		commandList.get());
 
@@ -58,7 +58,9 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 	// Load shaders
 	{
 		st::gfx::ShaderFactory* shaderFactory = GetDeviceManager()->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("DepthPrepass_vs", rhi::ShaderType::Vertex);
+		m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_vs", rhi::ShaderType::Vertex);
+		m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_vs", rhi::ShaderType::Vertex);
+		m_PS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO
@@ -78,12 +80,13 @@ void st::gfx::DepthPrepassRenderStage::OnAttached()
 
 		m_PSODesc = rhi::GraphicsPipelineStateDesc
 		{
-			.VS = m_VS.get_weak(),
 			.depthStencilState = depthStencilState,
 			.rasterState = rasterState
 		};
 
-		m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "DepthPrepassRenderStagePSO");
+		m_RenderContext.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage", device);
+		m_RenderContext.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), nullptr);
+		m_RenderContext.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
 	}
 }
 
@@ -106,5 +109,5 @@ void st::gfx::DepthPrepassRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_RenderContext = CreateRenderContext(m_PSODesc, m_FB->GetFramebufferInfo(), device, "DepthPrepassRenderStagePSO");
+	m_RenderContext.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

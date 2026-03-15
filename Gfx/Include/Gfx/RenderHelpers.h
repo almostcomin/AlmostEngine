@@ -7,20 +7,21 @@
 namespace st::gfx
 {
 	class MeshInstance;
+	struct RenderSet;
 }
 
 namespace st::gfx
 {
 
-void RenderSet(const std::vector<const st::gfx::MeshInstance*>& instancesSet, st::rhi::BufferUniformView sceneBuffer,
+void DrawElements(const std::vector<const st::gfx::MeshInstance*>& instancesSet, st::rhi::BufferUniformView sceneBuffer,
 	st::rhi::ICommandList* commandList);
 
 // renderSet, list of instances to render
+// renderSetIndicesBuffer, view of the buffer with the index of the instances to render. Must match renderSet.
 // sceneBuffer, view of buffer with scene data
-// renderSetIndecesBuffer, view of a buffer with the index of the instances to render. Mush match instancesSet
+// renderContext, contains the PSOs needed to render each set of elements in renderSet
 // commandList, commanList to use
-void RenderSetInstanced(const std::vector<std::pair<rhi::CullMode, std::vector<const st::gfx::MeshInstance*>>>& renderSet,
-	st::rhi::BufferUniformView sceneBuffer, st::rhi::BufferReadOnlyView renderSetIndicesBuffer, const RenderContext& renderContext,
-	st::rhi::ICommandList* commandList);
+void DrawRenderSetInstanced(const RenderSet& renderSet, st::rhi::BufferReadOnlyView renderSetIndicesBuffer,
+	st::rhi::BufferUniformView sceneBuffer, const RenderContext& renderContext, st::rhi::ICommandList* commandList);
 
 } //namespace st::gfx

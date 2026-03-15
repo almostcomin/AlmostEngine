@@ -1,8 +1,7 @@
+#include "Gfx/GfxPCH.h"
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_init.h>
 #include <imgui/imgui_impl_sdl3.h>
-#include "Core/Core.h"
-#include "Core/Log.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/RenderView.h"
@@ -25,9 +24,6 @@
 #include "Gfx/RenderStages/WireframeRenderStage.h"
 #include "Gfx/ImGUIViewportsRenderer.h"
 #include "UI/StructureUI.h"
-#include <thread>
-#include <sstream>
-#include <iomanip>
 
 namespace
 {

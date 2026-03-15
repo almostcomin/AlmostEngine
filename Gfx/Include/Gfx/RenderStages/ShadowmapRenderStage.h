@@ -51,8 +51,11 @@ private:
 	size_t m_NumCascades;
 	rhi::Format m_PixelFormat;
 
-	st::rhi::ShaderOwner m_VS;
-	st::rhi::ShaderOwner m_PS;
+	st::rhi::ShaderOwner m_VS_Opaque;
+	st::rhi::ShaderOwner m_PS_Opaque;
+	st::rhi::ShaderOwner m_VS_AlphaTest;
+	st::rhi::ShaderOwner m_PS_AlphaTest;
+
 	st::rhi::FramebufferOwner m_FB;
 	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	st::gfx::RenderContext m_RenderContext;

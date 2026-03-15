@@ -53,12 +53,11 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 
 	m_SceneGraph->Refresh(); // Make sure it is up to date
 
-	// Each MeshInstance has a, unique transform and a index to a shared mesh
+	// Fill instances buffer
 	if (!m_SceneGraph->GetMeshInstances().empty())
 	{
 		const std::vector<st::gfx::MeshInstance*> meshInstances = m_SceneGraph->GetMeshInstances();
 
-		// Fill instances buffer
 		rhi::BufferDesc desc{
 			.memoryAccess = rhi::MemoryAccess::Default,
 			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
@@ -83,11 +82,11 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 		uploadResult->Wait();
 	}
 
+	// Fill meshes buffer
 	if(!m_SceneGraph->GetMeshes().empty())
 	{
 		const auto& meshes = m_SceneGraph->GetMeshes();
 
-		// Fill meshes buffer
 		assert(!meshes.empty());
 		rhi::BufferDesc desc{
 			.memoryAccess = rhi::MemoryAccess::Default,
@@ -115,7 +114,6 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			meshDataPtr->vertexTexCoord0Offset = vertexFormat.TexCoord0Offset;
 			meshDataPtr->vertexTexCoord1Offset = vertexFormat.TexCoord1Offset;
 			meshDataPtr->vertexColorOffset = vertexFormat.ColorOffset;
-			//meshDataPtr->materialIdx = mesh->GetMaterial() ? materials.insert(mesh->GetMaterial().get()).first : rhi::c_InvalidDescriptorIndex;
 			meshDataPtr->materialIdx = m_SceneGraph->GetMaterialIndex(mesh);
 
 			meshDataPtr++;
@@ -172,6 +170,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			matDataPtr->occlusion = mat->GetOcclusionStrengh();
 			matDataPtr->metalness = mat->GetMetallicFactor();
 			matDataPtr->roughness = mat->GetRoughnessFactor();
+			matDataPtr->alphaCutoff = mat->GetAlphaCutoff();
 
 			matDataPtr++;
 		}

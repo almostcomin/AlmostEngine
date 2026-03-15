@@ -103,6 +103,16 @@ MaterialTextureSample SampleMaterialTextures(float2 uv, interop::MaterialData ma
     return ret;
 }
 
+float SampleBaseColorAlpha(float2 uv, interop::MaterialData mat)
+{
+    if (mat.baseColorTextureDI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D baseColorTexture = ResourceDescriptorHeap[mat.baseColorTextureDI];
+        return baseColorTexture.Sample(linearWrapSampler, uv).a;
+    }
+    return mat.baseColor.a;
+}
+
 MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::MaterialData mat, MaterialTextureSample textures, bool isFrontFace)
 {
     MaterialSample result = DefaultMaterialSample();

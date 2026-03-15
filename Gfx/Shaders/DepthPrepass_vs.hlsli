@@ -7,6 +7,9 @@ ConstantBuffer<interop::MultiInstanceDrawConstants> Constants : register(b0);
 struct VS_OUTPUT
 {
     float4 pos : SV_POSITION;
+#if ALPHA_TEST
+    float2 uv : TEXCOORD0;
+#endif    
 };
 
 [RootSignature(BindlessRootSignature)]
@@ -32,11 +35,18 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     float3 pos = LoadVertexAttributeFloat3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionOffset);
         
     // Transform
-    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));    
-    float4 posClip = mul(sceneData.shadowMapWorldToClipMatrix, posWorld);
-        
+    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
+    float4 posClip = mul(sceneData.camViewProjMatrix, posWorld);
+
+#if ALPHA_TEST    
+    float2 uv0 = LoadVertexAttributeFloat2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Offset);
+#endif    
+    
     // Output
     VS_OUTPUT output;
-    output.pos = posClip;   
+    output.pos = posClip;
+#if ALPHA_TEST
+    output.uv = uv0;
+#endif    
     return output;
 }
