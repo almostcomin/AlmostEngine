@@ -22,6 +22,8 @@
 #include "Gfx/RenderStages/LinearizeDepthRenderStage.h"
 #include "Gfx/RenderStages/SSAORenderStage.h"
 #include "Gfx/RenderStages/WireframeRenderStage.h"
+#include "Gfx/RenderStages/WBOITAccumRenderStage.h"
+#include "Gfx/RenderStages/WBOITResolveRenderStage.h"
 #include "Gfx/ImGUIViewportsRenderer.h"
 #include "UI/StructureUI.h"
 
@@ -178,7 +180,11 @@ int SDL_main(int argc, char* argv[])
 	std::shared_ptr<st::gfx::GBuffersRenderStage> gBufRS{ new st::gfx::GBuffersRenderStage };
 	// Create lighting render stage
 	std::shared_ptr<st::gfx::DeferredLightingRenderStage> lightingRS{ new st::gfx::DeferredLightingRenderStage };
-	// Create TonemMapping
+	// Create Weighted-blended-OIT accumulation render stage
+	std::shared_ptr<st::gfx::WBOITAccumRenderStage> WBOITAccumRS{ new st::gfx::WBOITAccumRenderStage };
+	// Create Weighted-blended-OIT resolve render stage
+	std::shared_ptr<st::gfx::WBOITResolveRenderStage> WBOITResolveRS{ new st::gfx::WBOITResolveRenderStage };
+	// Create ToneMapping
 	std::shared_ptr<st::gfx::ToneMappingRenderStage> toneMappingRS{ new st::gfx::ToneMappingRenderStage };
 	// Create debug render stage
 	std::shared_ptr<st::gfx::DebugRenderStage> debugRS{ new st::gfx::DebugRenderStage };
@@ -208,11 +214,13 @@ int SDL_main(int argc, char* argv[])
 
 	// Add stages to render graph
 	st::gfx::RenderGraph* renderGraph = mainRenderView->GetRenderGraph().get();
-	renderGraph->SetRenderStages({ shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, toneMappingRS, debugRS, uiRS, compositeRS, wireframeRS });
+	renderGraph->SetRenderStages({ 
+		shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, WBOITAccumRS, WBOITResolveRS, toneMappingRS, debugRS, uiRS,
+		compositeRS, wireframeRS });
 	// Define default render mode
 	renderGraph->SetRenderMode("Default",
-		{ shadowmapRS.get(), depthPrepassRS.get(), linearizeDepthRS.get(), gBufRS.get(), SSAORS.get(), lightingRS.get(), toneMappingRS.get(), 
-		  debugRS.get(), uiRS.get(), compositeRS.get() });
+		{ shadowmapRS.get(), depthPrepassRS.get(), linearizeDepthRS.get(), gBufRS.get(), SSAORS.get(), lightingRS.get(), WBOITAccumRS.get(),
+		  WBOITResolveRS.get(), toneMappingRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
 	// Define wireframe render mode
 	renderGraph->SetRenderMode("Wireframe",
 		{ depthPrepassRS.get(), wireframeRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
@@ -491,6 +499,8 @@ int SDL_main(int argc, char* argv[])
 	compositeRS.reset();
 	SSAORS.reset();
 	linearizeDepthRS.reset();
+	WBOITResolveRS.reset();
+	WBOITAccumRS.reset();
 	lightingRS.reset();
 	gBufRS.reset();
 	depthPrepassRS.reset();

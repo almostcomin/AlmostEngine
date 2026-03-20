@@ -25,7 +25,8 @@ public:
 	~CommonResources();
 
 	rhi::GraphicsPipelineStateOwner CreateBlitGraphicsPSO(const rhi::FramebufferInfo& fbInfo);
-	rhi::GraphicsPipelineStateOwner CreateBlitGraphicsPSO(const rhi::FramebufferInfo& fbInfo, const rhi::ShaderHandle& VS, const rhi::ShaderHandle& PS,
+	rhi::GraphicsPipelineStateOwner CreateFullscreenPassPSO(const rhi::FramebufferInfo& fbInfo, const rhi::ShaderHandle& PS, const std::string debugName);
+	rhi::GraphicsPipelineStateOwner CreateFullscreenPassPSO(const rhi::FramebufferInfo& fbInfo, const rhi::ShaderHandle& VS, const rhi::ShaderHandle& PS,
 		const std::string debugName);
 
 	rhi::ComputePipelineStateHandle GetBlitComputePSO() { return m_BlitComputePSO.get_weak(); }

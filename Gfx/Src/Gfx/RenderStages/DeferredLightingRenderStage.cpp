@@ -70,7 +70,7 @@ void st::gfx::DeferredLightingRenderStage::Render(st::rhi::CommandListHandle com
 	shaderConstants.ShowSSAO = m_ShowSSAO;
 	shaderConstants.ShowShadowmap = m_ShowShadowmap;
 
-	commandList->PushGraphicsConstants(shaderConstants);
+	commandList->PushGraphicsConstants(0, shaderConstants);
 	commandList->Draw(3);
 
 	commandList->EndRenderPass();
@@ -97,35 +97,8 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 
 	// Create PSO
 	{
-		rhi::BlendState blendState;
-		blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
-		{
-			.blendEnable = false,
-		};
-
-		rhi::RasterizerState rasterState =
-		{
-			.fillMode = rhi::FillMode::Solid,
-			.cullMode = rhi::CullMode::None
-		};
-
-		rhi::DepthStencilState depthStencilState =
-		{
-			.depthTestEnable = false,
-			.depthWriteEnable = false,
-			.stencilEnable = false
-		};
-
-		m_PSODesc = rhi::GraphicsPipelineStateDesc
-		{
-			.VS = commonResources->GetBlitVS(),
-			.PS = m_PS.get_weak(),
-			.blendState = blendState,
-			.depthStencilState = depthStencilState,
-			.rasterState = rasterState
-		};
-
-		m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "DeferredLightingRenderStage");
+		m_PSO = commonResources->CreateFullscreenPassPSO(
+			m_FB->GetFramebufferInfo(), m_PS.get_weak(), "DeferredLightingRenderStage");
 	}
 }
 
@@ -140,6 +113,7 @@ void st::gfx::DeferredLightingRenderStage::OnDetached()
 
 void st::gfx::DeferredLightingRenderStage::OnBackbufferResize()
 {
+	st::gfx::CommonResources* commonResources = GetDeviceManager()->GetCommonResources();
 	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	// Re-create Framebuffer
@@ -150,5 +124,6 @@ void st::gfx::DeferredLightingRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_PSO = device->CreateGraphicsPipelineState(m_PSODesc, m_FB->GetFramebufferInfo(), "DeferredLightingRenderStage");
+	m_PSO = commonResources->CreateFullscreenPassPSO(
+		m_FB->GetFramebufferInfo(), m_PS.get_weak(), "DeferredLightingRenderStage");
 }

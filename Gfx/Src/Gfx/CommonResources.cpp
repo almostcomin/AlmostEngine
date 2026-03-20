@@ -70,7 +70,16 @@ st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateBlitGraphics
 	return m_Device->CreateGraphicsPipelineState(m_BlitGraphicsPSODesc, fbInfo, "BlitGraphicsPSO");
 }
 
-st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateBlitGraphicsPSO(const rhi::FramebufferInfo& fbInfo,
+st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateFullscreenPassPSO(const rhi::FramebufferInfo& fbInfo,
+	const rhi::ShaderHandle& PS, const std::string debugName)
+{
+	auto desc = m_BlitGraphicsPSODesc;
+	desc.PS = PS;
+
+	return m_Device->CreateGraphicsPipelineState(desc, fbInfo, debugName);
+}
+
+st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateFullscreenPassPSO(const rhi::FramebufferInfo& fbInfo,
 	const rhi::ShaderHandle& VS, const rhi::ShaderHandle& PS, const std::string debugName)
 {
 	auto desc = m_BlitGraphicsPSODesc;

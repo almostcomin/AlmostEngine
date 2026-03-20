@@ -2,7 +2,8 @@
 #include "BindlessRS.hlsli"
 #include "Material.hlsli"
 
-ConstantBuffer<interop::MultiInstanceDrawConstants> Constants : register(b0);
+ConstantBuffer<interop::GBufferStageConstats> StageConstants : register(b0);
+ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
 
 struct PS_INPUT
 {
@@ -23,12 +24,10 @@ struct PS_OUTPUT
 [RootSignature(BindlessRootSignature)]
 PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
 {
-    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
+    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[StageConstants.sceneDI];
     StructuredBuffer<interop::MaterialData> materialsBuffer = ResourceDescriptorHeap[sceneData.materialsBufferDI];    
     
-    interop::MaterialData matData = materialsBuffer[Constants.materialIndex];
-
-    PS_OUTPUT output;
+    interop::MaterialData matData = materialsBuffer[DrawConstants.materialIndex];
     
     MaterialTextureSample texturesSample = SampleMaterialTextures(input.uv, matData);
     MaterialSample matSample = EvaluateSceneMaterial(input.normal, input.tangent, matData, texturesSample, isFrontFace);
@@ -36,6 +35,8 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
 #if ALPHA_TEST
     clip(matSample.opacity - matData.alphaCutoff);
 #endif
+
+    PS_OUTPUT output;
     
     // GBuffer0: diffuseAlbedo.rgb + opacity.w
     output.GBuffer0 = float4(matSample.diffuseAlbedo, matSample.opacity);

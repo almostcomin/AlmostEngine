@@ -93,6 +93,8 @@ namespace st::rhi::dx12
 		ID3D12QueryHeap* GetQueryHeap() { return m_TimerQueryHeap.Get(); }
 		ID3D12Resource* GetQueryResolveBuffer() { return m_TimerQueryResolveBuffer.Get(); }
 
+		ID3D12RootSignature* GetBindlessRootSignature() { return m_BindlessRootSignature.Get(); }
+
 		ID3D12Device* GetD3d12Device() { return m_D3d12Device.Get(); }
 
 	protected:

@@ -375,9 +375,19 @@ void st::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuf
                 cb.vertexBuffer = GetCurrentVB(geometryBuffers)->GetReadOnlyView();
                 cb.vertexBufferOffset = vtxOffset;
 
-                if (pCmd->TexRef._TexData && pCmd->TexRef._TexData->TexID && !((ImGuiTexture*)pCmd->TexRef._TexData->TexID)->tex.expired())
+                ImGuiTexture* guiTex = nullptr;
+                if (pCmd->TexRef._TexData)
                 {
-                    auto* guiTex = (ImGuiTexture*)pCmd->TexRef._TexData->TexID;
+                    guiTex = (ImGuiTexture*)pCmd->TexRef._TexData->TexID;
+                }
+                else if(pCmd->TexRef._TexID)
+                {
+                    guiTex = (ImGuiTexture*)pCmd->TexRef._TexID;
+                }
+
+                if (guiTex)
+                {
+                    assert(!guiTex->tex.expired());
                     cb.textureIndex = guiTex->tex->GetSampledView();
                     cb.flags = guiTex->flags;
                     // Delete guiTex if it was a requested one (via ShowImage).
@@ -395,7 +405,7 @@ void st::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuf
                     cb.textureIndex = {};
                 }
 
-                commandList->PushConstants(&cb, sizeof(interop::ImGUI_CB), 0, false);
+                commandList->PushConstants(0, &cb, sizeof(interop::ImGUI_CB), 0, false);
 
                 commandList->Draw(pCmd->ElemCount);
             }

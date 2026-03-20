@@ -38,7 +38,7 @@ void st::gfx::CompositeRenderStage::Render(st::rhi::CommandListHandle commandLis
 	shaderConstants.colorSpace = (uint)m_RenderGraph->GetDeviceManager()->GetColorSpace();
 	shaderConstants.paperWhiteNits = m_PaperWhiteNits;
 
-	commandList->PushGraphicsConstants(shaderConstants);
+	commandList->PushGraphicsConstants(0, shaderConstants);
 
 	commandList->Draw(3);
 
@@ -56,9 +56,8 @@ void st::gfx::CompositeRenderStage::OnAttached()
 	// Create PSO
 	{
 		st::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
-		m_PSO = commonResurces->CreateBlitGraphicsPSO(
+		m_PSO = commonResurces->CreateFullscreenPassPSO(
 			m_RenderGraph->GetFramebuffer()->GetFramebufferInfo(),
-			commonResurces->GetBlitVS(),
 			m_PS.get_weak(),
 			"Composite Render Stage");
 	}
@@ -77,9 +76,8 @@ void st::gfx::CompositeRenderStage::OnBackbufferResize()
 	// Recreate PSO
 	{
 		st::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
-		m_PSO = commonResurces->CreateBlitGraphicsPSO(
+		m_PSO = commonResurces->CreateFullscreenPassPSO(
 			m_RenderGraph->GetFramebuffer()->GetFramebufferInfo(),
-			commonResurces->GetBlitVS(),
 			m_PS.get_weak(),
 			"Composite Render Stage");
 	}

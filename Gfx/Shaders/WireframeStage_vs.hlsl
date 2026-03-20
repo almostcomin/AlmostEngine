@@ -2,7 +2,8 @@
 #include "BindlessRS.hlsli"
 #include "Common.hlsli"
 
-ConstantBuffer<interop::MultiInstanceDrawConstants> Constants : register(b0);
+ConstantBuffer<interop::WireframeStageConstats> StageConstants : register(b0);
+ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
 
 struct VS_OUTPUT
 {
@@ -12,15 +13,15 @@ struct VS_OUTPUT
 [RootSignature(BindlessRootSignature)]
 VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
 {
-    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
-    ByteAddressBuffer instancesIndexBuffer = ResourceDescriptorHeap[Constants.instancesDI];
+    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[StageConstants.sceneDI];
+    ByteAddressBuffer instancesIndexBuffer = ResourceDescriptorHeap[StageConstants.instancesDI];
     StructuredBuffer<interop::InstanceData> instancesDataBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
     StructuredBuffer<interop::MeshData> meshesDataBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
     
-    uint actualInstanceId = instanceID + Constants.baseInstanceIdx;
+    uint actualInstanceId = instanceID + DrawConstants.baseInstanceIdx;
     uint instanceIndex = instancesIndexBuffer.Load(actualInstanceId * 4);
     interop::InstanceData instanceData = instancesDataBuffer[instanceIndex];
-    interop::MeshData meshData = meshesDataBuffer[Constants.meshIndex];
+    interop::MeshData meshData = meshesDataBuffer[DrawConstants.meshIndex];
              
     ByteAddressBuffer indexBuffer = ResourceDescriptorHeap[meshData.indexBufferDI];
     ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[meshData.vertexBufferDI];

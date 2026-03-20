@@ -3,6 +3,8 @@
 namespace st::gfx
 {
 
+class MeshInstance;
+
 struct RenderSet : public st::noncopyable_nonmovable
 {
 	using CullSet = std::pair<rhi::CullMode, std::vector<const st::gfx::MeshInstance*>>;

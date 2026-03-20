@@ -91,7 +91,7 @@ void st::gfx::ToneMappingRenderStage::Render(st::rhi::CommandListHandle commandL
 		shaderConstants.dstTextureDI = outputTexture->GetStorageView();
 		shaderConstants.viewBegin = float2{ 0, 0 };
 		shaderConstants.viewEnd = float2{ width, height };
-		commandList->PushComputeConstants(shaderConstants);
+		commandList->PushComputeConstants(0, shaderConstants);
 
 		commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
 
@@ -131,7 +131,7 @@ void st::gfx::ToneMappingRenderStage::Render(st::rhi::CommandListHandle commandL
 			shaderConstants.bufferElementCount = elemCount;
 			shaderConstants.clearValue = 0;
 
-			commandList->PushComputeConstants(shaderConstants);
+			commandList->PushComputeConstants(0, shaderConstants);
 			commandList->Dispatch((elemCount + 255) / 256, 1, 1);
 
 			commandList->EndMarker();
@@ -161,7 +161,7 @@ void st::gfx::ToneMappingRenderStage::Render(st::rhi::CommandListHandle commandL
 			shaderConstants.minLogLuminance = m_MinLogLuminance;
 			shaderConstants.oneOverLogLuminanceRange = 1.f / m_LogLuminanceRange;
 
-			commandList->PushComputeConstants(shaderConstants);
+			commandList->PushComputeConstants(0, shaderConstants);
 			commandList->Dispatch((width + 15) / 16, (height + 15) / 16, 1);
 
 			commandList->EndMarker();
@@ -188,7 +188,7 @@ void st::gfx::ToneMappingRenderStage::Render(st::rhi::CommandListHandle commandL
 			shaderConstants.adaptionSpeedUp = m_AdaptationUpSpeed;
 			shaderConstants.adaptionSpeedDown = m_AdaptationDownSpeed;
 
-			commandList->PushComputeConstants(shaderConstants);
+			commandList->PushComputeConstants(0, shaderConstants);
 			commandList->Dispatch(1, 1, 1);
 
 			commandList->EndMarker();
@@ -309,7 +309,7 @@ void st::gfx::ToneMappingRenderStage::TonemapHDR(st::rhi::CommandListHandle comm
 	shaderConstants.middleGray = m_SceneMiddleGray;
 	shaderConstants.sdrExposureBias = m_sdrExposureBias;
 
-	commandList->PushComputeConstants(shaderConstants);
+	commandList->PushComputeConstants(0, shaderConstants);
 	commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
 
 	commandList->EndMarker();
@@ -337,7 +337,7 @@ void st::gfx::ToneMappingRenderStage::TonemapSDR(st::rhi::CommandListHandle comm
 	shaderConstants.middleGray = m_SceneMiddleGray;
 	shaderConstants.sdrExposureBias = m_sdrExposureBias;
 
-	commandList->PushComputeConstants(shaderConstants);
+	commandList->PushComputeConstants(0, shaderConstants);
 	commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
 
 	commandList->EndMarker();

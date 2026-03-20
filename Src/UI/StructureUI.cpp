@@ -1221,6 +1221,12 @@ bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)
         return isOpen;
     }
 
+    if (!isOpen)
+    {
+        ImGui::End();
+        return isOpen;
+    }
+
     ImGuiTexFlags texFlags = 0;
     bool fitPressed = false;
 

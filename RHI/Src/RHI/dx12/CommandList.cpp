@@ -41,6 +41,10 @@ void st::rhi::dx12::CommandList::Open()
 		gpuDevice->GetSamperHeap()->GetHeap()
 	};
 	m_D3d12Commandlist->SetDescriptorHeaps(std::size(heaps), heaps);
+
+	m_D3d12Commandlist->SetGraphicsRootSignature(gpuDevice->GetBindlessRootSignature());
+	m_D3d12Commandlist->SetComputeRootSignature(gpuDevice->GetBindlessRootSignature());
+		
 	m_CurrentGraphicsPSO = nullptr;
 	m_CurrentComputePSO = nullptr;
 
@@ -287,8 +291,6 @@ void st::rhi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
 	{
 		GraphicsPipelineState* impl = checked_cast<GraphicsPipelineState*>(pso);
 
-		// TODO: Do not always set root signature
-		m_D3d12Commandlist->SetGraphicsRootSignature(impl->GetD3d12Desc().pRootSignature);
 		m_D3d12Commandlist->SetPipelineState(impl->GetD3d12PSO());
 		m_D3d12Commandlist->IASetPrimitiveTopology(GetPrimitiveTopology(impl->GetDesc().primTopo, impl->GetDesc().patchControlPoints));
 
@@ -301,10 +303,6 @@ void st::rhi::dx12::CommandList::SetPipelineState(IComputePipelineState* pso)
 {
 	if (!m_CurrentComputePSO || m_CurrentComputePSO.get() != pso)
 	{
-		ComputePipelineState* impl = checked_cast<ComputePipelineState*>(pso);
-
-		// TODO: Do not always set root signature
-		m_D3d12Commandlist->SetComputeRootSignature(impl->GetD3d12Desc().pRootSignature);
 		m_D3d12Commandlist->SetPipelineState(pso->GetNativeResource());
 
 		m_CurrentComputePSO = static_pointer_cast<IComputePipelineState>(pso->weak_from_this());
@@ -347,19 +345,19 @@ void st::rhi::dx12::CommandList::SetBlendFactor(const float4& value)
 	m_D3d12Commandlist->OMSetBlendFactor(&value.x);
 }
 
-void st::rhi::dx12::CommandList::PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute)
+void st::rhi::dx12::CommandList::PushConstants(uint32_t slot, const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute)
 {
 	assert(IsAligned(sizeBytes, sizeof(uint32_t)));
 	assert(IsAligned(offsetBytes, sizeof(uint32_t)));
-	assert(sizeBytes < 64 * sizeof(uint32_t));
+	assert((sizeBytes + offsetBytes) < (slot == 0 ? 32 : 16) * sizeof(uint32_t));
 
 	if (isCompute)
 	{
-		m_D3d12Commandlist->SetComputeRoot32BitConstants(0, sizeBytes / 4, data, offsetBytes / 4);
+		m_D3d12Commandlist->SetComputeRoot32BitConstants(slot, sizeBytes / 4, data, offsetBytes / 4);
 	}
 	else
 	{
-		m_D3d12Commandlist->SetGraphicsRoot32BitConstants(0, sizeBytes / 4, data, offsetBytes / 4);
+		m_D3d12Commandlist->SetGraphicsRoot32BitConstants(slot, sizeBytes / 4, data, offsetBytes / 4);
 	}
 }
 

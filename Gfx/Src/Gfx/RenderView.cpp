@@ -189,6 +189,11 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	interop::SceneConstants* sceneShaderConstant = (interop::SceneConstants*)m_SceneConstants.Map();
 	*sceneShaderConstant = {};
 
+	// Screen resolution
+	sceneShaderConstant->invScreenResolution = float2{
+		1.f / GetFramebuffer()->GetFramebufferInfo().width,
+		1.f / GetFramebuffer()->GetFramebufferInfo().height };
+	
 	// Camera
 	if (m_Camera)
 	{

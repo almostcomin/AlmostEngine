@@ -13,6 +13,11 @@ namespace st::rhi
 
 namespace st::gfx
 {
+	struct RenderSet;
+}
+
+namespace st::gfx
+{
 
 class RenderContext
 {
@@ -28,7 +33,9 @@ public:
 
 	void AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS);
 
-	rhi::IGraphicsPipelineState* Get(MaterialDomain domain, rhi::CullMode cullMode) const;
+	rhi::IGraphicsPipelineState* GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const;
+
+	void DrawRenderSetInstanced(const st::gfx::RenderSet& renderSet, st::rhi::ICommandList* commandList) const;
 
 	const std::string& GetDebugName() const { return m_BaseDebugName; }
 
@@ -49,9 +56,10 @@ private:
 
 	st::rhi::GraphicsPipelineStateDesc m_BasePSODesc;
 	std::array<CullPSOs, (int)MaterialDomain::_Size> m_PSOs;
+	std::array<bool, (int)MaterialDomain::_Size> m_ValidDomains;
 	st::rhi::FramebufferInfo m_FBInfo;
-	std::string m_BaseDebugName;
 
+	std::string m_BaseDebugName;
 	rhi::Device* m_Device;
 };
 

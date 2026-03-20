@@ -445,7 +445,7 @@ void st::gfx::DataUploader::GenerateMips(rhi::ITexture* texture, GenMipsMethod m
 			interop::GenMipsConstants shaderConstants;
 			shaderConstants.srcMipDI = tempViews[sliceIdx * desc.mipLevels + mipIdx].first;
 			shaderConstants.dstMipDI = tempViews[sliceIdx * desc.mipLevels + mipIdx + 1].second;
-			commandList->PushComputeConstants(shaderConstants);
+			commandList->PushComputeConstants(0, shaderConstants);
 
 			// Execute
 			uint32_t width = desc.width >> mipIdx;

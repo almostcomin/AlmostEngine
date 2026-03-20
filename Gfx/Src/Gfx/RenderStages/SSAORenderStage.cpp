@@ -88,7 +88,7 @@ void st::gfx::SSAORenderStage::Render(st::rhi::CommandListHandle commandList)
 		shaderConstants.invBackgroundViewDepth = 1.f / 1000;
 		shaderConstants.radiusToScreen = 0.5f * height * abs(projMatrix[1].y);
 
-		commandList->PushComputeConstants(shaderConstants);
+		commandList->PushComputeConstants(0, shaderConstants);
 		commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
 		commandList->EndMarker();
 	}
@@ -111,7 +111,7 @@ void st::gfx::SSAORenderStage::Render(st::rhi::CommandListHandle commandList)
 		shaderConstants.textureWidth = width;
 		shaderConstants.textureHeight = height;
 
-		commandList->PushComputeConstants(shaderConstants);
+		commandList->PushComputeConstants(0, shaderConstants);
 		commandList->Dispatch(DivRoundUp(height, 128u), width, 1);
 
 		commandList->EndMarker();
@@ -136,7 +136,7 @@ void st::gfx::SSAORenderStage::Render(st::rhi::CommandListHandle commandList)
 		shaderConstants.textureWidth = width;
 		shaderConstants.textureHeight = height;
 
-		commandList->PushComputeConstants(shaderConstants);
+		commandList->PushComputeConstants(0, shaderConstants);
 		commandList->Dispatch(DivRoundUp(width, 128u), height, 1);
 
 		commandList->EndMarker();
@@ -195,6 +195,6 @@ void st::gfx::SSAORenderStage::Passthrough(st::rhi::CommandListHandle commandLis
 	shaderConstants.textureDim = float2{ width, height };
 	shaderConstants.clearValue = float4{ 1.f };
 
-	commandList->PushComputeConstants(shaderConstants);
+	commandList->PushComputeConstants(0, shaderConstants);
 	commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
 }

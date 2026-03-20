@@ -57,16 +57,16 @@ enum class ColorMask : uint8_t
 struct BlendState
 {
 	bool alphaToCoverageEnable = false;
-	bool independentBlendEnable = false;
+	bool independentBlendEnable = true;
 
 	struct RenderTargetBlendState
 	{
 		bool blendEnable = false;
 		BlendFactor srcBlend = BlendFactor::SrcAlpha;
-		BlendFactor destBlend = BlendFactor::InvSrcAlpha;
+		BlendFactor destBlend = BlendFactor::OneMinusSrcAlpha;
 		BlendOp blendOp = BlendOp::Add;
 		BlendFactor srcBlendAlpha = BlendFactor::One;
-		BlendFactor destBlendAlpha = BlendFactor::One;
+		BlendFactor destBlendAlpha = BlendFactor::Zero;
 		BlendOp blendOpAlpha = BlendOp::Add;
 		ColorMask renderTargetWriteMask = ColorMask::All;
 	};

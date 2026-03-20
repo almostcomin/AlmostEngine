@@ -7,7 +7,6 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/SceneGraph.h"
-#include "Gfx/RenderHelpers.h"
 #include "Gfx/RenderGraphBuilder.h"
 
 void st::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
@@ -25,7 +24,7 @@ void st::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 		m_GBuffer1Texture = builder.CreateColorTarget("GBuffer1", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
 
 		// GBuffer2
-		//	RG = Material (encoded)
+		//	RG = Normal (encoded)
 		//  B = Roughness
 		//  A = Metalness
 		m_GBuffer2Texture = builder.CreateColorTarget("GBuffer2", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
@@ -66,11 +65,14 @@ void st::gfx::GBuffersRenderStage::Render(st::rhi::CommandListHandle commandList
 		{},
 		rhi::RenderPassFlags::None);
 
-	DrawRenderSetInstanced(
+	interop::GBufferStageConstats shaderConstants;
+	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
+	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();
+
+	commandList->PushGraphicsConstants(0, shaderConstants);
+
+	m_RenderContext.DrawRenderSetInstanced(
 		GetRenderView()->GetCameraVisibleSet(),
-		GetRenderView()->GetCameraVisiblityBufferROView(),
-		GetRenderView()->GetSceneBufferUniformView(),
-		m_RenderContext,
 		commandList.get());
 
 	commandList->EndRenderPass();

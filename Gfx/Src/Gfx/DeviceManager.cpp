@@ -36,7 +36,7 @@ bool st::gfx::DeviceManager::Init(const DeviceParams& params)
 		m_DataUploader = std::make_unique<st::gfx::DataUploader>(m_ShaderFactory.get(), m_Device.get());
 		m_TextureCache = std::make_unique<st::gfx::TextureCache>(m_DataUploader.get(), m_Device.get());
 		m_CommonResources = std::make_unique<st::gfx::CommonResources>(m_ShaderFactory.get(), m_Device.get());
-		m_UploadBuffer = std::make_unique<st::gfx::UploadBuffer>(m_FrameIndex, 1024 * 1024, m_Device.get());
+		m_UploadBuffer = std::make_unique<st::gfx::UploadBuffer>(m_FrameIndex, MiB(8), m_Device.get());
 
 		for (uint32_t i = 0; i < QueuedFramesCount; ++i)
 		{

@@ -50,7 +50,7 @@ namespace st::rhi::dx12
 
 		void SetBlendFactor(const float4& value);
 
-		void PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute) override;
+		void PushConstants(uint32_t slot, const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute) override;
 
 		void BeginRenderPass(rhi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, 
 			const RenderPassOp& depthRenderPassOp, const RenderPassOp& stencilRenderPassOp, RenderPassFlags flags) override;

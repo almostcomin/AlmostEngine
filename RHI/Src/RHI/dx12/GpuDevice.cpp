@@ -1089,17 +1089,23 @@ void st::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 
 	// --- Root Constants (64 x 32-bit = 256 bytes)
 
-	D3D12_ROOT_PARAMETER rootParams[1] = {};
+	D3D12_ROOT_PARAMETER rootParams[2] = {};
 	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-	rootParams[0].Constants.Num32BitValues = 64;
+	rootParams[0].Constants.Num32BitValues = 32;
 	rootParams[0].Constants.RegisterSpace = 0;
 	rootParams[0].Constants.ShaderRegister = 0;
 	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+	rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	rootParams[1].Constants.Num32BitValues = 16;
+	rootParams[1].Constants.RegisterSpace = 0;
+	rootParams[1].Constants.ShaderRegister = 1;
+	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
 	// --- Create root signature
 
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
-	desc.NumParameters = 1;
+	desc.NumParameters = std::size(rootParams);
 	desc.pParameters = rootParams;
 	desc.NumStaticSamplers = _countof(staticSamplers);
 	desc.pStaticSamplers = staticSamplers;

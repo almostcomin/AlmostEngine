@@ -8,7 +8,7 @@ namespace st::gfx
 		void* ptr = nullptr;
 		bool IsValid() const { return ptr != nullptr; }
 
-		bool operator ==(const Handle<Tag>&) const { return ptr == ptr; }
+		bool operator ==(const Handle<Tag>& other) const { return ptr == other.ptr; }
 		bool operator <(const Handle<Tag>& other) const { return ptr < other.ptr; }
 	};
 

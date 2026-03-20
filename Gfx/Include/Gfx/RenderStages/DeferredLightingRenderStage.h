@@ -57,7 +57,6 @@ private:
 
 	st::rhi::ShaderOwner m_PS;
 	st::rhi::FramebufferOwner m_FB;
-	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	st::rhi::GraphicsPipelineStateOwner m_PSO;
 
 	MaterialChannel m_MaterialChannel = MaterialChannel::Disabled;

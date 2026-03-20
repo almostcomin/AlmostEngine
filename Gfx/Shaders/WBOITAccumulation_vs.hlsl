@@ -2,15 +2,16 @@
 #include "BindlessRS.hlsli"
 #include "Common.hlsli"
 
-ConstantBuffer<interop::GBufferStageConstats> StageConstants : register(b0);
+ConstantBuffer<interop::WBOITAccumStageConstants> StageConstants : register(b0);
 ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
 
 struct VS_OUTPUT
 {
     float4 pos : SV_POSITION;
     float3 normal : NORMAL;
-    float4 tangent : TANGENT; // xyz = tangent, w = handedness (-1 or +1)    
+    float4 tangent : TANGENT; // xyz = tangent, w = handedness (-1 or +1)
     float2 uv : TEXCOORD0;
+    float3 posView : TEXCOORD1;
 };
 
 [RootSignature(BindlessRootSignature)]
@@ -25,7 +26,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     uint instanceIndex = instancesIndexBuffer.Load(actualInstanceId * 4);
     interop::InstanceData instanceData = instancesDataBuffer[instanceIndex];
     interop::MeshData meshData = meshesDataBuffer[DrawConstants.meshIndex];
-            
+             
     ByteAddressBuffer indexBuffer = ResourceDescriptorHeap[meshData.indexBufferDI];
     ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[meshData.vertexBufferDI];
     
@@ -40,16 +41,17 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
         
     // Transform
     float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
+    float3 posView = mul(sceneData.camViewMatrix, posWorld).xyz;
     float4 posClip = mul(sceneData.camViewProjMatrix, posWorld);
         
     // Normal
-    const float3x3 normalMatrix = (float3x3)transpose(instanceData.inverseModelMatrix);
+    const float3x3 normalMatrix = (float3x3) transpose(instanceData.inverseModelMatrix);
     float3 normalWorld = normalize(mul(normalMatrix, normal));
-    float3 normalView = normalize(mul((float3x3)sceneData.camViewMatrix, normalWorld));
+    float3 normalView = normalize(mul((float3x3) sceneData.camViewMatrix, normalWorld));
     
     // Tangent
     float3 tangentWorld = normalize(mul(instanceData.modelMatrix, float4(tangent.xyz, 0.0)).xyz);
-    float3 tangentView = normalize(mul((float3x3)sceneData.camViewMatrix, tangentWorld));
+    float3 tangentView = normalize(mul((float3x3) sceneData.camViewMatrix, tangentWorld));
             
     // Output
     VS_OUTPUT output;
@@ -57,5 +59,6 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     output.normal = normalView;
     output.tangent = float4(tangentView, tangent.w);
     output.uv = uv0;
+    output.posView = posView;
     return output;
 }

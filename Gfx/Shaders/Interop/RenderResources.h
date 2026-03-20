@@ -3,6 +3,10 @@
 
 #include "Interop.h"
 
+// Structs wich name end in 'Constants' are tipically constant buffer (being SceneConstants the only one at the moment of writing this comment)
+// Any other can be structured buffer data or root constants
+// Special care needed for the alignment rules: https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules
+
 namespace interop
 {
     struct ClearBufferConstants
@@ -125,8 +129,14 @@ namespace interop
 
     struct SceneConstants
     {
+        float2 invScreenResolution;
+        // Warning! can't use _padding[2] since in a constant buffer each array element consumes 4 bytes:
+        // https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules#more-aggressive-packing
+        uint _padding0;        
+        uint _padding1;
+
         // Camera
-        float4x4 camViewProjMatrix;
+        float4x4 camViewProjMatrix;             // offset 16
         float4x4 invCamViewProjMatrix;
         float4x4 camViewMatrix;
         float4x4 invCamViewMatrix;
@@ -153,21 +163,52 @@ namespace interop
         BufferReadOnlyIndex spotLightsDataDI;   // SpotLightData
 
         // Global descriptors indices
-        BufferReadOnlyIndex instanceBufferDI;
-        BufferReadOnlyIndex meshesBufferDI;
-        BufferReadOnlyIndex materialsBufferDI;
+        BufferReadOnlyIndex instanceBufferDI;   // InstanceData
+        BufferReadOnlyIndex meshesBufferDI;     // MeshData
+        BufferReadOnlyIndex materialsBufferDI;  // MaterialData
     };
 
-    struct SingleInstanceDrawData
+    struct DepthPrepassStageConstants
     {
-        BufferUniformIndex sceneDI;     // DI for the scene constants
-        uint instanceIdx;               // Index in the instance data buffer to render
+        BufferUniformIndex sceneDI;         // SceneConstants
+        BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+    };
+
+    struct GBufferStageConstats
+    {
+        BufferUniformIndex sceneDI;         // SceneConstants
+        BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+    };
+
+    struct ShadowmapStageConstats
+    {
+        BufferUniformIndex sceneDI;         // SceneConstants
+        BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+    };
+
+    struct WBOITAccumStageConstants
+    {
+        BufferUniformIndex sceneDI;         // SceneConstants
+        TextureSampledViewIndex shadowMapDI;
+        float2 oneOverShadowmapResolution;
+        TextureSampledViewIndex SSAO_DI;
+        BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+    };
+
+    struct WBOITResolveStageConstants
+    {
+        TextureSampledViewIndex accumDI;
+        TextureSampledViewIndex revealageDI;
+    };
+
+    struct WireframeStageConstats
+    {
+        BufferUniformIndex sceneDI;         // SceneConstants
+        BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
     };
 
     struct MultiInstanceDrawConstants
     {
-        BufferUniformIndex sceneDI;         // SceneConstants
-        BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
         uint baseInstanceIdx;
         uint meshIndex;
         uint materialIndex;
@@ -281,13 +322,6 @@ namespace interop
         TextureStorageViewIndex outputTextureDI;
         float textureWidth;
         float textureHeight;
-    };
-
-    struct DrawChunk
-    {
-        float4x4 modelMatrix;
-        uint meshIndex;
-        uint materialIndex;
     };
 }
 

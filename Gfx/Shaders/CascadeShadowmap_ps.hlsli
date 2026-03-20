@@ -2,7 +2,8 @@
 #include "BindlessRS.hlsli"
 #include "Material.hlsli"
 
-ConstantBuffer<interop::MultiInstanceDrawConstants> Constants : register(b0);
+ConstantBuffer<interop::ShadowmapStageConstats> StageConstants : register(b0);
+ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
 
 struct PS_INPUT
 {
@@ -20,9 +21,9 @@ void main(PS_INPUT input)
 #endif
 {
 #if ALPHA_TEST    
-    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[Constants.sceneDI];
+    ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[StageConstants.sceneDI];
     StructuredBuffer<interop::MaterialData> materialsBuffer = ResourceDescriptorHeap[sceneData.materialsBufferDI];    
-    interop::MaterialData matData = materialsBuffer[Constants.materialIndex];
+    interop::MaterialData matData = materialsBuffer[DrawConstants.materialIndex];
 
     float alpha = SampleBaseColorAlpha(input.uv, matData);
     clip(alpha - matData.alphaCutoff);

@@ -11,7 +11,6 @@
 #include "Gfx/RenderGraphBuilder.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
-#include "Gfx/RenderHelpers.h"
 
 void st::gfx::WireframeRenderStage::Setup(RenderGraphBuilder& builder)
 {
@@ -50,11 +49,14 @@ void st::gfx::WireframeRenderStage::Render(st::rhi::CommandListHandle commandLis
 		{},
 		rhi::RenderPassFlags::None);
 
-	DrawRenderSetInstanced(
+	interop::WireframeStageConstats shaderConstants;
+	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
+	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();
+
+	commandList->PushGraphicsConstants(0, shaderConstants);
+
+	m_RenderContext.DrawRenderSetInstanced(
 		GetRenderView()->GetCameraVisibleSet(),
-		GetRenderView()->GetCameraVisiblityBufferROView(),
-		GetRenderView()->GetSceneBufferUniformView(),
-		m_RenderContext,
 		commandList.get());
 
 	commandList->EndRenderPass();

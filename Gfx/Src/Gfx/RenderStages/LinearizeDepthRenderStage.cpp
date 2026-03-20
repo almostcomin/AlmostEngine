@@ -38,7 +38,7 @@ void st::gfx::LinearizeDepthRenderStage::Render(st::rhi::CommandListHandle comma
 	shaderConstants.height = desc.height;
 	shaderConstants.nearPlaneDist = camera->GetZNear();
 
-	commandList->PushComputeConstants(shaderConstants);
+	commandList->PushComputeConstants(0, shaderConstants);
 	commandList->Dispatch(DivRoundUp(desc.width, 16u), DivRoundUp(desc.height, 16u), 1);
 }
 

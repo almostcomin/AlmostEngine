@@ -39,6 +39,8 @@ union ClearValue
 	static constexpr ClearValue ColorBlack() { return ClearValue{ float4{ 0.f } }; }
 	static constexpr ClearValue DepthZero() { return ClearValue{ .depthStencil{ 0.f, 0u } }; }
 	static constexpr ClearValue DepthOne() { return ClearValue{ .depthStencil{ 1.f, 0u } }; }
+
+	static constexpr ClearValue Color(const float4& c) { return ClearValue{ c }; }
 };
 
 struct RenderPassOp
@@ -103,11 +105,11 @@ public:
 
 	virtual void SetBlendFactor(const float4& value) = 0;
 
-	virtual void PushConstants(const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute) = 0;
+	virtual void PushConstants(uint32_t slot, const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute) = 0;
 	template<class T>
-	void PushGraphicsConstants(const T& data) { PushConstants((const void*)&data, sizeof(T), 0, false); }
+	void PushGraphicsConstants(uint32_t slot, const T& data) { PushConstants(slot, (const void*)&data, sizeof(T), 0, false); }
 	template<class T>
-	void PushComputeConstants(const T& data) { PushConstants((const void*)&data, sizeof(T), 0, true); }
+	void PushComputeConstants(uint32_t slot, const T& data) { PushConstants(slot, (const void*)&data, sizeof(T), 0, true); }
 
 	virtual void BeginRenderPass(rhi::IFramebuffer* fb, const std::vector<RenderPassOp>& renderPassOp, 
 		const RenderPassOp& depthRenderPassOp, const RenderPassOp& stencilRenderPassOp, RenderPassFlags flags) = 0;

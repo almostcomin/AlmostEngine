@@ -7,7 +7,6 @@
 #include "Interop/RenderResources.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
-#include "Gfx/RenderHelpers.h"
 #include "Gfx/RenderGraphBuilder.h"
 
 #define DEBUG_STAGE
@@ -184,11 +183,14 @@ void st::gfx::ShadowmapRenderStage::Render(st::rhi::CommandListHandle commandLis
 		{},
 		rhi::RenderPassFlags::None);
 
-	DrawRenderSetInstanced(
+	interop::ShadowmapStageConstats shaderConstants;
+	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
+	shaderConstants.instancesDI = GetRenderView()->GetShadowMapVisibilityBufferROView();
+
+	commandList->PushGraphicsConstants(0, shaderConstants);
+
+	m_RenderContext.DrawRenderSetInstanced(
 		GetRenderView()->GetShadowMapVisibleSet(),
-		GetRenderView()->GetShadowMapVisibilityBufferROView(),
-		GetRenderView()->GetSceneBufferUniformView(),
-		m_RenderContext,
 		commandList.get());
 
 	commandList->EndRenderPass();

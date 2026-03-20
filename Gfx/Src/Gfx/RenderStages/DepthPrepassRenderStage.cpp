@@ -7,7 +7,6 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/SceneGraph.h"
-#include "Gfx/RenderHelpers.h"
 #include "Gfx/RenderGraphBuilder.h"
 
 void st::gfx::DepthPrepassRenderStage::Setup(RenderGraphBuilder& builder)
@@ -21,10 +20,7 @@ void st::gfx::DepthPrepassRenderStage::Render(st::rhi::CommandListHandle command
 {
 	auto scene = GetScene();
 	if (!scene)
-	{
-		//LOG_WARNING("No scene set. Nothing to render");
 		return;
-	}
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -33,12 +29,13 @@ void st::gfx::DepthPrepassRenderStage::Render(st::rhi::CommandListHandle command
 		{},
 		rhi::RenderPassFlags::None);
 
-	DrawRenderSetInstanced(
-		GetRenderView()->GetCameraVisibleSet(),
-		GetRenderView()->GetCameraVisiblityBufferROView(),
-		GetRenderView()->GetSceneBufferUniformView(),
-		m_RenderContext,
-		commandList.get());
+	interop::DepthPrepassStageConstants shaderConstants;
+	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
+	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();
+
+	commandList->PushGraphicsConstants(0, shaderConstants);
+
+	m_RenderContext.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
 
 	commandList->EndRenderPass();
 }

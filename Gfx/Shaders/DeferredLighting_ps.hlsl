@@ -154,7 +154,7 @@ float4 main(PS_INPUT input) : SV_Target
         float3 diffuseRadiance;
         float3 specularRadiance;
 
-        // Main directional light, the only onle with a cascade shadowmap
+        // Main directional light, the only one with a cascade shadowmap
         ShadeSurface_DirLight(sceneData.mainDirLight, surfaceMat, surfacePosView.xyz, viewIncident, diffuseRadiance, specularRadiance);
         // Cascade shadow map only affects main directional light
         diffuseRadiance *= shadowFactor;

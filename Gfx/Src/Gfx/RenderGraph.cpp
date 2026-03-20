@@ -135,7 +135,7 @@ void st::gfx::RenderGraph::SetRenderStages(const std::vector<std::shared_ptr<Ren
 		rs->renderStage->Setup(builder);
 		
 		rs->textureReads = builder.GetTextureReadDependencies();
-		rs->textureWrites = builder.GetTextureReadDependencies();
+		rs->textureWrites = builder.GetTextureWriteDependencies();
 		rs->bufferReads = builder.GetBufferReadDependencies();
 		rs->bufferWrites = builder.GetBufferWriteDependencies();
 	}
