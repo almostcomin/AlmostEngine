@@ -83,6 +83,18 @@ st::gfx::RenderGraph::~RenderGraph()
 
 void st::gfx::RenderGraph::Reset()
 {
+	for (auto& req : m_TexViewRequests)
+	{
+		delete req;
+	}
+	m_TexViewRequests.clear();
+
+	for (auto& req : m_BufferViewRequests)
+	{
+		delete req;
+	}
+	m_BufferViewRequests.clear();
+
 	m_CurrentRenderMode = {};
 	m_RenderModes.clear();
 
