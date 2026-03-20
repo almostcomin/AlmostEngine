@@ -259,7 +259,7 @@ int SDL_main(int argc, char* argv[])
 		const auto currentTime = std::chrono::steady_clock::now();
 		const std::chrono::duration<float> elapsed = currentTime - lastTime;
 		const float elapsedSec = elapsed.count();
-		uiRS->m_Data.CPUTime = elapsedSec / 1000;
+		uiRS->m_Data.CPUTime = elapsedSec * 1000;
 		uiRS->m_Data.GPUTime = (std::max)(deviceManager->GetGPUFrameTime(), 0.f);
 
 		if (!requestLoadFile.empty())

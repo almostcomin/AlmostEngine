@@ -175,7 +175,7 @@ private:
     std::unique_ptr<st::gfx::CommonResources> m_CommonResources;
     std::unique_ptr<st::gfx::UploadBuffer> m_UploadBuffer;
 
-    static const uint32_t QueuedFramesCount = 3;
+    static const uint32_t QueuedFramesCount = 6;
     rhi::TimerQueryOwner m_FrameTimers[QueuedFramesCount];
     int m_NextTimerToUse = 0;
 
