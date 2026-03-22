@@ -20,11 +20,8 @@ float DistributionGGX(float3 N, float3 H, float a, float halfAngularSize)
     
     float NdotH = saturate(dot(N, H));
     float NdotH2 = NdotH * NdotH;
-        
-    float nom = a2 * sphereNorm;
-    float denom = M_PI * square(NdotH2 * (a2 - 1.0) + 1.0);
     
-    return nom / max(denom, 0.00001);
+    return a2 / square(NdotH2 * (a2 - 1.0) + 1.0) * sphereNorm;
 }
 
 // Geometry term: Schlick-GGX (single direction)
@@ -36,16 +33,14 @@ float GeometrySchlickGGX(float NdotV, float roughness)
     float nom = NdotV;
     float denom = NdotV * (1.0 - k) + k;
     
-    return nom / max(denom, 0.00001);
+    return nom / denom;
 };
 
 // Geometry term: Smith's method
 float GeometrySmith(float NdotV, float NdotL, float roughness)
-{        
-    float ggx1 = GeometrySchlickGGX(NdotV, roughness); // obstruction
-    float ggx2 = GeometrySchlickGGX(NdotL, roughness); // shadowing
-    
-    return ggx1 * ggx2;
+{            
+    float k = square(roughness + 1) / 8;    
+    return 1 / ((NdotL * (1 - k) + k) * (NdotV * (1 - k) + k));
 }
 
 float3 FresnelSchlick(float3 V, float3 H, float3 F0)
@@ -67,16 +62,16 @@ float3 BRDF_Specular_NDotL(float3 normal, float3 viewIncident, float3 lightIncid
         return 0;
     
     float3 H = normalize(L + V);
-    float a = max(0.01, roughness * roughness);
+    float alpha = max(0.01, roughness * roughness);
     
     float3 F = FresnelSchlick(V, H, F0);
-    float D = DistributionGGX(N, H, a, halfAngularSize);
+    float D = DistributionGGX(N, H, alpha, halfAngularSize);
     float G = GeometrySmith(NdotV, NdotL, roughness);
     
     float3 num = D * F * G /* * NdotL*/;
     float denom = 4.0 * NdotV /* * NdotL */;
     
-    return num / max(denom, 0.00001);
+    return num / denom;
 }
 
 float3 BRDF_Diffuse(float3 normal, float3 lightIncident)
