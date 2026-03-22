@@ -115,4 +115,14 @@ float square(float x)
     return x * x;
 }
 
+float3 slerp(float3 a, float3 b, float angle, float t)
+{
+    t = saturate(t);
+    float sin1 = sin(angle * t);
+    float sin2 = sin(angle * (1 - t));
+    float ta = sin1 / (sin1 + sin2);
+    float3 result = lerp(a, b, ta);
+    return normalize(result);
+}
+
 #endif // __COMMON_HLSLI__

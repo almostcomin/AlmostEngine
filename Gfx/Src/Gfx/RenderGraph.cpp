@@ -626,27 +626,32 @@ const std::string& st::gfx::RenderGraph::GetId(RGBufferHandle handle)
 
 st::rhi::TextureSampledView st::gfx::RenderGraph::GetTextureSampledView(RGTextureHandle handle)
 {
-	return GetTexture(handle)->GetSampledView();
+	auto tex = GetTexture(handle);
+	return tex ? tex->GetSampledView() : rhi::c_InvalidDescriptorIndex;
 }
 
 st::rhi::TextureStorageView st::gfx::RenderGraph::GetTextureStorageView(RGTextureHandle handle)
 {
-	return GetTexture(handle)->GetStorageView();
+	auto tex = GetTexture(handle);
+	return tex ? tex->GetStorageView() : rhi::c_InvalidDescriptorIndex;
 }
 
 st::rhi::BufferUniformView st::gfx::RenderGraph::GetBufferUniformView(RGBufferHandle handle)
 {
-	return GetBuffer(handle)->GetUniformView();
+	auto buffer = GetBuffer(handle);
+	return buffer ? buffer->GetUniformView() : rhi::c_InvalidDescriptorIndex;
 }
 
 st::rhi::BufferReadOnlyView st::gfx::RenderGraph::GetBufferReadOnlyView(RGBufferHandle handle)
 {
-	return GetBuffer(handle)->GetReadOnlyView();
+	auto buffer = GetBuffer(handle);
+	return buffer ? buffer->GetReadOnlyView() : rhi::c_InvalidDescriptorIndex;
 }
 
 st::rhi::BufferReadWriteView st::gfx::RenderGraph::GetBufferReadWriteView(RGBufferHandle handle)
 {
-	return GetBuffer(handle)->GetReadWriteView();
+	auto buffer = GetBuffer(handle);
+	return buffer ? buffer->GetReadWriteView() : rhi::c_InvalidDescriptorIndex;
 }
 
 st::rhi::CommandListHandle st::gfx::RenderGraph::GetCommandList()

@@ -68,10 +68,7 @@ float3 BRDF_Specular_NDotL(float3 normal, float3 viewIncident, float3 lightIncid
     float D = DistributionGGX(N, H, alpha, halfAngularSize);
     float G = GeometrySmith(NdotV, NdotL, roughness);
     
-    float3 num = D * F * G /* * NdotL*/;
-    float denom = 4.0 * NdotV /* * NdotL */;
-    
-    return num / denom;
+    return F * (D * G * NdotL / 4);
 }
 
 float3 BRDF_Diffuse(float3 normal, float3 lightIncident)
