@@ -22,7 +22,7 @@
 
 #include "RHI/DxgiFormatMapping.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
     // Format mapping table. The rows must be in the exactly same order as Format enum members are defined.
     static const DxgiFormatMapping c_FormatMappings[] = {

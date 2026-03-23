@@ -4,13 +4,13 @@
 #include "RHI/Device.h"
 #include "RHI/ShaderCompiler.h"
 
-st::gfx::ShaderFactory::ShaderFactory(st::rhi::Device* device) : m_Device(device)
+alm::gfx::ShaderFactory::ShaderFactory(alm::rhi::Device* device) : m_Device(device)
 {
 }
 
-st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const std::string& name, st::rhi::ShaderType shaderType)
+alm::rhi::ShaderOwner alm::gfx::ShaderFactory::LoadShader(const std::string& name, alm::rhi::ShaderType shaderType)
 {
-	st::WeakBlob cachedBytecode;
+	alm::WeakBlob cachedBytecode;
 
 	auto it = m_BytecodeCache.find(name);
 	if (it == m_BytecodeCache.end())
@@ -42,11 +42,11 @@ st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const std::string& name,
 			compileShader = true;//compileShader = sourceTime > binTime;
 		}
 
-		st::Blob byteCode;
+		alm::Blob byteCode;
 		// Load bin if compilation is not needed
 		if (!compileShader)
 		{
-			st::fs::File file{ binPath.string() };
+			alm::fs::File file{ binPath.string() };
 			if (file.IsOpen())
 			{
 				auto readResult = file.Read();
@@ -69,7 +69,7 @@ st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const std::string& name,
 
 				LOG_INFO("Compiling shader '{}'...", srcPath.string());
 				auto startTime = std::chrono::steady_clock::now();
-				byteCode = st::rhi::ShaderCompiler::Compile(srcPath.filename().string(), shaderType, st::WeakBlob{ *readResult }, SHADERS_SRC_FOLDER, "main", true);
+				byteCode = alm::rhi::ShaderCompiler::Compile(srcPath.filename().string(), shaderType, alm::WeakBlob{ *readResult }, SHADERS_SRC_FOLDER, "main", true);
 				auto elapsed = std::chrono::steady_clock::now() - startTime;
 
 				if (byteCode)
@@ -95,12 +95,12 @@ st::rhi::ShaderOwner st::gfx::ShaderFactory::LoadShader(const std::string& name,
 		if (byteCode)
 		{
 			auto result = m_BytecodeCache.insert({ name, std::move(byteCode) });
-			cachedBytecode = st::WeakBlob{ result.first->second };
+			cachedBytecode = alm::WeakBlob{ result.first->second };
 		}
 	}
 	else // Bytecode already cached
 	{
-		cachedBytecode = st::WeakBlob{ it->second };
+		cachedBytecode = alm::WeakBlob{ it->second };
 	}
 
 	if (cachedBytecode)

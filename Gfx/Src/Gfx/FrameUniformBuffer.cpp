@@ -2,7 +2,7 @@
 #include "RHI/Device.h"
 #include "RHI/Buffer.h"
 
-st::gfx::FrameUniformBufferRaw::FrameUniformBufferRaw(size_t bufferCount, size_t bufferSize, st::rhi::Device* device, const std::string& debugName)
+alm::gfx::FrameUniformBufferRaw::FrameUniformBufferRaw(size_t bufferCount, size_t bufferSize, alm::rhi::Device* device, const std::string& debugName)
 {
 	rhi::BufferDesc desc{
 		.memoryAccess = rhi::MemoryAccess::Upload,
@@ -21,16 +21,16 @@ st::gfx::FrameUniformBufferRaw::FrameUniformBufferRaw(size_t bufferCount, size_t
 	m_CurrentIndex = 0;
 }
 
-st::gfx::FrameUniformBufferRaw::~FrameUniformBufferRaw()
+alm::gfx::FrameUniformBufferRaw::~FrameUniformBufferRaw()
 {}
 
-void* st::gfx::FrameUniformBufferRaw::GetNextPtrRaw()
+void* alm::gfx::FrameUniformBufferRaw::GetNextPtrRaw()
 {
 	m_CurrentIndex = (m_CurrentIndex + 1) % m_Buffers.size();
 	return m_Buffers[m_CurrentIndex]->Map();
 }
 
-st::rhi::BufferUniformView st::gfx::FrameUniformBufferRaw::GetUniformView()
+alm::rhi::BufferUniformView alm::gfx::FrameUniformBufferRaw::GetUniformView()
 {
 	return m_Buffers[m_CurrentIndex]->GetUniformView();
 }

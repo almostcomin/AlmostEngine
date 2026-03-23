@@ -9,7 +9,7 @@
 #include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/RenderView.h"
 
-void st::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneColorTexture = builder.CreateColorTarget("SceneColor", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
 
@@ -32,7 +32,7 @@ void st::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddTextureDependency(m_AmbientOcclusionTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 }
 
-void st::gfx::DeferredLightingRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::DeferredLightingRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	rhi::Device* device = GetDeviceManager()->GetDevice();
 	auto shadowmapTex = m_RenderGraph->GetTexture(m_ShadowmapTexture);
@@ -76,10 +76,10 @@ void st::gfx::DeferredLightingRenderStage::Render(st::rhi::CommandListHandle com
 	commandList->EndRenderPass();
 }
 
-void st::gfx::DeferredLightingRenderStage::OnAttached()
+void alm::gfx::DeferredLightingRenderStage::OnAttached()
 {
-	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
-	st::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
+	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
+	alm::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create Framebuffer
@@ -91,7 +91,7 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_PS = shaderFactory->LoadShader("DeferredLighting_ps", rhi::ShaderType::Pixel);
 	}
 
@@ -102,18 +102,18 @@ void st::gfx::DeferredLightingRenderStage::OnAttached()
 	}
 }
 
-void st::gfx::DeferredLightingRenderStage::OnDetached()
+void alm::gfx::DeferredLightingRenderStage::OnDetached()
 {
-	st::rhi::Device* device = GetDeviceManager()->GetDevice();
+	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_PSO));
 	device->ReleaseQueued(std::move(m_PS));
 }
 
-void st::gfx::DeferredLightingRenderStage::OnBackbufferResize()
+void alm::gfx::DeferredLightingRenderStage::OnBackbufferResize()
 {
-	st::gfx::CommonResources* commonResources = GetDeviceManager()->GetCommonResources();
+	alm::gfx::CommonResources* commonResources = GetDeviceManager()->GetCommonResources();
 	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	// Re-create Framebuffer

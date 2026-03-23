@@ -3,7 +3,7 @@
 #include "RHI/Framebuffer.h"
 #include "RHI/dx12/DescriptorHeap.h"
 
-namespace st::rhi::dx12
+namespace alm::rhi::dx12
 {
 
 class Framebuffer : public IFramebuffer

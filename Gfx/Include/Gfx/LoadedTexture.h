@@ -2,10 +2,10 @@
 
 #include "Core/Common.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
-class LoadedTexture : private st::noncopyable_nonmovable
+class LoadedTexture : private alm::noncopyable_nonmovable
 {
 	friend class TextureCache;
 

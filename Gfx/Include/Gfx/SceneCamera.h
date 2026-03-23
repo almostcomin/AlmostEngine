@@ -2,7 +2,7 @@
 
 #include "Gfx/SceneGraphLeaf.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class SceneCamera : public SceneGraphLeaf
@@ -12,7 +12,7 @@ public:
 	SceneCamera() = default;
 
 	bool HasBounds() const override { return false; }
-	SceneContentFlags GetContentFlags() const override { return st::gfx::SceneContentFlags::Cameras; }
+	SceneContentFlags GetContentFlags() const override { return alm::gfx::SceneContentFlags::Cameras; }
 	Type GetType() const override { return Type::Camera; }
 
 private:

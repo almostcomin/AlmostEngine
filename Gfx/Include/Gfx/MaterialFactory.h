@@ -2,14 +2,14 @@
 
 #include <memory>
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class DeviceManager;
 	class Material;
 	class MaterialInstance;
 };
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class MaterialFactory

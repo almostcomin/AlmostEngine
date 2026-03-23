@@ -4,19 +4,19 @@
 #include "RHI/PipelineState.h"
 #include "RHI/FrameBuffer.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	struct GraphicsPipelineStateDesc;
 	struct FramebufferInfo;
 	class Device;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 	struct RenderSet;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class RenderContext
@@ -25,17 +25,17 @@ public:
 
 	RenderContext();
 	
-	void Init(const st::rhi::GraphicsPipelineStateDesc& baseDesc, const st::rhi::FramebufferInfo& fbInfo,
-		std::string baseDebugName, st::rhi::Device* device);
+	void Init(const alm::rhi::GraphicsPipelineStateDesc& baseDesc, const alm::rhi::FramebufferInfo& fbInfo,
+		std::string baseDebugName, alm::rhi::Device* device);
 	void Reset();
 
-	void OnFramebufferChanged(const st::rhi::FramebufferInfo& fbInfo);
+	void OnFramebufferChanged(const alm::rhi::FramebufferInfo& fbInfo);
 
 	void AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS);
 
 	rhi::IGraphicsPipelineState* GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const;
 
-	void DrawRenderSetInstanced(const st::gfx::RenderSet& renderSet, st::rhi::ICommandList* commandList) const;
+	void DrawRenderSetInstanced(const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const;
 
 	const std::string& GetDebugName() const { return m_BaseDebugName; }
 
@@ -54,10 +54,10 @@ private:
 		rhi::ShaderHandle PS;
 	};
 
-	st::rhi::GraphicsPipelineStateDesc m_BasePSODesc;
+	alm::rhi::GraphicsPipelineStateDesc m_BasePSODesc;
 	std::array<CullPSOs, (int)MaterialDomain::_Size> m_PSOs;
 	std::array<bool, (int)MaterialDomain::_Size> m_ValidDomains;
-	st::rhi::FramebufferInfo m_FBInfo;
+	alm::rhi::FramebufferInfo m_FBInfo;
 
 	std::string m_BaseDebugName;
 	rhi::Device* m_Device;

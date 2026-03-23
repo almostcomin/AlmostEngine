@@ -3,12 +3,12 @@
 #include "Core/RingBuffer.h"
 #include "RHI/Texture.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class Device;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class UploadBuffer
@@ -29,7 +29,7 @@ public:
 
 	std::pair<void*, uint64_t> RequestSpaceForTextureDataUpload(size_t size);
 	std::pair<void*, uint64_t> RequestSpaceForTextureDataUpload(
-		const st::rhi::TextureDesc& desc, const st::rhi::TextureSubresourceSet& subresources = st::rhi::AllSubresources);
+		const alm::rhi::TextureDesc& desc, const alm::rhi::TextureSubresourceSet& subresources = alm::rhi::AllSubresources);
 
 	std::pair<void*, uint64_t> RequestSpace(size_t size, size_t alignment);
 
@@ -56,7 +56,7 @@ private:
 	uint64_t m_Tail;
 	std::mutex m_RequestMutex;
 
-	st::RingBuffer<FrameBufferInfo, 8> m_FrameInfos;
+	alm::RingBuffer<FrameBufferInfo, 8> m_FrameInfos;
 	uint64_t m_CurrentFrameIdx;
 
 	rhi::Device* m_Device;

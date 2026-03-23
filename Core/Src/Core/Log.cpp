@@ -1,7 +1,7 @@
 #include "Core/CorePCH.h"
 #include "Core/Log.h"
 
-namespace st::log
+namespace alm::log
 {
 
 void DefaultCallback(Severity severity, std::string_view msg, std::string_view file, int line); // forward decl

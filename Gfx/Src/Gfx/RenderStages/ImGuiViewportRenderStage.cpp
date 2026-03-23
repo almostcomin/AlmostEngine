@@ -2,16 +2,16 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraphBuilder.h"
 
-st::gfx::ImGuiViewportRenderStage::ImGuiViewportRenderStage(ImGuiRenderStage* mainViewportRS, ImGuiViewport* imGuiViewport) :
+alm::gfx::ImGuiViewportRenderStage::ImGuiViewportRenderStage(ImGuiRenderStage* mainViewportRS, ImGuiViewport* imGuiViewport) :
 	m_MainRS{ mainViewportRS }, m_ImGuiViewport{ imGuiViewport }
 {}
 
-void st::gfx::ImGuiViewportRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::ImGuiViewportRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	builder.AddRenderTargetWriteDependency();
 }
 
-void st::gfx::ImGuiViewportRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::ImGuiViewportRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	auto fb = m_RenderGraph->GetFramebuffer();
 
@@ -27,11 +27,11 @@ void st::gfx::ImGuiViewportRenderStage::Render(st::rhi::CommandListHandle comman
 	commandList->EndRenderPass();
 }
 
-void st::gfx::ImGuiViewportRenderStage::OnAttached()
+void alm::gfx::ImGuiViewportRenderStage::OnAttached()
 {
 }
 
-void st::gfx::ImGuiViewportRenderStage::OnDetached()
+void alm::gfx::ImGuiViewportRenderStage::OnDetached()
 {
 	m_GeometryBuffers = {};
 }

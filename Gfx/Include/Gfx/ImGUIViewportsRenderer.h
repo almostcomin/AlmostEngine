@@ -1,11 +1,11 @@
 #pragma once
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class ImGuiRenderStage;
 	class DeviceManager;
 
-	void InitImGuiViewportsRenderer(std::shared_ptr<st::gfx::ImGuiRenderStage> mainRenderStage, st::gfx::DeviceManager* deviceManager);
+	void InitImGuiViewportsRenderer(std::shared_ptr<alm::gfx::ImGuiRenderStage> mainRenderStage, alm::gfx::DeviceManager* deviceManager);
 	void ReleaseImGuiViewportsRenderer();
 
 } // namespace st::gfx

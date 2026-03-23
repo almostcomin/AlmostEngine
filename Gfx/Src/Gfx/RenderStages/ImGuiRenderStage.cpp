@@ -10,17 +10,17 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_sdl3.h>
 
-void st::gfx::ImGuiRenderStage::OnAttached()
+void alm::gfx::ImGuiRenderStage::OnAttached()
 {
     Init();
 }
 
-void st::gfx::ImGuiRenderStage::OnDetached()
+void alm::gfx::ImGuiRenderStage::OnDetached()
 {
     Release();
 }
 
-void st::gfx::ImGuiRenderStage::BeginFullScreenWindow()
+void alm::gfx::ImGuiRenderStage::BeginFullScreenWindow()
 {
     ImGuiIO const& io = ImGui::GetIO();
 
@@ -33,13 +33,13 @@ void st::gfx::ImGuiRenderStage::BeginFullScreenWindow()
     ImGui::Begin("Full-screen window ", 0, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
 }
 
-void st::gfx::ImGuiRenderStage::EndFullScreenWindow()
+void alm::gfx::ImGuiRenderStage::EndFullScreenWindow()
 {
     ImGui::End();
     ImGui::PopStyleVar();
 }
 
-void st::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
+void alm::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
 {
     ImGuiIO const& io = ImGui::GetIO();
 
@@ -54,17 +54,17 @@ void st::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
     ImGui::TextUnformatted(text);
 }
 
-st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentVB(GeometryBuffers& geometryBuffers)
+alm::rhi::BufferOwner& alm::gfx::ImGuiRenderStage::GetCurrentVB(GeometryBuffers& geometryBuffers)
 {
     return geometryBuffers.VertexBuffer[GetDeviceManager()->GetFrameModuleIndex()];
 }
 
-st::rhi::BufferOwner& st::gfx::ImGuiRenderStage::GetCurrentIB(GeometryBuffers& geometryBuffers)
+alm::rhi::BufferOwner& alm::gfx::ImGuiRenderStage::GetCurrentIB(GeometryBuffers& geometryBuffers)
 {
     return geometryBuffers.IndexBuffer[GetDeviceManager()->GetFrameModuleIndex()];
 }
 
-void st::gfx::ImGuiRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::ImGuiRenderStage::Setup(RenderGraphBuilder& builder)
 {
     m_ImGuiTexture = builder.CreateColorTarget("ImGui", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
 
@@ -72,7 +72,7 @@ void st::gfx::ImGuiRenderStage::Setup(RenderGraphBuilder& builder)
         rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 }
 
-void st::gfx::ImGuiRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::ImGuiRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	auto& io = ImGui::GetIO();
 
@@ -100,10 +100,10 @@ void st::gfx::ImGuiRenderStage::Render(st::rhi::CommandListHandle commandList)
     commandList->EndRenderPass();
 }
 
-void st::gfx::ImGuiRenderStage::OnBackbufferResize()
+void alm::gfx::ImGuiRenderStage::OnBackbufferResize()
 {
-    st::gfx::DeviceManager* deviceManager = GetDeviceManager();
-    st::rhi::Device* device = deviceManager->GetDevice();
+    alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
+    alm::rhi::Device* device = deviceManager->GetDevice();
 
     // Recreate framebuffer
     {
@@ -119,11 +119,11 @@ void st::gfx::ImGuiRenderStage::OnBackbufferResize()
     }
 }
 
-bool st::gfx::ImGuiRenderStage::Init()
+bool alm::gfx::ImGuiRenderStage::Init()
 {
-    st::gfx::DeviceManager* deviceManager = GetDeviceManager();
-    st::rhi::Device* device = deviceManager->GetDevice();
-    st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+    alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
+    alm::rhi::Device* device = deviceManager->GetDevice();
+    alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 
     // Load shaders
     {
@@ -186,7 +186,7 @@ bool st::gfx::ImGuiRenderStage::Init()
     return true;
 }
 
-void st::gfx::ImGuiRenderStage::Release()
+void alm::gfx::ImGuiRenderStage::Release()
 {
     auto* device = GetDeviceManager()->GetDevice();
 
@@ -203,10 +203,10 @@ void st::gfx::ImGuiRenderStage::Release()
     device->ReleaseQueued(std::move(m_VS));
 }
 
-bool st::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandList)
+bool alm::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandList)
 {
-    st::gfx::DeviceManager* deviceManager = GetDeviceManager();
-    st::gfx::UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
+    alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
+    alm::gfx::UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
     auto* device = deviceManager->GetDevice();
     ImGuiIO& io = ImGui::GetIO();
     ImTextureData* texData = io.Fonts->TexRef._TexData;
@@ -234,7 +234,7 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandList
         commandList->PushBarrier(
             rhi::Barrier::Texture(m_FontTexture.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 
-        m_GuiFontTexture = st::make_unique_with_weak<ImGuiTexture>(m_FontTexture.get_weak(), ImGuiTexFlags_None);
+        m_GuiFontTexture = alm::make_unique_with_weak<ImGuiTexture>(m_FontTexture.get_weak(), ImGuiTexFlags_None);
         io.Fonts->SetTexID((ImTextureID)m_GuiFontTexture.get());
         io.Fonts->TexRef._TexData->Status = ImTextureStatus_OK;
     }
@@ -249,7 +249,7 @@ bool st::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandList
     return true;
 }
 
-bool st::gfx::ImGuiRenderStage::UpdateGeometry(ImDrawData* drawData, GeometryBuffers& geometryBuffers)
+bool alm::gfx::ImGuiRenderStage::UpdateGeometry(ImDrawData* drawData, GeometryBuffers& geometryBuffers)
 {
     rhi::BufferOwner& currentVB = GetCurrentVB(geometryBuffers);
     rhi::BufferOwner& currentIB = GetCurrentIB(geometryBuffers);
@@ -291,9 +291,9 @@ bool st::gfx::ImGuiRenderStage::UpdateGeometry(ImDrawData* drawData, GeometryBuf
     return true;
 }
 
-bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
+bool alm::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer)
 {
-    st::gfx::DeviceManager* deviceManager = GetDeviceManager();
+    alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
 
     if (!buffer || size_t(buffer->GetDesc().sizeBytes) < requiredSize)
     {
@@ -318,7 +318,7 @@ bool st::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size_
     return true;
 }
 
-void st::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList)
+void alm::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList)
 {
     if (drawData->TotalIdxCount == 0)
         return; // nothing to render
@@ -332,7 +332,7 @@ void st::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuf
 
     const float2 invDisplaySize = { 1.0f / drawData->DisplaySize.x, 1.0f / drawData->DisplaySize.y };
     const float2 vpClipOffset = { drawData->DisplayPos.x, drawData->DisplayPos.y };
-    const st::rhi::Viewport vp = {
+    const alm::rhi::Viewport vp = {
         drawData->DisplaySize.x * drawData->FramebufferScale.x,
         drawData->DisplaySize.y * drawData->FramebufferScale.y
     };
@@ -415,15 +415,15 @@ void st::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuf
     }
 }
 
-void st::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, ImGuiTexFlags flags)
+void alm::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, ImGuiTexFlags flags)
 {
     auto* imGuiTex = new ImGuiTexture{ tex, flags };
-    m_CurrentTextures.push_back(st::unique<ImGuiTexture>{ imGuiTex });
+    m_CurrentTextures.push_back(alm::unique<ImGuiTexture>{ imGuiTex });
 
     ImGui::Image(ImTextureRef{ imGuiTex }, ImVec2{ size.x, size.y }, ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
 }
 
-bool st::gfx::ImGuiRenderStage::ShowToggleButton(const char* label, bool* v)
+bool alm::gfx::ImGuiRenderStage::ShowToggleButton(const char* label, bool* v)
 {
     bool newV = *v;
     if (*v)

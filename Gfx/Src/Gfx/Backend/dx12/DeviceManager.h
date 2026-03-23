@@ -5,12 +5,12 @@
 #include "RHI/Texture.h"
 #include "Core/ComPtr.h"
 
-namespace st::gfx::dx12
+namespace alm::gfx::dx12
 {
 
 struct ViewportSwapChain;
 
-class DeviceManager : public st::gfx::DeviceManager
+class DeviceManager : public alm::gfx::DeviceManager
 {
 public:
 
@@ -27,11 +27,11 @@ public:
 
 	glm::ivec2 GetWindowDimensions() const override;
 
-	st::rhi::FramebufferHandle GetViewportCurrentFramebuffer(ViewportSwapChainId id) override;
+	alm::rhi::FramebufferHandle GetViewportCurrentFramebuffer(ViewportSwapChainId id) override;
 	uint32_t GetViewportCurrentBackBufferIndex(ViewportSwapChainId id) override;
 	uint32_t GetCurrentBackBufferIndex() const override;
-	st::rhi::TextureHandle GetCurrentBackBuffer() override;
-	st::rhi::TextureHandle GetBackBuffer(uint32_t index) override;
+	alm::rhi::TextureHandle GetCurrentBackBuffer() override;
+	alm::rhi::TextureHandle GetBackBuffer(uint32_t index) override;
 
 	ViewportSwapChainId CreateViewportSwapChain(const ViewportSwapChainInitParams& initParams, const std::string& debugName) override;
 	bool ResizeViewportSwapChain(ViewportSwapChainId id) override;
@@ -75,7 +75,7 @@ private:
 	DXGI_SWAP_CHAIN_DESC1		m_SwapChainDesc;
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC	m_FullScreenDesc;
 	bool						m_TearingSupported;
-	std::vector<st::rhi::TextureOwner> m_SwapChainBuffers;
+	std::vector<alm::rhi::TextureOwner> m_SwapChainBuffers;
 
 	ComPtr<ID3D12Fence>			m_FrameFence;
 	std::vector<std::pair<HANDLE, uint64_t>> m_FrameFenceEvents;

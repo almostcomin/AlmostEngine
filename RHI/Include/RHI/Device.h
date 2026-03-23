@@ -11,7 +11,7 @@
 #include "RHI/PipelineState.h"
 #include "RHI/Common.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
     using GPUBindingHandle = uint64_t;
 
@@ -102,8 +102,8 @@ namespace st::rhi
         virtual void ReleaseImmediatelyInternal(IResource* resource) = 0;
         virtual void ReleaseQueuedInternal(IResource* resource) = 0;
 
-        inline static st::unique<IResource> MakeIResourceUnique(IResource* r) {
-            return st::unique<IResource>{ r, [](void* p) { static_cast<IResource*>(p)->m_Device->ReleaseQueuedInternal(static_cast<IResource*>(p)); }};
+        inline static alm::unique<IResource> MakeIResourceUnique(IResource* r) {
+            return alm::unique<IResource>{ r, [](void* p) { static_cast<IResource*>(p)->m_Device->ReleaseQueuedInternal(static_cast<IResource*>(p)); }};
         }
 
         inline static void ResourceDeleter(IResource* p) {

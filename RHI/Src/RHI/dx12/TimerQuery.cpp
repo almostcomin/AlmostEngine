@@ -2,7 +2,7 @@
 #include "RHI/dx12/Utils.h"
 #include "RHI/dx12/GpuDevice.h"
 
-float st::rhi::dx12::TimerQuery::GetQueryTimeMs()
+float alm::rhi::dx12::TimerQuery::GetQueryTimeMs()
 {
     if (!m_Resolved)
     {
@@ -15,7 +15,7 @@ float st::rhi::dx12::TimerQuery::GetQueryTimeMs()
         }
 
         uint64_t frequency;
-        auto* device = st::checked_cast<GpuDevice*>(GetDevice());
+        auto* device = alm::checked_cast<GpuDevice*>(GetDevice());
         device->GetQueue(QueueType::Graphics)->d3d12Queue->GetTimestampFrequency(&frequency);
 
         D3D12_RANGE bufferReadRange = {
@@ -39,7 +39,7 @@ float st::rhi::dx12::TimerQuery::GetQueryTimeMs()
     return m_Time;
 }
 
-bool st::rhi::dx12::TimerQuery::Poll()
+bool alm::rhi::dx12::TimerQuery::Poll()
 {
     if (!m_EndExecuted)
         return false;
@@ -56,13 +56,13 @@ bool st::rhi::dx12::TimerQuery::Poll()
     return false;
 }
 
-void st::rhi::dx12::TimerQuery::OnBeginExecuted()
+void alm::rhi::dx12::TimerQuery::OnBeginExecuted()
 {
     assert(!m_BeginExecuted);
     m_BeginExecuted = true;
 }
 
-void st::rhi::dx12::TimerQuery::OnEndExecuted(Queue& queue)
+void alm::rhi::dx12::TimerQuery::OnEndExecuted(Queue& queue)
 {
     assert(!m_EndExecuted);
 

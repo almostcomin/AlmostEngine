@@ -5,103 +5,103 @@
 
 namespace
 {
-	D3D12_BLEND GetBlend(st::rhi::BlendFactor factor)
+	D3D12_BLEND GetBlend(alm::rhi::BlendFactor factor)
 	{
 		switch (factor)
 		{
-		case st::rhi::BlendFactor::Zero: return D3D12_BLEND_ZERO;
-		case st::rhi::BlendFactor::One: return D3D12_BLEND_ONE;
-		case st::rhi::BlendFactor::SrcColor: return D3D12_BLEND_SRC_COLOR;
-		case st::rhi::BlendFactor::InvSrcColor: return D3D12_BLEND_INV_SRC_COLOR;
-		case st::rhi::BlendFactor::SrcAlpha: return D3D12_BLEND_SRC_ALPHA;
-		case st::rhi::BlendFactor::InvSrcAlpha: return D3D12_BLEND_INV_SRC_ALPHA;
-		case st::rhi::BlendFactor::DstAlpha: return D3D12_BLEND_DEST_ALPHA;
-		case st::rhi::BlendFactor::InvDstAlpha: return D3D12_BLEND_INV_DEST_ALPHA;
-		case st::rhi::BlendFactor::DstColor: return D3D12_BLEND_DEST_COLOR;
-		case st::rhi::BlendFactor::InvDstColor: return D3D12_BLEND_INV_DEST_COLOR;
-		case st::rhi::BlendFactor::SrcAlphaSaturate: return D3D12_BLEND_SRC_ALPHA_SAT;
-		case st::rhi::BlendFactor::ConstantColor: return D3D12_BLEND_BLEND_FACTOR;
-		case st::rhi::BlendFactor::InvConstantColor: return D3D12_BLEND_INV_BLEND_FACTOR;
-		case st::rhi::BlendFactor::Src1Color: return D3D12_BLEND_SRC1_COLOR;
-		case st::rhi::BlendFactor::InvSrc1Color: return D3D12_BLEND_INV_SRC1_COLOR;
-		case st::rhi::BlendFactor::Src1Alpha: return D3D12_BLEND_SRC1_ALPHA;
-		case st::rhi::BlendFactor::InvSrc1Alpha: return D3D12_BLEND_INV_SRC1_ALPHA;
+		case alm::rhi::BlendFactor::Zero: return D3D12_BLEND_ZERO;
+		case alm::rhi::BlendFactor::One: return D3D12_BLEND_ONE;
+		case alm::rhi::BlendFactor::SrcColor: return D3D12_BLEND_SRC_COLOR;
+		case alm::rhi::BlendFactor::InvSrcColor: return D3D12_BLEND_INV_SRC_COLOR;
+		case alm::rhi::BlendFactor::SrcAlpha: return D3D12_BLEND_SRC_ALPHA;
+		case alm::rhi::BlendFactor::InvSrcAlpha: return D3D12_BLEND_INV_SRC_ALPHA;
+		case alm::rhi::BlendFactor::DstAlpha: return D3D12_BLEND_DEST_ALPHA;
+		case alm::rhi::BlendFactor::InvDstAlpha: return D3D12_BLEND_INV_DEST_ALPHA;
+		case alm::rhi::BlendFactor::DstColor: return D3D12_BLEND_DEST_COLOR;
+		case alm::rhi::BlendFactor::InvDstColor: return D3D12_BLEND_INV_DEST_COLOR;
+		case alm::rhi::BlendFactor::SrcAlphaSaturate: return D3D12_BLEND_SRC_ALPHA_SAT;
+		case alm::rhi::BlendFactor::ConstantColor: return D3D12_BLEND_BLEND_FACTOR;
+		case alm::rhi::BlendFactor::InvConstantColor: return D3D12_BLEND_INV_BLEND_FACTOR;
+		case alm::rhi::BlendFactor::Src1Color: return D3D12_BLEND_SRC1_COLOR;
+		case alm::rhi::BlendFactor::InvSrc1Color: return D3D12_BLEND_INV_SRC1_COLOR;
+		case alm::rhi::BlendFactor::Src1Alpha: return D3D12_BLEND_SRC1_ALPHA;
+		case alm::rhi::BlendFactor::InvSrc1Alpha: return D3D12_BLEND_INV_SRC1_ALPHA;
 		default:
 			assert(0);
 			return D3D12_BLEND_ZERO;
 		};
 	}
 
-	D3D12_BLEND_OP GetBlendOp(st::rhi::BlendOp op)
+	D3D12_BLEND_OP GetBlendOp(alm::rhi::BlendOp op)
 	{
 		switch (op)
 		{
-		case st::rhi::BlendOp::Add: return D3D12_BLEND_OP_ADD;
-		case st::rhi::BlendOp::Subtract: return D3D12_BLEND_OP_SUBTRACT;
-		case st::rhi::BlendOp::ReverseSubtract: return D3D12_BLEND_OP_REV_SUBTRACT;
-		case st::rhi::BlendOp::Min: return D3D12_BLEND_OP_MIN;
-		case st::rhi::BlendOp::Max: return D3D12_BLEND_OP_MAX;
+		case alm::rhi::BlendOp::Add: return D3D12_BLEND_OP_ADD;
+		case alm::rhi::BlendOp::Subtract: return D3D12_BLEND_OP_SUBTRACT;
+		case alm::rhi::BlendOp::ReverseSubtract: return D3D12_BLEND_OP_REV_SUBTRACT;
+		case alm::rhi::BlendOp::Min: return D3D12_BLEND_OP_MIN;
+		case alm::rhi::BlendOp::Max: return D3D12_BLEND_OP_MAX;
 		default:
 			assert(0);
 			return D3D12_BLEND_OP_ADD;
 		}
 	}
 
-	D3D12_FILL_MODE GetFillMode(st::rhi::FillMode mode)
+	D3D12_FILL_MODE GetFillMode(alm::rhi::FillMode mode)
 	{
 		switch (mode)
 		{
-		case st::rhi::FillMode::Solid: return D3D12_FILL_MODE_SOLID;
-		case st::rhi::FillMode::Wireframe: return D3D12_FILL_MODE_WIREFRAME;
+		case alm::rhi::FillMode::Solid: return D3D12_FILL_MODE_SOLID;
+		case alm::rhi::FillMode::Wireframe: return D3D12_FILL_MODE_WIREFRAME;
 		default:
 			assert(0);
 			return D3D12_FILL_MODE_SOLID;
 		}
 	}
 
-	D3D12_CULL_MODE GetCullMode(st::rhi::CullMode mode)
+	D3D12_CULL_MODE GetCullMode(alm::rhi::CullMode mode)
 	{
 		switch (mode)
 		{
-		case st::rhi::CullMode::Back: return D3D12_CULL_MODE_BACK;
-		case st::rhi::CullMode::Front: return D3D12_CULL_MODE_FRONT;
-		case st::rhi::CullMode::None: return D3D12_CULL_MODE_NONE;
+		case alm::rhi::CullMode::Back: return D3D12_CULL_MODE_BACK;
+		case alm::rhi::CullMode::Front: return D3D12_CULL_MODE_FRONT;
+		case alm::rhi::CullMode::None: return D3D12_CULL_MODE_NONE;
 		default:
 			assert(0);
 			return D3D12_CULL_MODE_BACK;
 		}
 	}
 
-	D3D12_COMPARISON_FUNC GetComparisonFunc(st::rhi::ComparisonFunc func)
+	D3D12_COMPARISON_FUNC GetComparisonFunc(alm::rhi::ComparisonFunc func)
 	{
 		switch (func)
 		{
-		case st::rhi::ComparisonFunc::Never: return D3D12_COMPARISON_FUNC_NEVER;
-		case st::rhi::ComparisonFunc::Less: return D3D12_COMPARISON_FUNC_LESS;
-		case st::rhi::ComparisonFunc::Equal: return D3D12_COMPARISON_FUNC_EQUAL;
-		case st::rhi::ComparisonFunc::LessEqual: return D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		case st::rhi::ComparisonFunc::Greater: return D3D12_COMPARISON_FUNC_GREATER;
-		case st::rhi::ComparisonFunc::NotEqual: return D3D12_COMPARISON_FUNC_NOT_EQUAL;
-		case st::rhi::ComparisonFunc::GreaterEqual: return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-		case st::rhi::ComparisonFunc::Always: return D3D12_COMPARISON_FUNC_ALWAYS;
+		case alm::rhi::ComparisonFunc::Never: return D3D12_COMPARISON_FUNC_NEVER;
+		case alm::rhi::ComparisonFunc::Less: return D3D12_COMPARISON_FUNC_LESS;
+		case alm::rhi::ComparisonFunc::Equal: return D3D12_COMPARISON_FUNC_EQUAL;
+		case alm::rhi::ComparisonFunc::LessEqual: return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		case alm::rhi::ComparisonFunc::Greater: return D3D12_COMPARISON_FUNC_GREATER;
+		case alm::rhi::ComparisonFunc::NotEqual: return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+		case alm::rhi::ComparisonFunc::GreaterEqual: return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+		case alm::rhi::ComparisonFunc::Always: return D3D12_COMPARISON_FUNC_ALWAYS;
 		default:
 			assert(0);
 			return D3D12_COMPARISON_FUNC_NEVER;
 		}
 	}
 
-	D3D12_STENCIL_OP GetStencilOp(st::rhi::StencilOp op)
+	D3D12_STENCIL_OP GetStencilOp(alm::rhi::StencilOp op)
 	{
 		switch (op)
 		{
-		case st::rhi::StencilOp::Keep: return D3D12_STENCIL_OP_KEEP;
-		case st::rhi::StencilOp::Zero: return D3D12_STENCIL_OP_ZERO;
-		case st::rhi::StencilOp::Replace: return D3D12_STENCIL_OP_REPLACE;
-		case st::rhi::StencilOp::IncrementAndClamp: return D3D12_STENCIL_OP_INCR_SAT;
-		case st::rhi::StencilOp::DecrementAndClamp: return D3D12_STENCIL_OP_DECR_SAT;
-		case st::rhi::StencilOp::Invert: return D3D12_STENCIL_OP_INVERT;
-		case st::rhi::StencilOp::IncrementAndWrap: return D3D12_STENCIL_OP_INCR;
-		case st::rhi::StencilOp::DecrementAndWrap: return D3D12_STENCIL_OP_DECR;
+		case alm::rhi::StencilOp::Keep: return D3D12_STENCIL_OP_KEEP;
+		case alm::rhi::StencilOp::Zero: return D3D12_STENCIL_OP_ZERO;
+		case alm::rhi::StencilOp::Replace: return D3D12_STENCIL_OP_REPLACE;
+		case alm::rhi::StencilOp::IncrementAndClamp: return D3D12_STENCIL_OP_INCR_SAT;
+		case alm::rhi::StencilOp::DecrementAndClamp: return D3D12_STENCIL_OP_DECR_SAT;
+		case alm::rhi::StencilOp::Invert: return D3D12_STENCIL_OP_INVERT;
+		case alm::rhi::StencilOp::IncrementAndWrap: return D3D12_STENCIL_OP_INCR;
+		case alm::rhi::StencilOp::DecrementAndWrap: return D3D12_STENCIL_OP_DECR;
 		default:
 			assert(0);
 			return D3D12_STENCIL_OP_KEEP;
@@ -110,7 +110,7 @@ namespace
 
 } // anonymous namespace
 
-D3D12_BLEND_DESC st::rhi::dx12::GetBlendDesc(const st::rhi::BlendState& desc)
+D3D12_BLEND_DESC alm::rhi::dx12::GetBlendDesc(const alm::rhi::BlendState& desc)
 {
 	D3D12_BLEND_DESC ret = {};
 	
@@ -133,7 +133,7 @@ D3D12_BLEND_DESC st::rhi::dx12::GetBlendDesc(const st::rhi::BlendState& desc)
 	return ret;
 }
 
-D3D12_RASTERIZER_DESC st::rhi::dx12::GetRasterizerState(const st::rhi::RasterizerState& rasterState)
+D3D12_RASTERIZER_DESC alm::rhi::dx12::GetRasterizerState(const alm::rhi::RasterizerState& rasterState)
 {
 	D3D12_RASTERIZER_DESC ret = {};
 
@@ -152,7 +152,7 @@ D3D12_RASTERIZER_DESC st::rhi::dx12::GetRasterizerState(const st::rhi::Rasterize
 	return ret;
 }
 
-D3D12_DEPTH_STENCIL_DESC st::rhi::dx12::GetDepthStencilState(const st::rhi::DepthStencilState& depthStencilState)
+D3D12_DEPTH_STENCIL_DESC alm::rhi::dx12::GetDepthStencilState(const alm::rhi::DepthStencilState& depthStencilState)
 {
 	D3D12_DEPTH_STENCIL_DESC ret = {};
 
@@ -170,25 +170,25 @@ D3D12_DEPTH_STENCIL_DESC st::rhi::dx12::GetDepthStencilState(const st::rhi::Dept
 	return ret;
 }
 
-D3D12_PRIMITIVE_TOPOLOGY_TYPE st::rhi::dx12::GetPrimitiveType(st::rhi::PrimitiveTopology primTopo)
+D3D12_PRIMITIVE_TOPOLOGY_TYPE alm::rhi::dx12::GetPrimitiveType(alm::rhi::PrimitiveTopology primTopo)
 {
 	switch (primTopo)
 	{
-	case st::rhi::PrimitiveTopology::PointList: 
+	case alm::rhi::PrimitiveTopology::PointList: 
 		return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 
-	case st::rhi::PrimitiveTopology::LineList:
-	case st::rhi::PrimitiveTopology::LineStrip: 
+	case alm::rhi::PrimitiveTopology::LineList:
+	case alm::rhi::PrimitiveTopology::LineStrip: 
 		return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 
-	case st::rhi::PrimitiveTopology::TriangleList:
-	case st::rhi::PrimitiveTopology::TriangleStrip:
-	case st::rhi::PrimitiveTopology::TriangleFan:
-	case st::rhi::PrimitiveTopology::TriangleListWithAdjacency:
-	case st::rhi::PrimitiveTopology::TriangleStripWithAdjacency: 
+	case alm::rhi::PrimitiveTopology::TriangleList:
+	case alm::rhi::PrimitiveTopology::TriangleStrip:
+	case alm::rhi::PrimitiveTopology::TriangleFan:
+	case alm::rhi::PrimitiveTopology::TriangleListWithAdjacency:
+	case alm::rhi::PrimitiveTopology::TriangleStripWithAdjacency: 
 		return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-	case st::rhi::PrimitiveTopology::PatchList: 
+	case alm::rhi::PrimitiveTopology::PatchList: 
 		return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 
 	default:
@@ -197,28 +197,28 @@ D3D12_PRIMITIVE_TOPOLOGY_TYPE st::rhi::dx12::GetPrimitiveType(st::rhi::Primitive
 	}
 }
 
-D3D12_PRIMITIVE_TOPOLOGY st::rhi::dx12::GetPrimitiveTopology(st::rhi::PrimitiveTopology primTopo, uint32_t controlPoints)
+D3D12_PRIMITIVE_TOPOLOGY alm::rhi::dx12::GetPrimitiveTopology(alm::rhi::PrimitiveTopology primTopo, uint32_t controlPoints)
 {
 	switch (primTopo)
 	{
-	case st::rhi::PrimitiveTopology::PointList:
+	case alm::rhi::PrimitiveTopology::PointList:
 		return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-	case st::rhi::PrimitiveTopology::LineList:
+	case alm::rhi::PrimitiveTopology::LineList:
 		return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-	case st::rhi::PrimitiveTopology::LineStrip:
+	case alm::rhi::PrimitiveTopology::LineStrip:
 		return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-	case st::rhi::PrimitiveTopology::TriangleList:
+	case alm::rhi::PrimitiveTopology::TriangleList:
 		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	case st::rhi::PrimitiveTopology::TriangleStrip:
+	case alm::rhi::PrimitiveTopology::TriangleStrip:
 		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-	case st::rhi::PrimitiveTopology::TriangleFan:
+	case alm::rhi::PrimitiveTopology::TriangleFan:
 		assert(0);
 		return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
-	case st::rhi::PrimitiveTopology::TriangleListWithAdjacency:
+	case alm::rhi::PrimitiveTopology::TriangleListWithAdjacency:
 		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ;
-	case st::rhi::PrimitiveTopology::TriangleStripWithAdjacency:
+	case alm::rhi::PrimitiveTopology::TriangleStripWithAdjacency:
 		return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ;
-	case st::rhi::PrimitiveTopology::PatchList:
+	case alm::rhi::PrimitiveTopology::PatchList:
 		if (controlPoints == 0 || controlPoints > 32)
 		{
 			assert(0);
@@ -231,20 +231,20 @@ D3D12_PRIMITIVE_TOPOLOGY st::rhi::dx12::GetPrimitiveTopology(st::rhi::PrimitiveT
 	}
 }
 
-D3D12_RENDER_PASS_BEGINNING_ACCESS st::rhi::dx12::GetRenderPassBeginningAccess(st::rhi::RenderPassOp::LoadOp op, const st::rhi::ClearValue& clearValue, st::rhi::Format format)
+D3D12_RENDER_PASS_BEGINNING_ACCESS alm::rhi::dx12::GetRenderPassBeginningAccess(alm::rhi::RenderPassOp::LoadOp op, const alm::rhi::ClearValue& clearValue, alm::rhi::Format format)
 {
 	D3D12_RENDER_PASS_BEGINNING_ACCESS ret = {};
 	switch (op)
 	{
-	case st::rhi::RenderPassOp::LoadOp::NoAccess:
+	case alm::rhi::RenderPassOp::LoadOp::NoAccess:
 		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS;
 		break;
-	case st::rhi::RenderPassOp::LoadOp::Load: 
+	case alm::rhi::RenderPassOp::LoadOp::Load: 
 		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE;
 		break;
-	case st::rhi::RenderPassOp::LoadOp::Clear:
+	case alm::rhi::RenderPassOp::LoadOp::Clear:
 		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
-		ret.Clear.ClearValue.Format = st::rhi::GetDxgiFormatMapping(format).typelessFormat;
+		ret.Clear.ClearValue.Format = alm::rhi::GetDxgiFormatMapping(format).typelessFormat;
 		if (IsDepthFormat(format))
 		{
 			ret.Clear.ClearValue.DepthStencil.Depth = clearValue.depthStencil.depth;
@@ -258,7 +258,7 @@ D3D12_RENDER_PASS_BEGINNING_ACCESS st::rhi::dx12::GetRenderPassBeginningAccess(s
 			ret.Clear.ClearValue.Color[3] = clearValue.color.w;
 		}
 		break;
-	case st::rhi::RenderPassOp::LoadOp::Discard:
+	case alm::rhi::RenderPassOp::LoadOp::Discard:
 		ret.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD;
 		break;
 	default:
@@ -268,18 +268,18 @@ D3D12_RENDER_PASS_BEGINNING_ACCESS st::rhi::dx12::GetRenderPassBeginningAccess(s
 	return ret;
 }
 
-D3D12_RENDER_PASS_ENDING_ACCESS st::rhi::dx12::GetRenderPassEngindAccess(st::rhi::RenderPassOp::StoreOp op)
+D3D12_RENDER_PASS_ENDING_ACCESS alm::rhi::dx12::GetRenderPassEngindAccess(alm::rhi::RenderPassOp::StoreOp op)
 {
 	D3D12_RENDER_PASS_ENDING_ACCESS ret = {};
 	switch (op)
 	{
-	case st::rhi::RenderPassOp::StoreOp::NoAccess:
+	case alm::rhi::RenderPassOp::StoreOp::NoAccess:
 		ret.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS;
 		break;
-	case st::rhi::RenderPassOp::StoreOp::Store:
+	case alm::rhi::RenderPassOp::StoreOp::Store:
 		ret.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
 		break;
-	case st::rhi::RenderPassOp::StoreOp::Discard:
+	case alm::rhi::RenderPassOp::StoreOp::Discard:
 		ret.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
 		break;
 	default:
@@ -289,7 +289,7 @@ D3D12_RENDER_PASS_ENDING_ACCESS st::rhi::dx12::GetRenderPassEngindAccess(st::rhi
 	return ret;
 }
 
-void st::rhi::dx12::WaitForFence(ID3D12Fence* fence, uint64_t value, HANDLE event)
+void alm::rhi::dx12::WaitForFence(ID3D12Fence* fence, uint64_t value, HANDLE event)
 {
 	// Test if the fence has been reached
 	if (fence->GetCompletedValue() < value)

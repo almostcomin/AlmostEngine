@@ -14,11 +14,11 @@
 #include "Gfx/Material.h"
 #include "Gfx/RenderGraph.h"
 
-st::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
+alm::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	RenderView{ nullptr, deviceManager, debugName }
 {}
 
-st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* deviceManager, const char* debugName) :
+alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* deviceManager, const char* debugName) :
 	m_ViewportSwapChainId{ viewportId },
 	m_TimeDeltaSec{ 0.f },
 	m_DebugName{ debugName },
@@ -39,26 +39,26 @@ st::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* d
 
 	m_SceneConstants.InitUniformBuffer(sizeof(interop::SceneConstants), m_DeviceManager, "SceneUniformBuffer");
 
-	m_CameraVisibleBuffer.InitRaw(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
+	m_CameraVisibleBuffer.InitRaw(alm::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
 		m_DeviceManager, "CameraVisibleIndices");
-	m_ShadowMapVisibleBuffer.InitRaw(st::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
+	m_ShadowMapVisibleBuffer.InitRaw(alm::rhi::BufferShaderUsage::ReadOnly, 0, rhi::ResourceState::SHADER_RESOURCE,
 		m_DeviceManager, "ShadowMapVisibleIndices");
-	m_DirLightsVisibleBuffer.InitStructured(st::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::DirLightData),
+	m_DirLightsVisibleBuffer.InitStructured(alm::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::DirLightData),
 		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "DirLightsVisibleBuffer");
-	m_PointLightsVisibleBuffer.InitStructured(st::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::PointLightData),
+	m_PointLightsVisibleBuffer.InitStructured(alm::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::PointLightData),
 		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "PointLightsVisibleBuffer");
-	m_SpotLightsVisibleBuffer.InitStructured(st::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::SpotLightData),
+	m_SpotLightsVisibleBuffer.InitStructured(alm::rhi::BufferShaderUsage::ReadOnly, 0, sizeof(interop::SpotLightData),
 		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "SpotLightsVisibleBuffer");
 
-	m_RenderGraph = st::make_unique_with_weak<RenderGraph>(this, debugName);
+	m_RenderGraph = alm::make_unique_with_weak<RenderGraph>(this, debugName);
 }
 
-st::gfx::RenderView::~RenderView()
+alm::gfx::RenderView::~RenderView()
 {
 	m_RenderGraph.reset();
 }
 
-void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
+void alm::gfx::RenderView::SetScene(alm::weak<Scene> scene)
 {
 	m_CameraVisibleBuffer.Reset();
 	m_ShadowMapVisibleBuffer.Reset();
@@ -71,17 +71,17 @@ void st::gfx::RenderView::SetScene(st::weak<Scene> scene)
 	m_RenderGraph->OnSceneChanged();
 }
 
-void st::gfx::RenderView::SetCamera(std::shared_ptr<st::gfx::Camera> camera)
+void alm::gfx::RenderView::SetCamera(std::shared_ptr<alm::gfx::Camera> camera)
 {
 	m_Camera = camera;
 }
 
-void st::gfx::RenderView::SetOffscreenFrameBuffer(st::rhi::FramebufferHandle frameBuffer)
+void alm::gfx::RenderView::SetOffscreenFrameBuffer(alm::rhi::FramebufferHandle frameBuffer)
 {
 	m_OffscreenFramebuffer = frameBuffer;
 }
 
-st::rhi::FramebufferHandle st::gfx::RenderView::GetFramebuffer()
+alm::rhi::FramebufferHandle alm::gfx::RenderView::GetFramebuffer()
 {
 	if (m_OffscreenFramebuffer)
 	{
@@ -94,27 +94,27 @@ st::rhi::FramebufferHandle st::gfx::RenderView::GetFramebuffer()
 	return m_DeviceManager->GetCurrentFramebuffer();
 }
 
-st::rhi::TextureHandle st::gfx::RenderView::GetBackBuffer(int idx)
+alm::rhi::TextureHandle alm::gfx::RenderView::GetBackBuffer(int idx)
 {
 	return GetFramebuffer()->GetBackBuffer(idx);
 }
 
-st::rhi::BufferUniformView st::gfx::RenderView::GetSceneBufferUniformView()
+alm::rhi::BufferUniformView alm::gfx::RenderView::GetSceneBufferUniformView()
 {
 	return m_SceneConstants.GetUniformView();
 }
 
-st::rhi::BufferReadOnlyView st::gfx::RenderView::GetCameraVisiblityBufferROView()
+alm::rhi::BufferReadOnlyView alm::gfx::RenderView::GetCameraVisiblityBufferROView()
 {
 	return m_CameraVisibleBuffer.GetReadOnlyView();
 }
 
-st::rhi::BufferReadOnlyView st::gfx::RenderView::GetShadowMapVisibilityBufferROView()
+alm::rhi::BufferReadOnlyView alm::gfx::RenderView::GetShadowMapVisibilityBufferROView()
 {
 	return m_ShadowMapVisibleBuffer.GetReadOnlyView();
 }
 
-void st::gfx::RenderView::OnWindowSizeChanged()
+void alm::gfx::RenderView::OnWindowSizeChanged()
 {
 	// Actually we are only interested in this if we are rendering to the main swap chain BB
 	if (!m_OffscreenFramebuffer && !m_ViewportSwapChainId)
@@ -124,9 +124,9 @@ void st::gfx::RenderView::OnWindowSizeChanged()
 	}
 }
 
-void st::gfx::RenderView::Render(float timeDeltaSec)
+void alm::gfx::RenderView::Render(float timeDeltaSec)
 {
-	st::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
+	alm::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
 	if (!frameBuffer)
 	{
 		LOG_ERROR("No frame buffer specified. Nothing to render");
@@ -159,7 +159,7 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 	// Done with beginCommandList
 	beginCommandList->EndMarker();
 	beginCommandList->Close();
-	m_DeviceManager->GetDevice()->ExecuteCommandList(beginCommandList, st::rhi::QueueType::Graphics);
+	m_DeviceManager->GetDevice()->ExecuteCommandList(beginCommandList, alm::rhi::QueueType::Graphics);
 
 	// Render the stages
 	m_RenderGraph->Render(GetFramebuffer());
@@ -181,10 +181,10 @@ void st::gfx::RenderView::Render(float timeDeltaSec)
 	endCommandList->Close();
 
 	// Done with endCommandList
-	m_DeviceManager->GetDevice()->ExecuteCommandList(endCommandList, st::rhi::QueueType::Graphics);
+	m_DeviceManager->GetDevice()->ExecuteCommandList(endCommandList, alm::rhi::QueueType::Graphics);
 }
 
-void st::gfx::RenderView::UpdateSceneConstantBuffer()
+void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 {
 	interop::SceneConstants* sceneShaderConstant = (interop::SceneConstants*)m_SceneConstants.Map();
 	*sceneShaderConstant = {};
@@ -232,7 +232,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 		// Lights
 		{
 			const Scene::SunParams& sunParams = m_Scene->GetSunParams();
-			const float3 sunDir = st::ElevationAzimuthRadToDir(
+			const float3 sunDir = alm::ElevationAzimuthRadToDir(
 				glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
 			sceneShaderConstant->mainDirLight.viewSpaceDirection = m_Camera->GetViewMatrix() * float4 { sunDir, 0.f };
@@ -257,7 +257,7 @@ void st::gfx::RenderView::UpdateSceneConstantBuffer()
 	m_SceneConstants.Unmap();
 }
 
-void st::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
+void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 {
 	m_CameraVisibleSet.Elements.clear();
 	m_CameraVisibleBounds.reset();
@@ -272,7 +272,7 @@ void st::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList);
 }
 
-void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
+void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 {
 	m_ShadowMapVisibleSet.Elements.clear();
 	m_ShadowMapWoldToClipMatrix = {};
@@ -282,11 +282,11 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 		return;
 
 	const Scene::SunParams& sunParams = m_Scene->GetSunParams();
-	const float3 sunDir = st::ElevationAzimuthRadToDir(
+	const float3 sunDir = alm::ElevationAzimuthRadToDir(
 		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
-	const st::math::aabox3f& worldBounds = m_Scene->GetWorldBounds(BoundsType::Mesh);
-	const st::math::aabox3f& visibleSceneBounds = m_CameraVisibleBounds;
+	const alm::math::aabox3f& worldBounds = m_Scene->GetWorldBounds(BoundsType::Mesh);
+	const alm::math::aabox3f& visibleSceneBounds = m_CameraVisibleBounds;
 	const float3 worldCenter = worldBounds.center();
 	const float3 worldExtents = worldBounds.extents();
 
@@ -358,7 +358,7 @@ void st::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	}
 }
 
-void st::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList)
+void alm::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList)
 {
 	m_DirLightsVisibleCount = 0;
 
@@ -399,7 +399,7 @@ void st::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* comman
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 }
 
-void st::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList)
+void alm::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList)
 {
 	m_PointLightsVisibleCount = 0;
 
@@ -417,8 +417,8 @@ void st::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* comm
 		return true;
 	};
 
-	std::vector<const st::gfx::ScenePointLight*> visiblePointLights;
-	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
+	std::vector<const alm::gfx::ScenePointLight*> visiblePointLights;
+	alm::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
 	while (walker)
 	{
 		auto node = *walker;
@@ -428,7 +428,7 @@ void st::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* comm
 			auto leaf = node->GetLeaf();
 			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::PointLight)
 			{
-				const auto* pointLight = st::checked_cast<const st::gfx::ScenePointLight*>(leaf.get());
+				const auto* pointLight = alm::checked_cast<const alm::gfx::ScenePointLight*>(leaf.get());
 				if (testFrustum(node->GetWorldPosition(), pointLight->GetRange()))
 				{
 					visiblePointLights.push_back(pointLight);
@@ -475,7 +475,7 @@ void st::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* comm
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 }
 
-void st::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList)
+void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList)
 {
 	m_SpotLightsVisibleCount = 0;
 
@@ -493,8 +493,8 @@ void st::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comma
 			return true;
 		};
 
-	std::vector<const st::gfx::SceneSpotLight*> visibleSpotLights;
-	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
+	std::vector<const alm::gfx::SceneSpotLight*> visibleSpotLights;
+	alm::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
 	while (walker)
 	{
 		auto node = *walker;
@@ -504,7 +504,7 @@ void st::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comma
 			auto leaf = node->GetLeaf();
 			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::SpotLight)
 			{
-				const auto* spotLight = st::checked_cast<const st::gfx::SceneSpotLight*>(leaf.get());
+				const auto* spotLight = alm::checked_cast<const alm::gfx::SceneSpotLight*>(leaf.get());
 				if (testFrustum(node->GetWorldPosition(), spotLight->GetRange()))
 				{
 					visibleSpotLights.push_back(spotLight);
@@ -554,19 +554,19 @@ void st::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comma
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 }
 
-void st::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, RenderSet& out_renderSet, math::aabox3f* opt_outBounds) const
+void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, RenderSet& out_renderSet, math::aabox3f* opt_outBounds) const
 {
 	out_renderSet.Elements.clear();
 
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
 	
-	std::vector<const st::gfx::MeshInstance*> instances[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
+	std::vector<const alm::gfx::MeshInstance*> instances[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
 
 	if (opt_outBounds)
 		opt_outBounds->reset();
 
-	st::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
+	alm::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
 	while (walker)
 	{
 		auto node = *walker;
@@ -576,7 +576,7 @@ void st::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& pl
 			auto leaf = node->GetLeaf();
 			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::MeshInstance)
 			{
-				const auto* meshInstance = st::checked_cast<const st::gfx::MeshInstance*>(leaf.get());
+				const auto* meshInstance = alm::checked_cast<const alm::gfx::MeshInstance*>(leaf.get());
 				assert(meshInstance && meshInstance->GetMesh() && meshInstance->GetMesh()->GetMaterial());
 
 				instances[(int)meshInstance->GetMaterialDomain()][(int)meshInstance->GetCullMode()].push_back(meshInstance);
@@ -597,7 +597,7 @@ void st::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& pl
 	{
 		for(int cullMode = 0; cullMode < (int)rhi::CullMode::_Size; ++cullMode)
 		{
-			std::ranges::sort(instances[domain][cullMode], [](const st::gfx::MeshInstance* a, const st::gfx::MeshInstance* b)
+			std::ranges::sort(instances[domain][cullMode], [](const alm::gfx::MeshInstance* a, const alm::gfx::MeshInstance* b)
 			{
 				return a->GetMesh().get() < b->GetMesh().get();
 			});
@@ -622,7 +622,7 @@ void st::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& pl
 	}
 }
 
-void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer,
+void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer,
 	rhi::ICommandList* commandList)
 {
 	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
@@ -641,7 +641,7 @@ void st::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSe
 	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
 
 	uint32_t* ptr = (uint32_t*)data;
-	for (const st::gfx::MeshInstance* inst : renderSet.AllInstances())
+	for (const alm::gfx::MeshInstance* inst : renderSet.AllInstances())
 	{
 		*ptr = inst->GetLeafSceneIndex();
 		ptr++;

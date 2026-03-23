@@ -4,17 +4,17 @@
 #include "RHI/Descriptors.h"
 #include "RHI/ShaderViews.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	struct BufferDesc;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class DeviceManager;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class MultiBuffer
@@ -26,11 +26,11 @@ public:
 
 	bool IsInitialized() const { return !m_Buffers.empty(); }
 
-	void InitRaw(st::rhi::BufferShaderUsage usage, size_t sizeBytes, rhi::ResourceState defaultState, st::gfx::DeviceManager* deviceManager,
+	void InitRaw(alm::rhi::BufferShaderUsage usage, size_t sizeBytes, rhi::ResourceState defaultState, alm::gfx::DeviceManager* deviceManager,
 			  const std::string& debugName);
-	void InitStructured(st::rhi::BufferShaderUsage usage, size_t sizeBytes, uint32_t stride, rhi::ResourceState defaultState,
-		st::gfx::DeviceManager* deviceManager, const std::string& debugName);
-	void InitUniformBuffer(size_t sizeBytes, st::gfx::DeviceManager* deviceManager, const std::string& debugName);
+	void InitStructured(alm::rhi::BufferShaderUsage usage, size_t sizeBytes, uint32_t stride, rhi::ResourceState defaultState,
+		alm::gfx::DeviceManager* deviceManager, const std::string& debugName);
+	void InitUniformBuffer(size_t sizeBytes, alm::gfx::DeviceManager* deviceManager, const std::string& debugName);
 
 	void Release();
 
@@ -51,16 +51,16 @@ public:
 
 private:
 
-	st::rhi::MemoryAccess m_MemoryAccess;
-	st::rhi::BufferShaderUsage m_Usage;
+	alm::rhi::MemoryAccess m_MemoryAccess;
+	alm::rhi::BufferShaderUsage m_Usage;
 	rhi::ResourceState m_DefaultState;
 
-	std::vector<st::rhi::BufferOwner> m_Buffers;
+	std::vector<alm::rhi::BufferOwner> m_Buffers;
 	size_t m_SizeBytes;
 	uint32_t m_Stride; // For structured buffer only
 
 	std::string m_DebugName;
-	st::gfx::DeviceManager* m_DeviceManager;
+	alm::gfx::DeviceManager* m_DeviceManager;
 };
 
 } // namespace st::gfx

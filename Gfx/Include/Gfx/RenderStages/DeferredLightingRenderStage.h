@@ -4,7 +4,7 @@
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class DeferredLightingRenderStage : public RenderStage
@@ -39,7 +39,7 @@ public:
 private:
 
 	void Setup(RenderGraphBuilder& builder) override;
-	void Render(st::rhi::CommandListHandle commandList) override;
+	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
@@ -55,9 +55,9 @@ private:
 	RGTextureHandle m_GBuffer3Texture;
 	RGTextureHandle m_AmbientOcclusionTexture;
 
-	st::rhi::ShaderOwner m_PS;
-	st::rhi::FramebufferOwner m_FB;
-	st::rhi::GraphicsPipelineStateOwner m_PSO;
+	alm::rhi::ShaderOwner m_PS;
+	alm::rhi::FramebufferOwner m_FB;
+	alm::rhi::GraphicsPipelineStateOwner m_PSO;
 
 	MaterialChannel m_MaterialChannel = MaterialChannel::Disabled;
 	bool m_ShowSSAO = false;

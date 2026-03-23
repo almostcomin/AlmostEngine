@@ -12,7 +12,7 @@
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-void st::gfx::WireframeRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::WireframeRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	// Create textures
 	{
@@ -32,7 +32,7 @@ void st::gfx::WireframeRenderStage::Setup(RenderGraphBuilder& builder)
 	}
 }
 
-void st::gfx::WireframeRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::WireframeRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	auto scene = GetScene();
 	if (!scene)
@@ -62,15 +62,15 @@ void st::gfx::WireframeRenderStage::Render(st::rhi::CommandListHandle commandLis
 	commandList->EndRenderPass();
 }
 
-void st::gfx::WireframeRenderStage::OnAttached()
+void alm::gfx::WireframeRenderStage::OnAttached()
 {
-	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
+	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create Framebuffer
 	{
-		st::rhi::TextureHandle renderTarget = m_RenderGraph->GetTexture(m_ToneMappedTexture);
-		st::rhi::TextureHandle depthStencil = m_RenderGraph->GetTexture(m_SceneDepthTexture);
+		alm::rhi::TextureHandle renderTarget = m_RenderGraph->GetTexture(m_ToneMappedTexture);
+		alm::rhi::TextureHandle depthStencil = m_RenderGraph->GetTexture(m_SceneDepthTexture);
 		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(renderTarget)
 			.SetDepthAttachment(depthStencil);
@@ -79,7 +79,7 @@ void st::gfx::WireframeRenderStage::OnAttached()
 
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_VS = shaderFactory->LoadShader("WireframeStage_vs", rhi::ShaderType::Vertex);
 		m_PS = shaderFactory->LoadShader("WireframeStage_ps", rhi::ShaderType::Pixel);
 	}
@@ -121,9 +121,9 @@ void st::gfx::WireframeRenderStage::OnAttached()
 	}
 }
 
-void st::gfx::WireframeRenderStage::OnDetached()
+void alm::gfx::WireframeRenderStage::OnDetached()
 {
-	st::rhi::Device* device = GetDeviceManager()->GetDevice();
+	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	m_RenderContext = {};
 
@@ -132,14 +132,14 @@ void st::gfx::WireframeRenderStage::OnDetached()
 	device->ReleaseQueued(std::move(m_VS));
 }
 
-void st::gfx::WireframeRenderStage::OnBackbufferResize()
+void alm::gfx::WireframeRenderStage::OnBackbufferResize()
 {
 	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	// Re-create Framebuffer
 	{
-		st::rhi::TextureHandle renderTarget = m_RenderGraph->GetTexture(m_ToneMappedTexture);
-		st::rhi::TextureHandle depthStencil = m_RenderGraph->GetTexture(m_SceneDepthTexture);
+		alm::rhi::TextureHandle renderTarget = m_RenderGraph->GetTexture(m_ToneMappedTexture);
+		alm::rhi::TextureHandle depthStencil = m_RenderGraph->GetTexture(m_SceneDepthTexture);
 		auto fbDesc = rhi::FramebufferDesc()
 			.AddColorAttachment(renderTarget)
 			.SetDepthAttachment(depthStencil);

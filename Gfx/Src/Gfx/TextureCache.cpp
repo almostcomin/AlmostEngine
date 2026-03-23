@@ -11,9 +11,9 @@
 namespace
 {
 
-st::rhi::TextureDesc TexInfoToTexDesc(const st::gfx::TextureInfo& texInfo)
+alm::rhi::TextureDesc TexInfoToTexDesc(const alm::gfx::TextureInfo& texInfo)
 {
-    return st::rhi::TextureDesc {
+    return alm::rhi::TextureDesc {
         .width = texInfo.width,
         .height = texInfo.height,
         .depth = texInfo.depth,
@@ -23,34 +23,34 @@ st::rhi::TextureDesc TexInfoToTexDesc(const st::gfx::TextureInfo& texInfo)
         .sampleQuality = 0,
         .format = texInfo.format,
         .dimension = texInfo.dimension,
-        .shaderUsage = st::rhi::TextureShaderUsage::Sampled
+        .shaderUsage = alm::rhi::TextureShaderUsage::Sampled
     };
 }
 
 // Resturns [texture, originalMips]
 // The texture is created in COPY_DST state
-std::pair<st::rhi::TextureOwner, uint32_t> CreateTextureFromTexInfo(const st::gfx::TextureInfo& texInfo, bool genMips, st::rhi::Device* device)
+std::pair<alm::rhi::TextureOwner, uint32_t> CreateTextureFromTexInfo(const alm::gfx::TextureInfo& texInfo, bool genMips, alm::rhi::Device* device)
 {
-    st::rhi::TextureDesc desc = TexInfoToTexDesc(texInfo);
+    alm::rhi::TextureDesc desc = TexInfoToTexDesc(texInfo);
     uint32_t originalMips = desc.mipLevels;
     if (genMips)
     {
         desc.mipLevels = log2(std::max(desc.width, desc.height)) + 1;
         if (desc.mipLevels != originalMips)
         {
-            desc.shaderUsage |= st::rhi::TextureShaderUsage::Storage; // Needed for mip generation
+            desc.shaderUsage |= alm::rhi::TextureShaderUsage::Storage; // Needed for mip generation
         }
     }
-    return { device->CreateTexture(desc, st::rhi::ResourceState::COPY_DST, texInfo.debugName), originalMips };
+    return { device->CreateTexture(desc, alm::rhi::ResourceState::COPY_DST, texInfo.debugName), originalMips };
 }
 
 } // anonymous namespace
 
-st::gfx::TextureCache::TextureCache(st::gfx::DataUploader* dataUploader, rhi::Device* device) :
+alm::gfx::TextureCache::TextureCache(alm::gfx::DataUploader* dataUploader, rhi::Device* device) :
     m_Device{ device }, m_DataUploader{ dataUploader }
 {}
 
-st::gfx::TextureCache::~TextureCache()
+alm::gfx::TextureCache::~TextureCache()
 {
     RemoveStaleTextures();
     assert(m_Textures.empty());
@@ -58,7 +58,7 @@ st::gfx::TextureCache::~TextureCache()
     assert(m_InFlightTextures.empty());
 }
 
-std::shared_ptr<st::gfx::LoadedTexture> st::gfx::TextureCache::Get(const std::string& id)
+std::shared_ptr<alm::gfx::LoadedTexture> alm::gfx::TextureCache::Get(const std::string& id)
 {
     std::scoped_lock lockMaps{ m_MapMutex };
     auto it = m_Textures.find(id);
@@ -72,15 +72,15 @@ std::shared_ptr<st::gfx::LoadedTexture> st::gfx::TextureCache::Get(const std::st
     }
 }
 
-st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string& path, Flags flags)
+alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const std::string& path, Flags flags)
 {
     auto textureHandle = Get(path);
     if (textureHandle)
     {
-        return std::pair<std::shared_ptr<st::gfx::LoadedTexture>, st::SignalListener>(textureHandle, {});
+        return std::pair<std::shared_ptr<alm::gfx::LoadedTexture>, alm::SignalListener>(textureHandle, {});
     }
 
-    st::fs::File file{ path };
+    alm::fs::File file{ path };
     if (!file.IsOpen())
     {
         LOG_WARNING("file {} not found.", path);
@@ -89,10 +89,10 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string&
     
     auto readResult = file.Read();
     assert(readResult);
-    st::Blob fileData = std::move(*readResult);
+    alm::Blob fileData = std::move(*readResult);
 
     std::string_view ext = GetExtensionFromPath(path);
-    auto loadResult = LoadInternal(st::WeakBlob{ fileData }, flags, (ext == "dds" || ext == "DDS"), path);
+    auto loadResult = LoadInternal(alm::WeakBlob{ fileData }, flags, (ext == "dds" || ext == "DDS"), path);
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
@@ -101,12 +101,12 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const std::string&
     return loadResult;
 }
 
-st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const st::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id)
+alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const alm::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id)
 {
     auto textureHandle = Get(id);
     if (textureHandle)
     {
-        return std::pair<std::shared_ptr<st::gfx::LoadedTexture>, st::SignalListener>(textureHandle, {});
+        return std::pair<std::shared_ptr<alm::gfx::LoadedTexture>, alm::SignalListener>(textureHandle, {});
     }
 
     auto loadResult = LoadInternal(blob, flags, isDDS, id);
@@ -118,7 +118,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::Load(const st::WeakBlob
     return loadResult;
 }
 
-void st::gfx::TextureCache::Update()
+void alm::gfx::TextureCache::Update()
 {
     // Check finished loaded textures
     {
@@ -142,9 +142,9 @@ void st::gfx::TextureCache::Update()
     RemoveStaleTextures();
 }
 
-st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id)
+alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(const alm::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id)
 {
-    std::expected<std::pair<st::gfx::TextureInfo, st::Blob>, std::string> loadResult;
+    std::expected<std::pair<alm::gfx::TextureInfo, alm::Blob>, std::string> loadResult;
     if (isDDS)
     {
         loadResult = LoadDDSTexture(blob);
@@ -192,7 +192,7 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
     handle->id = id;
     handle->state = LoadedTexture::Loading;
 
-    st::SignalListener uploadEvent = std::move(*uploadResult);
+    alm::SignalListener uploadEvent = std::move(*uploadResult);
 
     {
         std::scoped_lock loc{ m_MapMutex };
@@ -203,11 +203,11 @@ st::gfx::TextureCache::LoadResult st::gfx::TextureCache::LoadInternal(const st::
         m_InFlightTextures.push_back(InFlightData{ id, handle, uploadEvent });
     }
 
-    return std::pair<std::shared_ptr<st::gfx::LoadedTexture>, st::SignalListener>
+    return std::pair<std::shared_ptr<alm::gfx::LoadedTexture>, alm::SignalListener>
         { std::move(handle), uploadEvent };
 }
 
-std::shared_ptr<st::gfx::LoadedTexture> st::gfx::TextureCache::CreateHandle()
+std::shared_ptr<alm::gfx::LoadedTexture> alm::gfx::TextureCache::CreateHandle()
 {
     return std::shared_ptr<LoadedTexture>{ new LoadedTexture, [this](LoadedTexture* h) {
         std::scoped_lock lock{ m_StaleMapMutex };
@@ -216,7 +216,7 @@ std::shared_ptr<st::gfx::LoadedTexture> st::gfx::TextureCache::CreateHandle()
     } };
 }
 
-void st::gfx::TextureCache::RemoveStaleTextures()
+void alm::gfx::TextureCache::RemoveStaleTextures()
 {
     std::scoped_lock lockStale{ m_StaleMapMutex };
     std::scoped_lock lockMaps{ m_MapMutex };

@@ -2,7 +2,7 @@
 
 #include "RHI/Resource.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class IFence : public IResource
 	{

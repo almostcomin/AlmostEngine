@@ -9,7 +9,7 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/RenderGraphBuilder.h"
 
-void st::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	// Create render targets
 	{
@@ -45,7 +45,7 @@ void st::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 }
 
-void st::gfx::GBuffersRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::GBuffersRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	auto scene = GetScene();
 	if (!scene)
@@ -78,9 +78,9 @@ void st::gfx::GBuffersRenderStage::Render(st::rhi::CommandListHandle commandList
 	commandList->EndRenderPass();
 }
 
-void st::gfx::GBuffersRenderStage::OnAttached()
+void alm::gfx::GBuffersRenderStage::OnAttached()
 {
-	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
+	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create Framebuffer
@@ -96,7 +96,7 @@ void st::gfx::GBuffersRenderStage::OnAttached()
 
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_VS = shaderFactory->LoadShader("GBuffers_vs", rhi::ShaderType::Vertex);
 		m_PS_Opaque = shaderFactory->LoadShader("GBuffers_OP_ps", rhi::ShaderType::Pixel);
 		m_PS_AlphaTest = shaderFactory->LoadShader("GBuffers_AT_ps", rhi::ShaderType::Pixel);
@@ -137,15 +137,15 @@ void st::gfx::GBuffersRenderStage::OnAttached()
 	}
 }
 
-void st::gfx::GBuffersRenderStage::OnDetached()
+void alm::gfx::GBuffersRenderStage::OnDetached()
 {
-	st::rhi::Device* device = GetDeviceManager()->GetDevice();
+	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_FB));
 	m_RenderContext = {};
 }
 
-void st::gfx::GBuffersRenderStage::OnBackbufferResize()
+void alm::gfx::GBuffersRenderStage::OnBackbufferResize()
 {
 	rhi::Device* device = GetDeviceManager()->GetDevice();
 

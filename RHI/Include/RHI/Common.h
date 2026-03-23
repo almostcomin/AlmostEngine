@@ -1,6 +1,6 @@
 #pragma once
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 using GpuVirtualAddress = uint64_t;

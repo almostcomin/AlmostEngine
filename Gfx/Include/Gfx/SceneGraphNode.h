@@ -9,16 +9,16 @@
 #include "Gfx/SceneContentFlags.h"
 #include "Gfx/SceneBounds.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class SceneGraph;
 	class SceneGraphLeaf;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
-class SceneGraphNode : public st::enable_weak_from_this<SceneGraphNode>, private st::noncopyable_nonmovable
+class SceneGraphNode : public alm::enable_weak_from_this<SceneGraphNode>, private alm::noncopyable_nonmovable
 {
 	friend class SceneGraph;
 
@@ -41,24 +41,24 @@ public:
 
 	void SetName(const char* name) { m_Name = name; }
 
-	void SetLeaf(st::unique<SceneGraphLeaf>&& leaf);
+	void SetLeaf(alm::unique<SceneGraphLeaf>&& leaf);
 	void OnLeafBoundsChanged();
 
 	void SetLocalTransform(const Transform& t);
 
 	size_t GetChildrenCount() const { return m_Children.size(); }
-	st::weak<st::gfx::SceneGraphNode> GetChild(size_t idx) const;
-	st::weak<st::gfx::SceneGraphNode> GetParent() const;
+	alm::weak<alm::gfx::SceneGraphNode> GetChild(size_t idx) const;
+	alm::weak<alm::gfx::SceneGraphNode> GetParent() const;
 
 	bool HasLeaf() const { return m_Leaf; }
-	st::weak<SceneGraphLeaf> GetLeaf() const { return m_Leaf.get_weak(); }
+	alm::weak<SceneGraphLeaf> GetLeaf() const { return m_Leaf.get_weak(); }
 
 	const Transform& GetLocalTransform() const { return m_LocalTransform; }
 	const float4x4& GetWorldTransform() const { return m_WorldMatrix; }
 	const float3& GetWorldPosition() const;
 
 	bool HasBounds(BoundsType type) const { return m_HasBounds[(int)type]; }
-	const st::math::aabox3f& GetWorldBounds(BoundsType type) const { return m_WorldBounds[(int)type]; }
+	const alm::math::aabox3f& GetWorldBounds(BoundsType type) const { return m_WorldBounds[(int)type]; }
 
 	bool Test(BoundsType boundsType, std::span<const math::plane3f> planes) const;
 
@@ -72,16 +72,16 @@ private:
 
 private:
 
-	st::weak<SceneGraph> m_Graph;
-	st::weak<SceneGraphNode> m_Parent;
-	std::vector<st::unique<SceneGraphNode>> m_Children;
-	st::unique<SceneGraphLeaf> m_Leaf;
+	alm::weak<SceneGraph> m_Graph;
+	alm::weak<SceneGraphNode> m_Parent;
+	std::vector<alm::unique<SceneGraphNode>> m_Children;
+	alm::unique<SceneGraphLeaf> m_Leaf;
 
 	Transform m_LocalTransform;
 	float4x4 m_WorldMatrix;
 
 	std::array<bool, (int)BoundsType::_Size> m_HasBounds;
-	std::array<st::math::aabox3f, (int)BoundsType::_Size> m_WorldBounds;
+	std::array<alm::math::aabox3f, (int)BoundsType::_Size> m_WorldBounds;
 
 	SceneContentFlags m_ContentFlags; // This leaf content flags plus children content flags
 

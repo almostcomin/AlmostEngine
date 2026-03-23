@@ -1,17 +1,17 @@
 #include "Core/CorePCH.h"
 #include "Core/File.h"
 
-st::fs::File::File(const std::string& path, OpenMode mode)
+alm::fs::File::File(const std::string& path, OpenMode mode)
 {
 	Open(path, mode);	
 }
 
-st::fs::File::~File()
+alm::fs::File::~File()
 {
 	Close();
 }
 
-bool st::fs::File::Open(const std::string& path, OpenMode mode)
+bool alm::fs::File::Open(const std::string& path, OpenMode mode)
 {
 	m_FileStream.open(path, (mode == OpenMode::Read ? std::ios::in : std::ios::out) | std::ios::binary);
 	if (m_FileStream.is_open())
@@ -37,12 +37,12 @@ bool st::fs::File::Open(const std::string& path, OpenMode mode)
 	}
 }
 
-void st::fs::File::Close()
+void alm::fs::File::Close()
 {
 	m_FileStream.close();
 }
 
-std::expected<st::Blob, std::string> st::fs::File::Read(int size)
+std::expected<alm::Blob, std::string> alm::fs::File::Read(int size)
 {
 	if (!m_FileStream.is_open())
 	{
@@ -73,10 +73,10 @@ std::expected<st::Blob, std::string> st::fs::File::Read(int size)
 	char* mem = (char*)malloc(size);
 	m_FileStream.read(mem, size);
 	
-	return st::Blob( mem, (size_t)size );
+	return alm::Blob( mem, (size_t)size );
 }
 
-std::expected<size_t, std::string> st::fs::File::Write(const void* data, size_t size)
+std::expected<size_t, std::string> alm::fs::File::Write(const void* data, size_t size)
 {
 	if (!m_FileStream.is_open())
 	{
@@ -91,17 +91,17 @@ std::expected<size_t, std::string> st::fs::File::Write(const void* data, size_t 
 	return size;
 }
 
-bool st::fs::File::IsOpen() const
+bool alm::fs::File::IsOpen() const
 {
 	return m_FileStream.is_open();
 }
 
-size_t st::fs::File::Size() const
+size_t alm::fs::File::Size() const
 {
 	return m_FileSize;
 }
 
-size_t st::fs::File::Pos()
+size_t alm::fs::File::Pos()
 {
 	if (m_FileStream.is_open())
 	{
@@ -113,12 +113,12 @@ size_t st::fs::File::Pos()
 	}
 }
 
-const std::string& st::fs::File::GetPath() const
+const std::string& alm::fs::File::GetPath() const
 {
 	return m_Path;
 }
 
-bool st::fs::File::Exists(const std::filesystem::path& path)
+bool alm::fs::File::Exists(const std::filesystem::path& path)
 {
 	return std::filesystem::exists(path) && std::filesystem::is_regular_file(path);
 }

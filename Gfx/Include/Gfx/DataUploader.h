@@ -12,17 +12,17 @@
 #include "Core/Common.h"
 #include "RHI/TypeForwards.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class Device;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class ShaderFactory;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class DataUploader
@@ -38,7 +38,7 @@ public:
 
 	struct UploadTicket
 	{
-		friend class st::gfx::DataUploader;
+		friend class alm::gfx::DataUploader;
 
 		UploadTicket(const UploadTicket&) = delete;
 		UploadTicket& operator=(const UploadTicket&) = delete;
@@ -91,7 +91,7 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadBufferData(
-		const st::WeakBlob& srcData, rhi::BufferHandle dstBuffer, rhi::ResourceState currentBufferState, rhi::ResourceState targetBufferState,
+		const alm::WeakBlob& srcData, rhi::BufferHandle dstBuffer, rhi::ResourceState currentBufferState, rhi::ResourceState targetBufferState,
 		size_t dstStart = 0, const char* opt_gpuMarker = nullptr);
 
 	/// Uploads data to a texture object.
@@ -107,7 +107,7 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadTextureData(
-		const st::WeakBlob& srcData, rhi::TextureHandle dstTexture, rhi::ResourceState currentState, rhi::ResourceState targetState,
+		const alm::WeakBlob& srcData, rhi::TextureHandle dstTexture, rhi::ResourceState currentState, rhi::ResourceState targetState,
 		const rhi::TextureSubresourceSet& subresources, GenMipsMethod genMipsMethod = GenMipsMethod::None, const char* opt_gpuMarker = nullptr);
 
 private: /* types */
@@ -161,7 +161,7 @@ private: /* */
 	rhi::ComputePipelineStateOwner m_GenMips_PSO;
 	rhi::ComputePipelineStateOwner m_GenMipsRenorm_PSO;
 
-	st::rhi::Device* m_Device;
+	alm::rhi::Device* m_Device;
 };
 
 }

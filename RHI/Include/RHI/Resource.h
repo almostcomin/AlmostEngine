@@ -5,7 +5,7 @@
 #include "Core/Memory.h"
 #include "RHI/NativeResource.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class Device;
 
@@ -41,9 +41,9 @@ namespace st::rhi
 		};
 	};
 
-	class IResource : public st::enable_weak_from_this<IResource>, st::noncopyable_nonmovable
+	class IResource : public alm::enable_weak_from_this<IResource>, alm::noncopyable_nonmovable
 	{
-		friend class st::rhi::Device;
+		friend class alm::rhi::Device;
 
 	public:
 
@@ -74,7 +74,7 @@ namespace st::rhi
 	{
 		using is_transparent = void;
 
-		size_t operator()(const st::unique<IResource>& ptr) const 
+		size_t operator()(const alm::unique<IResource>& ptr) const 
 		{
 			return std::hash<IResource*>()(ptr.get());
 		}
@@ -89,17 +89,17 @@ namespace st::rhi
 	{
 		using is_transparent = void;
 
-		bool operator()(const st::unique<IResource>& a, const st::unique<IResource>& b) const 
+		bool operator()(const alm::unique<IResource>& a, const alm::unique<IResource>& b) const 
 		{
 			return a.get() == b.get();
 		}
 
-		bool operator()(const st::unique<IResource>& a, IResource* b) const 
+		bool operator()(const alm::unique<IResource>& a, IResource* b) const 
 		{
 			return a.get() == b;
 		}
 
-		bool operator()(IResource* a, const st::unique<IResource>& b) const 
+		bool operator()(IResource* a, const alm::unique<IResource>& b) const 
 		{
 			return a == b.get();
 		}

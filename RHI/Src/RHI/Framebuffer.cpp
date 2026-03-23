@@ -1,6 +1,6 @@
 #include "RHI/FrameBuffer.h"
 
-st::rhi::FramebufferInfo::FramebufferInfo(const FramebufferDesc& desc)
+alm::rhi::FramebufferInfo::FramebufferInfo(const FramebufferDesc& desc)
 {
     for (size_t i = 0; i < desc.ColorAttachments.size(); i++)
     {

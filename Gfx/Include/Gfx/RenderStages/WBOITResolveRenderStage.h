@@ -4,7 +4,7 @@
 #include "Gfx/RenderContext.h"
 #include "Gfx/RenderGraphTypes.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class WBOITResolveRenderStage : public RenderStage
@@ -16,7 +16,7 @@ public:
 private:
 
 	void Setup(RenderGraphBuilder& builder) override;
-	void Render(st::rhi::CommandListHandle commandList) override;
+	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
@@ -27,10 +27,10 @@ private:
 	RGTextureHandle m_RevealageWOITTexture;
 	RGTextureHandle m_SceneColorTexture;
 	
-	st::rhi::ShaderOwner m_PS;
-	st::rhi::FramebufferOwner m_FB;
-	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
-	st::rhi::GraphicsPipelineStateOwner m_PSO;
+	alm::rhi::ShaderOwner m_PS;
+	alm::rhi::FramebufferOwner m_FB;
+	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;
+	alm::rhi::GraphicsPipelineStateOwner m_PSO;
 };
 
 } // namespace st::gfx

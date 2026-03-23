@@ -7,7 +7,7 @@
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
-void st::gfx::CompositeRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::CompositeRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_ToneMappedTexture = builder.GetTextureHandle("ToneMapped");
 	m_ImGuiTexture = builder.GetTextureHandle("ImGui");
@@ -20,7 +20,7 @@ void st::gfx::CompositeRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddRenderTargetWriteDependency();
 }
 
-void st::gfx::CompositeRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::CompositeRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	auto fb = m_RenderGraph->GetFramebuffer();
 	commandList->BeginRenderPass(
@@ -45,17 +45,17 @@ void st::gfx::CompositeRenderStage::Render(st::rhi::CommandListHandle commandLis
 	commandList->EndRenderPass();
 }
 
-void st::gfx::CompositeRenderStage::OnAttached()
+void alm::gfx::CompositeRenderStage::OnAttached()
 {
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = m_RenderGraph->GetDeviceManager()->GetShaderFactory();
+		alm::gfx::ShaderFactory* shaderFactory = m_RenderGraph->GetDeviceManager()->GetShaderFactory();
 		m_PS = shaderFactory->LoadShader("Composite_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO
 	{
-		st::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
+		alm::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
 		m_PSO = commonResurces->CreateFullscreenPassPSO(
 			m_RenderGraph->GetFramebuffer()->GetFramebufferInfo(),
 			m_PS.get_weak(),
@@ -63,19 +63,19 @@ void st::gfx::CompositeRenderStage::OnAttached()
 	}
 }
 
-void st::gfx::CompositeRenderStage::OnDetached()
+void alm::gfx::CompositeRenderStage::OnDetached()
 {
-	st::rhi::Device* device = m_RenderGraph->GetDeviceManager()->GetDevice();
+	alm::rhi::Device* device = m_RenderGraph->GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_PSO));
 	device->ReleaseQueued(std::move(m_PS));
 }
 
-void st::gfx::CompositeRenderStage::OnBackbufferResize()
+void alm::gfx::CompositeRenderStage::OnBackbufferResize()
 {
 	// Recreate PSO
 	{
-		st::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
+		alm::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
 		m_PSO = commonResurces->CreateFullscreenPassPSO(
 			m_RenderGraph->GetFramebuffer()->GetFramebufferInfo(),
 			m_PS.get_weak(),

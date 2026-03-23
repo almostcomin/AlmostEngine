@@ -6,7 +6,7 @@
 #include <cassert>
 #include <optional>
 
-namespace st
+namespace alm
 {
 
 	template<class T, size_t N>

@@ -27,7 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace st {
+namespace alm {
 
     // a static vector is a vector with a capacity defined at compile-time
     template <typename T, uint32_t _max_elements>

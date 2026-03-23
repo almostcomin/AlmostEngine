@@ -6,7 +6,7 @@
 #include <filesystem>
 #include "Core/Blob.h"
 
-namespace st::fs
+namespace alm::fs
 {
 
 enum class OpenMode
@@ -28,7 +28,7 @@ public:
 
 	// Reads from current pos size bytes. If size < 0, reads to the end of the file.
 	// Error if open mode is not read
-	std::expected<st::Blob, std::string> Read(int size = -1);
+	std::expected<alm::Blob, std::string> Read(int size = -1);
 
 	// Writes from eof size bytes.
 	// Error if open mode is not write

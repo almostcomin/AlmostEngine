@@ -12,7 +12,7 @@
 #include "Core/unique_vector.h"
 #include <cassert>
 
-st::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceManager }
+alm::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceManager }
 {
 	m_AmbientParams = AmbientParams{
 		.SkyColor = float3{ 0.17f, 0.37f, 0.65f },
@@ -29,7 +29,7 @@ st::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceMan
 	};
 }
 
-st::gfx::Scene::~Scene()
+alm::gfx::Scene::~Scene()
 {
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
@@ -38,7 +38,7 @@ st::gfx::Scene::~Scene()
 	m_SceneGraph.reset();
 }
 
-void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
+void alm::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 {
 	auto* dataUploader = m_DeviceManager->GetDataUploader();
 
@@ -56,7 +56,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 	// Fill instances buffer
 	if (!m_SceneGraph->GetMeshInstances().empty())
 	{
-		const std::vector<st::gfx::MeshInstance*> meshInstances = m_SceneGraph->GetMeshInstances();
+		const std::vector<alm::gfx::MeshInstance*> meshInstances = m_SceneGraph->GetMeshInstances();
 
 		rhi::BufferDesc desc{
 			.memoryAccess = rhi::MemoryAccess::Default,
@@ -99,7 +99,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 
 		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
 		auto* meshDataPtr = (interop::MeshData*)uploadTicket->GetPtr();
-		for (const st::gfx::Mesh* mesh : meshes)
+		for (const alm::gfx::Mesh* mesh : meshes)
 		{
 			meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetReadOnlyView();
 			meshDataPtr->indexSize = mesh->GetIndexSize();
@@ -140,7 +140,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			
 		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
 		auto* matDataPtr = (interop::MaterialData*)uploadTicket->GetPtr();
-		for (const st::gfx::Material* mat : materials)
+		for (const alm::gfx::Material* mat : materials)
 		{
 			*matDataPtr = {};
 			if (mat->GetBaseColorTextureHandle())
@@ -180,7 +180,7 @@ void st::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 	} // material buffer
 }
 
-void st::gfx::Scene::Update()
+void alm::gfx::Scene::Update()
 {
 	if (m_SceneGraph)
 	{
@@ -188,7 +188,7 @@ void st::gfx::Scene::Update()
 	}
 }
 
-const st::math::aabox3f st::gfx::Scene::GetWorldBounds(BoundsType boundsType) const
+const alm::math::aabox3f alm::gfx::Scene::GetWorldBounds(BoundsType boundsType) const
 {
 	if (m_SceneGraph && m_SceneGraph->GetRoot() && m_SceneGraph->GetRoot()->HasBounds(boundsType))
 	{
@@ -197,17 +197,17 @@ const st::math::aabox3f st::gfx::Scene::GetWorldBounds(BoundsType boundsType) co
 	return math::aabox3f::get_empty();
 }
 
-st::rhi::BufferReadOnlyView st::gfx::Scene::GetInstancesBufferView() const
+alm::rhi::BufferReadOnlyView alm::gfx::Scene::GetInstancesBufferView() const
 {
 	return m_InstancesBuffer ? m_InstancesBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
 
-st::rhi::BufferReadOnlyView st::gfx::Scene::GetMeshesBufferView() const
+alm::rhi::BufferReadOnlyView alm::gfx::Scene::GetMeshesBufferView() const
 {
 	return m_MeshesBuffer ? m_MeshesBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
 
-st::rhi::BufferReadOnlyView st::gfx::Scene::GetMaterialsBufferView() const
+alm::rhi::BufferReadOnlyView alm::gfx::Scene::GetMaterialsBufferView() const
 {
 	return m_MaterialsBuffer ? m_MaterialsBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }

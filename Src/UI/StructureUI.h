@@ -10,7 +10,7 @@
 
 struct MemoryEditor;
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class SceneGraphNode;
 	class MeshInstance;
@@ -22,7 +22,7 @@ namespace st::gfx
 	class ToneMappingRenderStage;
 };
 
-class StructureUI : public st::gfx::ImGuiRenderStage
+class StructureUI : public alm::gfx::ImGuiRenderStage
 {
 public:
 
@@ -45,12 +45,12 @@ public:
 		float ShadowmapSlopeScaledDepthBias;
 		int2 ShadowmapSize;
 		
-		st::gfx::Scene::AmbientParams AmbientParams;
+		alm::gfx::Scene::AmbientParams AmbientParams;
 		bool AmbientParamsUpdated = false;
-		st::gfx::Scene::SunParams SunParams;
+		alm::gfx::Scene::SunParams SunParams;
 		bool SunParamsUpdated = false;
 
-		st::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
+		alm::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
 
 		bool SSAOEnabled = true;
 		bool ShowSSAO = false;
@@ -69,8 +69,8 @@ public:
 		float sdrExposureBias = 0.5f;
 	};
 
-	StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, st::gfx::ToneMappingRenderStage* tonemappingRS, 
-		st::gfx::DeviceManager* deviceManager);
+	StructureUI(alm::weak<alm::gfx::RenderView> renderView, SDL_Window* window, alm::gfx::ShadowmapRenderStage* shadowmapRS, alm::gfx::ToneMappingRenderStage* tonemappingRS, 
+		alm::gfx::DeviceManager* deviceManager);
 	~StructureUI();
 
 	void BuildUI() override;
@@ -89,10 +89,10 @@ private:
 
 	struct RenderStageTextureView
 	{
-		st::gfx::RenderStage* renderStage;
-		st::gfx::RenderGraph::AccessMode accessMode;
+		alm::gfx::RenderStage* renderStage;
+		alm::gfx::RenderGraph::AccessMode accessMode;
 		std::string id;
-		st::gfx::RGTextureViewTicket ticket;
+		alm::gfx::RGTextureViewTicket ticket;
 		bool applyAlpha = false;
 		bool redChannel = true;
 		bool greenChannel = true;
@@ -104,10 +104,10 @@ private:
 
 	struct RenderStageBufferView
 	{
-		st::gfx::RenderStage* renderStage;
-		st::gfx::RenderGraph::AccessMode accessMode;
+		alm::gfx::RenderStage* renderStage;
+		alm::gfx::RenderGraph::AccessMode accessMode;
 		std::string id;
-		st::gfx::RGBufferViewTicket ticket;
+		alm::gfx::RGBufferViewTicket ticket;
 		std::unique_ptr<MemoryEditor> memEditor;
 	};
 
@@ -127,13 +127,13 @@ private:
 	bool BuildRSTexView(RenderStageTextureView* rsTexView);
 	bool BuildRSBufferView(RenderStageBufferView* rsBufferView);
 
-	void BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf);
-	void BuildDirLightLeaf(const st::gfx::SceneDirectionalLight* light);
-	void BuildPointLightLeaf(const st::gfx::ScenePointLight* light);
-	void BuildSpotLightLeaf(const st::gfx::SceneSpotLight* light);
+	void BuildMeshInstanceLeaf(const alm::gfx::MeshInstance* leaf);
+	void BuildDirLightLeaf(const alm::gfx::SceneDirectionalLight* light);
+	void BuildPointLightLeaf(const alm::gfx::ScenePointLight* light);
+	void BuildSpotLightLeaf(const alm::gfx::SceneSpotLight* light);
 
-	void AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderGraph::AccessMode accessMode, const std::string& id);
-	void AddRenderStageBufferView(st::gfx::RenderStage* renderStage, st::gfx::RenderGraph::AccessMode accessMode, const std::string& id);
+	void AddRenderStageTextureView(alm::gfx::RenderStage* renderStage, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& id);
+	void AddRenderStageBufferView(alm::gfx::RenderStage* renderStage, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& id);
 
 	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
 	std::string SaveFileNativeDialog(const std::string& filename);
@@ -141,15 +141,15 @@ private:
 private:
 
 	SDL_Window* m_Window;
-	st::gfx::DeviceManager* m_DeviceManager;
-	st::weak<st::gfx::RenderView> m_RenderView;
+	alm::gfx::DeviceManager* m_DeviceManager;
+	alm::weak<alm::gfx::RenderView> m_RenderView;
 
 	bool m_ShowSettings;
 	int2 m_ShadowmapSize;
-	st::gfx::ShadowmapRenderStage* m_ShadowmapRS;
+	alm::gfx::ShadowmapRenderStage* m_ShadowmapRS;
 
 	bool m_ShowSceneWindow;
-	const st::gfx::SceneGraphNode* m_SelectedNode;
+	const alm::gfx::SceneGraphNode* m_SelectedNode;
 
 	bool m_ShowResourcesWindow;
 
@@ -158,11 +158,11 @@ private:
 
 	std::vector<RenderStageTextureView> m_RSTextureViews;
 	std::vector<RenderStageBufferView> m_RSBufferViews;
-	st::gfx::RGTextureViewTicket m_RSTexViewFocus;
-	st::gfx::RGBufferViewTicket m_RSBufferViewFocus;
+	alm::gfx::RGTextureViewTicket m_RSTexViewFocus;
+	alm::gfx::RGBufferViewTicket m_RSBufferViewFocus;
 
 	bool m_ShowLuminanceHistogram;
-	st::gfx::RGBufferViewTicket m_LumHistogramBufferTicket;
+	alm::gfx::RGBufferViewTicket m_LumHistogramBufferTicket;
 	int m_LumHistogramMode = 0;
-	st::gfx::ToneMappingRenderStage* m_TonemappingRS;
+	alm::gfx::ToneMappingRenderStage* m_TonemappingRS;
 };

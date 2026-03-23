@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 enum class SceneContentFlags : uint32_t

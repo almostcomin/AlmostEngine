@@ -1,6 +1,6 @@
 #pragma once
 
-namespace st::gfx
+namespace alm::gfx
 {
 	template<typename Tag>
 	struct Handle 
@@ -28,9 +28,9 @@ namespace std
 {
 	// To be able to use Handles in std maps & sets
 	template<typename Tag>
-	struct hash<st::gfx::Handle<Tag>> 
+	struct hash<alm::gfx::Handle<Tag>> 
 	{
-		size_t operator()(const st::gfx::Handle<Tag>& h) const 
+		size_t operator()(const alm::gfx::Handle<Tag>& h) const 
 		{
 			return std::hash<void*>{}(h.ptr);
 		}

@@ -6,7 +6,7 @@
 #include "Core/Memory.h"
 #include <span>
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 class IGraphicsPipelineState;

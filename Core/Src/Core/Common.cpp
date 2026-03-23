@@ -1,7 +1,7 @@
 #include "Core/CorePCH.h"
 #include "Core/Common.h"
 
-std::string_view st::GetFilenameFromPath(const std::string_view& path)
+std::string_view alm::GetFilenameFromPath(const std::string_view& path)
 {
     size_t pos = path.find_last_of("/\\");
     if (pos == std::string::npos)
@@ -14,7 +14,7 @@ std::string_view st::GetFilenameFromPath(const std::string_view& path)
     }
 }
 
-std::string_view st::GetExtensionFromPath(const std::string_view& path)
+std::string_view alm::GetExtensionFromPath(const std::string_view& path)
 {
     size_t pos = path.find_last_of('.');
     if (pos == std::string::npos)
@@ -27,7 +27,7 @@ std::string_view st::GetExtensionFromPath(const std::string_view& path)
     }
 }
 
-std::string st::MakeUniqueStringId()
+std::string alm::MakeUniqueStringId()
 {
     static std::atomic<uint32_t> counter = 0;
 
@@ -46,7 +46,7 @@ std::string st::MakeUniqueStringId()
     return ss.str();
 }
 
-std::wstring st::ToWide(const char* utf8)
+std::wstring alm::ToWide(const char* utf8)
 {
     int size = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, nullptr, 0);
     std::wstring wide(size, 0);
@@ -54,7 +54,7 @@ std::wstring st::ToWide(const char* utf8)
     return wide;
 }
 
-std::string st::ToUtf8(const wchar_t* wide)
+std::string alm::ToUtf8(const wchar_t* wide)
 {
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
     if (size_needed <= 0)
@@ -65,7 +65,7 @@ std::string st::ToUtf8(const wchar_t* wide)
 }
 
 // Convert float (32 bits) to half-float (16 bits) (IEEE 754)
-uint16_t st::FloatToHalf(float f)
+uint16_t alm::FloatToHalf(float f)
 {
     uint32_t i = *((uint32_t*)&f);
     uint32_t s = (i >> 16) & 0x00008000;

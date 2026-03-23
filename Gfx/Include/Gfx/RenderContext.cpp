@@ -6,11 +6,11 @@
 #include "RHI/PipelineState.h"
 #include "Interop/RenderResources.h"
 
-st::gfx::RenderContext::RenderContext() : m_PSOs{}, m_ValidDomains{}, m_Device { nullptr }
+alm::gfx::RenderContext::RenderContext() : m_PSOs{}, m_ValidDomains{}, m_Device { nullptr }
 {}
 
-void st::gfx::RenderContext::Init(const st::rhi::GraphicsPipelineStateDesc& baseDesc, const st::rhi::FramebufferInfo& fbInfo, 
-	std::string baseDebugName, st::rhi::Device* device)
+void alm::gfx::RenderContext::Init(const alm::rhi::GraphicsPipelineStateDesc& baseDesc, const alm::rhi::FramebufferInfo& fbInfo, 
+	std::string baseDebugName, alm::rhi::Device* device)
 {
 	m_BasePSODesc = baseDesc;
 	m_FBInfo = fbInfo;
@@ -18,7 +18,7 @@ void st::gfx::RenderContext::Init(const st::rhi::GraphicsPipelineStateDesc& base
 	m_Device = device;
 }
 
-void st::gfx::RenderContext::Reset()
+void alm::gfx::RenderContext::Reset()
 {
 	for (int domain = 0; domain < (int)MaterialDomain::_Size; ++domain)
 	{
@@ -35,7 +35,7 @@ void st::gfx::RenderContext::Reset()
 	m_Device = nullptr;
 }
 
-void st::gfx::RenderContext::OnFramebufferChanged(const st::rhi::FramebufferInfo& fbInfo)
+void alm::gfx::RenderContext::OnFramebufferChanged(const alm::rhi::FramebufferInfo& fbInfo)
 {
 	m_FBInfo = fbInfo;
 
@@ -65,32 +65,32 @@ void st::gfx::RenderContext::OnFramebufferChanged(const st::rhi::FramebufferInfo
 	}
 }
 
-void st::gfx::RenderContext::AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS)
+void alm::gfx::RenderContext::AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS)
 {
 	// Init desc shaders
-	st::rhi::GraphicsPipelineStateDesc desc = m_BasePSODesc;
+	alm::rhi::GraphicsPipelineStateDesc desc = m_BasePSODesc;
 	desc.VS = VS;
 	desc.PS = PS;
 
 	// Cull back
-	desc.rasterState.cullMode = st::rhi::CullMode::Back;
+	desc.rasterState.cullMode = alm::rhi::CullMode::Back;
 	m_PSOs[(int)domain].PSO_BackCull =
 		m_Device->CreateGraphicsPipelineState(desc, m_FBInfo, std::format("{}[{}][CullBack]", m_BaseDebugName, GetMaterialDomainString(domain)));
 
 	// Cull front	
-	desc.rasterState.cullMode = st::rhi::CullMode::Front;
+	desc.rasterState.cullMode = alm::rhi::CullMode::Front;
 	m_PSOs[(int)domain].PSO_FrontCull =
 		m_Device->CreateGraphicsPipelineState(desc, m_FBInfo, std::format("{}[{}][CullFront]", m_BaseDebugName, GetMaterialDomainString(domain)));
 
 	// Cull none
-	desc.rasterState.cullMode = st::rhi::CullMode::None;
+	desc.rasterState.cullMode = alm::rhi::CullMode::None;
 	m_PSOs[(int)domain].PSO_NoCull =
 		m_Device->CreateGraphicsPipelineState(desc, m_FBInfo, std::format("{}[{}][CullNone]", m_BaseDebugName, GetMaterialDomainString(domain)));
 
 	m_ValidDomains[(int)domain] = true;
 }
 
-st::rhi::IGraphicsPipelineState* st::gfx::RenderContext::GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const
+alm::rhi::IGraphicsPipelineState* alm::gfx::RenderContext::GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const
 {
 	switch (cullMode)
 	{
@@ -107,7 +107,7 @@ st::rhi::IGraphicsPipelineState* st::gfx::RenderContext::GetPSO(MaterialDomain d
 	return nullptr;
 }
 
-void st::gfx::RenderContext::DrawRenderSetInstanced(const st::gfx::RenderSet& renderSet, st::rhi::ICommandList* commandList) const
+void alm::gfx::RenderContext::DrawRenderSetInstanced(const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const
 {
 	if (renderSet.Elements.empty())
 		return;
@@ -145,11 +145,11 @@ void st::gfx::RenderContext::DrawRenderSetInstanced(const st::gfx::RenderSet& re
 			commandList->SetPipelineState(PSO);
 			const auto& instances = cullBase.second;
 
-			st::gfx::Mesh* currentMesh = instances[0]->GetMesh().get();
+			alm::gfx::Mesh* currentMesh = instances[0]->GetMesh().get();
 			int prevIdx = 0;
 			for (int i = 1; i < instances.size(); ++i)
 			{
-				const st::gfx::MeshInstance* meshInstance = instances[i];
+				const alm::gfx::MeshInstance* meshInstance = instances[i];
 				if (currentMesh != meshInstance->GetMesh().get())
 				{
 					shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;

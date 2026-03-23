@@ -1,6 +1,6 @@
 #pragma once
 
-namespace st::gfx
+namespace alm::gfx
 {
 	enum class MaterialDomain
 	{

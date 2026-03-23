@@ -3,24 +3,24 @@
 #include "Gfx/DeviceManager.h"
 #include "RHI/Device.h"
 
-st::gfx::MultiBuffer::MultiBuffer() : 
-	m_MemoryAccess{ st::rhi::MemoryAccess::Default },
-	m_Usage{ st::rhi::BufferShaderUsage::None },
+alm::gfx::MultiBuffer::MultiBuffer() : 
+	m_MemoryAccess{ alm::rhi::MemoryAccess::Default },
+	m_Usage{ alm::rhi::BufferShaderUsage::None },
 	m_SizeBytes{ 0 },
 	m_Stride{ 0 },
 	m_DeviceManager{ nullptr }
 {}
 
-st::gfx::MultiBuffer::~MultiBuffer() = default;
+alm::gfx::MultiBuffer::~MultiBuffer() = default;
 
-void st::gfx::MultiBuffer::InitRaw(const st::rhi::BufferShaderUsage usage, size_t sizeBytes, rhi::ResourceState defaultState,
-								   st::gfx::DeviceManager* deviceManager, const std::string& debugName)
+void alm::gfx::MultiBuffer::InitRaw(const alm::rhi::BufferShaderUsage usage, size_t sizeBytes, rhi::ResourceState defaultState,
+								   alm::gfx::DeviceManager* deviceManager, const std::string& debugName)
 {
 	Release();
 
 	m_Buffers.resize(deviceManager->GetSwapchainBufferCount());
 
-	m_MemoryAccess = st::rhi::MemoryAccess::Default;
+	m_MemoryAccess = alm::rhi::MemoryAccess::Default;
 	m_Usage = usage;
 	m_SizeBytes = sizeBytes;
 	m_Stride = 0;
@@ -29,14 +29,14 @@ void st::gfx::MultiBuffer::InitRaw(const st::rhi::BufferShaderUsage usage, size_
 	m_DeviceManager = deviceManager;
 }
 
-void st::gfx::MultiBuffer::InitStructured(const st::rhi::BufferShaderUsage usage, size_t sizeBytes, uint32_t stride, rhi::ResourceState defaultState,
-										  st::gfx::DeviceManager* deviceManager, const std::string& debugName)
+void alm::gfx::MultiBuffer::InitStructured(const alm::rhi::BufferShaderUsage usage, size_t sizeBytes, uint32_t stride, rhi::ResourceState defaultState,
+										  alm::gfx::DeviceManager* deviceManager, const std::string& debugName)
 {
 	Release();
 
 	m_Buffers.resize(deviceManager->GetSwapchainBufferCount());
 
-	m_MemoryAccess = st::rhi::MemoryAccess::Default;
+	m_MemoryAccess = alm::rhi::MemoryAccess::Default;
 	m_Usage = usage;
 	m_SizeBytes = sizeBytes;
 	m_Stride = stride;
@@ -45,62 +45,62 @@ void st::gfx::MultiBuffer::InitStructured(const st::rhi::BufferShaderUsage usage
 	m_DeviceManager = deviceManager;
 }
 
-void st::gfx::MultiBuffer::InitUniformBuffer(size_t sizeBytes, st::gfx::DeviceManager* deviceManager, const std::string& debugName)
+void alm::gfx::MultiBuffer::InitUniformBuffer(size_t sizeBytes, alm::gfx::DeviceManager* deviceManager, const std::string& debugName)
 {
 	Release();
 
 	m_Buffers.resize(deviceManager->GetSwapchainBufferCount());
 
-	m_MemoryAccess = st::rhi::MemoryAccess::Upload;
-	m_Usage = st::rhi::BufferShaderUsage::Uniform;
+	m_MemoryAccess = alm::rhi::MemoryAccess::Upload;
+	m_Usage = alm::rhi::BufferShaderUsage::Uniform;
 	m_SizeBytes = sizeBytes;
 	m_Stride = 0;
-	m_DefaultState = st::rhi::ResourceState::COMMON;
+	m_DefaultState = alm::rhi::ResourceState::COMMON;
 	m_DebugName = debugName;
 	m_DeviceManager = deviceManager;
 }
 
-void st::gfx::MultiBuffer::Release()
+void alm::gfx::MultiBuffer::Release()
 {
 	m_Buffers.clear();
-	m_Usage = st::rhi::BufferShaderUsage::None;
+	m_Usage = alm::rhi::BufferShaderUsage::None;
 	m_SizeBytes = 0;
 	m_Stride = 0;
 	m_DeviceManager = nullptr;
 }
 
-void st::gfx::MultiBuffer::Reset()
+void alm::gfx::MultiBuffer::Reset()
 {
 	m_Buffers.clear();
 	m_Buffers.resize(m_DeviceManager->GetSwapchainBufferCount());
 	m_SizeBytes = 0;
 }
 
-void st::gfx::MultiBuffer::SetSize(size_t size)
+void alm::gfx::MultiBuffer::SetSize(size_t size)
 {
 	m_SizeBytes = size;
 }
 
-void st::gfx::MultiBuffer::Grow(size_t sizeBytes)
+void alm::gfx::MultiBuffer::Grow(size_t sizeBytes)
 {
 	m_SizeBytes = std::max(m_SizeBytes, sizeBytes);
 }
 
-void* st::gfx::MultiBuffer::Map()
+void* alm::gfx::MultiBuffer::Map()
 {
 	auto bufferHandle = GetCurrentBuffer();
 	assert(bufferHandle);
 	return bufferHandle->Map();
 }
 
-void st::gfx::MultiBuffer::Unmap()
+void alm::gfx::MultiBuffer::Unmap()
 {
 	auto bufferHandle = GetCurrentBuffer();
 	assert(bufferHandle);
 	bufferHandle->Unmap();
 }
 
-st::rhi::BufferUniformView st::gfx::MultiBuffer::GetUniformView()
+alm::rhi::BufferUniformView alm::gfx::MultiBuffer::GetUniformView()
 {
 	auto bufferHandle = GetCurrentBuffer();
 	if (bufferHandle)
@@ -110,7 +110,7 @@ st::rhi::BufferUniformView st::gfx::MultiBuffer::GetUniformView()
 	return {};
 }
 
-st::rhi::BufferReadOnlyView st::gfx::MultiBuffer::GetReadOnlyView()
+alm::rhi::BufferReadOnlyView alm::gfx::MultiBuffer::GetReadOnlyView()
 {
 	auto bufferHandle = GetCurrentBuffer();
 	if (bufferHandle)
@@ -120,7 +120,7 @@ st::rhi::BufferReadOnlyView st::gfx::MultiBuffer::GetReadOnlyView()
 	return {};
 }
 
-st::rhi::BufferReadWriteView st::gfx::MultiBuffer::GetReadWriteView()
+alm::rhi::BufferReadWriteView alm::gfx::MultiBuffer::GetReadWriteView()
 {
 	auto bufferHandle = GetCurrentBuffer();
 	if (bufferHandle)
@@ -130,7 +130,7 @@ st::rhi::BufferReadWriteView st::gfx::MultiBuffer::GetReadWriteView()
 	return {};
 }
 
-st::rhi::BufferHandle st::gfx::MultiBuffer::GetCurrentBuffer()
+alm::rhi::BufferHandle alm::gfx::MultiBuffer::GetCurrentBuffer()
 {
 	if (m_SizeBytes == 0)
 	{

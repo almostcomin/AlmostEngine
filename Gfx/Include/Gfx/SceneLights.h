@@ -2,7 +2,7 @@
 
 #include "Gfx/SceneGraphLeaf.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class SceneLight : public SceneGraphLeaf
@@ -45,7 +45,7 @@ public:
 
 	// Overrides
 	bool				HasBounds()			const override	{ return false; }
-	SceneContentFlags	GetContentFlags()	const override	{ return st::gfx::SceneContentFlags::DirectionalLights; }
+	SceneContentFlags	GetContentFlags()	const override	{ return alm::gfx::SceneContentFlags::DirectionalLights; }
 	Type				GetType()			const override	{ return Type::DirectionalLight; }
 	LightType			GetLightType()		const override	{ return LightType::Directional; }
 
@@ -73,8 +73,8 @@ public:
 	// Overrides
 	bool				HasBounds()			const override	{ return true; }
 	BoundsType			GetBoundsType()		const override	{ return BoundsType::Light; }
-	const st::math::aabox3f& GetBounds()	const override	{ return m_Bounds; }
-	SceneContentFlags	GetContentFlags()	const override	{ return st::gfx::SceneContentFlags::PointLights; }
+	const alm::math::aabox3f& GetBounds()	const override	{ return m_Bounds; }
+	SceneContentFlags	GetContentFlags()	const override	{ return alm::gfx::SceneContentFlags::PointLights; }
 	Type				GetType()			const override	{ return Type::PointLight; }
 	LightType			GetLightType()		const override	{ return LightType::Point; }
 
@@ -94,7 +94,7 @@ private:
 	float m_Range;
 	float m_Radius;
 
-	st::math::aabox3f m_Bounds;
+	alm::math::aabox3f m_Bounds;
 };
 
 class SceneSpotLight : public SceneLight
@@ -106,8 +106,8 @@ public:
 	// Overrides
 	bool				HasBounds()			const override	{ return true; }
 	BoundsType			GetBoundsType()		const override	{ return BoundsType::Light; }
-	const st::math::aabox3f& GetBounds()	const override	{ return m_Bounds; }
-	SceneContentFlags	GetContentFlags()	const override	{ return st::gfx::SceneContentFlags::SpotLights; }
+	const alm::math::aabox3f& GetBounds()	const override	{ return m_Bounds; }
+	SceneContentFlags	GetContentFlags()	const override	{ return alm::gfx::SceneContentFlags::SpotLights; }
 	Type				GetType()			const override	{ return Type::SpotLight; }
 	LightType			GetLightType()		const override	{ return LightType::Spot; }
 
@@ -134,7 +134,7 @@ private:
 	float m_InnerAngle;
 	float m_OuterAngle;
 
-	st::math::aabox3f m_Bounds;
+	alm::math::aabox3f m_Bounds;
 };
 
 } // namespace st::gfx

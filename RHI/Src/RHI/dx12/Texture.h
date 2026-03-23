@@ -5,7 +5,7 @@
 #include "Core/ComPtr.h"
 #include <array>
 
-namespace st::rhi::dx12
+namespace alm::rhi::dx12
 {
 	class Texture : public ITexture
 	{

@@ -5,7 +5,7 @@
 #include "RHI/ResourceState.h"
 #include "Gfx/RenderGraph.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class RenderStage;
 

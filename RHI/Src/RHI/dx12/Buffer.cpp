@@ -3,7 +3,7 @@
 #include "RHI/dx12/Buffer.h"
 #include "RHI/dx12/GpuDevice.h"
 
-st::rhi::dx12::Buffer::Buffer(const BufferDesc& desc, ID3D12Resource* buffer, Device* device, const std::string& debugName) :
+alm::rhi::dx12::Buffer::Buffer(const BufferDesc& desc, ID3D12Resource* buffer, Device* device, const std::string& debugName) :
     IBuffer{ device, debugName },
     m_Desc{ desc }, 
     m_mapAddr{ nullptr },
@@ -29,13 +29,13 @@ st::rhi::dx12::Buffer::Buffer(const BufferDesc& desc, ID3D12Resource* buffer, De
     }
 }
 
-st::rhi::dx12::Buffer::~Buffer()
+alm::rhi::dx12::Buffer::~Buffer()
 {
     if (m_mapAddr)
         m_Resource->Unmap(0, nullptr);
 }
 
-void st::rhi::dx12::Buffer::Release(Device* device)
+void alm::rhi::dx12::Buffer::Release(Device* device)
 {
     if (m_UniformView.IsValid())
         device->ReleaseBufferUniformView(m_UniformView, true);
@@ -51,7 +51,7 @@ void st::rhi::dx12::Buffer::Release(Device* device)
     m_Resource.Release();
 }
 
-void* st::rhi::dx12::Buffer::Map(uint64_t bufferStart, [[maybe_unused]] size_t size)
+void* alm::rhi::dx12::Buffer::Map(uint64_t bufferStart, [[maybe_unused]] size_t size)
 {
 #ifdef _DEBUG
     if (size == 0)
@@ -67,14 +67,14 @@ void* st::rhi::dx12::Buffer::Map(uint64_t bufferStart, [[maybe_unused]] size_t s
     return m_mapAddr + bufferStart;
 }
 
-void st::rhi::dx12::Buffer::Unmap(uint64_t /*bufferStart*/, size_t /*size*/)
+void alm::rhi::dx12::Buffer::Unmap(uint64_t /*bufferStart*/, size_t /*size*/)
 {
     // no-op
 }
 
-void st::rhi::dx12::Buffer::Swap(IBuffer& other)
+void alm::rhi::dx12::Buffer::Swap(IBuffer& other)
 {
-    auto* otherBuffer = st::checked_cast<Buffer*>(&other);
+    auto* otherBuffer = alm::checked_cast<Buffer*>(&other);
 
     std::swap(m_Desc, otherBuffer->m_Desc);
     std::swap(m_mapAddr, otherBuffer->m_mapAddr);

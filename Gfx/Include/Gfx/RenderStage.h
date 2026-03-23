@@ -7,12 +7,12 @@
 #include "RHI/TypeForwards.h"
 #include "Core/Math.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class IFramebuffer;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class RenderGraphBuilder;
 	class Scene;
@@ -20,7 +20,7 @@ namespace st::gfx
 	class DeviceManager;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class RenderStage
@@ -50,11 +50,11 @@ public:
 
 protected:
 
-	st::weak<RenderGraph> m_RenderGraph;
+	alm::weak<RenderGraph> m_RenderGraph;
 
 	virtual void Setup(RenderGraphBuilder& builder) = 0;
 
-	virtual void Render(st::rhi::CommandListHandle commandList) = 0;
+	virtual void Render(alm::rhi::CommandListHandle commandList) = 0;
 	virtual void OnAttached() {};
 	virtual void OnDetached() {};
 	virtual void OnBackbufferResize() {};

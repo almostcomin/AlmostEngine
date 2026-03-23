@@ -2,7 +2,7 @@
 #include "Gfx/ShaderFactory.h"
 #include "RHI/Device.h"
 
-st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory, st::rhi::Device* device) :
+alm::gfx::CommonResources::CommonResources(alm::gfx::ShaderFactory* shaderFactory, alm::rhi::Device* device) :
 	m_ShaderFactory(shaderFactory), m_Device(device)
 {
 	m_BlitVS = m_ShaderFactory->LoadShader("Blit_vs", rhi::ShaderType::Vertex);
@@ -61,16 +61,16 @@ st::gfx::CommonResources::CommonResources(st::gfx::ShaderFactory* shaderFactory,
 	}
 }
 
-st::gfx::CommonResources::~CommonResources()
+alm::gfx::CommonResources::~CommonResources()
 {
 }
 
-st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateBlitGraphicsPSO(const rhi::FramebufferInfo& fbInfo)
+alm::rhi::GraphicsPipelineStateOwner alm::gfx::CommonResources::CreateBlitGraphicsPSO(const rhi::FramebufferInfo& fbInfo)
 {
 	return m_Device->CreateGraphicsPipelineState(m_BlitGraphicsPSODesc, fbInfo, "BlitGraphicsPSO");
 }
 
-st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateFullscreenPassPSO(const rhi::FramebufferInfo& fbInfo,
+alm::rhi::GraphicsPipelineStateOwner alm::gfx::CommonResources::CreateFullscreenPassPSO(const rhi::FramebufferInfo& fbInfo,
 	const rhi::ShaderHandle& PS, const std::string debugName)
 {
 	auto desc = m_BlitGraphicsPSODesc;
@@ -79,7 +79,7 @@ st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateFullscreenPa
 	return m_Device->CreateGraphicsPipelineState(desc, fbInfo, debugName);
 }
 
-st::rhi::GraphicsPipelineStateOwner st::gfx::CommonResources::CreateFullscreenPassPSO(const rhi::FramebufferInfo& fbInfo,
+alm::rhi::GraphicsPipelineStateOwner alm::gfx::CommonResources::CreateFullscreenPassPSO(const rhi::FramebufferInfo& fbInfo,
 	const rhi::ShaderHandle& VS, const rhi::ShaderHandle& PS, const std::string debugName)
 {
 	auto desc = m_BlitGraphicsPSODesc;

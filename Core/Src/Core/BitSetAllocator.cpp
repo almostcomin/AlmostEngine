@@ -1,12 +1,12 @@
 #include "Core/CorePCH.h"
 #include "Core/BitSetAllocator.h"
 
-st::BitSetAllocator::BitSetAllocator(size_t capacity, bool multithreaded) : m_MultiThreaded(multithreaded)
+alm::BitSetAllocator::BitSetAllocator(size_t capacity, bool multithreaded) : m_MultiThreaded(multithreaded)
 {
     m_Allocated.resize(capacity);
 }
 
-int st::BitSetAllocator::Allocate()
+int alm::BitSetAllocator::Allocate()
 {
     if (m_MultiThreaded)
         m_Mutex.lock();
@@ -33,7 +33,7 @@ int st::BitSetAllocator::Allocate()
     return result;
 }
 
-void st::BitSetAllocator::Release(int index)
+void alm::BitSetAllocator::Release(int index)
 {
     if (index >= 0 && index < static_cast<int>(m_Allocated.size()))
     {

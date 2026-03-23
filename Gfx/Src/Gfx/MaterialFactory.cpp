@@ -2,11 +2,11 @@
 #include "Gfx/Material.h"
 #include "Gfx/MaterialInstance.h"
 
-st::gfx::MaterialFactory::MaterialFactory(DeviceManager* deviceManager) : 
+alm::gfx::MaterialFactory::MaterialFactory(DeviceManager* deviceManager) : 
 	m_DeviceManager(deviceManager)
 {}
 
-std::shared_ptr<st::gfx::MaterialInstance> st::gfx::MaterialFactory::GetMaterialInstance()
+std::shared_ptr<alm::gfx::MaterialInstance> alm::gfx::MaterialFactory::GetMaterialInstance()
 {
 	return {};
 }

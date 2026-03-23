@@ -24,16 +24,16 @@
 
 #include "RHI/Format.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
     struct DxgiFormatMapping
     {
-        st::rhi::Format format;
+        alm::rhi::Format format;
         DXGI_FORMAT typelessFormat;
         DXGI_FORMAT srvFormat;
         DXGI_FORMAT rtvFormat;
         DXGI_FORMAT uavFormat;
     };
 
-    const DxgiFormatMapping& GetDxgiFormatMapping(st::rhi::Format abstractFormat);
+    const DxgiFormatMapping& GetDxgiFormatMapping(alm::rhi::Format abstractFormat);
 }

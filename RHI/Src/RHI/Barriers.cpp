@@ -1,6 +1,6 @@
 #include "RHI/Barriers.h"
 
-st::rhi::Barrier st::rhi::Barrier::Memory(st::rhi::IResource* resource)
+alm::rhi::Barrier alm::rhi::Barrier::Memory(alm::rhi::IResource* resource)
 {
 	Barrier barrier;
 	barrier.type = Type::MEMORY;
@@ -8,7 +8,7 @@ st::rhi::Barrier st::rhi::Barrier::Memory(st::rhi::IResource* resource)
 	return barrier;
 }
 
-st::rhi::Barrier st::rhi::Barrier::Buffer(IBuffer* buffer, ResourceState before, ResourceState after)
+alm::rhi::Barrier alm::rhi::Barrier::Buffer(IBuffer* buffer, ResourceState before, ResourceState after)
 {
 	Barrier barrier;
 	barrier.type = Type::BUFFER;
@@ -18,7 +18,7 @@ st::rhi::Barrier st::rhi::Barrier::Buffer(IBuffer* buffer, ResourceState before,
 	return barrier;
 }
 
-st::rhi::Barrier st::rhi::Barrier::Texture(ITexture* texture, ResourceState before, ResourceState after, int mip, int slice, ImageAspect aspect)
+alm::rhi::Barrier alm::rhi::Barrier::Texture(ITexture* texture, ResourceState before, ResourceState after, int mip, int slice, ImageAspect aspect)
 {
 	Barrier barrier;
 	barrier.type = Type::TEXTURE;
@@ -31,7 +31,7 @@ st::rhi::Barrier st::rhi::Barrier::Texture(ITexture* texture, ResourceState befo
 	return barrier;
 }
 
-st::rhi::Barrier st::rhi::Barrier::Aliasing(IResource* before, IResource* after)
+alm::rhi::Barrier alm::rhi::Barrier::Aliasing(IResource* before, IResource* after)
 {
 	Barrier barrier;
 	barrier.aliasing.resource_before = before;

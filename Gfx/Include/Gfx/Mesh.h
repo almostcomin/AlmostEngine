@@ -6,12 +6,12 @@
 #include "RHI/Buffer.h"
 #include "RHI/Common.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class Material;
 };
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class Mesh
@@ -32,14 +32,14 @@ public:
 	Mesh(rhi::Device* device, const char* name, const char* sourceFilename);
 	~Mesh();
 
-	const st::math::aabox3f& GetBounds() const { return m_Bounds; }
+	const alm::math::aabox3f& GetBounds() const { return m_Bounds; }
 
 	void SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo, uint8_t indexSize);
 	void SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexFormat& fmt);
 
 	void SetMaterial(std::shared_ptr<Material> mat);
 
-	void SetBounds(const st::math::aabox3f& bounds) { m_Bounds = bounds; }
+	void SetBounds(const alm::math::aabox3f& bounds) { m_Bounds = bounds; }
 
 	rhi::BufferHandle GetIndexBuffer() const { return m_IndexBuffer.get_weak(); }
 	size_t GetIndexCount() const;
@@ -58,7 +58,7 @@ private:
 	std::string m_Name;
 	std::string m_SourceFilename; // where this material originated from, e.g. GLTF file name
 
-	st::math::aabox3f m_Bounds;
+	alm::math::aabox3f m_Bounds;
 
 	rhi::BufferOwner m_IndexBuffer;
 	rhi::PrimitiveTopology m_PrimitiveTopo;

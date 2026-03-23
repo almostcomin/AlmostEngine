@@ -5,7 +5,7 @@
 #include <memory>
 #include "RHI/Device.h"
 
-namespace st::rhi::dx12
+namespace alm::rhi::dx12
 {
     struct DeviceDesc
     {
@@ -23,7 +23,7 @@ namespace st::rhi::dx12
         uint32_t swapChainFrames = 3;        
     };
 
-    std::unique_ptr<st::rhi::Device> CreateDevice(const DeviceDesc& desc);
+    std::unique_ptr<alm::rhi::Device> CreateDevice(const DeviceDesc& desc);
     void CheckDRED(ID3D12Device* pDevice);
 
 } // namespace st::rhi::dx12

@@ -1,6 +1,6 @@
 #include "Gfx/SceneCamera.h"
 
-st::gfx::PerspectiveCamera& st::gfx::PerspectiveCamera::SetFar(float _far)
+alm::gfx::PerspectiveCamera& alm::gfx::PerspectiveCamera::SetFar(float _far)
 { 
 	if (_far > 0.f)
 		m_zFar = _far;
@@ -10,7 +10,7 @@ st::gfx::PerspectiveCamera& st::gfx::PerspectiveCamera::SetFar(float _far)
 	return *this;
 }
 
-st::gfx::PerspectiveCamera& st::gfx::PerspectiveCamera::SetAspect(float aspect)
+alm::gfx::PerspectiveCamera& alm::gfx::PerspectiveCamera::SetAspect(float aspect)
 { 
 	if (aspect > 0.f)
 		m_Aspect = aspect;

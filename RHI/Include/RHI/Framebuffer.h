@@ -5,7 +5,7 @@
 #include "RHI/Common.h"
 #include "RHI/TypeForwards.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 struct FramebufferAttachment

@@ -5,7 +5,7 @@
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class CompositeRenderStage : public RenderStage
@@ -30,7 +30,7 @@ private:
 	rhi::GraphicsPipelineStateOwner m_PSO;
 
 	void Setup(RenderGraphBuilder& builder) override;
-	void Render(st::rhi::CommandListHandle commandList) override;
+	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;

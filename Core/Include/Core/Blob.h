@@ -4,7 +4,7 @@
 #include <functional>
 #include <memory>
 
-namespace st
+namespace alm
 {
 // Specific blob implementation that owns the data and frees it when deleted.
 // Custom deleter can be specified, if not, free will be used

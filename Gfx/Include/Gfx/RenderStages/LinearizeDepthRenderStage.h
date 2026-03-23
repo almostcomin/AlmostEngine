@@ -3,7 +3,7 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderGraphTypes.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 	class LinearizeDepthRenderStage : public RenderStage
@@ -17,7 +17,7 @@ namespace st::gfx
 	private:
 
 		void Setup(RenderGraphBuilder& builder);
-		void Render(st::rhi::CommandListHandle commandList) override;
+		void Render(alm::rhi::CommandListHandle commandList) override;
 		void OnAttached() override;
 		void OnDetached() override;
 

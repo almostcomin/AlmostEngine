@@ -19,7 +19,7 @@ using float4x4 = glm::fmat4x4;
 
 constexpr float PI = glm::pi<float>();
 
-namespace st
+namespace alm
 {
 
 inline float3 ElevationAzimuthRadToDir(float elevationRad, float azimuthRad)

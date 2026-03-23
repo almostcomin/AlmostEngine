@@ -2,12 +2,12 @@
 
 #include "RHI/ShaderViews.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class Device;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class FrameUniformBufferRaw
@@ -18,11 +18,11 @@ public:
 	~FrameUniformBufferRaw();
 	
 	void* GetNextPtrRaw();
-	st::rhi::BufferUniformView GetUniformView();
+	alm::rhi::BufferUniformView GetUniformView();
 	
 private:
 
-	std::vector<st::rhi::BufferOwner> m_Buffers;
+	std::vector<alm::rhi::BufferOwner> m_Buffers;
 	uint32_t m_CurrentIndex;
 };
 

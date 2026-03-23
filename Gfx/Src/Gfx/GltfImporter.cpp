@@ -25,7 +25,7 @@ namespace
 
 struct FleContext
 {
-    st::Blob data;
+    alm::Blob data;
 };
 
 struct TextureSwizzle
@@ -43,7 +43,7 @@ struct TextureExtensions
 
 struct GltfInlineData
 {
-    st::Blob buffer;
+    alm::Blob buffer;
 
     // Object name from glTF, if specified.
     // Otherwise, generated as "AssetName.gltf[index]"
@@ -54,11 +54,11 @@ struct GltfInlineData
 
 struct LoadTexCache
 {
-    std::unordered_map<const cgltf_texture*, std::shared_ptr<st::gfx::LoadedTexture>> texCache;
-    std::unordered_map<const cgltf_image*, std::shared_ptr<st::gfx::LoadedTexture>> imageCache;
+    std::unordered_map<const cgltf_texture*, std::shared_ptr<alm::gfx::LoadedTexture>> texCache;
+    std::unordered_map<const cgltf_image*, std::shared_ptr<alm::gfx::LoadedTexture>> imageCache;
     std::unordered_map<const cgltf_image*, std::shared_ptr<GltfInlineData>> inlineDataCache;
     std::filesystem::path path;
-    st::gfx::TextureCache* textureCache;
+    alm::gfx::TextureCache* textureCache;
 };
 
 // Contains either a file path for a resource referenced in a glTF asset,
@@ -103,7 +103,7 @@ cgltf_result ReadFileCB(const struct cgltf_memory_options* memory_options,
         return cgltf_result_invalid_options;
     }
 
-    st::fs::File file(path);
+    alm::fs::File file(path);
     if (!file.IsOpen())
     {
         LOG_WARNING("cgltf read: file {} not found.", path);
@@ -395,7 +395,7 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
         const size_t dataSize = image->buffer_view->size;
 
         // We need to have a managed pointer to the texture data for async decoding.
-        st::Blob textureData{ (char*)malloc(dataSize), dataSize };
+        alm::Blob textureData{ (char*)malloc(dataSize), dataSize };
 
         result.data = std::make_shared<GltfInlineData>();
         result.data->name = image->name
@@ -434,7 +434,7 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
                     ? image->name
                     : loadCache.path.stem().string() + "[" + std::to_string(imageIndex) + "]";
                 result.data->mimeType = image->mime_type ? image->mime_type : "";
-                result.data->buffer = st::Blob{ (char*)data, size };
+                result.data->buffer = alm::Blob{ (char*)data, size };
 
                 loadCache.inlineDataCache[image] = result.data;
             }
@@ -465,7 +465,7 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
 
             filePathDDS.replace_extension(".dds");
 
-            if (st::fs::File::Exists(filePathDDS))
+            if (alm::fs::File::Exists(filePathDDS))
                 filePath = filePathDDS;
         }
 
@@ -475,8 +475,8 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
     return result;
 };
 
-std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool sRGB, bool normalMap, bool searchForDDS, LoadTexCache& loadCache,
-    int imageIndex, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait)
+std::shared_ptr<alm::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool sRGB, bool normalMap, bool searchForDDS, LoadTexCache& loadCache,
+    int imageIndex, const cgltf_options& options, std::vector<alm::SignalListener>& out_handlesToWait)
 {
     auto it = loadCache.imageCache.find(image);
     if (it != loadCache.imageCache.end())
@@ -484,17 +484,17 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool
 
     FilePathOrInlineData textureSource = LoadImageData(image, searchForDDS, loadCache, imageIndex, options);
 
-    auto flags = st::gfx::TextureCache::Flags::GenerateMips;
+    auto flags = alm::gfx::TextureCache::Flags::GenerateMips;
     if (sRGB)
-        flags |= st::gfx::TextureCache::Flags::ForceSRGB;
+        flags |= alm::gfx::TextureCache::Flags::ForceSRGB;
     if (normalMap)
-        flags |= st::gfx::TextureCache::Flags::IsNormalMap;
+        flags |= alm::gfx::TextureCache::Flags::IsNormalMap;
 
-    std::shared_ptr<st::gfx::LoadedTexture> texture;
+    std::shared_ptr<alm::gfx::LoadedTexture> texture;
     if (textureSource.data)
     {
         auto loadResult = loadCache.textureCache->Load(
-            st::WeakBlob{ textureSource.data->buffer }, flags, false, textureSource.data->name);
+            alm::WeakBlob{ textureSource.data->buffer }, flags, false, textureSource.data->name);
         if (loadResult)
         {
             texture = loadResult->first;
@@ -524,15 +524,15 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool
     return texture;
 };
 
-std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, const cgltf_data* objects, bool sRGB, bool normalMap,
-    LoadTexCache& loadCache, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait)
+std::shared_ptr<alm::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, const cgltf_data* objects, bool sRGB, bool normalMap,
+    LoadTexCache& loadCache, const cgltf_options& options, std::vector<alm::SignalListener>& out_handlesToWait)
 {
     auto it = loadCache.texCache.find(texture);
     if (it != loadCache.texCache.end())
         return it->second;
 
     const TextureExtensions extensions = ParseTextureExtensions(texture, objects);
-    std::shared_ptr<st::gfx::LoadedTexture> loadedTexture;
+    std::shared_ptr<alm::gfx::LoadedTexture> loadedTexture;
 
     // See if the extensions include a DDS image.
     // Try loading the DDS first if it's specified, fall back to the regular image.
@@ -555,13 +555,13 @@ std::shared_ptr<st::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, cons
     return loadedTexture;
 }
 
-std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> 
-GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options, std::vector<st::SignalListener>& out_handlesToWait, 
-    st::rhi::Device* device)
+std::unordered_map<const cgltf_material*, std::shared_ptr<alm::gfx::Material>> 
+GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options, std::vector<alm::SignalListener>& out_handlesToWait, 
+    alm::rhi::Device* device)
 {
-    std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>> matMap;
+    std::unordered_map<const cgltf_material*, std::shared_ptr<alm::gfx::Material>> matMap;
     auto loadTex = [objects, &loadCache, &options, &out_handlesToWait](cgltf_texture* texture, bool sRGB, bool normalMap) 
-        -> std::shared_ptr<st::gfx::LoadedTexture>
+        -> std::shared_ptr<alm::gfx::LoadedTexture>
     {
         if (!texture)
             return {};
@@ -573,8 +573,8 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
     {
         const cgltf_material& srcMat = objects->materials[mat_idx];
         std::string path = loadCache.path.generic_string();
-        std::shared_ptr<st::gfx::Material> mat =
-            std::make_shared<st::gfx::Material>(device, (const char*)srcMat.name, path.c_str());
+        std::shared_ptr<alm::gfx::Material> mat =
+            std::make_shared<alm::gfx::Material>(device, (const char*)srcMat.name, path.c_str());
 
         if (srcMat.has_pbr_specular_glossiness)
         {
@@ -599,7 +599,7 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         mat->SetNormalTextureScale(srcMat.normal_texture.has_transform ?
             float2{ srcMat.normal_texture.transform.scale[0], srcMat.normal_texture.transform.scale[1] } : float2{ 1.f });
 
-        mat->SetCullMode(srcMat.double_sided ? st::rhi::CullMode::None : st::rhi::CullMode::Back);
+        mat->SetCullMode(srcMat.double_sided ? alm::rhi::CullMode::None : alm::rhi::CullMode::Back);
 
         mat->SetAlphaCutoff(srcMat.alpha_cutoff);
 
@@ -622,13 +622,13 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         switch (srcMat.alpha_mode)
         {
         case cgltf_alpha_mode_opaque:
-            mat->SetDomain(st::gfx::MaterialDomain::Opaque);
+            mat->SetDomain(alm::gfx::MaterialDomain::Opaque);
             break;
         case cgltf_alpha_mode_mask:
-            mat->SetDomain(st::gfx::MaterialDomain::AlphaTested);
+            mat->SetDomain(alm::gfx::MaterialDomain::AlphaTested);
             break;
         case cgltf_alpha_mode_blend:
-            mat->SetDomain(st::gfx::MaterialDomain::AlphaBlended);
+            mat->SetDomain(alm::gfx::MaterialDomain::AlphaBlended);
             break;
         }
 
@@ -694,14 +694,14 @@ void GetIndexVertexCount(const cgltf_data* objects, size_t& out_totalIndices, si
 }
 
 template<typename T>
-void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& positions, st::Blob& out_indexData)
+void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& positions, alm::Blob& out_indexData)
 {
     static_assert(std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t>, "Only 16 or 32 bit indices are allowed");
 
     size_t indexCount = 0;
     if (prim.indices)
     {
-        out_indexData = st::Blob{ (char*)malloc(prim.indices->count * sizeof(T)), prim.indices->count * sizeof(T) };
+        out_indexData = alm::Blob{ (char*)malloc(prim.indices->count * sizeof(T)), prim.indices->count * sizeof(T) };
 
         // copy the indices
         auto [indexSrc, indexStride] = BufferIterator(*prim.indices, 0);
@@ -746,7 +746,7 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
     {
         // generate the indices
         const uint32_t indexCount = positions.count;
-        out_indexData = st::Blob{ (char*)malloc(indexCount * sizeof(T)), indexCount * sizeof(T) };
+        out_indexData = alm::Blob{ (char*)malloc(indexCount * sizeof(T)), indexCount * sizeof(T) };
         T* indexDst = (T*)out_indexData.data();
 
         for (size_t i_idx = 0; i_idx < indexCount; i_idx++)
@@ -757,7 +757,7 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
     }
 }
 
-void CollectPrimitivePositions(const cgltf_accessor& positions, std::vector<glm::vec3>& out_vertexPosData, st::math::aabox3f& out_bounds)
+void CollectPrimitivePositions(const cgltf_accessor& positions, std::vector<glm::vec3>& out_vertexPosData, alm::math::aabox3f& out_bounds)
 {
     out_bounds.reset();
     out_vertexPosData.resize(positions.count);
@@ -785,7 +785,7 @@ void CollectPrimitiveNormals(const cgltf_accessor& normals, std::vector<uint32_t
     for (size_t v_idx = 0; v_idx < normals.count; v_idx++)
     {
         const glm::vec3* normal = (const glm::vec3*)normalSrc;
-        *normalDst = st::math::VectorToSnorm8(*normal);
+        *normalDst = alm::math::VectorToSnorm8(*normal);
 
         normalSrc += normalStride;
         ++normalDst;
@@ -805,7 +805,7 @@ void CollectPrimitiveTangents(const cgltf_accessor& tangents, std::vector<uint32
     for (size_t v_idx = 0; v_idx < tangents.count; v_idx++)
     {
         const glm::vec4* tangent = (const glm::vec4*)tangentSrc;
-        *tangentDst = st::math::VectorToSnorm8(*tangent);
+        *tangentDst = alm::math::VectorToSnorm8(*tangent);
 
         tangentSrc += tangentStride;
         ++tangentDst;
@@ -900,29 +900,29 @@ void ComputeTangents(const cgltf_accessor& indices, const cgltf_accessor& positi
             sign = (dot(cross_b, bitangent) > 0) ? -1.f : 1.f;
         }
 
-        *tangentDst = st::math::VectorToSnorm8(float4(tangent, sign));
+        *tangentDst = alm::math::VectorToSnorm8(float4(tangent, sign));
         ++tangentDst;
     }
 }
 
-std::expected<std::pair<st::rhi::BufferOwner, st::SignalListener>, std::string>
-CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, st::gfx::DataUploader* dataUploader, st::rhi::Device* device)
+std::expected<std::pair<alm::rhi::BufferOwner, alm::SignalListener>, std::string>
+CreateIndexBuffer(alm::Blob&& indexData, bool idx32bits, const char* debugName, alm::gfx::DataUploader* dataUploader, alm::rhi::Device* device)
 {
-    st::rhi::BufferDesc bufferDesc;
-    bufferDesc.memoryAccess = st::rhi::MemoryAccess::Default;
-    bufferDesc.shaderUsage = st::rhi::BufferShaderUsage::ReadOnly;
+    alm::rhi::BufferDesc bufferDesc;
+    bufferDesc.memoryAccess = alm::rhi::MemoryAccess::Default;
+    bufferDesc.shaderUsage = alm::rhi::BufferShaderUsage::ReadOnly;
     bufferDesc.sizeBytes = indexData.size();
     bufferDesc.stride = idx32bits ? sizeof(int32_t) : sizeof(int16_t);
 
     std::string name = debugName ? debugName : "{null}";
     name.append(" - IndexBuffer");
 
-    st::rhi::BufferOwner indexBuffer = device->CreateBuffer(bufferDesc, st::rhi::ResourceState::COPY_DST, name);
+    alm::rhi::BufferOwner indexBuffer = device->CreateBuffer(bufferDesc, alm::rhi::ResourceState::COPY_DST, name);
     auto uploadResult = dataUploader->UploadBufferData(
-        st::WeakBlob{ indexData },
+        alm::WeakBlob{ indexData },
         indexBuffer.get_weak(),
-        st::rhi::ResourceState::COPY_DST,
-        st::rhi::ResourceState::INDEX_BUFFER | st::rhi::ResourceState::SHADER_RESOURCE);
+        alm::rhi::ResourceState::COPY_DST,
+        alm::rhi::ResourceState::INDEX_BUFFER | alm::rhi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
     {
@@ -934,24 +934,24 @@ CreateIndexBuffer(st::Blob&& indexData, bool idx32bits, const char* debugName, s
     }
 }
 
-std::expected<std::pair<st::rhi::BufferOwner, st::SignalListener>, std::string>
-CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugName, st::gfx::DataUploader* dataUploader, st::rhi::Device* device)
+std::expected<std::pair<alm::rhi::BufferOwner, alm::SignalListener>, std::string>
+CreateVertexBuffer(alm::Blob&& vertexData, int vertexStride, const char* debugName, alm::gfx::DataUploader* dataUploader, alm::rhi::Device* device)
 {
-    st::rhi::BufferDesc bufferDesc;
-    bufferDesc.memoryAccess = st::rhi::MemoryAccess::Default;
-    bufferDesc.shaderUsage = st::rhi::BufferShaderUsage::ReadOnly;
+    alm::rhi::BufferDesc bufferDesc;
+    bufferDesc.memoryAccess = alm::rhi::MemoryAccess::Default;
+    bufferDesc.shaderUsage = alm::rhi::BufferShaderUsage::ReadOnly;
     bufferDesc.sizeBytes = vertexData.size();
     bufferDesc.stride = vertexStride;
 
     std::string name = debugName ? debugName : "{null}";
     name.append(" - VertexBuffer");
 
-    auto vertexBuffer = device->CreateBuffer(bufferDesc, st::rhi::ResourceState::COPY_DST, name);
+    auto vertexBuffer = device->CreateBuffer(bufferDesc, alm::rhi::ResourceState::COPY_DST, name);
     auto uploadResult = dataUploader->UploadBufferData(
-        st::WeakBlob{ vertexData },
+        alm::WeakBlob{ vertexData },
         vertexBuffer.get_weak(),
-        st::rhi::ResourceState::COPY_DST,
-        st::rhi::ResourceState::SHADER_RESOURCE);
+        alm::rhi::ResourceState::COPY_DST,
+        alm::rhi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
     {
@@ -963,11 +963,11 @@ CreateVertexBuffer(st::Blob&& vertexData, int vertexStride, const char* debugNam
     }
 }
 
-std::expected<std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<st::gfx::Mesh>>>, std::string>
-LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, std::shared_ptr<st::gfx::Material>>& matMap, 
-    const char* filename, st::gfx::DataUploader* dataUploader, st::rhi::Device* device, std::vector<st::SignalListener>& out_handlesToWait)
+std::expected<std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<alm::gfx::Mesh>>>, std::string>
+LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, std::shared_ptr<alm::gfx::Material>>& matMap, 
+    const char* filename, alm::gfx::DataUploader* dataUploader, alm::rhi::Device* device, std::vector<alm::SignalListener>& out_handlesToWait)
 {
-    std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<st::gfx::Mesh>>> meshMap;
+    std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<alm::gfx::Mesh>>> meshMap;
 
     for (size_t mesh_idx = 0; mesh_idx < objects->meshes_count; mesh_idx++)
     {
@@ -1073,7 +1073,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             {
                 idx32bits = positions->count > std::numeric_limits<uint16_t>::max();
             }
-            st::Blob indexData;
+            alm::Blob indexData;
             if (idx32bits)
             {
                 CollectPrimitiveIndices<uint32_t>(prim, *positions, indexData);
@@ -1085,7 +1085,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
 
             // Positions and bounds
             std::vector<glm::vec3> vertexPosData;
-            st::math::aabox3f bounds;
+            alm::math::aabox3f bounds;
             CollectPrimitivePositions(*positions, vertexPosData, bounds);
 
             std::vector<uint32_t> vertexNormalData;
@@ -1132,7 +1132,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                 ss << debugName << "[" << prim_idx << "]";
                 meshName = ss.str();
             }
-            auto mesh = std::make_shared<st::gfx::Mesh>(device, meshName.c_str(), filename);
+            auto mesh = std::make_shared<alm::gfx::Mesh>(device, meshName.c_str(), filename);
             mesh->SetBounds(bounds);
 
             // Assign material
@@ -1144,10 +1144,10 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             {
                 LOG_WARNING("Geometry {} for mesh {} doesn't have a material.", prim_idx, debugName.c_str());
                 
-                static std::shared_ptr<st::gfx::Material> emptyMaterial;
+                static std::shared_ptr<alm::gfx::Material> emptyMaterial;
                 if (!emptyMaterial)
                 {
-                    emptyMaterial = std::make_shared<st::gfx::Material>(device, "(empty)", filename);
+                    emptyMaterial = std::make_shared<alm::gfx::Material>(device, "(empty)", filename);
                 }
                 mesh->SetMaterial(emptyMaterial);
             }
@@ -1156,7 +1156,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             auto indexBufferResult = CreateIndexBuffer(std::move(indexData), idx32bits, debugName.c_str(), dataUploader, device);
             if (indexBufferResult)
             {
-                mesh->SetIndexBuffer(std::move(indexBufferResult->first), st::rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(int32_t) : sizeof(int16_t));
+                mesh->SetIndexBuffer(std::move(indexBufferResult->first), alm::rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(int32_t) : sizeof(int16_t));
                 out_handlesToWait.push_back(indexBufferResult->second);
             }
 
@@ -1175,11 +1175,11 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             if (!vertexTexCoordData.empty())
                 vertexStride += texCoordElemSize;
 
-            st::Blob vertexData{ (char*)malloc(vertexStride * vertexPosData.size()), vertexStride * vertexPosData.size() };
+            alm::Blob vertexData{ (char*)malloc(vertexStride * vertexPosData.size()), vertexStride * vertexPosData.size() };
 
             // Interleave
             uint32_t vertexOffset = 0;
-            st::gfx::Mesh::VertexFormat vertexFormat;
+            alm::gfx::Mesh::VertexFormat vertexFormat;
             // Positions
             if (!vertexPosData.empty())
             {
@@ -1291,11 +1291,11 @@ const cgltf_node* NextSibling(const cgltf_node* node, const cgltf_node* parent, 
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
-namespace st::gfx
+namespace alm::gfx
 {
 
-std::expected<st::unique<st::gfx::SceneGraph>, std::string>
-ImportGlTF(const char* path, st::gfx::DeviceManager* device)
+std::expected<alm::unique<alm::gfx::SceneGraph>, std::string>
+ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
 {
     std::string filename = std::filesystem::path(path).filename().string();
 
@@ -1325,7 +1325,7 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
         return std::unexpected(ErrorToString(res));
     }
 
-    std::vector<st::SignalListener> handlesToWait;
+    std::vector<alm::SignalListener> handlesToWait;
 
     // Materials
     auto matMap = GetMaterialsMap(objects, loadTexCache, options, handlesToWait, device->GetDevice());
@@ -1369,25 +1369,25 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
     // Build scene
     assert(objects->scenes_count == 1); // only 1 scene allowed
 
-    auto sceneGraph = st::make_unique_with_weak<st::gfx::SceneGraph>();
-    auto rootNode = st::make_unique_with_weak<SceneGraphNode>();
+    auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
+    auto rootNode = alm::make_unique_with_weak<SceneGraphNode>();
     rootNode->SetName(filename.c_str());
 
-    std::vector<std::pair<const cgltf_node*, st::weak<st::gfx::SceneGraphNode>>> stack;
+    std::vector<std::pair<const cgltf_node*, alm::weak<alm::gfx::SceneGraphNode>>> stack;
     stack.emplace_back(nullptr, rootNode.get_weak());
 
     const cgltf_node* srcNode = *objects->scene->nodes;
     while (srcNode)
     {
-        auto dstNode = st::make_unique_with_weak<SceneGraphNode>();
+        auto dstNode = alm::make_unique_with_weak<SceneGraphNode>();
 
         if (srcNode->has_matrix)
         {
-            dstNode->SetLocalTransform(st::gfx::Transform{ glm::make_mat4(srcNode->matrix) });
+            dstNode->SetLocalTransform(alm::gfx::Transform{ glm::make_mat4(srcNode->matrix) });
         }
         else
         {
-            st::gfx::Transform t;
+            alm::gfx::Transform t;
             if (srcNode->has_scale)
                 t.SetScale(glm::vec3{ srcNode->scale[0], srcNode->scale[1], srcNode->scale[2] });
             if (srcNode->has_rotation)
@@ -1409,19 +1409,19 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
             {
                 if (found->second.size() == 1)
                 {
-                    auto leaf = st::make_unique_with_weak<st::gfx::MeshInstance>(found->second[0]);
+                    auto leaf = alm::make_unique_with_weak<alm::gfx::MeshInstance>(found->second[0]);
                     dstNode->SetLeaf(std::move(leaf));
                 }
                 else
                 {
                     for (int meshIdx = 0; meshIdx < found->second.size(); ++meshIdx)
                     {
-                        auto meshNode = st::make_unique_with_weak<SceneGraphNode>();
+                        auto meshNode = alm::make_unique_with_weak<SceneGraphNode>();
                         std::stringstream ss;
                         ss << dstNode->GetName() << "[" << meshIdx << "]";
                         meshNode->SetName(ss.str().c_str());
                         
-                        auto leaf = st::make_unique_with_weak<st::gfx::MeshInstance>(found->second[meshIdx]);
+                        auto leaf = alm::make_unique_with_weak<alm::gfx::MeshInstance>(found->second[meshIdx]);
                         meshNode->SetLeaf(std::move(leaf));
 
                         sceneGraph->Attach(dstNode.get(), std::move(meshNode));
@@ -1455,7 +1455,7 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
             {
             case cgltf_light_type_directional:
             {
-                auto leaf = st::make_unique_with_weak<st::gfx::SceneDirectionalLight>();
+                auto leaf = alm::make_unique_with_weak<alm::gfx::SceneDirectionalLight>();
                 leaf->SetColor(*(float3*)&srcNode->light->color);
                 leaf->SetIrradiance(srcNode->light->intensity);
                 leaf->SetAngularSize(0.075f);
@@ -1464,7 +1464,7 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
 
             case cgltf_light_type_point:
             {
-                auto leaf = st::make_unique_with_weak<st::gfx::ScenePointLight>();
+                auto leaf = alm::make_unique_with_weak<alm::gfx::ScenePointLight>();
                 if(srcNode->light->name)
                     leaf->SetName(srcNode->light->name);
                 leaf->SetColor(*(float3*)&srcNode->light->color);
@@ -1483,7 +1483,7 @@ ImportGlTF(const char* path, st::gfx::DeviceManager* device)
 
             case cgltf_light_type_spot:
             {
-                auto leaf = st::make_unique_with_weak<st::gfx::SceneSpotLight>();
+                auto leaf = alm::make_unique_with_weak<alm::gfx::SceneSpotLight>();
                 if (srcNode->light->name)
                     leaf->SetName(srcNode->light->name);
                 leaf->SetColor(*(float3*)&srcNode->light->color);

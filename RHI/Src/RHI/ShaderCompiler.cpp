@@ -9,13 +9,13 @@
 namespace
 {
     // Responsible for the actual compilation of shaders.
-    st::ComPtr<IDxcCompiler3> Compiler;
+    alm::ComPtr<IDxcCompiler3> Compiler;
     // Used to create include handle and provides interfaces for loading shader to blob, etc.
-    st::ComPtr<IDxcUtils> Utils;
-    st::ComPtr<IDxcIncludeHandler> IncludeHandler;
+    alm::ComPtr<IDxcUtils> Utils;
+    alm::ComPtr<IDxcIncludeHandler> IncludeHandler;
 } // anonymouse namespace
 
-st::Blob st::rhi::ShaderCompiler::Compile(const std::string& shaderName, ShaderType shaderType, const st::WeakBlob& srcData, const std::string& includeFolder,
+alm::Blob alm::rhi::ShaderCompiler::Compile(const std::string& shaderName, ShaderType shaderType, const alm::WeakBlob& srcData, const std::string& includeFolder,
     const std::string& entryPoint, bool debugMode)
 {
     if (!Utils)
@@ -116,5 +116,5 @@ st::Blob st::rhi::ShaderCompiler::Compile(const std::string& shaderName, ShaderT
     void* data = std::malloc(compiledShaderBlob->GetBufferSize());
     std::memcpy(data, compiledShaderBlob->GetBufferPointer(), compiledShaderBlob->GetBufferSize());
 
-    return st::Blob{ (char*)data, compiledShaderBlob->GetBufferSize() };
+    return alm::Blob{ (char*)data, compiledShaderBlob->GetBufferSize() };
 }

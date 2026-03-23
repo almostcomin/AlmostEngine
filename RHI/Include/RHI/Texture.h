@@ -6,7 +6,7 @@
 #include "RHI/ShaderViews.h"
 #include "Core/Math.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
     using MipLevel = uint32_t;
     using ArraySlice = uint32_t;

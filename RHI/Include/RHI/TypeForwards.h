@@ -2,7 +2,7 @@
 
 #include "Core/Memory.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 class IBuffer;
@@ -15,31 +15,31 @@ class IGraphicsPipelineState;
 class IComputePipelineState;
 class ITimerQuery;
 
-using BufferOwner = st::unique<IBuffer>;
-using BufferHandle = st::weak<IBuffer>;
+using BufferOwner = alm::unique<IBuffer>;
+using BufferHandle = alm::weak<IBuffer>;
 
-using CommandListOwner = st::unique<ICommandList>;
-using CommandListHandle = st::weak<ICommandList>;
+using CommandListOwner = alm::unique<ICommandList>;
+using CommandListHandle = alm::weak<ICommandList>;
 
-using FenceOwner = st::unique<IFence>;
-using FenceHandle = st::weak<IFence>;
+using FenceOwner = alm::unique<IFence>;
+using FenceHandle = alm::weak<IFence>;
 
-using TextureOwner = st::unique<ITexture>;
-using TextureHandle = st::weak<ITexture>;
+using TextureOwner = alm::unique<ITexture>;
+using TextureHandle = alm::weak<ITexture>;
 
-using ShaderOwner = st::unique<IShader>;
-using ShaderHandle = st::weak<IShader>;
+using ShaderOwner = alm::unique<IShader>;
+using ShaderHandle = alm::weak<IShader>;
 
-using FramebufferOwner = st::unique<IFramebuffer>;
-using FramebufferHandle = st::weak<IFramebuffer>;
+using FramebufferOwner = alm::unique<IFramebuffer>;
+using FramebufferHandle = alm::weak<IFramebuffer>;
 
-using GraphicsPipelineStateOwner = st::unique<IGraphicsPipelineState>;
-using GraphicsPipelineStateHandle = st::weak<IGraphicsPipelineState>;
+using GraphicsPipelineStateOwner = alm::unique<IGraphicsPipelineState>;
+using GraphicsPipelineStateHandle = alm::weak<IGraphicsPipelineState>;
 
-using ComputePipelineStateOwner = st::unique<IComputePipelineState>;
-using ComputePipelineStateHandle = st::weak<IComputePipelineState>;
+using ComputePipelineStateOwner = alm::unique<IComputePipelineState>;
+using ComputePipelineStateHandle = alm::weak<IComputePipelineState>;
 
-using TimerQueryOwner = st::unique<ITimerQuery>;
-using TimerQueryHandle = st::weak<ITimerQuery>;
+using TimerQueryOwner = alm::unique<ITimerQuery>;
+using TimerQueryHandle = alm::weak<ITimerQuery>;
 
 } // namespace st::rhi

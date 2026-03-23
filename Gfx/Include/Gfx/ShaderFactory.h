@@ -4,25 +4,25 @@
 #include "Core/Blob.h"
 #include "RHI/Shader.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class Device;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class ShaderFactory
 {
 public:
 
-	ShaderFactory(st::rhi::Device* device);
+	ShaderFactory(alm::rhi::Device* device);
 
-	st::rhi::ShaderOwner LoadShader(const std::string& name, rhi::ShaderType shaderType);
+	alm::rhi::ShaderOwner LoadShader(const std::string& name, rhi::ShaderType shaderType);
 
 private:
 
-	std::unordered_map<std::string, st::Blob> m_BytecodeCache;
+	std::unordered_map<std::string, alm::Blob> m_BytecodeCache;
 	rhi::Device* m_Device;
 };
 

@@ -11,7 +11,7 @@
 
 #define DEBUG_STAGE
 
-st::gfx::ShadowmapRenderStage::ShadowmapRenderStage(size_t resolution, size_t numCascades, rhi::Format pixelFormat) :
+alm::gfx::ShadowmapRenderStage::ShadowmapRenderStage(size_t resolution, size_t numCascades, rhi::Format pixelFormat) :
 	m_TextureWidth{ resolution },
 	m_TextureHeight{ resolution },
 	m_NumCascades{ numCascades },
@@ -20,9 +20,9 @@ st::gfx::ShadowmapRenderStage::ShadowmapRenderStage(size_t resolution, size_t nu
 	m_SlopeScaledDepthBias{ -5.f }
 {}
 
-void st::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
+void alm::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 {
-	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
+	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	m_TextureWidth = textureSize.x;
@@ -51,21 +51,21 @@ void st::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 	}
 }
 
-void st::gfx::ShadowmapRenderStage::SetDepthBias(int v)
+void alm::gfx::ShadowmapRenderStage::SetDepthBias(int v)
 {
 	m_DepthBias = v;
 	RecreatePSO();
 }
 
-void st::gfx::ShadowmapRenderStage::SetSlopeScaledDepthBias(float v)
+void alm::gfx::ShadowmapRenderStage::SetSlopeScaledDepthBias(float v)
 {
 	m_SlopeScaledDepthBias = v;
 	RecreatePSO();
 }
 
-void st::gfx::ShadowmapRenderStage::InitResources()
+void alm::gfx::ShadowmapRenderStage::InitResources()
 {
-	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
+	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create Framebuffer
@@ -80,7 +80,7 @@ void st::gfx::ShadowmapRenderStage::InitResources()
 
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 #ifdef DEBUG_STAGE
 		m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_CO_vs", rhi::ShaderType::Vertex);
 		m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_CO_vs", rhi::ShaderType::Vertex);
@@ -98,9 +98,9 @@ void st::gfx::ShadowmapRenderStage::InitResources()
 	RecreatePSO();
 }
 
-void st::gfx::ShadowmapRenderStage::ReleaseResources()
+void alm::gfx::ShadowmapRenderStage::ReleaseResources()
 {
-	st::rhi::Device* device = GetDeviceManager()->GetDevice();
+	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	m_RenderContext = {};
 
@@ -111,9 +111,9 @@ void st::gfx::ShadowmapRenderStage::ReleaseResources()
 	device->ReleaseQueued(std::move(m_VS_Opaque));
 }
 
-void st::gfx::ShadowmapRenderStage::RecreatePSO()
+void alm::gfx::ShadowmapRenderStage::RecreatePSO()
 {
-	st::rhi::Device* device = GetDeviceManager()->GetDevice();
+	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	rhi::BlendState blendState;
 	blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState
@@ -148,7 +148,7 @@ void st::gfx::ShadowmapRenderStage::RecreatePSO()
 	m_RenderContext.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
 }
 
-void st::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_ShadowMapTexture = builder.CreateDepthTarget("Shadowmap", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
 #ifdef DEBUG_STAGE
@@ -161,7 +161,7 @@ void st::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
 #endif
 }
 
-void st::gfx::ShadowmapRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	auto scene = GetScene();
 	if (!scene)
@@ -196,24 +196,24 @@ void st::gfx::ShadowmapRenderStage::Render(st::rhi::CommandListHandle commandLis
 	commandList->EndRenderPass();
 }
 
-void st::gfx::ShadowmapRenderStage::OnAttached()
+void alm::gfx::ShadowmapRenderStage::OnAttached()
 {
 	if (IsEnabled())
 		InitResources();
 }
 
-void st::gfx::ShadowmapRenderStage::OnDetached()
+void alm::gfx::ShadowmapRenderStage::OnDetached()
 {
 	ReleaseResources();
 }
 
-void st::gfx::ShadowmapRenderStage::OnBackbufferResize()
+void alm::gfx::ShadowmapRenderStage::OnBackbufferResize()
 {
 	// No need to recreate framebuffer and PSO because shadowmap resolution
 	// doesn't change with backbuffer size
 }
 
-void st::gfx::ShadowmapRenderStage::OnEnabled()
+void alm::gfx::ShadowmapRenderStage::OnEnabled()
 {
 	if (IsAttached())
 	{
@@ -226,7 +226,7 @@ void st::gfx::ShadowmapRenderStage::OnEnabled()
 	}
 }
 
-void st::gfx::ShadowmapRenderStage::OnDisabled()
+void alm::gfx::ShadowmapRenderStage::OnDisabled()
 {
 	m_RenderGraph->DisableTexture(m_ShadowMapTexture);
 #ifdef DEBUG_STAGE

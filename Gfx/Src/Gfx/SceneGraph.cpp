@@ -6,7 +6,7 @@
 #include "Gfx/SceneLights.h"
 #include "Gfx/Mesh.h"
 
-int st::gfx::SceneGraph::Walker::Next(IterationMode mode)
+int alm::gfx::SceneGraph::Walker::Next(IterationMode mode)
 {
     if (!m_Current) 
         return 0;
@@ -21,7 +21,7 @@ int st::gfx::SceneGraph::Walker::Next(IterationMode mode)
     return NextSibling(mode);
 }
 
-int st::gfx::SceneGraph::Walker::NextSibling(IterationMode mode)
+int alm::gfx::SceneGraph::Walker::NextSibling(IterationMode mode)
 {
     int depth = 0;
     while (m_Current)
@@ -56,7 +56,7 @@ int st::gfx::SceneGraph::Walker::NextSibling(IterationMode mode)
     return depth;
 }
 
-st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Walker::Up()
+alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Walker::Up()
 {
     if (!m_Current)
         return {};
@@ -74,14 +74,14 @@ st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Walker::Up()
     return m_Current;
 }
 
-st::gfx::SceneGraph::SceneGraph(st::unique<st::gfx::SceneGraphNode>&& rootNode)
+alm::gfx::SceneGraph::SceneGraph(alm::unique<alm::gfx::SceneGraphNode>&& rootNode)
 {
     SetRoot(std::move(rootNode));
 }
 
-st::unique<st::gfx::SceneGraphNode> st::gfx::SceneGraph::SetRoot(st::unique<st::gfx::SceneGraphNode>&& rootNode)
+alm::unique<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::SetRoot(alm::unique<alm::gfx::SceneGraphNode>&& rootNode)
 {
-    st::unique<st::gfx::SceneGraphNode> oldRoot;
+    alm::unique<alm::gfx::SceneGraphNode> oldRoot;
     if (m_Root)
     {
         oldRoot = Detach(m_Root.get());
@@ -92,11 +92,11 @@ st::unique<st::gfx::SceneGraphNode> st::gfx::SceneGraph::SetRoot(st::unique<st::
     return oldRoot;
 }
 
-st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(SceneGraphNode* parent, st::unique<SceneGraphNode>&& child)
+alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Attach(SceneGraphNode* parent, alm::unique<SceneGraphNode>&& child)
 {
     auto parentGraph = parent ? parent->m_Graph : weak_from_this();
     auto childGraph = child->m_Graph;
-    st::weak<SceneGraphNode> attachedChild = child.get_weak();
+    alm::weak<SceneGraphNode> attachedChild = child.get_weak();
 
     if (!parentGraph && !childGraph)
     {
@@ -146,7 +146,7 @@ st::weak<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Attach(SceneGraphNode* pa
     return attachedChild;
 }
 
-st::unique<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Detach(
+alm::unique<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Detach(
     const SceneGraphNode* node)
 {
     assert(0);
@@ -154,17 +154,17 @@ st::unique<st::gfx::SceneGraphNode> st::gfx::SceneGraph::Detach(
     return {};
 }
 
-int st::gfx::SceneGraph::GetInstanceIndex(const st::gfx::MeshInstance* pInstance) const
+int alm::gfx::SceneGraph::GetInstanceIndex(const alm::gfx::MeshInstance* pInstance) const
 {
     return pInstance->GetLeafSceneIndex();
 }
 
-int st::gfx::SceneGraph::GetMeshIndex(const st::gfx::MeshInstance* pInstance) const
+int alm::gfx::SceneGraph::GetMeshIndex(const alm::gfx::MeshInstance* pInstance) const
 {
     return pInstance->GetMeshSceneIndex();
 }
 
-int st::gfx::SceneGraph::GetMeshIndex(int meshInstanceIndex) const
+int alm::gfx::SceneGraph::GetMeshIndex(int meshInstanceIndex) const
 {
     assert(meshInstanceIndex < m_MeshInstanceLeafs.size() && "index out of bounds");
     assert(m_MeshInstanceLeafs[meshInstanceIndex] != nullptr && "invalid index");
@@ -172,12 +172,12 @@ int st::gfx::SceneGraph::GetMeshIndex(int meshInstanceIndex) const
     return m_MeshInstanceLeafs[meshInstanceIndex]->GetMeshSceneIndex();
 }
 
-int st::gfx::SceneGraph::GetMaterialIndex(const st::gfx::MeshInstance* pInstance) const
+int alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::MeshInstance* pInstance) const
 {
     return pInstance->GetMaterialSceneIndex();
 }
 
-int st::gfx::SceneGraph::GetMaterialIndex(const st::gfx::Mesh* mesh) const
+int alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::Mesh* mesh) const
 {
     auto it = std::find(m_Meshes.begin(), m_Meshes.end(), mesh);
     if (it != m_Meshes.end())
@@ -190,7 +190,7 @@ int st::gfx::SceneGraph::GetMaterialIndex(const st::gfx::Mesh* mesh) const
     return -1;
 }
 
-void st::gfx::SceneGraph::Refresh()
+void alm::gfx::SceneGraph::Refresh()
 {
     // Root dirty?
     if (has_any_flag(m_Root->m_DirtyFlags, SceneGraphNode::DirtyFlags::Subgraph))
@@ -268,7 +268,7 @@ void st::gfx::SceneGraph::Refresh()
                 } // Subgraph loop
 
                 // Since we have updated a sub-graph, we need to update parent bounds
-                if (st::any(walker->m_HasBounds))
+                if (alm::any(walker->m_HasBounds))
                 {
                     auto node = *walker;
                     while (node->m_Parent)
@@ -299,7 +299,7 @@ void st::gfx::SceneGraph::Refresh()
     } // Root is dirty
 }
 
-void st::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
+void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
 {
     switch (leaf->GetType())
     {
@@ -356,7 +356,7 @@ void st::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
     }
 }
 
-void st::gfx::SceneGraph::UnregisterLeaf(SceneGraphLeaf* leaf)
+void alm::gfx::SceneGraph::UnregisterLeaf(SceneGraphLeaf* leaf)
 {
     // TODO
 }

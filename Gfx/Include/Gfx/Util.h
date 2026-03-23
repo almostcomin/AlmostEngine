@@ -7,7 +7,7 @@
 #include "Core/Math.h"
 #include "RHI/Format.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 	rhi::Format GetFormat(DXGI_FORMAT format);
 	uint32_t BitsPerPixel(rhi::Format format);

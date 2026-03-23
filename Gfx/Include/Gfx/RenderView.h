@@ -20,7 +20,7 @@ namespace interop
 	struct Scene;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class Camera;
 	class RenderGraph;
@@ -28,10 +28,10 @@ namespace st::gfx
 	class DeviceManager;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
-class RenderView : public st::enable_weak_from_this<RenderView>, private st::noncopyable_nonmovable
+class RenderView : public alm::enable_weak_from_this<RenderView>, private alm::noncopyable_nonmovable
 {
 public:
 
@@ -39,23 +39,23 @@ public:
 	RenderView(ViewportSwapChainId, DeviceManager* deviceManager, const char* debugName);
 	~RenderView();
 
-	void SetScene(st::weak<Scene> scene);
+	void SetScene(alm::weak<Scene> scene);
 	void SetCamera(std::shared_ptr<Camera> camera);
 
 	// Sets render to an offscreen framebuffer. If not initialized or set to null, will render to 
 	// main onscreen framebuffer aka main framebuffer
-	void SetOffscreenFrameBuffer(st::rhi::FramebufferHandle frameBuffer);
+	void SetOffscreenFrameBuffer(alm::rhi::FramebufferHandle frameBuffer);
 
-	st::weak<Scene> GetScene() { return m_Scene; }
+	alm::weak<Scene> GetScene() { return m_Scene; }
 	std::shared_ptr<Camera> GetCamera() { return m_Camera; }
-	st::weak<RenderGraph> GetRenderGraph() { return m_RenderGraph.get_weak(); }
-	st::rhi::FramebufferHandle GetFramebuffer();
-	st::rhi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
-	st::rhi::TextureHandle GetBackBuffer(int idx = 0);
+	alm::weak<RenderGraph> GetRenderGraph() { return m_RenderGraph.get_weak(); }
+	alm::rhi::FramebufferHandle GetFramebuffer();
+	alm::rhi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
+	alm::rhi::TextureHandle GetBackBuffer(int idx = 0);
 
-	st::rhi::BufferUniformView GetSceneBufferUniformView();
-	st::rhi::BufferReadOnlyView GetCameraVisiblityBufferROView();
-	st::rhi::BufferReadOnlyView GetShadowMapVisibilityBufferROView();
+	alm::rhi::BufferUniformView GetSceneBufferUniformView();
+	alm::rhi::BufferReadOnlyView GetCameraVisiblityBufferROView();
+	alm::rhi::BufferReadOnlyView GetShadowMapVisibilityBufferROView();
 	
 	const RenderSet& GetCameraVisibleSet() const { return m_CameraVisibleSet; }
 	const RenderSet& GetShadowMapVisibleSet() const { return m_ShadowMapVisibleSet; }
@@ -83,12 +83,12 @@ private:
 
 private:
 
-	st::weak<Scene> m_Scene;
+	alm::weak<Scene> m_Scene;
 	std::shared_ptr<Camera> m_Camera;
-	st::unique<RenderGraph> m_RenderGraph;
+	alm::unique<RenderGraph> m_RenderGraph;
 
 	ViewportSwapChainId m_ViewportSwapChainId;
-	st::rhi::FramebufferHandle m_OffscreenFramebuffer;
+	alm::rhi::FramebufferHandle m_OffscreenFramebuffer;
 
 	// Bounds of the visible scene
 	math::aabox3f m_CameraVisibleBounds;

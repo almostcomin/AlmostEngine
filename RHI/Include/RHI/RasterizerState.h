@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 enum class FillMode : uint8_t

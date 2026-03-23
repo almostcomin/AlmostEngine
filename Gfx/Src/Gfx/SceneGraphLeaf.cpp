@@ -1,7 +1,7 @@
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/SceneGraphNode.h"
 
-void st::gfx::SceneGraphLeaf::OnBoundsChanged()
+void alm::gfx::SceneGraphLeaf::OnBoundsChanged()
 {
 	if (m_Node)
 	{

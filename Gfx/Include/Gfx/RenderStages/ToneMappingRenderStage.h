@@ -3,7 +3,7 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderGraphBuilder.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class ToneMappingRenderStage : public RenderStage
@@ -52,12 +52,12 @@ public:
 private:
 
 	void Setup(RenderGraphBuilder& builder) override;
-	void Render(st::rhi::CommandListHandle commandList) override;
+	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 
-	void TonemapHDR(st::rhi::CommandListHandle commandList);
-	void TonemapSDR(st::rhi::CommandListHandle commandList);
+	void TonemapHDR(alm::rhi::CommandListHandle commandList);
+	void TonemapSDR(alm::rhi::CommandListHandle commandList);
 
 private:
 

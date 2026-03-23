@@ -9,14 +9,14 @@
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-void st::gfx::SSAORenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::SSAORenderStage::Setup(RenderGraphBuilder& builder)
 {
 	// Create resources
 	{
 		m_AmbientOcclusionTexture = builder.CreateTexture("AmbientOcclusion", RenderGraph::TextureResourceType::ShaderResource, 
-			st::gfx::RenderGraph::c_BBSize, st::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
+			alm::gfx::RenderGraph::c_BBSize, alm::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
 		m_AOBlurTempTexture = builder.CreateTexture("AOBlurTemp", RenderGraph::TextureResourceType::ShaderResource, 
-			st::gfx::RenderGraph::c_BBSize, st::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
+			alm::gfx::RenderGraph::c_BBSize, alm::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
 
 		m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
 		m_GBuffer2Texture = builder.GetTextureHandle("GBuffer2");
@@ -35,7 +35,7 @@ void st::gfx::SSAORenderStage::Setup(RenderGraphBuilder& builder)
 	}
 }
 
-void st::gfx::SSAORenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::SSAORenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	if (!GetScene() || !m_SSAOEnabled)
 	{
@@ -143,14 +143,14 @@ void st::gfx::SSAORenderStage::Render(st::rhi::CommandListHandle commandList)
 	}
 }
 
-void st::gfx::SSAORenderStage::OnAttached()
+void alm::gfx::SSAORenderStage::OnAttached()
 {
 	DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_SSAO_CS = shaderFactory->LoadShader("SSAO_cs", rhi::ShaderType::Compute);
 		m_BilateralBlurV_CS = shaderFactory->LoadShader("BilateralBlurV_cs", rhi::ShaderType::Compute);
 		m_BilateralBlurH_CS = shaderFactory->LoadShader("BilateralBlurH_cs", rhi::ShaderType::Compute);
@@ -164,7 +164,7 @@ void st::gfx::SSAORenderStage::OnAttached()
 	}
 }
 
-void st::gfx::SSAORenderStage::OnDetached()
+void alm::gfx::SSAORenderStage::OnDetached()
 {
 	m_BilateralBlurH_PSO.reset();
 	m_BilateralBlurV_PSO.reset();
@@ -176,7 +176,7 @@ void st::gfx::SSAORenderStage::OnDetached()
 
 }
 
-void st::gfx::SSAORenderStage::Passthrough(st::rhi::CommandListHandle commandList)
+void alm::gfx::SSAORenderStage::Passthrough(alm::rhi::CommandListHandle commandList)
 {
 	rhi::TextureHandle linearDepthTex = m_RenderGraph->GetTexture(m_LinearDepthTexture);
 	const uint32_t width = linearDepthTex->GetDesc().width;

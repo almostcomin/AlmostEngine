@@ -3,7 +3,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace st
+namespace alm
 {
 
 template<typename T, typename Hash = std::hash<T>>

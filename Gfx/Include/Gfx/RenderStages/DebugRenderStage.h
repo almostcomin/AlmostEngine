@@ -8,12 +8,12 @@
 #include "Gfx/SceneBounds.h"
 #include "Gfx/RenderGraphTypes.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class Scene;
 };
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class DebugRenderStage : public RenderStage
@@ -29,7 +29,7 @@ public:
 private:
 
 	void Setup(RenderGraphBuilder& builder) override;
-	void Render(st::rhi::CommandListHandle commandList) override;
+	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;

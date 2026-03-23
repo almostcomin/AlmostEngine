@@ -4,17 +4,17 @@
 #include "Gfx/MaterialDomain.h"
 #include "RHI/RasterizerState.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class Device;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class LoadedTexture;
 };
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class Material
@@ -24,11 +24,11 @@ public:
 	Material(rhi::Device* device, const char* name = nullptr, const char* filename = nullptr);
 	~Material();
 
-	void SetBaseColorTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle);
-	void SetMetalRoughTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle);
-	void SetNormalTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle);
-	void SetEmissiveTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle);
-	void SetOcclusionTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle);
+	void SetBaseColorTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
+	void SetMetalRoughTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
+	void SetNormalTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
+	void SetEmissiveTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
+	void SetOcclusionTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
 
 	void SetBaseColor(const float3& color) { m_BaseColor = color; }
 	void SetOpacity(float opacity) { m_Opacity = opacity; }
@@ -39,11 +39,11 @@ public:
 	void SetOcclusionStrengh(float v) { m_OcclusionStrengh = v; }
 	void SetAlphaCutoff(float v) { m_AlphaCutoff = v; }
 
-	const std::shared_ptr<st::gfx::LoadedTexture> GetBaseColorTexture() const { return m_BaseColorTexture; }
-	const std::shared_ptr<st::gfx::LoadedTexture> GetMetalRoughTexture() const { return m_MetalRoughTexture; }
-	const std::shared_ptr<st::gfx::LoadedTexture> GetNormalTexture() const { return m_NormalTexture; }
-	const std::shared_ptr<st::gfx::LoadedTexture> GetEmissiveTexture() const { return m_EmissiveTexture; }
-	const std::shared_ptr<st::gfx::LoadedTexture> GetOcclusionTexture() const { return m_OcclusionTexture; }
+	const std::shared_ptr<alm::gfx::LoadedTexture> GetBaseColorTexture() const { return m_BaseColorTexture; }
+	const std::shared_ptr<alm::gfx::LoadedTexture> GetMetalRoughTexture() const { return m_MetalRoughTexture; }
+	const std::shared_ptr<alm::gfx::LoadedTexture> GetNormalTexture() const { return m_NormalTexture; }
+	const std::shared_ptr<alm::gfx::LoadedTexture> GetEmissiveTexture() const { return m_EmissiveTexture; }
+	const std::shared_ptr<alm::gfx::LoadedTexture> GetOcclusionTexture() const { return m_OcclusionTexture; }
 
 	rhi::TextureHandle GetBaseColorTextureHandle() const;
 	rhi::TextureHandle GetMetalRoughTextureHandle() const;
@@ -72,11 +72,11 @@ public:
 
 private:
 
-	std::shared_ptr<st::gfx::LoadedTexture> m_BaseColorTexture;
-	std::shared_ptr<st::gfx::LoadedTexture> m_MetalRoughTexture;
-	std::shared_ptr<st::gfx::LoadedTexture> m_NormalTexture;
-	std::shared_ptr<st::gfx::LoadedTexture> m_EmissiveTexture;
-	std::shared_ptr<st::gfx::LoadedTexture> m_OcclusionTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> m_BaseColorTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> m_MetalRoughTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> m_NormalTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> m_EmissiveTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> m_OcclusionTexture;
 
 	float3 m_BaseColor; // Used only if BaseColorTexture or m_MetalRoughTexture is not present
 	float m_Opacity;	// Final opacity is multiplied by BaseColorTexture.a if present

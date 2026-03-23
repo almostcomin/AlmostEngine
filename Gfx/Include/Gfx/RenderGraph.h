@@ -7,17 +7,17 @@
 #include "Gfx/RenderGraphTypes.h"
 #include <map>
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class RenderStage;
 	class RenderView;
 	class DeviceManager;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
-class RenderGraph : public st::enable_weak_from_this<RenderGraph>, private st::noncopyable_nonmovable
+class RenderGraph : public alm::enable_weak_from_this<RenderGraph>, private alm::noncopyable_nonmovable
 {
 public:
 
@@ -79,7 +79,7 @@ public:
 
 	bool BeginRender(rhi::ICommandList* commandList);
 	bool EndRender(rhi::ICommandList* commandList);
-	void Render(st::rhi::FramebufferHandle frameBuffer);
+	void Render(alm::rhi::FramebufferHandle frameBuffer);
 
 	void OnSceneChanged();
 	void OnRenderTargetChanged(const int2& newSize);
@@ -113,7 +113,7 @@ public:
 	rhi::BufferReadOnlyView GetBufferReadOnlyView(RGBufferHandle handle);
 	rhi::BufferReadWriteView GetBufferReadWriteView(RGBufferHandle handle);
 
-	st::rhi::CommandListHandle GetCommandList();
+	alm::rhi::CommandListHandle GetCommandList();
 
 	size_t GetNumRenderStages(const std::string& mode = {}) const;
 	const StageData* GetRenderStage(uint32_t idx, const std::string& mode = {}) const;
@@ -125,7 +125,7 @@ public:
 	rhi::TextureHandle GetTextureView(RGTextureViewTicket ticket);
 	rhi::BufferHandle GetBufferView(RGBufferViewTicket ticket);
 
-	st::rhi::FramebufferHandle GetFramebuffer();
+	alm::rhi::FramebufferHandle GetFramebuffer();
 	RenderView* GetRenderView() { return m_RenderView; }
 	DeviceManager* GetDeviceManager() { return m_DeviceManager; }
 
@@ -178,11 +178,11 @@ private:
 	RGBufferHandle GetHandle(DeclaredBuffer* declBuffer);
 
 	std::vector<TextureViewRequest*> GetTexViewRequests(RenderStage* rs, AccessMode accessMode);
-	void UpdateRequestedTextureViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
+	void UpdateRequestedTextureViews(alm::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 		const std::map<RGTextureHandle, rhi::ResourceState> resourceStates);
 
 	std::vector<BufferViewRequest*> GetBufferViewRequests(RenderStage* rs, AccessMode accessMode);
-	void UpdateRequestedBufferViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
+	void UpdateRequestedBufferViews(alm::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 		const std::map<RGBufferHandle, rhi::ResourceState> resourceStates);
 
 private:
@@ -202,7 +202,7 @@ private:
 	std::vector<TextureViewRequest*> m_TexViewRequests;
 	std::vector<BufferViewRequest*> m_BufferViewRequests;
 
-	std::vector<st::rhi::CommandListOwner> m_CommandLists;
+	std::vector<alm::rhi::CommandListOwner> m_CommandLists;
 
 	std::string m_DebugName;
 	RenderView* m_RenderView;

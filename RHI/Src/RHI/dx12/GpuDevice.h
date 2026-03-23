@@ -5,7 +5,7 @@
 #include "RHI/dx12/DescriptorHeap.h"
 #include "Core/BitSetAllocator.h"
 
-namespace st::rhi::dx12
+namespace alm::rhi::dx12
 {
 	struct Queue
 	{
@@ -24,7 +24,7 @@ namespace st::rhi::dx12
 		}
 	};
 
-	class GpuDevice : public st::rhi::Device
+	class GpuDevice : public alm::rhi::Device
 	{
 	public:
 
@@ -126,14 +126,14 @@ namespace st::rhi::dx12
 		void CreateBufferUAV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes);
 
 		template<class T>
-		st::unique<T> InsertNewResource(T* p)
+		alm::unique<T> InsertNewResource(T* p)
 		{
 			static_assert(std::is_base_of_v<IResource, T>);
 
 			std::scoped_lock lock{ m_LivingResourcesMutex };
-			st::unique<IResource> handle = MakeIResourceUnique(p);
+			alm::unique<IResource> handle = MakeIResourceUnique(p);
 			auto insertResult = m_LivingResources.insert(handle.get());
-			return st::adopt_unique<T>(std::move(handle));
+			return alm::adopt_unique<T>(std::move(handle));
 		}
 
 		void ReleaseStaleResources(uint32_t bufferIdx);

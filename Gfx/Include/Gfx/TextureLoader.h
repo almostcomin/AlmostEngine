@@ -5,10 +5,10 @@
 #include "Gfx/TextureInfo.h"
 #include "Core/Blob.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
-std::expected<std::pair<TextureInfo, st::Blob>, std::string> LoadDDSTexture(const st::WeakBlob& fileData);
-std::expected<std::pair<TextureInfo, st::Blob>, std::string> LoadImageTexture(const st::WeakBlob& fileData, bool forceSRGB);
+std::expected<std::pair<TextureInfo, alm::Blob>, std::string> LoadDDSTexture(const alm::WeakBlob& fileData);
+std::expected<std::pair<TextureInfo, alm::Blob>, std::string> LoadImageTexture(const alm::WeakBlob& fileData, bool forceSRGB);
 
 } // namespace st::gfx

@@ -2,7 +2,7 @@
 
 #include "RHI/Descriptors.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 template<TextureViewType T>

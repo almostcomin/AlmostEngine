@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-namespace st
+namespace alm
 {
 
 template <typename T>

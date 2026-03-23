@@ -5,7 +5,7 @@
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 class GBuffersRenderStage : public RenderStage
 {
@@ -18,7 +18,7 @@ public:
 private:
 
 	void Setup(RenderGraphBuilder& builder) override;
-	void Render(st::rhi::CommandListHandle commandList) override;
+	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
@@ -31,12 +31,12 @@ private:
 	RGTextureHandle m_GBuffer3Texture;
 	RGTextureHandle m_SceneDepthTexture;
 
-	st::rhi::ShaderOwner m_VS;
-	st::rhi::ShaderOwner m_PS_Opaque;
-	st::rhi::ShaderOwner m_PS_AlphaTest;
-	st::rhi::FramebufferOwner m_FB;
-	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
-	st::gfx::RenderContext m_RenderContext;
+	alm::rhi::ShaderOwner m_VS;
+	alm::rhi::ShaderOwner m_PS_Opaque;
+	alm::rhi::ShaderOwner m_PS_AlphaTest;
+	alm::rhi::FramebufferOwner m_FB;
+	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;
+	alm::gfx::RenderContext m_RenderContext;
 };
 
 } // namespace st::gfx

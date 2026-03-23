@@ -3,18 +3,18 @@
 #include "RHI/Shader.h"
 #include "RHI/PipelineState.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class Device;
 	struct FramebufferInfo;
 };
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class ShaderFactory;
 };
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class CommonResources

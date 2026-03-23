@@ -8,7 +8,7 @@
 #include "RHI/DepthStencilState.h"
 #include "RHI/TypeForwards.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 struct GraphicsPipelineStateDesc

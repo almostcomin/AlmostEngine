@@ -201,24 +201,24 @@ void TextAlignedRight(float rightPos, const char* fmt, ...)
     ImGui::TextUnformatted(buffer);
 }
 
-const char* GetTextureDimensionText(st::rhi::TextureDimension dim)
+const char* GetTextureDimensionText(alm::rhi::TextureDimension dim)
 {
     switch (dim)
     {
-    case st::rhi::TextureDimension::Texture1D: return "Texture1D";
-    case st::rhi::TextureDimension::Texture1DArray: return "Texture1DArray";
-    case st::rhi::TextureDimension::Texture2D: return "Texture2D";
-    case st::rhi::TextureDimension::Texture2DArray: return "Texture2DArray";
-    case st::rhi::TextureDimension::TextureCube: return "TextureCube";
-    case st::rhi::TextureDimension::TextureCubeArray: return "TextureCubeArray";
-    case st::rhi::TextureDimension::Texture2DMS: return "Texture2DMS";
-    case st::rhi::TextureDimension::Texture2DMSArray: return "Texture2DMSArray";
-    case st::rhi::TextureDimension::Texture3D: return "Texture3D";
+    case alm::rhi::TextureDimension::Texture1D: return "Texture1D";
+    case alm::rhi::TextureDimension::Texture1DArray: return "Texture1DArray";
+    case alm::rhi::TextureDimension::Texture2D: return "Texture2D";
+    case alm::rhi::TextureDimension::Texture2DArray: return "Texture2DArray";
+    case alm::rhi::TextureDimension::TextureCube: return "TextureCube";
+    case alm::rhi::TextureDimension::TextureCubeArray: return "TextureCubeArray";
+    case alm::rhi::TextureDimension::Texture2DMS: return "Texture2DMS";
+    case alm::rhi::TextureDimension::Texture2DMSArray: return "Texture2DMSArray";
+    case alm::rhi::TextureDimension::Texture3D: return "Texture3D";
     default: return "Unknown";
     }
 }
 
-void BuildTexture(const char* title, const st::gfx::LoadedTexture& diffuseTex)
+void BuildTexture(const char* title, const alm::gfx::LoadedTexture& diffuseTex)
 {
     ImGui::SeparatorText(title);
     auto desc = diffuseTex.texture->GetDesc();
@@ -283,8 +283,8 @@ void BuildTexture(const char* title, const st::gfx::LoadedTexture& diffuseTex)
 
 } // anonymous namespace
 
-StructureUI::StructureUI(st::weak<st::gfx::RenderView> renderView, SDL_Window* window, st::gfx::ShadowmapRenderStage* shadowmapRS, 
-                         st::gfx::ToneMappingRenderStage* tonemappingRS, st::gfx::DeviceManager* deviceManager) :
+StructureUI::StructureUI(alm::weak<alm::gfx::RenderView> renderView, SDL_Window* window, alm::gfx::ShadowmapRenderStage* shadowmapRS, 
+                         alm::gfx::ToneMappingRenderStage* tonemappingRS, alm::gfx::DeviceManager* deviceManager) :
     m_Window{ window },
     m_DeviceManager{ deviceManager },
     m_RenderView{ renderView },
@@ -647,28 +647,28 @@ void StructureUI::BuildSettingsWindow()
 
     if (ImGui::CollapsingHeader("Material channels"))
     {
-        if (ImGui::RadioButton("Disabled##matDisabled", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
-        if(ImGui::RadioButton("Base Color##matBaseColor", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor;
-        if (ImGui::RadioButton("Metalness##matMetalness", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness;
-        if (ImGui::RadioButton("Anisotropy##matAnisotropy", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy;
-        if (ImGui::RadioButton("Roughness##matRoughness", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness;
-        if (ImGui::RadioButton("Scattering##matScattering", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering;
-        if (ImGui::RadioButton("Translucency##matTranslucency", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency;
-        if (ImGui::RadioButton("Normal Map##matNormalMap", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap;
-        if (ImGui::RadioButton("Occlusion Map##matOcclusionMap", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap;
-        if (ImGui::RadioButton("Emissive##matEmissive", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive;
-        if (ImGui::RadioButton("Specular F0##matSpecularF0", m_Data.MatChannel == st::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0))
-            m_Data.MatChannel = st::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0;
+        if (ImGui::RadioButton("Disabled##matDisabled", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
+        if(ImGui::RadioButton("Base Color##matBaseColor", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor;
+        if (ImGui::RadioButton("Metalness##matMetalness", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness;
+        if (ImGui::RadioButton("Anisotropy##matAnisotropy", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy;
+        if (ImGui::RadioButton("Roughness##matRoughness", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness;
+        if (ImGui::RadioButton("Scattering##matScattering", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering;
+        if (ImGui::RadioButton("Translucency##matTranslucency", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency;
+        if (ImGui::RadioButton("Normal Map##matNormalMap", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap;
+        if (ImGui::RadioButton("Occlusion Map##matOcclusionMap", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap;
+        if (ImGui::RadioButton("Emissive##matEmissive", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive;
+        if (ImGui::RadioButton("Specular F0##matSpecularF0", m_Data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0))
+            m_Data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0;
     }
 
     if (ImGui::CollapsingHeader("SSAO"))
@@ -688,10 +688,10 @@ void StructureUI::BuildSettingsWindow()
     {
         ImGui::Checkbox("Enabled##Tonemapping", &m_Data.tonemappingEnabled);
 
-        st::rhi::ColorSpace colorSpace = m_DeviceManager->GetColorSpace();
+        alm::rhi::ColorSpace colorSpace = m_DeviceManager->GetColorSpace();
         ImGui::SameLine(0.f, availWidth / 8);
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-        TextRightAligned("Color Space: %s", colorSpace == st::rhi::ColorSpace::HDR10_ST2084 ? "HDR10" : "SDR");
+        TextRightAligned("Color Space: %s", colorSpace == alm::rhi::ColorSpace::HDR10_ST2084 ? "HDR10" : "SDR");
         ImGui::PopStyleColor();
 
         ImGui::Spacing();
@@ -758,7 +758,7 @@ void StructureUI::BuildSceneWindow(bool* p_open)
         if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
         {
             uint32_t pushid_count = 0;
-            st::gfx::SceneGraph::Walker walker(*scene->GetSceneGraph());
+            alm::gfx::SceneGraph::Walker walker(*scene->GetSceneGraph());
             while (walker)
             {
                 const auto* node = (*walker).get();
@@ -817,7 +817,7 @@ void StructureUI::BuildSceneWindow(bool* p_open)
             {
                 ImGui::SeparatorText("Local transform");
                 {
-                    const st::gfx::Transform& localTransform = node->GetLocalTransform();
+                    const alm::gfx::Transform& localTransform = node->GetLocalTransform();
                     ImGui::Text("Position");
                     ImGui::SetNextItemWidth(-FLT_MIN);
                     ImGui::InputFloat3("##localTrans", (float*)&(localTransform.GetTranslation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
@@ -831,7 +831,7 @@ void StructureUI::BuildSceneWindow(bool* p_open)
 
                 ImGui::SeparatorText("World transform");
                 {
-                    const st::gfx::Transform worldTransform{ node->GetWorldTransform() };
+                    const alm::gfx::Transform worldTransform{ node->GetWorldTransform() };
                     ImGui::Text("Position");
                     ImGui::SetNextItemWidth(-FLT_MIN);
                     ImGui::InputFloat3("##worldTrans", (float*)&(worldTransform.GetTranslation()), "%.3f", ImGuiInputTextFlags_ReadOnly);
@@ -843,11 +843,11 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     ImGui::InputFloat3("##worldScale", (float*)&(worldTransform.GetScale()), "%.3f", ImGuiInputTextFlags_ReadOnly);
                 }
 
-                if (node->HasBounds(st::gfx::BoundsType::Mesh))
+                if (node->HasBounds(alm::gfx::BoundsType::Mesh))
                 {
                     ImGui::SeparatorText("Mesh Bounds");
                     {
-                        const st::math::aabox3f& bbox = node->GetWorldBounds(st::gfx::BoundsType::Mesh);
+                        const alm::math::aabox3f& bbox = node->GetWorldBounds(alm::gfx::BoundsType::Mesh);
                         ImGui::Text("Min");
                         ImGui::SetNextItemWidth(-FLT_MIN);
                         ImGui::InputFloat3("##meshBboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
@@ -857,11 +857,11 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     }
                 }
 
-                if (node->HasBounds(st::gfx::BoundsType::Light))
+                if (node->HasBounds(alm::gfx::BoundsType::Light))
                 {
                     ImGui::SeparatorText("Light Bounds");
                     {
-                        const st::math::aabox3f& bbox = node->GetWorldBounds(st::gfx::BoundsType::Light);
+                        const alm::math::aabox3f& bbox = node->GetWorldBounds(alm::gfx::BoundsType::Light);
                         ImGui::Text("Min");
                         ImGui::SetNextItemWidth(-FLT_MIN);
                         ImGui::InputFloat3("##lightBboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
@@ -873,7 +873,7 @@ void StructureUI::BuildSceneWindow(bool* p_open)
 
                 ImGui::SeparatorText("ContentFlags");
                 {
-                    const st::gfx::SceneContentFlags flags = node->GetContentFlags();
+                    const alm::gfx::SceneContentFlags flags = node->GetContentFlags();
                     ImGui::BeginTable("##flags", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
                     ImGui::TableSetupColumn("cb0", ImGuiTableColumnFlags_WidthFixed, 0.0f);
                     ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthStretch, 1.0f);
@@ -894,22 +894,22 @@ void StructureUI::BuildSceneWindow(bool* p_open)
 
                     // First row
                     ImGui::TableNextRow();
-                    flagCell("OpaqueMeshes", st::has_any_flag(flags, st::gfx::SceneContentFlags::OpaqueMeshes));
-                    flagCell("DirLights", st::has_any_flag(flags, st::gfx::SceneContentFlags::DirectionalLights));
+                    flagCell("OpaqueMeshes", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::OpaqueMeshes));
+                    flagCell("DirLights", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::DirectionalLights));
 
                     // Second row
                     ImGui::TableNextRow();
-                    flagCell("AlphaTestedMeshes", st::has_any_flag(flags, st::gfx::SceneContentFlags::AlphaTestedMeshes));
-                    flagCell("PointLights", st::has_any_flag(flags, st::gfx::SceneContentFlags::PointLights));
+                    flagCell("AlphaTestedMeshes", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::AlphaTestedMeshes));
+                    flagCell("PointLights", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::PointLights));
 
                     // Third row
                     ImGui::TableNextRow();
-                    flagCell("BlendedMeshes", st::has_any_flag(flags, st::gfx::SceneContentFlags::BlendedMeshes));
-                    flagCell("SpotLights", st::has_any_flag(flags, st::gfx::SceneContentFlags::SpotLights));
+                    flagCell("BlendedMeshes", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::BlendedMeshes));
+                    flagCell("SpotLights", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::SpotLights));
 
                     // Four row
-                    flagCell("Cameras", st::has_any_flag(flags, st::gfx::SceneContentFlags::Cameras));
-                    flagCell("Animations", st::has_any_flag(flags, st::gfx::SceneContentFlags::Animations));
+                    flagCell("Cameras", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::Cameras));
+                    flagCell("Animations", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::Animations));
 
                     ImGui::EndTable();
                 }
@@ -920,20 +920,20 @@ void StructureUI::BuildSceneWindow(bool* p_open)
             {
                 switch (leaf->GetType())
                 {
-                case st::gfx::SceneGraphLeaf::Type::MeshInstance:
-                    BuildMeshInstanceLeaf(st::checked_cast<const st::gfx::MeshInstance*>(leaf));
+                case alm::gfx::SceneGraphLeaf::Type::MeshInstance:
+                    BuildMeshInstanceLeaf(alm::checked_cast<const alm::gfx::MeshInstance*>(leaf));
                     break;
-                case st::gfx::SceneGraphLeaf::Type::Camera:
+                case alm::gfx::SceneGraphLeaf::Type::Camera:
                     assert(0);
                     break;
-                case st::gfx::SceneGraphLeaf::Type::DirectionalLight:
-                    BuildDirLightLeaf(st::checked_cast<const st::gfx::SceneDirectionalLight*>(leaf));
+                case alm::gfx::SceneGraphLeaf::Type::DirectionalLight:
+                    BuildDirLightLeaf(alm::checked_cast<const alm::gfx::SceneDirectionalLight*>(leaf));
                     break;
-                case st::gfx::SceneGraphLeaf::Type::PointLight:
-                    BuildPointLightLeaf(st::checked_cast<const st::gfx::ScenePointLight*>(leaf));
+                case alm::gfx::SceneGraphLeaf::Type::PointLight:
+                    BuildPointLightLeaf(alm::checked_cast<const alm::gfx::ScenePointLight*>(leaf));
                     break;
-                case st::gfx::SceneGraphLeaf::Type::SpotLight:
-                    BuildSpotLightLeaf(st::checked_cast<const st::gfx::SceneSpotLight*>(leaf));
+                case alm::gfx::SceneGraphLeaf::Type::SpotLight:
+                    BuildSpotLightLeaf(alm::checked_cast<const alm::gfx::SceneSpotLight*>(leaf));
                     break;
                 default:
                     assert(0);
@@ -951,7 +951,7 @@ void StructureUI::BuildResourcesWindow(bool* p_open)
     ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
     if (!ImGui::Begin("Resources view", p_open, ImGuiWindowFlags_None))
     {
-        st::rhi::Device* device = m_DeviceManager->GetDevice();
+        alm::rhi::Device* device = m_DeviceManager->GetDevice();
 
 
         ImGui::End();
@@ -963,7 +963,7 @@ void StructureUI::BuildResourcesWindow(bool* p_open)
 
 void StructureUI::BuildRenderStagesWindow()
 {
-    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
+    alm::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
     const float parentHeight = ImGui::GetIO().DisplaySize.y;
     const float windowHeight = parentHeight * 0.9f;
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -1002,14 +1002,14 @@ void StructureUI::BuildRenderStagesWindow()
                         {
                             AddRenderStageBufferView(
                                 rs->renderStage.get(),
-                                isWrite ? st::gfx::RenderGraph::AccessMode::Write : st::gfx::RenderGraph::AccessMode::Read,
+                                isWrite ? alm::gfx::RenderGraph::AccessMode::Write : alm::gfx::RenderGraph::AccessMode::Read,
                                 id);
                         }
                         else
                         {
                             AddRenderStageTextureView(
                                 rs->renderStage.get(),
-                                isWrite ? st::gfx::RenderGraph::AccessMode::Write : st::gfx::RenderGraph::AccessMode::Read,
+                                isWrite ? alm::gfx::RenderGraph::AccessMode::Write : alm::gfx::RenderGraph::AccessMode::Read,
                                 id);
                         }
                     }
@@ -1113,12 +1113,12 @@ void StructureUI::BuildLumnincaHistogram()
     if (!m_ShowLuminanceHistogram)
         return;
 
-    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
+    alm::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
 
     if (!m_LumHistogramBufferTicket.IsValid())
     {
         m_LumHistogramBufferTicket = renderGraph->RequestBufferView(
-            m_TonemappingRS, st::gfx::RenderGraph::AccessMode::Write, renderGraph->GetBufferHandle("LuminanceHistogram"));
+            m_TonemappingRS, alm::gfx::RenderGraph::AccessMode::Write, renderGraph->GetBufferHandle("LuminanceHistogram"));
     }
     if (!m_LumHistogramBufferTicket.IsValid())
     {
@@ -1138,12 +1138,12 @@ void StructureUI::BuildLumnincaHistogram()
         return;
     }
 
-    st::gfx::ToneMappingRenderStage::Stats stats = m_TonemappingRS->GetStats();
+    alm::gfx::ToneMappingRenderStage::Stats stats = m_TonemappingRS->GetStats();
 
-    st::rhi::TextureHandle toneMappedTex = renderGraph->GetTexture("ToneMapped");
+    alm::rhi::TextureHandle toneMappedTex = renderGraph->GetTexture("ToneMapped");
     assert(toneMappedTex);
 
-    st::rhi::BufferHandle buffer = renderGraph->GetBufferView(m_LumHistogramBufferTicket);
+    alm::rhi::BufferHandle buffer = renderGraph->GetBufferView(m_LumHistogramBufferTicket);
     if (buffer)
     {
         void* data_ptr = buffer->Map();
@@ -1187,16 +1187,16 @@ void StructureUI::BuildLumnincaHistogram()
 
 bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)
 {
-    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
+    alm::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
     bool isOpen = true;
 
-    st::rhi::TextureHandle tex = renderGraph->GetTextureView(rsTexView->ticket);
+    alm::rhi::TextureHandle tex = renderGraph->GetTextureView(rsTexView->ticket);
     if (!tex)
         return isOpen;
 
     std::stringstream title;
     title << rsTexView->renderStage->GetDebugName() << " - ";
-    if (rsTexView->accessMode == st::gfx::RenderGraph::AccessMode::Read)
+    if (rsTexView->accessMode == alm::gfx::RenderGraph::AccessMode::Read)
         title << "Read";
     else
         title << "Write";
@@ -1245,7 +1245,7 @@ bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)
         ShowPropertyInt("Depth", labelWidth, texDesc.depth, labelHeight, ++id);
         ShowPropertyInt("ArraySize", labelWidth, texDesc.arraySize, labelHeight, ++id);
         ShowPropertyInt("MipLevels", labelWidth, texDesc.mipLevels, labelHeight, ++id);
-        ShowPropertyText("Format", labelWidth, st::rhi::GetFormatString(texDesc.format), labelHeight, ++id);
+        ShowPropertyText("Format", labelWidth, alm::rhi::GetFormatString(texDesc.format), labelHeight, ++id);
 
         fitPressed = ImGui::Button("Fit");
         ImGui::SameLine();
@@ -1341,13 +1341,13 @@ bool StructureUI::BuildRSTexView(RenderStageTextureView* rsTexView)
 bool StructureUI::BuildRSBufferView(RenderStageBufferView* rsBufferView)
 {
     bool isOpen = true;
-    st::rhi::BufferHandle buffer = m_RenderView->GetRenderGraph()->GetBufferView(rsBufferView->ticket);
+    alm::rhi::BufferHandle buffer = m_RenderView->GetRenderGraph()->GetBufferView(rsBufferView->ticket);
     if (!buffer)
         return isOpen;
 
     std::stringstream title;
     title << rsBufferView->renderStage->GetDebugName() << " - ";
-    if (rsBufferView->accessMode == st::gfx::RenderGraph::AccessMode::Read)
+    if (rsBufferView->accessMode == alm::gfx::RenderGraph::AccessMode::Read)
         title << "Read";
     else
         title << "Write";
@@ -1361,7 +1361,7 @@ bool StructureUI::BuildRSBufferView(RenderStageBufferView* rsBufferView)
     return rsBufferView->memEditor->Open;
 }
 
-void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
+void StructureUI::BuildMeshInstanceLeaf(const alm::gfx::MeshInstance* leaf)
 {
     const auto& mesh = leaf->GetMesh();
 
@@ -1377,7 +1377,7 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
         ImGui::Separator();
         ImGui::Spacing();
 
-        const st::rhi::PrimitiveTopology topo = mesh->GetPrimitiveTopology();
+        const alm::rhi::PrimitiveTopology topo = mesh->GetPrimitiveTopology();
 
         ImGui::BeginTable("MeshProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
         ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 120.0f);
@@ -1386,17 +1386,17 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
         const char* topoStr = nullptr;
         switch (topo)
         {
-        case st::rhi::PrimitiveTopology::PointList:
+        case alm::rhi::PrimitiveTopology::PointList:
             PropertyRowText("Primitive type", "PointList");
             break;
-        case st::rhi::PrimitiveTopology::TriangleList:
+        case alm::rhi::PrimitiveTopology::TriangleList:
             PropertyRowText("Primitive type", "TriangleList");
             break;
         default:
             assert(0);
         }
     
-        int primCount = st::rhi::GetPrimitiveCount(mesh->GetIndexCount(), topo);
+        int primCount = alm::rhi::GetPrimitiveCount(mesh->GetIndexCount(), topo);
         PropertyRowInt("Primitive count", primCount);
 
         PropertyRowInt("Index count", mesh->GetIndexCount());
@@ -1411,7 +1411,7 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
 
         ImGui::SeparatorText("Vertex format");
         {
-            const st::gfx::Mesh::VertexFormat& vertexFormat = mesh->GetVertexFormat();
+            const alm::gfx::Mesh::VertexFormat& vertexFormat = mesh->GetVertexFormat();
             const float cb_w = ImGui::GetFrameHeight();
             ImGui::BeginTable("##flags", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
             ImGui::TableSetupColumn("cb0", ImGuiTableColumnFlags_WidthFixed, 0.0f);
@@ -1475,7 +1475,7 @@ void StructureUI::BuildMeshInstanceLeaf(const st::gfx::MeshInstance* leaf)
     }
 }
 
-void StructureUI::BuildDirLightLeaf(const st::gfx::SceneDirectionalLight* light)
+void StructureUI::BuildDirLightLeaf(const alm::gfx::SceneDirectionalLight* light)
 {
     if (ImGui::CollapsingHeader("DirectionalLight", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -1520,7 +1520,7 @@ void StructureUI::BuildDirLightLeaf(const st::gfx::SceneDirectionalLight* light)
     }
 }
 
-void StructureUI::BuildPointLightLeaf(const st::gfx::ScenePointLight* light)
+void StructureUI::BuildPointLightLeaf(const alm::gfx::ScenePointLight* light)
 {
     if (ImGui::CollapsingHeader("PointLight", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -1565,7 +1565,7 @@ void StructureUI::BuildPointLightLeaf(const st::gfx::ScenePointLight* light)
     }
 }
 
-void StructureUI::BuildSpotLightLeaf(const st::gfx::SceneSpotLight* light)
+void StructureUI::BuildSpotLightLeaf(const alm::gfx::SceneSpotLight* light)
 {
     if (ImGui::CollapsingHeader("SpotLight", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -1614,9 +1614,9 @@ void StructureUI::BuildSpotLightLeaf(const st::gfx::SceneSpotLight* light)
     }
 }
 
-void StructureUI::AddRenderStageTextureView(st::gfx::RenderStage* renderStage, st::gfx::RenderGraph::AccessMode accessMode, const std::string& id)
+void StructureUI::AddRenderStageTextureView(alm::gfx::RenderStage* renderStage, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& id)
 {
-    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
+    alm::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
 
     // Check if it already exists
     for (auto& entry : m_RSTextureViews)
@@ -1632,9 +1632,9 @@ void StructureUI::AddRenderStageTextureView(st::gfx::RenderStage* renderStage, s
     m_RSTextureViews.emplace_back(renderStage, accessMode, id, ticket);
 }
 
-void StructureUI::AddRenderStageBufferView(st::gfx::RenderStage* renderStage, st::gfx::RenderGraph::AccessMode accessMode, const std::string& id)
+void StructureUI::AddRenderStageBufferView(alm::gfx::RenderStage* renderStage, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& id)
 {
-    st::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
+    alm::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
 
     // Check if it already exists
     for (auto& entry : m_RSBufferViews)

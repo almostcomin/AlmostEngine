@@ -2,7 +2,7 @@
 
 #include <future>
 
-namespace st
+namespace alm
 {
 
 class SignalEmitter

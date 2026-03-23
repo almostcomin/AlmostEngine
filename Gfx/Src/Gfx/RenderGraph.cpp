@@ -19,48 +19,48 @@ namespace
 		return ref / (-desired + 1);
 	}
 
-	st::rhi::ResourceState GetInitialState(st::gfx::RenderGraph::TextureResourceType type)
+	alm::rhi::ResourceState GetInitialState(alm::gfx::RenderGraph::TextureResourceType type)
 	{
 		switch (type)
 		{
-		case st::gfx::RenderGraph::TextureResourceType::RenderTarget:
-			return st::rhi::ResourceState::RENDERTARGET;
-		case st::gfx::RenderGraph::TextureResourceType::DepthStencil:
-			return st::rhi::ResourceState::DEPTHSTENCIL;
-		case st::gfx::RenderGraph::TextureResourceType::ShaderResource:
-			return st::rhi::ResourceState::SHADER_RESOURCE;
+		case alm::gfx::RenderGraph::TextureResourceType::RenderTarget:
+			return alm::rhi::ResourceState::RENDERTARGET;
+		case alm::gfx::RenderGraph::TextureResourceType::DepthStencil:
+			return alm::rhi::ResourceState::DEPTHSTENCIL;
+		case alm::gfx::RenderGraph::TextureResourceType::ShaderResource:
+			return alm::rhi::ResourceState::SHADER_RESOURCE;
 		default:
 			assert(0);
-			return st::rhi::ResourceState::SHADER_RESOURCE;
+			return alm::rhi::ResourceState::SHADER_RESOURCE;
 		}
 	}
 
-	st::rhi::TextureShaderUsage GetTextureShaderUsage(st::gfx::RenderGraph::TextureResourceType type, bool needUAV)
+	alm::rhi::TextureShaderUsage GetTextureShaderUsage(alm::gfx::RenderGraph::TextureResourceType type, bool needUAV)
 	{
-		st::rhi::TextureShaderUsage usage;
+		alm::rhi::TextureShaderUsage usage;
 		switch (type)
 		{
-		case st::gfx::RenderGraph::TextureResourceType::RenderTarget:
-			usage = st::rhi::TextureShaderUsage::Sampled | st::rhi::TextureShaderUsage::ColorTarget;
+		case alm::gfx::RenderGraph::TextureResourceType::RenderTarget:
+			usage = alm::rhi::TextureShaderUsage::Sampled | alm::rhi::TextureShaderUsage::ColorTarget;
 			break;
-		case st::gfx::RenderGraph::TextureResourceType::DepthStencil:
-			usage = st::rhi::TextureShaderUsage::Sampled | st::rhi::TextureShaderUsage::DepthTarget;
+		case alm::gfx::RenderGraph::TextureResourceType::DepthStencil:
+			usage = alm::rhi::TextureShaderUsage::Sampled | alm::rhi::TextureShaderUsage::DepthTarget;
 			break;
-		case st::gfx::RenderGraph::TextureResourceType::ShaderResource:
-			usage = st::rhi::TextureShaderUsage::Sampled;
+		case alm::gfx::RenderGraph::TextureResourceType::ShaderResource:
+			usage = alm::rhi::TextureShaderUsage::Sampled;
 			break;
 		default:
 			assert(0);
-			usage = st::rhi::TextureShaderUsage::Sampled;
+			usage = alm::rhi::TextureShaderUsage::Sampled;
 		}
 		if (needUAV)
-			usage |= st::rhi::TextureShaderUsage::Storage;
+			usage |= alm::rhi::TextureShaderUsage::Storage;
 
 		return usage;
 	}
 } // anonymous namespace
 
-st::gfx::RenderGraph::RenderGraph(RenderView* renderView, const char* debugName) :
+alm::gfx::RenderGraph::RenderGraph(RenderView* renderView, const char* debugName) :
 	m_DebugName{ debugName },
 	m_RenderView{ renderView },
 	m_DeviceManager{ renderView->GetDeviceManager() }
@@ -76,12 +76,12 @@ st::gfx::RenderGraph::RenderGraph(RenderView* renderView, const char* debugName)
 	}
 }
 
-st::gfx::RenderGraph::~RenderGraph()
+alm::gfx::RenderGraph::~RenderGraph()
 {
 	Reset();
 }
 
-void st::gfx::RenderGraph::Reset()
+void alm::gfx::RenderGraph::Reset()
 {
 	for (auto& req : m_TexViewRequests)
 	{
@@ -117,7 +117,7 @@ void st::gfx::RenderGraph::Reset()
 	m_Buffers.clear();
 }
 
-void st::gfx::RenderGraph::SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages)
+void alm::gfx::RenderGraph::SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages)
 {
 	Reset();
 
@@ -158,7 +158,7 @@ void st::gfx::RenderGraph::SetRenderStages(const std::vector<std::shared_ptr<Ren
 	}
 }
 
-void st::gfx::RenderGraph::SetRenderMode(const std::string& name, const std::vector<RenderStage*>& renderStages)
+void alm::gfx::RenderGraph::SetRenderMode(const std::string& name, const std::vector<RenderStage*>& renderStages)
 {
 	if (m_RenderModes.find(name) != m_RenderModes.end())
 	{
@@ -189,7 +189,7 @@ void st::gfx::RenderGraph::SetRenderMode(const std::string& name, const std::vec
 		m_CurrentRenderMode = name;
 }
 
-void st::gfx::RenderGraph::SetCurrentRenderMode(const std::string& name)
+void alm::gfx::RenderGraph::SetCurrentRenderMode(const std::string& name)
 {
 	if (m_RenderModes.find(name) == m_RenderModes.end())
 	{
@@ -199,7 +199,7 @@ void st::gfx::RenderGraph::SetCurrentRenderMode(const std::string& name)
 	m_CurrentRenderMode = name;
 }
 
-std::vector<std::string> st::gfx::RenderGraph::GetRenderModes() const
+std::vector<std::string> alm::gfx::RenderGraph::GetRenderModes() const
 {
 	std::vector<std::string> result;
 	result.reserve(m_RenderModes.size());
@@ -210,16 +210,16 @@ std::vector<std::string> st::gfx::RenderGraph::GetRenderModes() const
 	return result;
 }
 
-void st::gfx::RenderGraph::Compile()
+void alm::gfx::RenderGraph::Compile()
 {
 }
 
-bool st::gfx::RenderGraph::BeginRender(rhi::ICommandList* /*commandList*/)
+bool alm::gfx::RenderGraph::BeginRender(rhi::ICommandList* /*commandList*/)
 {
 	return false; // no-operation needed
 }
 
-bool st::gfx::RenderGraph::EndRender(rhi::ICommandList* commandList)
+bool alm::gfx::RenderGraph::EndRender(rhi::ICommandList* commandList)
 {
 	// Frame End. All the resources need to go back to its initial state.
 	std::vector<rhi::Barrier> barriers;
@@ -253,7 +253,7 @@ bool st::gfx::RenderGraph::EndRender(rhi::ICommandList* commandList)
 	return false;
 }
 
-void st::gfx::RenderGraph::Render(st::rhi::FramebufferHandle /*frameBuffer*/)
+void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 {
 	// Get render mode
 	if (m_RenderModes.empty() || m_CurrentRenderMode.empty())
@@ -400,11 +400,11 @@ void st::gfx::RenderGraph::Render(st::rhi::FramebufferHandle /*frameBuffer*/)
 
 	stageCommandList->EndMarker();
 	stageCommandList->Close();
-	m_DeviceManager->GetDevice()->ExecuteCommandList(stageCommandList, st::rhi::QueueType::Graphics);
+	m_DeviceManager->GetDevice()->ExecuteCommandList(stageCommandList, alm::rhi::QueueType::Graphics);
 
 }
 
-void st::gfx::RenderGraph::OnSceneChanged()
+void alm::gfx::RenderGraph::OnSceneChanged()
 {
 	for (auto& rs : m_RenderStages)
 	{
@@ -412,7 +412,7 @@ void st::gfx::RenderGraph::OnSceneChanged()
 	}
 }
 
-void st::gfx::RenderGraph::OnRenderTargetChanged(const int2& newSize)
+void alm::gfx::RenderGraph::OnRenderTargetChanged(const int2& newSize)
 {
 	// Update all the textures whose size is dependant on BB size
 	for (auto& it : m_Textures)
@@ -443,8 +443,8 @@ void st::gfx::RenderGraph::OnRenderTargetChanged(const int2& newSize)
 	}
 }
 
-st::gfx::RGTextureHandle st::gfx::RenderGraph::CreateTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type,
-																	   int width, int height, int arraySize, st::rhi::Format format, bool needsUAV)
+alm::gfx::RGTextureHandle alm::gfx::RenderGraph::CreateTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type,
+																	   int width, int height, int arraySize, alm::rhi::Format format, bool needsUAV)
 {	
 	// Check if that texture is already created
 	auto it = m_Textures.find(id);
@@ -488,7 +488,7 @@ st::gfx::RGTextureHandle st::gfx::RenderGraph::CreateTexture(RenderStage* render
 	return { result.first->second.get() };
 }
 
-st::gfx::RGBufferHandle st::gfx::RenderGraph::CreateBuffer(RenderStage* renderStage, const std::string& id, const st::rhi::BufferDesc& desc)
+alm::gfx::RGBufferHandle alm::gfx::RenderGraph::CreateBuffer(RenderStage* renderStage, const std::string& id, const alm::rhi::BufferDesc& desc)
 {
 	// Check that texture has not been already created
 	auto it = m_Buffers.find(id);
@@ -504,7 +504,7 @@ st::gfx::RGBufferHandle st::gfx::RenderGraph::CreateBuffer(RenderStage* renderSt
 	return { result.first->second.get() };
 }
 
-bool st::gfx::RenderGraph::RecreateTexture(RGTextureHandle handle, int width, int height, int arraySize, rhi::Format format)
+bool alm::gfx::RenderGraph::RecreateTexture(RGTextureHandle handle, int width, int height, int arraySize, rhi::Format format)
 {
 	// Check that texture has been already created
 	auto* declTex = GetDeclTex(handle);
@@ -537,7 +537,7 @@ bool st::gfx::RenderGraph::RecreateTexture(RGTextureHandle handle, int width, in
 	return true;
 }
 
-bool st::gfx::RenderGraph::RecreateBuffer(RGBufferHandle handle, const rhi::BufferDesc& desc)
+bool alm::gfx::RenderGraph::RecreateBuffer(RGBufferHandle handle, const rhi::BufferDesc& desc)
 {
 	// Check that texture has not been already created
 	auto* declBuffer = GetDeclBuffer(handle);
@@ -552,7 +552,7 @@ bool st::gfx::RenderGraph::RecreateBuffer(RGBufferHandle handle, const rhi::Buff
 	return true;
 }
 
-void st::gfx::RenderGraph::EnableTexture(RGTextureHandle handle)
+void alm::gfx::RenderGraph::EnableTexture(RGTextureHandle handle)
 {
 	auto* declTex = GetDeclTex(handle);
 	if (!declTex->texture)
@@ -568,13 +568,13 @@ void st::gfx::RenderGraph::EnableTexture(RGTextureHandle handle)
 	}
 }
 
-void st::gfx::RenderGraph::DisableTexture(RGTextureHandle handle)
+void alm::gfx::RenderGraph::DisableTexture(RGTextureHandle handle)
 {
 	auto* declTex = GetDeclTex(handle);
 	declTex->texture.reset();
 }
 
-st::gfx::RGTextureHandle st::gfx::RenderGraph::GetTextureHandle(const std::string& id)
+alm::gfx::RGTextureHandle alm::gfx::RenderGraph::GetTextureHandle(const std::string& id)
 {
 	auto it = m_Textures.find(id);
 	if (it != m_Textures.end())
@@ -584,7 +584,7 @@ st::gfx::RGTextureHandle st::gfx::RenderGraph::GetTextureHandle(const std::strin
 	return { nullptr };
 }
 
-st::gfx::RGBufferHandle st::gfx::RenderGraph::GetBufferHandle(const std::string& id)
+alm::gfx::RGBufferHandle alm::gfx::RenderGraph::GetBufferHandle(const std::string& id)
 {
 	auto it = m_Buffers.find(id);
 	if (it != m_Buffers.end())
@@ -594,72 +594,72 @@ st::gfx::RGBufferHandle st::gfx::RenderGraph::GetBufferHandle(const std::string&
 	return { nullptr };
 }
 
-st::rhi::TextureHandle st::gfx::RenderGraph::GetTexture(RGTextureHandle handle)
+alm::rhi::TextureHandle alm::gfx::RenderGraph::GetTexture(RGTextureHandle handle)
 {
 	return GetDeclTex(handle)->texture.get_weak();
 }
 
-st::rhi::BufferHandle st::gfx::RenderGraph::GetBuffer(RGBufferHandle handle)
+alm::rhi::BufferHandle alm::gfx::RenderGraph::GetBuffer(RGBufferHandle handle)
 {
 	return GetDeclBuffer(handle)->buffer.get_weak();
 }
 
-st::rhi::TextureHandle st::gfx::RenderGraph::GetTexture(const std::string& id)
+alm::rhi::TextureHandle alm::gfx::RenderGraph::GetTexture(const std::string& id)
 {
 	return GetTexture(GetTextureHandle(id));
 }
 
-st::rhi::BufferHandle st::gfx::RenderGraph::GetBuffer(const std::string& id)
+alm::rhi::BufferHandle alm::gfx::RenderGraph::GetBuffer(const std::string& id)
 {
 	return GetBuffer(GetBufferHandle(id));
 }
 
-const std::string& st::gfx::RenderGraph::GetId(RGTextureHandle handle)
+const std::string& alm::gfx::RenderGraph::GetId(RGTextureHandle handle)
 {
 	return GetDeclTex(handle)->id;
 }
 
-const std::string& st::gfx::RenderGraph::GetId(RGBufferHandle handle)
+const std::string& alm::gfx::RenderGraph::GetId(RGBufferHandle handle)
 {
 	return GetDeclBuffer(handle)->id;
 }
 
-st::rhi::TextureSampledView st::gfx::RenderGraph::GetTextureSampledView(RGTextureHandle handle)
+alm::rhi::TextureSampledView alm::gfx::RenderGraph::GetTextureSampledView(RGTextureHandle handle)
 {
 	auto tex = GetTexture(handle);
 	return tex ? tex->GetSampledView() : rhi::c_InvalidDescriptorIndex;
 }
 
-st::rhi::TextureStorageView st::gfx::RenderGraph::GetTextureStorageView(RGTextureHandle handle)
+alm::rhi::TextureStorageView alm::gfx::RenderGraph::GetTextureStorageView(RGTextureHandle handle)
 {
 	auto tex = GetTexture(handle);
 	return tex ? tex->GetStorageView() : rhi::c_InvalidDescriptorIndex;
 }
 
-st::rhi::BufferUniformView st::gfx::RenderGraph::GetBufferUniformView(RGBufferHandle handle)
+alm::rhi::BufferUniformView alm::gfx::RenderGraph::GetBufferUniformView(RGBufferHandle handle)
 {
 	auto buffer = GetBuffer(handle);
 	return buffer ? buffer->GetUniformView() : rhi::c_InvalidDescriptorIndex;
 }
 
-st::rhi::BufferReadOnlyView st::gfx::RenderGraph::GetBufferReadOnlyView(RGBufferHandle handle)
+alm::rhi::BufferReadOnlyView alm::gfx::RenderGraph::GetBufferReadOnlyView(RGBufferHandle handle)
 {
 	auto buffer = GetBuffer(handle);
 	return buffer ? buffer->GetReadOnlyView() : rhi::c_InvalidDescriptorIndex;
 }
 
-st::rhi::BufferReadWriteView st::gfx::RenderGraph::GetBufferReadWriteView(RGBufferHandle handle)
+alm::rhi::BufferReadWriteView alm::gfx::RenderGraph::GetBufferReadWriteView(RGBufferHandle handle)
 {
 	auto buffer = GetBuffer(handle);
 	return buffer ? buffer->GetReadWriteView() : rhi::c_InvalidDescriptorIndex;
 }
 
-st::rhi::CommandListHandle st::gfx::RenderGraph::GetCommandList()
+alm::rhi::CommandListHandle alm::gfx::RenderGraph::GetCommandList()
 {
 	return m_CommandLists[m_DeviceManager->GetFrameModuleIndex()].get_weak();
 }
 
-size_t st::gfx::RenderGraph::GetNumRenderStages(const std::string& mode) const
+size_t alm::gfx::RenderGraph::GetNumRenderStages(const std::string& mode) const
 {
 	auto it = m_RenderModes.find(mode.empty() ? m_CurrentRenderMode : mode);
 	if (it == m_RenderModes.end())
@@ -670,7 +670,7 @@ size_t st::gfx::RenderGraph::GetNumRenderStages(const std::string& mode) const
 	return it->second.size();
 }
 
-const st::gfx::RenderGraph::StageData* st::gfx::RenderGraph::GetRenderStage(uint32_t idx, const std::string& mode) const
+const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStage(uint32_t idx, const std::string& mode) const
 {
 	auto it = m_RenderModes.find(mode.empty() ? m_CurrentRenderMode : mode);
 	if (it == m_RenderModes.end())
@@ -682,7 +682,7 @@ const st::gfx::RenderGraph::StageData* st::gfx::RenderGraph::GetRenderStage(uint
 	return it->second.at(idx);
 }
 
-st::gfx::RGTextureViewTicket st::gfx::RenderGraph::RequestTextureView(RenderStage* rs, AccessMode accessMode, RGTextureHandle handle)
+alm::gfx::RGTextureViewTicket alm::gfx::RenderGraph::RequestTextureView(RenderStage* rs, AccessMode accessMode, RGTextureHandle handle)
 {
 	for (auto& entry : m_TexViewRequests)
 	{
@@ -698,7 +698,7 @@ st::gfx::RGTextureViewTicket st::gfx::RenderGraph::RequestTextureView(RenderStag
 	return RGTextureViewTicket{ ticket };
 }
 
-st::gfx::RGBufferViewTicket st::gfx::RenderGraph::RequestBufferView(RenderStage* rs, AccessMode accessMode, RGBufferHandle handle)
+alm::gfx::RGBufferViewTicket alm::gfx::RenderGraph::RequestBufferView(RenderStage* rs, AccessMode accessMode, RGBufferHandle handle)
 {
 	for (auto& entry : m_BufferViewRequests)
 	{
@@ -714,7 +714,7 @@ st::gfx::RGBufferViewTicket st::gfx::RenderGraph::RequestBufferView(RenderStage*
 	return RGBufferViewTicket{ ticket };
 }
 
-void st::gfx::RenderGraph::ReleaseTextureView(RGTextureViewTicket ticket)
+void alm::gfx::RenderGraph::ReleaseTextureView(RGTextureViewTicket ticket)
 {
 	auto it = std::find(m_TexViewRequests.begin(), m_TexViewRequests.end(), ticket.ptr);
 	if (it != m_TexViewRequests.end())
@@ -727,7 +727,7 @@ void st::gfx::RenderGraph::ReleaseTextureView(RGTextureViewTicket ticket)
 	}
 }
 
-void st::gfx::RenderGraph::ReleaseBufferView(RGBufferViewTicket ticket)
+void alm::gfx::RenderGraph::ReleaseBufferView(RGBufferViewTicket ticket)
 {
 	auto it = std::find(m_BufferViewRequests.begin(), m_BufferViewRequests.end(), ticket.ptr);
 	if (it != m_BufferViewRequests.end())
@@ -740,7 +740,7 @@ void st::gfx::RenderGraph::ReleaseBufferView(RGBufferViewTicket ticket)
 	}
 }
 
-st::rhi::TextureHandle st::gfx::RenderGraph::GetTextureView(RGTextureViewTicket ticket)
+alm::rhi::TextureHandle alm::gfx::RenderGraph::GetTextureView(RGTextureViewTicket ticket)
 {
 	auto it = std::find(m_TexViewRequests.begin(), m_TexViewRequests.end(), ticket.ptr);
 	if (it == m_TexViewRequests.end())
@@ -749,7 +749,7 @@ st::rhi::TextureHandle st::gfx::RenderGraph::GetTextureView(RGTextureViewTicket 
 	return (*it)->tex.get_weak();
 }
 
-st::rhi::BufferHandle st::gfx::RenderGraph::GetBufferView(RGBufferViewTicket ticket)
+alm::rhi::BufferHandle alm::gfx::RenderGraph::GetBufferView(RGBufferViewTicket ticket)
 {
 	auto it = std::find(m_BufferViewRequests.begin(), m_BufferViewRequests.end(), ticket.ptr);
 	if (it == m_BufferViewRequests.end())
@@ -758,34 +758,34 @@ st::rhi::BufferHandle st::gfx::RenderGraph::GetBufferView(RGBufferViewTicket tic
 	return (*it)->buffer.get_weak();
 }
 
-st::rhi::FramebufferHandle st::gfx::RenderGraph::GetFramebuffer()
+alm::rhi::FramebufferHandle alm::gfx::RenderGraph::GetFramebuffer()
 {
 	return m_RenderView->GetFramebuffer();
 }
 
-st::gfx::RenderGraph::DeclaredTexture* st::gfx::RenderGraph::GetDeclTex(RGTextureHandle handle)
+alm::gfx::RenderGraph::DeclaredTexture* alm::gfx::RenderGraph::GetDeclTex(RGTextureHandle handle)
 {
 	return reinterpret_cast<DeclaredTexture*>(handle.ptr);
 }
 
-st::gfx::RenderGraph::DeclaredBuffer* st::gfx::RenderGraph::GetDeclBuffer(RGBufferHandle handle)
+alm::gfx::RenderGraph::DeclaredBuffer* alm::gfx::RenderGraph::GetDeclBuffer(RGBufferHandle handle)
 {
 	return reinterpret_cast<DeclaredBuffer*>(handle.ptr);
 }
 
-st::gfx::RGTextureHandle st::gfx::RenderGraph::GetHandle(DeclaredTexture* declTex)
+alm::gfx::RGTextureHandle alm::gfx::RenderGraph::GetHandle(DeclaredTexture* declTex)
 {
 	return RGTextureHandle{ declTex };
 }
 
-st::gfx::RGBufferHandle st::gfx::RenderGraph::GetHandle(DeclaredBuffer* declBuffer)
+alm::gfx::RGBufferHandle alm::gfx::RenderGraph::GetHandle(DeclaredBuffer* declBuffer)
 {
 	return RGBufferHandle{ declBuffer };
 }
 
-std::vector<st::gfx::RenderGraph::TextureViewRequest*> st::gfx::RenderGraph::GetTexViewRequests(RenderStage* rs, AccessMode accessMode)
+std::vector<alm::gfx::RenderGraph::TextureViewRequest*> alm::gfx::RenderGraph::GetTexViewRequests(RenderStage* rs, AccessMode accessMode)
 {
-	std::vector<st::gfx::RenderGraph::TextureViewRequest*> ret;
+	std::vector<alm::gfx::RenderGraph::TextureViewRequest*> ret;
 	for (auto& entry : m_TexViewRequests)
 	{
 		if (entry->rs == rs && entry->accessMode == accessMode)
@@ -796,7 +796,7 @@ std::vector<st::gfx::RenderGraph::TextureViewRequest*> st::gfx::RenderGraph::Get
 	return ret;
 }
 
-void st::gfx::RenderGraph::UpdateRequestedTextureViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
+void alm::gfx::RenderGraph::UpdateRequestedTextureViews(alm::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 	const std::map<RGTextureHandle, rhi::ResourceState> resourceStates)
 {
 	auto requests = GetTexViewRequests(rs, accessMode);
@@ -824,7 +824,7 @@ void st::gfx::RenderGraph::UpdateRequestedTextureViews(st::rhi::ICommandList* co
 
 			std::stringstream debugName;
 			debugName << rs->GetDebugName() << " - ";
-			if (accessMode == st::gfx::RenderGraph::AccessMode::Read)
+			if (accessMode == alm::gfx::RenderGraph::AccessMode::Read)
 				debugName << "Read";
 			else
 				debugName << "Write";
@@ -850,9 +850,9 @@ void st::gfx::RenderGraph::UpdateRequestedTextureViews(st::rhi::ICommandList* co
 	}
 }
 
-std::vector<st::gfx::RenderGraph::BufferViewRequest*> st::gfx::RenderGraph::GetBufferViewRequests(RenderStage* rs, AccessMode accessMode)
+std::vector<alm::gfx::RenderGraph::BufferViewRequest*> alm::gfx::RenderGraph::GetBufferViewRequests(RenderStage* rs, AccessMode accessMode)
 {
-	std::vector<st::gfx::RenderGraph::BufferViewRequest*> ret;
+	std::vector<alm::gfx::RenderGraph::BufferViewRequest*> ret;
 	for (auto& entry : m_BufferViewRequests)
 	{
 		if (entry->rs == rs && entry->accessMode == accessMode)
@@ -863,7 +863,7 @@ std::vector<st::gfx::RenderGraph::BufferViewRequest*> st::gfx::RenderGraph::GetB
 	return ret;
 }
 
-void st::gfx::RenderGraph::UpdateRequestedBufferViews(st::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
+void alm::gfx::RenderGraph::UpdateRequestedBufferViews(alm::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
 	const std::map<RGBufferHandle, rhi::ResourceState> resourceStates)
 {
 	auto requests = GetBufferViewRequests(rs, accessMode);
@@ -888,7 +888,7 @@ void st::gfx::RenderGraph::UpdateRequestedBufferViews(st::rhi::ICommandList* com
 
 			std::stringstream debugName;
 			debugName << rs->GetDebugName() << " - ";
-			if (accessMode == st::gfx::RenderGraph::AccessMode::Read)
+			if (accessMode == alm::gfx::RenderGraph::AccessMode::Read)
 				debugName << "Read";
 			else
 				debugName << "Write";

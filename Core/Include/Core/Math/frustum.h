@@ -3,7 +3,7 @@
 #include "Core/Math/plane.h"
 #include "Core/Math/aabox.h"
 
-namespace st::math
+namespace alm::math
 {
 
 // six planes, normals pointing outside of the volume
@@ -33,12 +33,12 @@ struct frustum3f
         glm::vec4 row2 = glm::row(mat, 2);
         glm::vec4 row3 = glm::row(mat, 3);
 
-        planes[near_plane] = st::math::plane3f{ row3 + row2 };
-        planes[far_plane] = st::math::plane3f{ row3 - row2 };
-        planes[left_plane] = st::math::plane3f{ row3 + row0 };
-        planes[right_plane] = st::math::plane3f{ row3 - row0 };
-        planes[top_plane] = st::math::plane3f{ row3 - row1 };
-        planes[bottom_plane] = st::math::plane3f{ row3 + row1 };
+        planes[near_plane] = alm::math::plane3f{ row3 + row2 };
+        planes[far_plane] = alm::math::plane3f{ row3 - row2 };
+        planes[left_plane] = alm::math::plane3f{ row3 + row0 };
+        planes[right_plane] = alm::math::plane3f{ row3 - row0 };
+        planes[top_plane] = alm::math::plane3f{ row3 - row1 };
+        planes[bottom_plane] = alm::math::plane3f{ row3 + row1 };
     }
 
     std::span<const plane3f, PLANE_COUNT> get_planes() const
@@ -56,7 +56,7 @@ struct frustum3f
         return true;
     }
 
-    bool test(const st::math::aabox3f& b) const
+    bool test(const alm::math::aabox3f& b) const
     {
         for (int i = 0; i < PLANE_COUNT; ++i)
         {

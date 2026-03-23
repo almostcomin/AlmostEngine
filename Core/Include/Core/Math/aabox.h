@@ -3,7 +3,7 @@
 #include "Core/Math/glm_config.h"
 #include "Core/Math/plane.h"
 
-namespace st::math
+namespace alm::math
 {
 
 template<typename T, int n>

@@ -4,9 +4,9 @@
 #include "RHI/Buffer.h"
 #include "Core/ComPtr.h"
 
-namespace st::rhi::dx12
+namespace alm::rhi::dx12
 {
-	class Buffer : public st::rhi::IBuffer
+	class Buffer : public alm::rhi::IBuffer
 	{
 	public:
 
@@ -26,8 +26,8 @@ namespace st::rhi::dx12
 		void Swap(IBuffer& other) override;
 
 		void CreateCBV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, size_t sizeBytes);
-		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);
-		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, st::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);
+		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, alm::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);
+		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, alm::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);
 
 		ResourceType GetResourceType() const override { return ResourceType::Buffer; }
 		NativeResource GetNativeResource() override { return m_Resource.Get(); }

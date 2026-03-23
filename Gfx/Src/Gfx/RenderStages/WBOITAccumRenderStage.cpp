@@ -6,7 +6,7 @@
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-void st::gfx::WBOITAccumRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::WBOITAccumRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_AccumWOITTexture = builder.CreateColorTarget(
 		"AccumWOIT", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
@@ -24,7 +24,7 @@ void st::gfx::WBOITAccumRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddTextureDependency(m_AmbientOcclusionTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 }
 
-void st::gfx::WBOITAccumRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::WBOITAccumRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	auto scene = GetScene();
 	if (!scene)
@@ -65,9 +65,9 @@ void st::gfx::WBOITAccumRenderStage::Render(st::rhi::CommandListHandle commandLi
 	commandList->EndRenderPass();
 }
 
-void st::gfx::WBOITAccumRenderStage::OnAttached()
+void alm::gfx::WBOITAccumRenderStage::OnAttached()
 {
-	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
+	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create Framebuffer
@@ -81,14 +81,14 @@ void st::gfx::WBOITAccumRenderStage::OnAttached()
 
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_VS = shaderFactory->LoadShader("WBOITAccumulation_vs", rhi::ShaderType::Vertex);
 		m_PS = shaderFactory->LoadShader("WBOITAccumulation_ps", rhi::ShaderType::Pixel);
 	}
 
 	// PSOs
 	{
-		st::rhi::GraphicsPipelineStateDesc psoDesc;
+		alm::rhi::GraphicsPipelineStateDesc psoDesc;
 
 		psoDesc.blendState = rhi::BlendState{
 			.independentBlendEnable = true
@@ -122,9 +122,9 @@ void st::gfx::WBOITAccumRenderStage::OnAttached()
 	}
 }
 
-void st::gfx::WBOITAccumRenderStage::OnDetached()
+void alm::gfx::WBOITAccumRenderStage::OnDetached()
 {
-	st::rhi::Device* device = GetDeviceManager()->GetDevice();
+	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_VS));
@@ -132,7 +132,7 @@ void st::gfx::WBOITAccumRenderStage::OnDetached()
 	m_RenderContext = {};
 }
 
-void st::gfx::WBOITAccumRenderStage::OnBackbufferResize()
+void alm::gfx::WBOITAccumRenderStage::OnBackbufferResize()
 {
 	rhi::Device* device = GetDeviceManager()->GetDevice();
 

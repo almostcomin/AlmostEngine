@@ -1,7 +1,7 @@
 #include "Gfx/SceneLights.h"
 #include "Gfx/SceneGraphNode.h"
 
-float3 st::gfx::SceneDirectionalLight::GetDirection() const
+float3 alm::gfx::SceneDirectionalLight::GetDirection() const
 {
 	constexpr float3 localDir = float3{ 0.0f, 0.0f, -1.0f };
 
@@ -10,11 +10,11 @@ float3 st::gfx::SceneDirectionalLight::GetDirection() const
 	return worldDir;
 }
 
-st::gfx::ScenePointLight::ScenePointLight() :
+alm::gfx::ScenePointLight::ScenePointLight() :
 	m_Intensity{ 1.f }, m_Range { 0.f }, m_Radius{ 0.f }
 {}
 
-void st::gfx::ScenePointLight::SetRange(float v)
+void alm::gfx::ScenePointLight::SetRange(float v)
 { 
 	assert(v >= 1.0e-05f);
 
@@ -25,11 +25,11 @@ void st::gfx::ScenePointLight::SetRange(float v)
 	OnBoundsChanged();
 }
 
-st::gfx::SceneSpotLight::SceneSpotLight() :
+alm::gfx::SceneSpotLight::SceneSpotLight() :
 	m_Intensity{ 1.f }, m_Range{ 0.f }, m_Radius{ 0.f }, m_InnerAngle{ 0.f }, m_OuterAngle{ 0.f }
 {}
 
-void st::gfx::SceneSpotLight::SetRange(float v)
+void alm::gfx::SceneSpotLight::SetRange(float v)
 {
 	assert(v >= 1.0e-05f);
 
@@ -40,7 +40,7 @@ void st::gfx::SceneSpotLight::SetRange(float v)
 	OnBoundsChanged();
 }
 
-float3 st::gfx::SceneSpotLight::GetDirection() const
+float3 alm::gfx::SceneSpotLight::GetDirection() const
 {
 	constexpr float3 localDir = float3{ 0.0f, 0.0f, -1.0f };
 

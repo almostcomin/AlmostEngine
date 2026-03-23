@@ -2,7 +2,7 @@
 
 #include "Core/Common.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 enum class ResourceState

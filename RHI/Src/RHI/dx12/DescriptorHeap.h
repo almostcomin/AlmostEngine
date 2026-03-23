@@ -8,7 +8,7 @@
 #include "Core/Common.h"
 #include "RHI/Descriptors.h"
 
-namespace st::rhi::dx12
+namespace alm::rhi::dx12
 {
     class DescriptorHeap : public noncopyable_nonmovable
     {

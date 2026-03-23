@@ -2,7 +2,7 @@
 
 #include "RHI/ResourceState.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class IResource;
 	class ITexture;

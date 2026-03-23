@@ -6,12 +6,12 @@
 
 namespace
 {
-	static constexpr size_t c_UploadBufferSize = st::MiB(256);
+	static constexpr size_t c_UploadBufferSize = alm::MiB(256);
 	static constexpr uint64_t c_FailedToReserveSpace = std::numeric_limits<uint64_t>::max();
 }
 
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
-st::gfx::DataUploader::DataUploader(ShaderFactory* shaderFactory, rhi::Device* device) :
+alm::gfx::DataUploader::DataUploader(ShaderFactory* shaderFactory, rhi::Device* device) :
 	m_CommitCount{ 1 }, m_Device { device }
 {
 	m_UploadBuffer = m_Device->CreateBuffer(rhi::BufferDesc{
@@ -37,7 +37,7 @@ st::gfx::DataUploader::DataUploader(ShaderFactory* shaderFactory, rhi::Device* d
 	m_GenMipsRenorm_PSO = m_Device->CreateComputePipelineState({ m_GenMipsRenorm_CS.get_weak() }, "m_GenMipsRenorm");
 }
 
-st::gfx::DataUploader::~DataUploader()
+alm::gfx::DataUploader::~DataUploader()
 {
 	// Finish async thread
 	{
@@ -54,20 +54,20 @@ st::gfx::DataUploader::~DataUploader()
 	m_Device->ReleaseImmediately(std::move(m_UploadBuffer));
 }
 
-std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(const rhi::BufferDesc& desc)
+std::expected<alm::gfx::DataUploader::UploadTicket, std::string> alm::gfx::DataUploader::RequestUploadTicket(const rhi::BufferDesc& desc)
 {
 	auto storageReq = m_Device->GetStorageRequirements(desc);
 	return RequestUploadTicket(storageReq.size, storageReq.alignment);
 }
 
-std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(
+std::expected<alm::gfx::DataUploader::UploadTicket, std::string> alm::gfx::DataUploader::RequestUploadTicket(
 	const rhi::TextureDesc& desc, const rhi::TextureSubresourceSet& subresources)
 {
 	auto storageReq = m_Device->GetCopyableRequirements(desc, subresources);
 	return RequestUploadTicket(storageReq.size, storageReq.alignment);
 }
 
-std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUploader::RequestUploadTicket(size_t size, size_t alignment)
+std::expected<alm::gfx::DataUploader::UploadTicket, std::string> alm::gfx::DataUploader::RequestUploadTicket(size_t size, size_t alignment)
 {
 	assert(alignment > 0);
 
@@ -129,7 +129,7 @@ std::expected<st::gfx::DataUploader::UploadTicket, std::string> st::gfx::DataUpl
 	return UploadTicket{ ptr, startTail, startTail + sizeNeeded, alignedStart, size, m_NextTicketIdx++ };
 }
 
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadBufferTicket(UploadTicket&& ticket, rhi::BufferHandle dstBuffer,
+std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::CommitUploadBufferTicket(UploadTicket&& ticket, rhi::BufferHandle dstBuffer,
 	rhi::ResourceState currentBufferState, rhi::ResourceState targetBufferState, size_t dstStart, const char* opt_gpuMarker)
 {
 	m_UploadBuffer->Unmap(ticket.aligned_start, ticket.size);
@@ -159,7 +159,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 	return FinishCommandList(std::move(commandList), std::move(ticket));
 }
 
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUploadTextureTicket(UploadTicket&& ticket, rhi::TextureHandle dstTexture,
+std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::CommitUploadTextureTicket(UploadTicket&& ticket, rhi::TextureHandle dstTexture,
 	rhi::ResourceState currentState, rhi::ResourceState targetState, const rhi::TextureSubresourceSet& subresources, GenMipsMethod genMipsMethod, 
 	const char* opt_gpuMarker)
 {
@@ -249,11 +249,11 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::CommitUplo
 	return FinishCommandList(std::move(commandList), std::move(ticket), std::move(tempViews));
 }
 
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBufferData(
-	const st::WeakBlob& srcData, st::rhi::BufferHandle dstBuffer, st::rhi::ResourceState currentBufferState, st::rhi::ResourceState targetBufferState,
+std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::UploadBufferData(
+	const alm::WeakBlob& srcData, alm::rhi::BufferHandle dstBuffer, alm::rhi::ResourceState currentBufferState, alm::rhi::ResourceState targetBufferState,
 	size_t dstStart, const char* opt_gpuMarker)
 {
-	st::rhi::BufferDesc desc = dstBuffer->GetDesc();
+	alm::rhi::BufferDesc desc = dstBuffer->GetDesc();
 	assert(dstStart + srcData.size() <= desc.sizeBytes);
 
 	auto ticket = RequestUploadTicket(srcData.size(), m_Device->GetCopyDataAlignment(rhi::CopyMethod::Buffer2Buffer));
@@ -269,8 +269,8 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadBuff
 	return *uploadResult;
 }
 
-std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadTextureData(
-	const st::WeakBlob& srcData, rhi::TextureHandle dstTexture, st::rhi::ResourceState currentState, st::rhi::ResourceState targetState,
+std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::UploadTextureData(
+	const alm::WeakBlob& srcData, rhi::TextureHandle dstTexture, alm::rhi::ResourceState currentState, alm::rhi::ResourceState targetState,
 	const rhi::TextureSubresourceSet& subresources, GenMipsMethod genMipsMethod, const char* opt_gpuMarker)
 {
 	const auto& texDesc = dstTexture->GetDesc();
@@ -312,7 +312,7 @@ std::expected<st::SignalListener, std::string> st::gfx::DataUploader::UploadText
 	return *uploadResult;
 }
 
-st::rhi::CommandListOwner st::gfx::DataUploader::GetCommandList()
+alm::rhi::CommandListOwner alm::gfx::DataUploader::GetCommandList()
 {
 	rhi::CommandListParams params{
 		.queueType = rhi::QueueType::Graphics
@@ -323,12 +323,12 @@ st::rhi::CommandListOwner st::gfx::DataUploader::GetCommandList()
 	return commandList;
 }
 
-st::SignalListener st::gfx::DataUploader::FinishCommandList(rhi::CommandListOwner&& commandList, UploadTicket&& ticket,
+alm::SignalListener alm::gfx::DataUploader::FinishCommandList(rhi::CommandListOwner&& commandList, UploadTicket&& ticket,
 	std::vector<std::pair<rhi::TextureSampledView, rhi::TextureStorageView>>&& mipGenViews)
 {
 	commandList->Close();
 
-	st::SignalListener signal;
+	alm::SignalListener signal;
 	{
 		std::unique_lock lock{ m_InFlightCommandListsMutex };
 
@@ -350,7 +350,7 @@ st::SignalListener st::gfx::DataUploader::FinishCommandList(rhi::CommandListOwne
 	return signal;
 }
 
-void st::gfx::DataUploader::InsertPendingTicket(UploadTicket&& ticket)
+void alm::gfx::DataUploader::InsertPendingTicket(UploadTicket&& ticket)
 {
 	auto it = std::lower_bound(m_PendingTickets.begin(), m_PendingTickets.end(), ticket.idx, [](const UploadTicket& a, uint64_t idx)
 		{
@@ -359,7 +359,7 @@ void st::gfx::DataUploader::InsertPendingTicket(UploadTicket&& ticket)
 	m_PendingTickets.insert(it, std::move(ticket));
 }
 
-void st::gfx::DataUploader::OnCompletedTicket(UploadTicket&& ticket)
+void alm::gfx::DataUploader::OnCompletedTicket(UploadTicket&& ticket)
 {
 	std::scoped_lock lock{ m_UploadBufferMutex };
 
@@ -380,7 +380,7 @@ void st::gfx::DataUploader::OnCompletedTicket(UploadTicket&& ticket)
 	}
 }
 
-void st::gfx::DataUploader::GenerateMips(rhi::ITexture* texture, GenMipsMethod method, rhi::ResourceState currentState, rhi::ResourceState targetState,
+void alm::gfx::DataUploader::GenerateMips(rhi::ITexture* texture, GenMipsMethod method, rhi::ResourceState currentState, rhi::ResourceState targetState,
 	const rhi::TextureSubresourceSet& subresources, rhi::ICommandList* commandList, std::vector<std::pair<rhi::TextureSampledView, rhi::TextureStorageView>>& tempViews)
 {
 	const rhi::TextureDesc& desc = texture->GetDesc();
@@ -490,7 +490,7 @@ void st::gfx::DataUploader::GenerateMips(rhi::ITexture* texture, GenMipsMethod m
 	// TODO: TextureViews should be released
 }
 
-void st::gfx::DataUploader::AsyncUpdate()
+void alm::gfx::DataUploader::AsyncUpdate()
 {
 	std::unique_lock<std::mutex> lock(m_InFlightCommandListsMutex);
 

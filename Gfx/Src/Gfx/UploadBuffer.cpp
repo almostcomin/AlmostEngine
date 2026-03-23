@@ -1,7 +1,7 @@
 #include "Gfx/UploadBuffer.h"
 #include "RHI/Device.h"
 
-st::gfx::UploadBuffer::UploadBuffer(uint64_t firstFrameIdx, size_t bufferSize, rhi::Device* device) :
+alm::gfx::UploadBuffer::UploadBuffer(uint64_t firstFrameIdx, size_t bufferSize, rhi::Device* device) :
 	m_Head{ 0 },
 	m_Tail{ 0 },
 	m_Size{ bufferSize },
@@ -19,29 +19,29 @@ st::gfx::UploadBuffer::UploadBuffer(uint64_t firstFrameIdx, size_t bufferSize, r
 	m_BufferStartPtr = (char*)m_Buffer->Map();
 }
 
-st::gfx::UploadBuffer::~UploadBuffer()
+alm::gfx::UploadBuffer::~UploadBuffer()
 {
 	assert(m_Head == m_Tail);
 }
 
-std::pair<void*, uint64_t> st::gfx::UploadBuffer::RequestSpaceForBufferDataUpload(size_t size)
+std::pair<void*, uint64_t> alm::gfx::UploadBuffer::RequestSpaceForBufferDataUpload(size_t size)
 {
 	return RequestSpace(size, m_Device->GetCopyDataAlignment(rhi::CopyMethod::Buffer2Buffer));
 }
 
-std::pair<void*, uint64_t> st::gfx::UploadBuffer::RequestSpaceForTextureDataUpload(size_t size)
+std::pair<void*, uint64_t> alm::gfx::UploadBuffer::RequestSpaceForTextureDataUpload(size_t size)
 {
 	return RequestSpace(size, m_Device->GetCopyDataAlignment(rhi::CopyMethod::Buffer2Texture));
 }
 
-std::pair<void*, uint64_t> st::gfx::UploadBuffer::RequestSpaceForTextureDataUpload(const st::rhi::TextureDesc& desc,
-	const st::rhi::TextureSubresourceSet& subresources)
+std::pair<void*, uint64_t> alm::gfx::UploadBuffer::RequestSpaceForTextureDataUpload(const alm::rhi::TextureDesc& desc,
+	const alm::rhi::TextureSubresourceSet& subresources)
 {
-	st::rhi::StorageRequirements req = m_Device->GetCopyableRequirements(desc, subresources);
+	alm::rhi::StorageRequirements req = m_Device->GetCopyableRequirements(desc, subresources);
 	return RequestSpace(req.size, req.alignment);		
 }
 
-std::pair<void*, uint64_t> st::gfx::UploadBuffer::RequestSpace(size_t size, size_t alignment)
+std::pair<void*, uint64_t> alm::gfx::UploadBuffer::RequestSpace(size_t size, size_t alignment)
 {
 	if (alignment == 0)
 		alignment = 1;
@@ -96,13 +96,13 @@ std::pair<void*, uint64_t> st::gfx::UploadBuffer::RequestSpace(size_t size, size
 	return { m_BufferStartPtr + alignedStart, alignedStart };
 }
 
-void st::gfx::UploadBuffer::OnNextFrame(uint64_t frameIndex)
+void alm::gfx::UploadBuffer::OnNextFrame(uint64_t frameIndex)
 {
 	m_FrameInfos.Push({ m_CurrentFrameIdx, m_Tail });
 	m_CurrentFrameIdx = frameIndex;
 }
 
-void st::gfx::UploadBuffer::OnFrameCompleted(uint64_t frameIdx)
+void alm::gfx::UploadBuffer::OnFrameCompleted(uint64_t frameIdx)
 {
 	while (!m_FrameInfos.Empty() && m_FrameInfos.Front().FrameIdx <= frameIdx)
 	{

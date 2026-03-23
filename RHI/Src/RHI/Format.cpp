@@ -1,7 +1,7 @@
 #include "RHI/RHI_PCH.h"
 #include "RHI/Format.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
     // Format mapping table. The rows must be in the exactly same order as Format enum members are defined.
     static const FormatInfo c_FormatInfo[] = {
@@ -77,7 +77,7 @@ namespace st::rhi
     };
 } // namespace st::rhi
 
-const st::rhi::FormatInfo& st::rhi::GetFormatInfo(Format format)
+const alm::rhi::FormatInfo& alm::rhi::GetFormatInfo(Format format)
 {
     static_assert(sizeof(c_FormatInfo) / sizeof(FormatInfo) == size_t(Format::COUNT),
         "The format info table doesn't have the right number of elements");
@@ -90,7 +90,7 @@ const st::rhi::FormatInfo& st::rhi::GetFormatInfo(Format format)
     return info;
 }
 
-bool st::rhi::IsDepthFormat(Format format)
+bool alm::rhi::IsDepthFormat(Format format)
 {
     switch (format)
     {
@@ -104,7 +104,7 @@ bool st::rhi::IsDepthFormat(Format format)
     }
 }
 
-st::rhi::Format st::rhi::GetNonSRGB(Format format)
+alm::rhi::Format alm::rhi::GetNonSRGB(Format format)
 {
     switch (format)
     {
@@ -117,7 +117,7 @@ st::rhi::Format st::rhi::GetNonSRGB(Format format)
     }
 }
 
-st::rhi::Format st::rhi::GetSRGB(Format format)
+alm::rhi::Format alm::rhi::GetSRGB(Format format)
 {
     switch (format)
     {
@@ -130,7 +130,7 @@ st::rhi::Format st::rhi::GetSRGB(Format format)
     }
 }
 
-const char* st::rhi::GetFormatString(Format format)
+const char* alm::rhi::GetFormatString(Format format)
 {
     static_assert(sizeof(c_FormatInfo) / sizeof(FormatInfo) == size_t(Format::COUNT),
         "The format info table doesn't have the right number of elements");

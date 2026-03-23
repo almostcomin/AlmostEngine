@@ -7,7 +7,7 @@
 //#include <glm/geometric.hpp>
 #include "Core/Math/glm_config.h"
 
-namespace st::math
+namespace alm::math
 {
 
 template<int n> 

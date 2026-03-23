@@ -5,7 +5,7 @@
 #include "Core/Common.h"
 #include "Core/Blob.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
     // Shader type mask. The values match ones used in Vulkan.
     enum class ShaderType : uint16_t

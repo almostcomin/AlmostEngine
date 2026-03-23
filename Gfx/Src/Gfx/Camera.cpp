@@ -1,7 +1,7 @@
 #include "Gfx/Camera.h"
 #include "Gfx/Util.h"
 
-st::gfx::Camera::Camera() :
+alm::gfx::Camera::Camera() :
 	m_ProjectionModel{ ProjectionModel::Reverse },
 	m_Position{ 0.f, 0.f, 0.f },
 	m_Forward{ 0.f, 0.f, -1.f }, // Right-hand
@@ -16,13 +16,13 @@ st::gfx::Camera::Camera() :
 {
 }
 
-void st::gfx::Camera::SetPosition(const float3& pos)
+void alm::gfx::Camera::SetPosition(const float3& pos)
 {
 	m_Position = pos;
 	m_IsDirty = true;
 }
 
-void st::gfx::Camera::SetForward(const float3& dir)
+void alm::gfx::Camera::SetForward(const float3& dir)
 {
 	m_Forward = glm::normalize(dir);
 
@@ -32,7 +32,7 @@ void st::gfx::Camera::SetForward(const float3& dir)
 	m_IsDirty = true;
 }
 
-void st::gfx::Camera::SetUpRef(const float3& v)
+void alm::gfx::Camera::SetUpRef(const float3& v)
 {
 	m_UpRef = glm::normalize(v);
 
@@ -42,42 +42,42 @@ void st::gfx::Camera::SetUpRef(const float3& v)
 	m_IsDirty = true;
 }
 
-void st::gfx::Camera::LookAt(const float3& pos)
+void alm::gfx::Camera::LookAt(const float3& pos)
 {
 	SetForward(pos - m_Position);
 }
 
-void st::gfx::Camera::SetVerticalFov(float vFov)
+void alm::gfx::Camera::SetVerticalFov(float vFov)
 {
 	m_VerticalFov = vFov;
 	m_IsDirty = true;
 }
 
-void st::gfx::Camera::SetAspect(float aspect)
+void alm::gfx::Camera::SetAspect(float aspect)
 {
 	m_Aspect = aspect;
 	m_IsDirty = true;
 }
 
-void st::gfx::Camera::SetZNear(float zNear)
+void alm::gfx::Camera::SetZNear(float zNear)
 {
 	m_zNear = zNear;
 	m_IsDirty = true;
 }
 
-void st::gfx::Camera::SetZFar(float zFar)
+void alm::gfx::Camera::SetZFar(float zFar)
 {
 	m_zFar = zFar;
 	m_IsDirty = true;
 }
 
-void st::gfx::Camera::SetProjectionModel(st::gfx::Camera::ProjectionModel model)
+void alm::gfx::Camera::SetProjectionModel(alm::gfx::Camera::ProjectionModel model)
 {
 	m_ProjectionModel = model;
 	m_IsDirty = true;
 }
 
-void st::gfx::Camera::Fit(const st::math::aabox3f& bounds)
+void alm::gfx::Camera::Fit(const alm::math::aabox3f& bounds)
 {
 	const float3 targetPos = bounds.center();
 	const float radius = glm::length(bounds.extents()) / 2.f;
@@ -90,41 +90,41 @@ void st::gfx::Camera::Fit(const st::math::aabox3f& bounds)
 	SetForward(newFwd);
 }
 
-const float4x4& st::gfx::Camera::GetViewMatrix()
+const float4x4& alm::gfx::Camera::GetViewMatrix()
 {
 	UpdateMatrices();
 	return m_ViewMatrix;
 }
 
-const float4x4& st::gfx::Camera::GetProjectionMatrix()
+const float4x4& alm::gfx::Camera::GetProjectionMatrix()
 {
 	UpdateMatrices();
 	return m_ProjectionMatrix;
 }
 
-float4x4 st::gfx::Camera::GetViewProjectionMatrix()
+float4x4 alm::gfx::Camera::GetViewProjectionMatrix()
 {
 	UpdateMatrices();
 	return m_ProjectionMatrix * m_ViewMatrix;
 }
 
-const st::math::frustum3f& st::gfx::Camera::GetFrustum()
+const alm::math::frustum3f& alm::gfx::Camera::GetFrustum()
 {
 	UpdateMatrices();
 	return m_Frustum;
 }
 
-float st::gfx::Camera::GetYaw() const
+float alm::gfx::Camera::GetYaw() const
 {
 	return atan2(m_Forward.x, -m_Forward.z);
 }
 
-float st::gfx::Camera::GetPitch() const
+float alm::gfx::Camera::GetPitch() const
 {
 	return asinf(m_Forward.y);
 }
 
-float st::gfx::Camera::GetRoll() const
+float alm::gfx::Camera::GetRoll() const
 {
 	float3 rightNoRoll = glm::normalize(glm::cross(float3{ 0.f, 1.f, 0.f }, m_Forward));
 	float3 upNoRoll = glm::cross(m_Forward, rightNoRoll);
@@ -133,7 +133,7 @@ float st::gfx::Camera::GetRoll() const
 		glm::dot(upNoRoll, m_UpRef));
 }
 
-void st::gfx::Camera::SetYaw(float yaw)
+void alm::gfx::Camera::SetYaw(float yaw)
 {
 	float pitch = GetPitch();
 
@@ -146,7 +146,7 @@ void st::gfx::Camera::SetYaw(float yaw)
 	SetForward(newForward);
 }
 
-void st::gfx::Camera::SetPitch(float pitch)
+void alm::gfx::Camera::SetPitch(float pitch)
 {
 	float yaw = GetYaw();
 
@@ -159,7 +159,7 @@ void st::gfx::Camera::SetPitch(float pitch)
 	SetForward(newForward);
 }
 
-void st::gfx::Camera::SetRoll(float roll)
+void alm::gfx::Camera::SetRoll(float roll)
 {
 	float3 right = glm::normalize(glm::cross(float3{ 0.f, 1.f, 0.f }, m_Forward));
 	float3 baseUp = float3{ 0.f, 1.f, 0.f };// glm::cross(m_Forward, right);
@@ -171,7 +171,7 @@ void st::gfx::Camera::SetRoll(float roll)
 	SetUpRef(newUp);
 }
 
-void st::gfx::Camera::UpdateMatrices()
+void alm::gfx::Camera::UpdateMatrices()
 {
 	if (m_IsDirty)
 	{
@@ -190,24 +190,24 @@ void st::gfx::Camera::UpdateMatrices()
 	}
 }
 
-void st::gfx::Camera::UpdateWorldViewMatrix()
+void alm::gfx::Camera::UpdateWorldViewMatrix()
 {
 	m_ViewMatrix = glm::lookAtRH(m_Position, m_Position + m_Forward, m_Up);
 }
 
 // D3D / Vulkan style, z clip space [0, 1]
-void st::gfx::Camera::UpdateProjectionMatrix()
+void alm::gfx::Camera::UpdateProjectionMatrix()
 {
 	m_ProjectionMatrix = glm::perspectiveRH_ZO(m_VerticalFov, m_Aspect, m_zNear, m_zFar);
 }
 
 // Column major, right handed, reverse Z [1, 0]
-void st::gfx::Camera::UpdateProjectionMatrixReverse()
+void alm::gfx::Camera::UpdateProjectionMatrixReverse()
 {
 	m_ProjectionMatrix = BuildPersInvZInfFar(m_VerticalFov, m_Aspect, m_zNear);
 }
 
-void st::gfx::Camera::UpdateFrustum()
+void alm::gfx::Camera::UpdateFrustum()
 {
-	m_Frustum = st::math::frustum3f{ m_ProjectionMatrix * m_ViewMatrix };
+	m_Frustum = alm::math::frustum3f{ m_ProjectionMatrix * m_ViewMatrix };
 }

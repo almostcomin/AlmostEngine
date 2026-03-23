@@ -7,18 +7,18 @@
 #include "Gfx/SceneBounds.h"
 #include <map>
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class DeviceManager;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class SceneGraph;
 	class MeshInstance;
 	class Mesh;
 
-	class Scene : private st::noncopyable_nonmovable
+	class Scene : private alm::noncopyable_nonmovable
 	{
 	public:
 

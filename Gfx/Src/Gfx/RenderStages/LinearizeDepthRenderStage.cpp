@@ -7,10 +7,10 @@
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-void st::gfx::LinearizeDepthRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::LinearizeDepthRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_LinearDepthTexture = builder.CreateTexture("LinearDepth", RenderGraph::TextureResourceType::ShaderResource,
-		st::gfx::RenderGraph::c_BBSize, st::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R32_FLOAT, true);
+		alm::gfx::RenderGraph::c_BBSize, alm::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R32_FLOAT, true);
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read,
@@ -20,7 +20,7 @@ void st::gfx::LinearizeDepthRenderStage::Setup(RenderGraphBuilder& builder)
 		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 }
 
-void st::gfx::LinearizeDepthRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::LinearizeDepthRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	const auto& camera = GetRenderView()->GetCamera();
 	if (!camera)
@@ -42,14 +42,14 @@ void st::gfx::LinearizeDepthRenderStage::Render(st::rhi::CommandListHandle comma
 	commandList->Dispatch(DivRoundUp(desc.width, 16u), DivRoundUp(desc.height, 16u), 1);
 }
 
-void st::gfx::LinearizeDepthRenderStage::OnAttached()
+void alm::gfx::LinearizeDepthRenderStage::OnAttached()
 {
 	DeviceManager* deviceManager = GetDeviceManager();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_LinearizeDepthCS = shaderFactory->LoadShader("LinearizeDepth_cs", rhi::ShaderType::Compute);
 	}
 
@@ -59,7 +59,7 @@ void st::gfx::LinearizeDepthRenderStage::OnAttached()
 	}
 }
 
-void st::gfx::LinearizeDepthRenderStage::OnDetached()
+void alm::gfx::LinearizeDepthRenderStage::OnDetached()
 {
 	m_LinearizeDepthPSO.reset();
 	m_LinearizeDepthCS.reset();

@@ -24,10 +24,10 @@
 
 namespace
 {
-	D3D12_CLEAR_VALUE ConvertTextureClearValue(const st::rhi::TextureDesc& d)
+	D3D12_CLEAR_VALUE ConvertTextureClearValue(const alm::rhi::TextureDesc& d)
 	{
-		const auto& formatMapping = st::rhi::GetDxgiFormatMapping(d.format);
-		const auto& formatInfo = st::rhi::GetFormatInfo(d.format);
+		const auto& formatMapping = alm::rhi::GetDxgiFormatMapping(d.format);
+		const auto& formatInfo = alm::rhi::GetFormatInfo(d.format);
 		D3D12_CLEAR_VALUE clearValue = {};
 		clearValue.Format = formatMapping.rtvFormat;
 		if (formatInfo.hasDepth || formatInfo.hasStencil)
@@ -47,12 +47,12 @@ namespace
 	}
 } // anonymous namespace
 
-std::unique_ptr<st::rhi::Device> st::rhi::dx12::CreateDevice(const st::rhi::dx12::DeviceDesc& desc)
+std::unique_ptr<alm::rhi::Device> alm::rhi::dx12::CreateDevice(const alm::rhi::dx12::DeviceDesc& desc)
 {
-	return std::make_unique<st::rhi::dx12::GpuDevice>(desc);
+	return std::make_unique<alm::rhi::dx12::GpuDevice>(desc);
 }
 
-void st::rhi::dx12::CheckDRED(ID3D12Device* device)
+void alm::rhi::dx12::CheckDRED(ID3D12Device* device)
 {
 	ID3D12DeviceRemovedExtendedData2* pDred;
 	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&pDred))))
@@ -77,7 +77,7 @@ void st::rhi::dx12::CheckDRED(ID3D12Device* device)
 	}
 }
 
-st::rhi::dx12::GpuDevice::GpuDevice(const st::rhi::dx12::DeviceDesc& desc) :
+alm::rhi::dx12::GpuDevice::GpuDevice(const alm::rhi::dx12::DeviceDesc& desc) :
 	m_DepthStencilViewHeap{ desc.pDevice },
 	m_RenderTargetViewHeap{ desc.pDevice },
 	m_ShaderResourceViewHeap{ desc.pDevice },
@@ -202,7 +202,7 @@ st::rhi::dx12::GpuDevice::GpuDevice(const st::rhi::dx12::DeviceDesc& desc) :
 	m_CurrentStats = {};
 };
 
-st::rhi::dx12::GpuDevice::~GpuDevice()
+alm::rhi::dx12::GpuDevice::~GpuDevice()
 {
 	WaitForIdle();
 
@@ -213,12 +213,12 @@ st::rhi::dx12::GpuDevice::~GpuDevice()
 	}
 }
 
-st::rhi::ShaderOwner st::rhi::dx12::GpuDevice::CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode, const std::string& debugName)
+alm::rhi::ShaderOwner alm::rhi::dx12::GpuDevice::CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode, const std::string& debugName)
 {
 	return InsertNewResource<IShader>(new Shader{desc, bytecode, this, debugName});
 }
 
-st::rhi::BufferOwner st::rhi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc, ResourceState initialState, const std::string& debugName)
+alm::rhi::BufferOwner alm::rhi::dx12::GpuDevice::CreateBuffer(const BufferDesc& desc, ResourceState initialState, const std::string& debugName)
 {
 	auto storageReq = GetStorageRequirements(desc);
 	BufferDesc fixedDesc = std::move(desc);
@@ -266,7 +266,7 @@ st::rhi::BufferOwner st::rhi::dx12::GpuDevice::CreateBuffer(const BufferDesc& de
 	return InsertNewResource<IBuffer>(new Buffer{ fixedDesc, d3d12Buffer.Get(), this, debugName });
 }
 
-st::rhi::TextureOwner st::rhi::dx12::GpuDevice::CreateTexture(const TextureDesc& desc, ResourceState initialState, const std::string& debugName)
+alm::rhi::TextureOwner alm::rhi::dx12::GpuDevice::CreateTexture(const TextureDesc& desc, ResourceState initialState, const std::string& debugName)
 {
 	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
 
@@ -297,7 +297,7 @@ st::rhi::TextureOwner st::rhi::dx12::GpuDevice::CreateTexture(const TextureDesc&
 	return InsertNewResource<ITexture>(new Texture{ desc, d3d12Texture, this, debugName });
 }
 
-st::rhi::TextureOwner st::rhi::dx12::GpuDevice::CreateHandleForNativeTexture(void* obj, const TextureDesc& desc, const std::string& debugName)
+alm::rhi::TextureOwner alm::rhi::dx12::GpuDevice::CreateHandleForNativeTexture(void* obj, const TextureDesc& desc, const std::string& debugName)
 {
 	if (obj == nullptr)
 	{
@@ -312,7 +312,7 @@ st::rhi::TextureOwner st::rhi::dx12::GpuDevice::CreateHandleForNativeTexture(voi
 	return InsertNewResource<ITexture>(new Texture{ desc, d3d12Resource, this, debugName });
 }
 
-st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const FramebufferDesc& desc, const std::string& debugName)
+alm::rhi::FramebufferOwner alm::rhi::dx12::GpuDevice::CreateFramebuffer(const FramebufferDesc& desc, const std::string& debugName)
 {
 	auto* fb = new Framebuffer{ this, debugName };
 	fb->desc = desc;
@@ -346,7 +346,7 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 
 		fb->RTVs.push_back(index);
 
-		st::rhi::TextureHandle handle = st::checked_pointer_cast<ITexture>(texture->weak_from_this());
+		alm::rhi::TextureHandle handle = alm::checked_pointer_cast<ITexture>(texture->weak_from_this());
 		fb->rtvTextures.push_back(handle);
 	}
 
@@ -363,14 +363,14 @@ st::rhi::FramebufferOwner st::rhi::dx12::GpuDevice::CreateFramebuffer(const Fram
 
 		fb->DSV = index;
 
-		st::rhi::TextureHandle handle = st::checked_pointer_cast<ITexture>(texture->weak_from_this());
+		alm::rhi::TextureHandle handle = alm::checked_pointer_cast<ITexture>(texture->weak_from_this());
 		fb->dsvTexture = handle;
 	}
 
 	return InsertNewResource<IFramebuffer>(fb);
 }
 
-st::rhi::CommandListOwner st::rhi::dx12::GpuDevice::CreateCommandList(const CommandListParams& params, const std::string& debugName)
+alm::rhi::CommandListOwner alm::rhi::dx12::GpuDevice::CreateCommandList(const CommandListParams& params, const std::string& debugName)
 {
 	if (!m_Queues[(int)params.queueType].d3d12Queue)
 	{
@@ -410,7 +410,7 @@ st::rhi::CommandListOwner st::rhi::dx12::GpuDevice::CreateCommandList(const Comm
 	return InsertNewResource<ICommandList>(new CommandList{ d3d12CommandList.Get(), d3d12CommandAllocator.Get(), params.queueType, this, debugName });
 }
 
-st::rhi::GraphicsPipelineStateOwner st::rhi::dx12::GpuDevice::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, 
+alm::rhi::GraphicsPipelineStateOwner alm::rhi::dx12::GpuDevice::CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, 
 	const FramebufferInfo& fbInfo, const std::string& debugName)
 {
 	// TODO: cache
@@ -445,7 +445,7 @@ st::rhi::GraphicsPipelineStateOwner st::rhi::dx12::GpuDevice::CreateGraphicsPipe
 	return InsertNewResource<IGraphicsPipelineState>(new GraphicsPipelineState{ d3d12PSO, d3d12Desc, desc, this, debugName });
 }
 
-st::rhi::ComputePipelineStateOwner st::rhi::dx12::GpuDevice::CreateComputePipelineState(const ComputePipelineStateDesc& desc, const std::string& debugName)
+alm::rhi::ComputePipelineStateOwner alm::rhi::dx12::GpuDevice::CreateComputePipelineState(const ComputePipelineStateDesc& desc, const std::string& debugName)
 {
 	D3D12_COMPUTE_PIPELINE_STATE_DESC d3d12Desc = {};
 	d3d12Desc.pRootSignature = m_BindlessRootSignature.Get();
@@ -461,7 +461,7 @@ st::rhi::ComputePipelineStateOwner st::rhi::dx12::GpuDevice::CreateComputePipeli
 	return InsertNewResource<IComputePipelineState>(new ComputePipelineState{ d3d12PSO, d3d12Desc, this, debugName });
 }
 
-st::rhi::FenceOwner st::rhi::dx12::GpuDevice::CreateFence(uint64_t initialVale, const std::string& debugName)
+alm::rhi::FenceOwner alm::rhi::dx12::GpuDevice::CreateFence(uint64_t initialVale, const std::string& debugName)
 {
 	ComPtr<ID3D12Fence> d3d12Fence;
 	HRESULT hr = m_D3d12Device->CreateFence(initialVale, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3d12Fence));
@@ -473,7 +473,7 @@ st::rhi::FenceOwner st::rhi::dx12::GpuDevice::CreateFence(uint64_t initialVale, 
 	return InsertNewResource<IFence>(new Fence{ d3d12Fence.Get(), this, debugName });
 }
 
-st::rhi::TimerQueryOwner st::rhi::dx12::GpuDevice::CreateTimerQuery(const std::string& debugName)
+alm::rhi::TimerQueryOwner alm::rhi::dx12::GpuDevice::CreateTimerQuery(const std::string& debugName)
 {
 	int queryIndex = m_TimerQueries.Allocate();
 	if (queryIndex < 0)
@@ -485,7 +485,7 @@ st::rhi::TimerQueryOwner st::rhi::dx12::GpuDevice::CreateTimerQuery(const std::s
 	return InsertNewResource<ITimerQuery>(new TimerQuery{ (uint32_t)queryIndex * 2, ((uint32_t)queryIndex * 2) + 1, this, debugName });
 }
 
-st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetStorageRequirements(const BufferDesc& desc)
+alm::rhi::StorageRequirements alm::rhi::dx12::GpuDevice::GetStorageRequirements(const BufferDesc& desc)
 {
 	StorageRequirements ret = { 
 		.size = desc.sizeBytes, 
@@ -499,21 +499,21 @@ st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetStorageRequirements(co
 	return ret;
 }
 
-st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetStorageRequirements(const TextureDesc& desc)
+alm::rhi::StorageRequirements alm::rhi::dx12::GpuDevice::GetStorageRequirements(const TextureDesc& desc)
 {
 	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);	
 	D3D12_RESOURCE_ALLOCATION_INFO allocInfo = m_D3d12Device->GetResourceAllocationInfo(0, 1, &d3d12Desc);	
 	return StorageRequirements{ .size = allocInfo.SizeInBytes, .alignment = allocInfo.Alignment };
 }
 
-st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetCopyableRequirements(const BufferDesc& desc)
+alm::rhi::StorageRequirements alm::rhi::dx12::GpuDevice::GetCopyableRequirements(const BufferDesc& desc)
 {
 	return StorageRequirements{ .size = desc.sizeBytes, .alignment = GetCopyDataAlignment(CopyMethod::Buffer2Buffer) };
 }
 
-st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetCopyableRequirements(const TextureDesc& desc, const rhi::TextureSubresourceSet& subresources)
+alm::rhi::StorageRequirements alm::rhi::dx12::GpuDevice::GetCopyableRequirements(const TextureDesc& desc, const rhi::TextureSubresourceSet& subresources)
 {
-	st::rhi::StorageRequirements ret = {};
+	alm::rhi::StorageRequirements ret = {};
 	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
 
 	uint32_t firstSubresource = D3D12CalcSubresource(
@@ -532,7 +532,7 @@ st::rhi::StorageRequirements st::rhi::dx12::GpuDevice::GetCopyableRequirements(c
 	return ret;
 }
 
-st::rhi::SubresourceCopyableRequirements st::rhi::dx12::GpuDevice::GetSubresourceCopyableRequirements(const TextureDesc& desc, uint32_t mipLevel, uint32_t arraySlice)
+alm::rhi::SubresourceCopyableRequirements alm::rhi::dx12::GpuDevice::GetSubresourceCopyableRequirements(const TextureDesc& desc, uint32_t mipLevel, uint32_t arraySlice)
 {
 	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
 
@@ -555,7 +555,7 @@ st::rhi::SubresourceCopyableRequirements st::rhi::dx12::GpuDevice::GetSubresourc
 	return copyReq;
 }
 
-size_t st::rhi::dx12::GpuDevice::GetCopyDataAlignment(CopyMethod method)
+size_t alm::rhi::dx12::GpuDevice::GetCopyDataAlignment(CopyMethod method)
 {
 	switch (method)
 	{
@@ -569,7 +569,7 @@ size_t st::rhi::dx12::GpuDevice::GetCopyDataAlignment(CopyMethod method)
 	}
 }
 
-st::rhi::TextureSampledView st::rhi::dx12::GpuDevice::CreateTextureSampledView(ITexture* texture, const TextureSubresourceSet& subresources,
+alm::rhi::TextureSampledView alm::rhi::dx12::GpuDevice::CreateTextureSampledView(ITexture* texture, const TextureSubresourceSet& subresources,
 	Format format, TextureDimension dimension)
 {
 	const auto& desc = texture->GetDesc();
@@ -579,7 +579,7 @@ st::rhi::TextureSampledView st::rhi::dx12::GpuDevice::CreateTextureSampledView(I
 		LOG_ERROR("Can't create SRV: Texture not create with TextureShaderUsage::ShaderResource");
 		return {};
 	}
-	st::rhi::DescriptorIndex di = m_ShaderResourceViewHeap.AllocateDescriptor();
+	alm::rhi::DescriptorIndex di = m_ShaderResourceViewHeap.AllocateDescriptor();
 	assert(di != c_InvalidDescriptorIndex);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_ShaderResourceViewHeap.GetCpuHandle(di);
@@ -588,7 +588,7 @@ st::rhi::TextureSampledView st::rhi::dx12::GpuDevice::CreateTextureSampledView(I
 	return TextureSampledView{ di };
 }
 
-st::rhi::TextureStorageView st::rhi::dx12::GpuDevice::CreateTextureStorageView(ITexture* texture, const TextureSubresourceSet& subresources,
+alm::rhi::TextureStorageView alm::rhi::dx12::GpuDevice::CreateTextureStorageView(ITexture* texture, const TextureSubresourceSet& subresources,
 	Format format, TextureDimension dimension)
 {
 	const auto& desc = texture->GetDesc();
@@ -598,7 +598,7 @@ st::rhi::TextureStorageView st::rhi::dx12::GpuDevice::CreateTextureStorageView(I
 		LOG_ERROR("Can't create UAV: Texture not create with TextureShaderUsage::UnorderedAccess");
 		return {};
 	}
-	st::rhi::DescriptorIndex di = m_ShaderResourceViewHeap.AllocateDescriptor();
+	alm::rhi::DescriptorIndex di = m_ShaderResourceViewHeap.AllocateDescriptor();
 	assert(di != c_InvalidDescriptorIndex);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_ShaderResourceViewHeap.GetCpuHandle(di);
@@ -607,7 +607,7 @@ st::rhi::TextureStorageView st::rhi::dx12::GpuDevice::CreateTextureStorageView(I
 	return TextureStorageView{ di };
 }
 
-st::rhi::TextureColorTargetView st::rhi::dx12::GpuDevice::CreateTextureColorTargetView(ITexture* texture, Format format, TextureSubresourceSet subresources)
+alm::rhi::TextureColorTargetView alm::rhi::dx12::GpuDevice::CreateTextureColorTargetView(ITexture* texture, Format format, TextureSubresourceSet subresources)
 {
 	const auto& desc = texture->GetDesc();
 
@@ -616,7 +616,7 @@ st::rhi::TextureColorTargetView st::rhi::dx12::GpuDevice::CreateTextureColorTarg
 		LOG_ERROR("Can't create UAV: Texture not create with TextureShaderUsage::UnorderedAccess");
 		return {};
 	}
-	st::rhi::DescriptorIndex di = m_RenderTargetViewHeap.AllocateDescriptor();
+	alm::rhi::DescriptorIndex di = m_RenderTargetViewHeap.AllocateDescriptor();
 	assert(di != c_InvalidDescriptorIndex);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_RenderTargetViewHeap.GetCpuHandle(di);
@@ -625,7 +625,7 @@ st::rhi::TextureColorTargetView st::rhi::dx12::GpuDevice::CreateTextureColorTarg
 	return TextureColorTargetView{ di };
 }
 
-st::rhi::TextureDepthTargetView st::rhi::dx12::GpuDevice::CreateTextureDepthTargetView(ITexture* texture, TextureSubresourceSet subresources, bool isReadOnly)
+alm::rhi::TextureDepthTargetView alm::rhi::dx12::GpuDevice::CreateTextureDepthTargetView(ITexture* texture, TextureSubresourceSet subresources, bool isReadOnly)
 {
 	const auto& desc = texture->GetDesc();
 
@@ -634,7 +634,7 @@ st::rhi::TextureDepthTargetView st::rhi::dx12::GpuDevice::CreateTextureDepthTarg
 		LOG_ERROR("Can't create UAV: Texture not create with TextureShaderUsage::UnorderedAccess");
 		return {};
 	}
-	st::rhi::DescriptorIndex di = m_DepthStencilViewHeap.AllocateDescriptor();
+	alm::rhi::DescriptorIndex di = m_DepthStencilViewHeap.AllocateDescriptor();
 	assert(di != c_InvalidDescriptorIndex);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = m_DepthStencilViewHeap.GetCpuHandle(di);
@@ -643,7 +643,7 @@ st::rhi::TextureDepthTargetView st::rhi::dx12::GpuDevice::CreateTextureDepthTarg
 	return TextureDepthTargetView{ di };
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseTextureSampledView(TextureSampledView& v, bool immediate)
+void alm::rhi::dx12::GpuDevice::ReleaseTextureSampledView(TextureSampledView& v, bool immediate)
 {
 	if (v.IsValid())
 	{
@@ -661,7 +661,7 @@ void st::rhi::dx12::GpuDevice::ReleaseTextureSampledView(TextureSampledView& v, 
 	}
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseTextureStorageView(TextureStorageView& v, bool immediate)
+void alm::rhi::dx12::GpuDevice::ReleaseTextureStorageView(TextureStorageView& v, bool immediate)
 {
 	if (v.IsValid())
 	{
@@ -679,7 +679,7 @@ void st::rhi::dx12::GpuDevice::ReleaseTextureStorageView(TextureStorageView& v, 
 	}
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseTextureColorTargetView(TextureColorTargetView& v, bool immediate)
+void alm::rhi::dx12::GpuDevice::ReleaseTextureColorTargetView(TextureColorTargetView& v, bool immediate)
 {
 	if (v.IsValid())
 	{
@@ -697,7 +697,7 @@ void st::rhi::dx12::GpuDevice::ReleaseTextureColorTargetView(TextureColorTargetV
 	}
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseTextureDepthTargetView(TextureDepthTargetView& v, bool immediate)
+void alm::rhi::dx12::GpuDevice::ReleaseTextureDepthTargetView(TextureDepthTargetView& v, bool immediate)
 {
 	if (v.IsValid())
 	{
@@ -715,7 +715,7 @@ void st::rhi::dx12::GpuDevice::ReleaseTextureDepthTargetView(TextureDepthTargetV
 	}
 }
 
-st::rhi::BufferUniformView st::rhi::dx12::GpuDevice::CreateBufferUniformView(IBuffer* buffer, uint32_t start, int size)
+alm::rhi::BufferUniformView alm::rhi::dx12::GpuDevice::CreateBufferUniformView(IBuffer* buffer, uint32_t start, int size)
 {
 	const auto& desc = buffer->GetDesc();
 	if (!has_any_flag(desc.shaderUsage, BufferShaderUsage::Uniform))
@@ -731,7 +731,7 @@ st::rhi::BufferUniformView st::rhi::dx12::GpuDevice::CreateBufferUniformView(IBu
 	return BufferUniformView{ di };
 }
 
-st::rhi::BufferReadOnlyView st::rhi::dx12::GpuDevice::CreateBufferReadOnlyView(IBuffer* buffer, uint32_t start, int size)
+alm::rhi::BufferReadOnlyView alm::rhi::dx12::GpuDevice::CreateBufferReadOnlyView(IBuffer* buffer, uint32_t start, int size)
 {
 	const auto& desc = buffer->GetDesc();
 	if (!has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly))
@@ -747,7 +747,7 @@ st::rhi::BufferReadOnlyView st::rhi::dx12::GpuDevice::CreateBufferReadOnlyView(I
 	return BufferReadOnlyView{ di };
 }
 
-st::rhi::BufferReadWriteView st::rhi::dx12::GpuDevice::CreateBufferReadWriteView(IBuffer* buffer, uint32_t start, int size)
+alm::rhi::BufferReadWriteView alm::rhi::dx12::GpuDevice::CreateBufferReadWriteView(IBuffer* buffer, uint32_t start, int size)
 {
 	const auto& desc = buffer->GetDesc();
 	if (!has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadWrite))
@@ -763,7 +763,7 @@ st::rhi::BufferReadWriteView st::rhi::dx12::GpuDevice::CreateBufferReadWriteView
 	return BufferReadWriteView{ di };
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseBufferUniformView(BufferUniformView& v, bool immediate)
+void alm::rhi::dx12::GpuDevice::ReleaseBufferUniformView(BufferUniformView& v, bool immediate)
 {
 	if (v.IsValid())
 	{
@@ -781,7 +781,7 @@ void st::rhi::dx12::GpuDevice::ReleaseBufferUniformView(BufferUniformView& v, bo
 	}
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseBufferReadOnlyView(BufferReadOnlyView& v, bool immediate)
+void alm::rhi::dx12::GpuDevice::ReleaseBufferReadOnlyView(BufferReadOnlyView& v, bool immediate)
 {
 	if (v.IsValid())
 	{
@@ -799,7 +799,7 @@ void st::rhi::dx12::GpuDevice::ReleaseBufferReadOnlyView(BufferReadOnlyView& v, 
 	}
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseBufferReadWriteView(BufferReadWriteView& v, bool immediate)
+void alm::rhi::dx12::GpuDevice::ReleaseBufferReadWriteView(BufferReadWriteView& v, bool immediate)
 {
 	if (v.IsValid())
 	{
@@ -817,7 +817,7 @@ void st::rhi::dx12::GpuDevice::ReleaseBufferReadWriteView(BufferReadWriteView& v
 	}
 }
 
-void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList* const> commandLists, QueueType type, IFence* signal, uint64_t value)
+void alm::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList* const> commandLists, QueueType type, IFence* signal, uint64_t value)
 {
 	auto& queue = m_Queues[(int)type];
 	if (!queue.d3d12Queue)
@@ -844,7 +844,7 @@ void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList* const
 
 	for (auto cl : commandLists)
 	{
-		auto* dx12cl = st::checked_cast<dx12::CommandList*>(cl);
+		auto* dx12cl = alm::checked_cast<dx12::CommandList*>(cl);
 		// Gather stats
 		m_CurrentStats.DrawCalls += dx12cl->m_DrawCalls;
 		m_CurrentStats.PrimitiveCount += dx12cl->m_PrimitiveCount;
@@ -853,12 +853,12 @@ void st::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList* const
 	}
 }
 
-void st::rhi::dx12::GpuDevice::ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value)
+void alm::rhi::dx12::GpuDevice::ExecuteCommandList(ICommandList* commandList, QueueType type, IFence* signal, uint64_t value)
 {
 	ExecuteCommandLists(std::span<ICommandList*, 1>{&commandList, 1}, type, signal, value);
 }
 
-void st::rhi::dx12::GpuDevice::NextFrame()
+void alm::rhi::dx12::GpuDevice::NextFrame()
 {
 	ReleaseStaleResources((m_CurrentFrameIdx + 1) % m_Desc.swapChainFrames);
 
@@ -868,7 +868,7 @@ void st::rhi::dx12::GpuDevice::NextFrame()
 	++m_CurrentFrameIdx;
 }
 
-void st::rhi::dx12::GpuDevice::Shutdown()
+void alm::rhi::dx12::GpuDevice::Shutdown()
 {
 	for(int i = 0; i < m_StaleResources.size(); ++i)
 	{
@@ -887,7 +887,7 @@ void st::rhi::dx12::GpuDevice::Shutdown()
 	}
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseImmediatelyInternal(IResource* resource)
+void alm::rhi::dx12::GpuDevice::ReleaseImmediatelyInternal(IResource* resource)
 {
 	ReleaseResource(resource);
 
@@ -895,7 +895,7 @@ void st::rhi::dx12::GpuDevice::ReleaseImmediatelyInternal(IResource* resource)
 	m_LivingResources.erase(resource);
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseQueuedInternal(IResource* resource)
+void alm::rhi::dx12::GpuDevice::ReleaseQueuedInternal(IResource* resource)
 {
 	if (!resource) 
 		return;
@@ -904,7 +904,7 @@ void st::rhi::dx12::GpuDevice::ReleaseQueuedInternal(IResource* resource)
 	m_StaleResources[m_CurrentFrameIdx % m_Desc.swapChainFrames].Resources.push_back(resource);
 }
 
-void st::rhi::dx12::GpuDevice::WaitForIdle()
+void alm::rhi::dx12::GpuDevice::WaitForIdle()
 {
 	// Wait for every queue to reach its last submitted instance
 	for (auto& queue : m_Queues)
@@ -919,7 +919,7 @@ void st::rhi::dx12::GpuDevice::WaitForIdle()
 	}
 }
 
-void st::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
+void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 {
 	// Need to map BindlessRS.hlsli
 
@@ -1131,7 +1131,7 @@ void st::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 	assert(SUCCEEDED(hr));
 }
 
-D3D12_RESOURCE_DESC st::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& desc)
+D3D12_RESOURCE_DESC alm::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& desc)
 {
 	const DxgiFormatMapping& formatMap = GetDxgiFormatMapping(desc.format);
 	const FormatInfo& formatInfo = GetFormatInfo(desc.format);
@@ -1182,7 +1182,7 @@ D3D12_RESOURCE_DESC st::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& 
 	return d3d12Desc;
 }
 
-void st::rhi::dx12::GpuDevice::CreateTextureSRV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources,
+void alm::rhi::dx12::GpuDevice::CreateTextureSRV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources,
 	TextureDimension dimension)
 {
 	const auto& desc = texture->GetDesc();
@@ -1260,7 +1260,7 @@ void st::rhi::dx12::GpuDevice::CreateTextureSRV(ITexture* texture, D3D12_CPU_DES
 	m_D3d12Device->CreateShaderResourceView(texture->GetNativeResource(), &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::CreateTextureUAV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources,
+void alm::rhi::dx12::GpuDevice::CreateTextureUAV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources,
 	TextureDimension dimension)
 {
 	const auto& desc = texture->GetDesc();
@@ -1317,7 +1317,7 @@ void st::rhi::dx12::GpuDevice::CreateTextureUAV(ITexture* texture, D3D12_CPU_DES
 	m_D3d12Device->CreateUnorderedAccessView(texture->GetNativeResource(), nullptr, &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::CreateTextureRTV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources)
+void alm::rhi::dx12::GpuDevice::CreateTextureRTV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, Format format, TextureSubresourceSet subresources)
 {
 	const auto& desc = texture->GetDesc();
 	subresources.Resolve(desc);
@@ -1373,7 +1373,7 @@ void st::rhi::dx12::GpuDevice::CreateTextureRTV(ITexture* texture, D3D12_CPU_DES
 	m_D3d12Device->CreateRenderTargetView(texture->GetNativeResource(), &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::CreateTextureDSV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly)
+void alm::rhi::dx12::GpuDevice::CreateTextureDSV(ITexture* texture, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, TextureSubresourceSet subresources, bool isReadOnly)
 {
 	const auto& desc = texture->GetDesc();
 	subresources.Resolve(desc);
@@ -1434,7 +1434,7 @@ void st::rhi::dx12::GpuDevice::CreateTextureDSV(ITexture* texture, D3D12_CPU_DES
 	m_D3d12Device->CreateDepthStencilView(texture->GetNativeResource(), &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::CreateBufferCBV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes)
+void alm::rhi::dx12::GpuDevice::CreateBufferCBV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes)
 {
 	assert(IsAligned(offsetBytes, (uint32_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
 	assert(IsAligned(sizeBytes, (uint32_t)D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
@@ -1448,7 +1448,7 @@ void st::rhi::dx12::GpuDevice::CreateBufferCBV(IBuffer* buffer, D3D12_CPU_DESCRI
 	m_D3d12Device->CreateConstantBufferView(&desc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::CreateBufferSRV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes)
+void alm::rhi::dx12::GpuDevice::CreateBufferSRV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes)
 {
 	const auto& desc = buffer->GetDesc();
 
@@ -1490,7 +1490,7 @@ void st::rhi::dx12::GpuDevice::CreateBufferSRV(IBuffer* buffer, D3D12_CPU_DESCRI
 	m_D3d12Device->CreateShaderResourceView(buffer->GetNativeResource(), &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::CreateBufferUAV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes)
+void alm::rhi::dx12::GpuDevice::CreateBufferUAV(IBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, uint32_t offsetBytes, uint32_t sizeBytes)
 {
 	const auto& desc = buffer->GetDesc();
 
@@ -1527,7 +1527,7 @@ void st::rhi::dx12::GpuDevice::CreateBufferUAV(IBuffer* buffer, D3D12_CPU_DESCRI
 	m_D3d12Device->CreateUnorderedAccessView(buffer->GetNativeResource(), nullptr, &viewDesc, descriptor);
 }
 
-void st::rhi::dx12::GpuDevice::ReleaseStaleResources(uint32_t bufferIdx)
+void alm::rhi::dx12::GpuDevice::ReleaseStaleResources(uint32_t bufferIdx)
 {
 	{
 		std::scoped_lock lock{ m_LivingResourcesMutex };

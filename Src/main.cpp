@@ -29,9 +29,9 @@
 
 namespace
 {
-void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
+void PrintSceneGraph(const alm::weak<alm::gfx::SceneGraphNode>& root)
 {
-    st::gfx::SceneGraph::Walker walker(root);
+    alm::gfx::SceneGraph::Walker walker(root);
     int depth = 0;
     while(walker)
     {
@@ -46,16 +46,16 @@ void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
         else
             ss << walker->GetName();
 
-        if (walker->HasBounds(st::gfx::BoundsType::Mesh))
+        if (walker->HasBounds(alm::gfx::BoundsType::Mesh))
         {
-            const auto& bbox = walker->GetWorldBounds(st::gfx::BoundsType::Mesh);
+            const auto& bbox = walker->GetWorldBounds(alm::gfx::BoundsType::Mesh);
             ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
                 << bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
         }
 
-		if (walker->HasBounds(st::gfx::BoundsType::Light))
+		if (walker->HasBounds(alm::gfx::BoundsType::Light))
 		{
-			const auto& bbox = walker->GetWorldBounds(st::gfx::BoundsType::Light);
+			const auto& bbox = walker->GetWorldBounds(alm::gfx::BoundsType::Light);
 			ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
 				<< bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
 		}
@@ -64,13 +64,13 @@ void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
         {
 			switch (walker->GetLeaf()->GetType())
 			{
-			case st::gfx::SceneGraphLeaf::Type::MeshInstance:
+			case alm::gfx::SceneGraphLeaf::Type::MeshInstance:
 				ss << " : MESH_INSTANCE ";
 				break;
-			case st::gfx::SceneGraphLeaf::Type::Camera:
+			case alm::gfx::SceneGraphLeaf::Type::Camera:
 				ss << " : CAMERA ";
 				break;
-			case st::gfx::SceneGraphLeaf::Type::PointLight:
+			case alm::gfx::SceneGraphLeaf::Type::PointLight:
 				ss << " : POINT_LIGHT ";
 				break;
 			default:
@@ -79,7 +79,7 @@ void PrintSceneGraph(const st::weak<st::gfx::SceneGraphNode>& root)
         }
 
 		if (!ss.str().empty())
-			st::log::Info("{}", ss.str());
+			alm::log::Info("{}", ss.str());
 
         depth += walker.Next();
     }
@@ -125,8 +125,8 @@ int SDL_main(int argc, char* argv[])
 	}
 
 	// Init device manager
-	std::unique_ptr<st::gfx::DeviceManager> deviceManager{ st::gfx::DeviceManager::Create(st::gfx::GraphicsAPI::D3D12) };
-	st::gfx::DeviceManager::DeviceParams initParams{
+	std::unique_ptr<alm::gfx::DeviceManager> deviceManager{ alm::gfx::DeviceManager::Create(alm::gfx::GraphicsAPI::D3D12) };
+	alm::gfx::DeviceManager::DeviceParams initParams{
 		.WindowHandle = window,
 		.DebugRuntime = graphicsDebug,
 		.GPUValidation = graphicsDebug,
@@ -163,33 +163,33 @@ int SDL_main(int argc, char* argv[])
 	}
 
 	// Our scene
-	auto scene = st::make_unique_with_weak<st::gfx::Scene>(deviceManager.get());
+	auto scene = alm::make_unique_with_weak<alm::gfx::Scene>(deviceManager.get());
 
 	// Create main RenderView
-	auto mainRenderView = st::make_unique_with_weak<st::gfx::RenderView>(deviceManager.get(), "Main view");
+	auto mainRenderView = alm::make_unique_with_weak<alm::gfx::RenderView>(deviceManager.get(), "Main view");
 
 	// Create shadowmap render stage
-	std::shared_ptr<st::gfx::ShadowmapRenderStage> shadowmapRS{ new st::gfx::ShadowmapRenderStage{ 4096, 4, st::rhi::Format::D32 }};
+	std::shared_ptr<alm::gfx::ShadowmapRenderStage> shadowmapRS{ new alm::gfx::ShadowmapRenderStage{ 4096, 4, alm::rhi::Format::D32 }};
 	// Create depth prepass render stage
-	std::shared_ptr<st::gfx::DepthPrepassRenderStage> depthPrepassRS{ new st::gfx::DepthPrepassRenderStage };
+	std::shared_ptr<alm::gfx::DepthPrepassRenderStage> depthPrepassRS{ new alm::gfx::DepthPrepassRenderStage };
 	// Create linearize-depth render stage
-	std::shared_ptr<st::gfx::LinearizeDepthRenderStage> linearizeDepthRS{ new st::gfx::LinearizeDepthRenderStage };
+	std::shared_ptr<alm::gfx::LinearizeDepthRenderStage> linearizeDepthRS{ new alm::gfx::LinearizeDepthRenderStage };
 	// Screen-space ambient occlusion
-	std::shared_ptr<st::gfx::SSAORenderStage> SSAORS{ new st::gfx::SSAORenderStage };
+	std::shared_ptr<alm::gfx::SSAORenderStage> SSAORS{ new alm::gfx::SSAORenderStage };
 	// Create deferred render stage
-	std::shared_ptr<st::gfx::GBuffersRenderStage> gBufRS{ new st::gfx::GBuffersRenderStage };
+	std::shared_ptr<alm::gfx::GBuffersRenderStage> gBufRS{ new alm::gfx::GBuffersRenderStage };
 	// Create lighting render stage
-	std::shared_ptr<st::gfx::DeferredLightingRenderStage> lightingRS{ new st::gfx::DeferredLightingRenderStage };
+	std::shared_ptr<alm::gfx::DeferredLightingRenderStage> lightingRS{ new alm::gfx::DeferredLightingRenderStage };
 	// Create Weighted-blended-OIT accumulation render stage
-	std::shared_ptr<st::gfx::WBOITAccumRenderStage> WBOITAccumRS{ new st::gfx::WBOITAccumRenderStage };
+	std::shared_ptr<alm::gfx::WBOITAccumRenderStage> WBOITAccumRS{ new alm::gfx::WBOITAccumRenderStage };
 	// Create Weighted-blended-OIT resolve render stage
-	std::shared_ptr<st::gfx::WBOITResolveRenderStage> WBOITResolveRS{ new st::gfx::WBOITResolveRenderStage };
+	std::shared_ptr<alm::gfx::WBOITResolveRenderStage> WBOITResolveRS{ new alm::gfx::WBOITResolveRenderStage };
 	// Create ToneMapping
-	std::shared_ptr<st::gfx::ToneMappingRenderStage> toneMappingRS{ new st::gfx::ToneMappingRenderStage };
+	std::shared_ptr<alm::gfx::ToneMappingRenderStage> toneMappingRS{ new alm::gfx::ToneMappingRenderStage };
 	// Create debug render stage
-	std::shared_ptr<st::gfx::DebugRenderStage> debugRS{ new st::gfx::DebugRenderStage };
+	std::shared_ptr<alm::gfx::DebugRenderStage> debugRS{ new alm::gfx::DebugRenderStage };
 	// Wireframe render stage
-	std::shared_ptr<st::gfx::WireframeRenderStage> wireframeRS{ new st::gfx::WireframeRenderStage };
+	std::shared_ptr<alm::gfx::WireframeRenderStage> wireframeRS{ new alm::gfx::WireframeRenderStage };
 
 	// Create UI render stage
 	std::string requestLoadFile;
@@ -200,20 +200,20 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_RequestClose = [&requestClose] { requestClose = true; };
 	uiRS->m_RequestQuit = [&requestQuit] { requestQuit = true; };
 
-	st::gfx::InitImGuiViewportsRenderer(uiRS, deviceManager.get());
+	alm::gfx::InitImGuiViewportsRenderer(uiRS, deviceManager.get());
 
 	// Create composite render stage
-	std::shared_ptr<st::gfx::CompositeRenderStage> compositeRS{ new st::gfx::CompositeRenderStage };
+	std::shared_ptr<alm::gfx::CompositeRenderStage> compositeRS{ new alm::gfx::CompositeRenderStage };
 
 	// Create camera
-	auto camera = std::make_shared<st::gfx::Camera>();
+	auto camera = std::make_shared<alm::gfx::Camera>();
 	int windowWidth, windowHeight;
 	SDL_GetWindowSize(window, (int*)&windowWidth, (int*)&windowHeight);
 	camera->SetAspect((float)windowWidth / windowHeight);
 	camera->SetPosition({ 0.f, 0.f, 5.f });
 
 	// Add stages to render graph
-	st::gfx::RenderGraph* renderGraph = mainRenderView->GetRenderGraph().get();
+	alm::gfx::RenderGraph* renderGraph = mainRenderView->GetRenderGraph().get();
 	renderGraph->SetRenderStages({ 
 		shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, WBOITAccumRS, WBOITResolveRS, toneMappingRS, debugRS, uiRS,
 		compositeRS, wireframeRS });
@@ -264,13 +264,13 @@ int SDL_main(int argc, char* argv[])
 
 		if (!requestLoadFile.empty())
 		{
-			auto importResult = st::gfx::ImportGlTF(requestLoadFile.c_str(), deviceManager.get());
+			auto importResult = alm::gfx::ImportGlTF(requestLoadFile.c_str(), deviceManager.get());
 			if (importResult)
 			{
 				scene->SetSceneGraph(std::move(*importResult));
 				mainRenderView->SetScene(scene.get_weak());
 
-				const st::math::aabox3f& bounds = scene->GetSceneGraph()->GetRoot()->GetWorldBounds(st::gfx::BoundsType::Mesh);
+				const alm::math::aabox3f& bounds = scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::BoundsType::Mesh);
 				const float radius = glm::length(bounds.extents()) / 2.f;
 				camera->SetZNear(radius * 0.05f);
 
@@ -409,8 +409,8 @@ int SDL_main(int argc, char* argv[])
 				renderGraph->SetCurrentRenderMode(uiRS->m_Data.RenderMode);
 			}
 
-			debugRS->ShowRenderBBoxes(st::gfx::BoundsType::Mesh, uiRS->m_Data.ShowMeshBBoxes);
-			debugRS->ShowRenderBBoxes(st::gfx::BoundsType::Light, uiRS->m_Data.ShowLightBBoxes);
+			debugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Mesh, uiRS->m_Data.ShowMeshBBoxes);
+			debugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Light, uiRS->m_Data.ShowLightBBoxes);
 
 			lightingRS->ShowShadowmap(uiRS->m_Data.ShowShadowmap);
 			if (uiRS->m_Data.ShadowmapDepthBias != shadowmapRS->GetDepthBias())
@@ -511,7 +511,7 @@ int SDL_main(int argc, char* argv[])
 	scene.reset();
 
 	ImGui::DestroyPlatformWindows();
-	st::gfx::ReleaseImGuiViewportsRenderer();
+	alm::gfx::ReleaseImGuiViewportsRenderer();
 	ImGui_ImplSDL3_Shutdown();
 	ImGui::DestroyContext();
 

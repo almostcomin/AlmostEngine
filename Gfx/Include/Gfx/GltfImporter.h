@@ -4,16 +4,16 @@
 #include <string>
 #include "Core/Memory.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class SceneGraph;
 	class DeviceManager;
 };
 
-namespace st::gfx
+namespace alm::gfx
 {
 
-std::expected<st::unique<SceneGraph>, std::string>
-ImportGlTF(const char* path, st::gfx::DeviceManager* device);
+std::expected<alm::unique<SceneGraph>, std::string>
+ImportGlTF(const char* path, alm::gfx::DeviceManager* device);
 
 }

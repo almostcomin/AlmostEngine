@@ -3,7 +3,7 @@
 #include <format>
 #include <functional>
 
-namespace st::log
+namespace alm::log
 {
     enum class Severity : uint8_t
     {
@@ -69,8 +69,8 @@ namespace st::log
 #define LOG(severity, fmt, ...) \
     Message(severity, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
-#define LOG_DEBUG(fmt, ...) LOG(st::log::Severity::Debug, fmt, ##__VA_ARGS__)
-#define LOG_INFO(fmt, ...) LOG(st::log::Severity::Info, fmt, ##__VA_ARGS__)
-#define LOG_WARNING(fmt, ...) LOG(st::log::Severity::Warning, fmt, ##__VA_ARGS__)
-#define LOG_ERROR(fmt, ...) LOG(st::log::Severity::Error, fmt, ##__VA_ARGS__)
-#define LOG_FATAL(fmt, ...) LOG(st::log::Severity::Fatal, fmt, ##__VA_ARGS__)
+#define LOG_DEBUG(fmt, ...) LOG(alm::log::Severity::Debug, fmt, ##__VA_ARGS__)
+#define LOG_INFO(fmt, ...) LOG(alm::log::Severity::Info, fmt, ##__VA_ARGS__)
+#define LOG_WARNING(fmt, ...) LOG(alm::log::Severity::Warning, fmt, ##__VA_ARGS__)
+#define LOG_ERROR(fmt, ...) LOG(alm::log::Severity::Error, fmt, ##__VA_ARGS__)
+#define LOG_FATAL(fmt, ...) LOG(alm::log::Severity::Fatal, fmt, ##__VA_ARGS__)

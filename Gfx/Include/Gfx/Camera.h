@@ -3,7 +3,7 @@
 #include "Core/Math/frustum.h"
 #include "Core/Math/aabox.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class Camera
@@ -33,7 +33,7 @@ public:
 
 	void SetProjectionModel(ProjectionModel model);
 
-	void Fit(const st::math::aabox3f& bounds);
+	void Fit(const alm::math::aabox3f& bounds);
 
 	const float3& GetPosition() const { return m_Position; }
 	const float3& GetForward() const { return m_Forward; }
@@ -46,7 +46,7 @@ public:
 	const float4x4& GetViewMatrix();
 	const float4x4& GetProjectionMatrix();
 	float4x4 GetViewProjectionMatrix();
-	const st::math::frustum3f& GetFrustum();
+	const alm::math::frustum3f& GetFrustum();
 
 	float GetYaw() const;
 	float GetPitch() const;
@@ -83,7 +83,7 @@ private:
 	float4x4 m_ViewMatrix;
 	float4x4 m_ProjectionMatrix;
 
-	st::math::frustum3f m_Frustum;
+	alm::math::frustum3f m_Frustum;
 
 	bool m_IsDirty;
 };

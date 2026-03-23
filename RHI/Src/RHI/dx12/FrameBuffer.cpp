@@ -2,7 +2,7 @@
 #include "RHI/dx12/FrameBuffer.h"
 #include "RHI/dx12/GpuDevice.h"
 
-void st::rhi::dx12::Framebuffer::Release(Device* device)
+void alm::rhi::dx12::Framebuffer::Release(Device* device)
 {
     auto* gpuDevice = checked_cast<GpuDevice*>(device);
 

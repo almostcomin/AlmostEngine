@@ -5,7 +5,7 @@
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class WireframeRenderStage : public RenderStage
@@ -19,7 +19,7 @@ public:
 private:
 
 	void Setup(RenderGraphBuilder& builder) override;
-	void Render(st::rhi::CommandListHandle commandList) override;
+	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
@@ -29,12 +29,12 @@ private:
 	RGTextureHandle m_ToneMappedTexture;
 	RGTextureHandle m_SceneDepthTexture;
 
-	st::rhi::ShaderOwner m_VS;
-	st::rhi::ShaderOwner m_PS;
-	st::rhi::GraphicsPipelineStateDesc m_PSODesc;
-	st::gfx::RenderContext m_RenderContext;
+	alm::rhi::ShaderOwner m_VS;
+	alm::rhi::ShaderOwner m_PS;
+	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;
+	alm::gfx::RenderContext m_RenderContext;
 
-	st::rhi::FramebufferOwner m_FB;
+	alm::rhi::FramebufferOwner m_FB;
 };
 
 } // namespace st::gfx

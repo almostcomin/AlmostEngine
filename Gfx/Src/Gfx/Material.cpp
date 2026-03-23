@@ -1,7 +1,7 @@
 #include "Gfx/Material.h"
 #include "RHI/Device.h"
 
-st::gfx::Material::Material(st::rhi::Device* device, const char* name, const char* filename) :
+alm::gfx::Material::Material(alm::rhi::Device* device, const char* name, const char* filename) :
 	m_BaseColor{ 1.f },
 	m_Opacity{ 1.f },
 	m_EmissiveColor{ 0.f },
@@ -17,60 +17,60 @@ st::gfx::Material::Material(st::rhi::Device* device, const char* name, const cha
 	m_SourceFileName{ filename ? filename : "<null>" }
 {}
 
-st::gfx::Material::~Material()
+alm::gfx::Material::~Material()
 {}
 
-void st::gfx::Material::SetBaseColorTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle)
+void alm::gfx::Material::SetBaseColorTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
 {
 	m_BaseColorTexture = textureHandle;
 }
 
-void st::gfx::Material::SetMetalRoughTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle)
+void alm::gfx::Material::SetMetalRoughTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
 {
 	m_MetalRoughTexture = textureHandle;
 }
 
-void st::gfx::Material::SetNormalTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle)
+void alm::gfx::Material::SetNormalTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
 {
 	m_NormalTexture = textureHandle;
 }
 
-void st::gfx::Material::SetEmissiveTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle)
+void alm::gfx::Material::SetEmissiveTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
 {
 	m_EmissiveTexture = textureHandle;
 }
 
-void st::gfx::Material::SetOcclusionTexture(std::shared_ptr<st::gfx::LoadedTexture> textureHandle)
+void alm::gfx::Material::SetOcclusionTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
 {
 	m_OcclusionTexture = textureHandle;
 }
 
-st::rhi::TextureHandle st::gfx::Material::GetBaseColorTextureHandle() const
+alm::rhi::TextureHandle alm::gfx::Material::GetBaseColorTextureHandle() const
 {
 	return m_BaseColorTexture ? m_BaseColorTexture->texture.get_weak() : nullptr;
 }
 
-st::rhi::TextureHandle st::gfx::Material::GetMetalRoughTextureHandle() const
+alm::rhi::TextureHandle alm::gfx::Material::GetMetalRoughTextureHandle() const
 {
 	return m_MetalRoughTexture ? m_MetalRoughTexture->texture.get_weak() : nullptr;
 }
 
-st::rhi::TextureHandle st::gfx::Material::GetNormalTextureHandle() const
+alm::rhi::TextureHandle alm::gfx::Material::GetNormalTextureHandle() const
 {
 	return m_NormalTexture ? m_NormalTexture->texture.get_weak() : nullptr;
 }
 
-st::rhi::TextureHandle st::gfx::Material::GetEmissiveTextureHandle() const
+alm::rhi::TextureHandle alm::gfx::Material::GetEmissiveTextureHandle() const
 {
 	return m_EmissiveTexture ? m_EmissiveTexture->texture.get_weak() : nullptr;
 }
 
-st::rhi::TextureHandle st::gfx::Material::GetOcclusionTextureHandle() const
+alm::rhi::TextureHandle alm::gfx::Material::GetOcclusionTextureHandle() const
 {
 	return m_OcclusionTexture ? m_OcclusionTexture->texture.get_weak() : nullptr;
 }
 
-bool st::gfx::Material::operator==(const Material& other) const
+bool alm::gfx::Material::operator==(const Material& other) const
 {
 	return
 		m_BaseColorTexture == other.m_BaseColorTexture &&

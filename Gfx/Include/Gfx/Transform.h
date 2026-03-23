@@ -2,7 +2,7 @@
 
 #include "Core/Math/glm_config.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class Transform

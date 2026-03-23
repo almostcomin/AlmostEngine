@@ -7,7 +7,7 @@
 #include "RHI/dx12/d3d12_headers.h"
 #include "Core/ComPtr.h"
 
-namespace st::rhi::dx12
+namespace alm::rhi::dx12
 {
 	class Queue;
 
@@ -86,9 +86,9 @@ namespace st::rhi::dx12
 		
 		QueueType m_Type;
 
-		st::rhi::GraphicsPipelineStateHandle m_CurrentGraphicsPSO;
-		st::rhi::ComputePipelineStateHandle m_CurrentComputePSO;
-		st::rhi::FramebufferHandle m_CurrentFB;
+		alm::rhi::GraphicsPipelineStateHandle m_CurrentGraphicsPSO;
+		alm::rhi::ComputePipelineStateHandle m_CurrentComputePSO;
+		alm::rhi::FramebufferHandle m_CurrentFB;
 
 		std::vector<TimerQueryHandle> m_BeginTimerQueries;
 		std::vector<TimerQueryHandle> m_EndTimerQueries;

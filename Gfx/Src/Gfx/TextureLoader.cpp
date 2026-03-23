@@ -11,7 +11,7 @@
 
 namespace
 {
-    void GetSurfaceInfo(size_t width, size_t height, st::rhi::Format fmt, uint32_t bitsPerPixel,
+    void GetSurfaceInfo(size_t width, size_t height, alm::rhi::Format fmt, uint32_t bitsPerPixel,
         size_t* outNumBytes, size_t* outRowBytes, size_t* outNumRows)
     {
         size_t numBytes = 0;
@@ -22,24 +22,24 @@ namespace
         size_t bpe = 0;
         switch (fmt)
         {
-        case st::rhi::Format::BC1_UNORM:
-        case st::rhi::Format::BC1_UNORM_SRGB:
-        case st::rhi::Format::BC4_UNORM:
-        case st::rhi::Format::BC4_SNORM:
+        case alm::rhi::Format::BC1_UNORM:
+        case alm::rhi::Format::BC1_UNORM_SRGB:
+        case alm::rhi::Format::BC4_UNORM:
+        case alm::rhi::Format::BC4_SNORM:
             bc = true;
             bpe = 8;
             break;
 
-        case st::rhi::Format::BC2_UNORM:
-        case st::rhi::Format::BC2_UNORM_SRGB:
-        case st::rhi::Format::BC3_UNORM:
-        case st::rhi::Format::BC3_UNORM_SRGB:
-        case st::rhi::Format::BC5_UNORM:
-        case st::rhi::Format::BC5_SNORM:
-        case st::rhi::Format::BC6H_UFLOAT:
-        case st::rhi::Format::BC6H_SFLOAT:
-        case st::rhi::Format::BC7_UNORM:
-        case st::rhi::Format::BC7_UNORM_SRGB:
+        case alm::rhi::Format::BC2_UNORM:
+        case alm::rhi::Format::BC2_UNORM_SRGB:
+        case alm::rhi::Format::BC3_UNORM:
+        case alm::rhi::Format::BC3_UNORM_SRGB:
+        case alm::rhi::Format::BC5_UNORM:
+        case alm::rhi::Format::BC5_SNORM:
+        case alm::rhi::Format::BC6H_UFLOAT:
+        case alm::rhi::Format::BC6H_SFLOAT:
+        case alm::rhi::Format::BC7_UNORM:
+        case alm::rhi::Format::BC7_UNORM_SRGB:
             bc = true;
             bpe = 16;
             break;
@@ -85,7 +85,7 @@ namespace
         }
     }
 
-    size_t FillTextureInfoOffsets(st::gfx::TextureInfo& textureInfo, size_t dataSize, ptrdiff_t dataOffset)
+    size_t FillTextureInfoOffsets(alm::gfx::TextureInfo& textureInfo, size_t dataSize, ptrdiff_t dataOffset)
     {
         //textureInfo.originalBitsPerPixel = BitsPerPixel(textureInfo.format);
 
@@ -96,7 +96,7 @@ namespace
             size_t h = textureInfo.height;
             size_t d = textureInfo.depth;
 
-            std::vector<st::gfx::TextureSubresourceInfo>& sliceData = textureInfo.dataLayout[arraySlice];
+            std::vector<alm::gfx::TextureSubresourceInfo>& sliceData = textureInfo.dataLayout[arraySlice];
             sliceData.resize(textureInfo.mipLevels);
 
             for (uint32_t mipLevel = 0; mipLevel < textureInfo.mipLevels; mipLevel++)
@@ -104,9 +104,9 @@ namespace
                 size_t NumBytes = 0;
                 size_t RowBytes = 0;
                 size_t NumRows = 0;
-                GetSurfaceInfo(w, h, textureInfo.format, st::gfx::BitsPerPixel(textureInfo.format), &NumBytes, &RowBytes, &NumRows);
+                GetSurfaceInfo(w, h, textureInfo.format, alm::gfx::BitsPerPixel(textureInfo.format), &NumBytes, &RowBytes, &NumRows);
 
-                st::gfx::TextureSubresourceInfo& levelData = sliceData[mipLevel];
+                alm::gfx::TextureSubresourceInfo& levelData = sliceData[mipLevel];
                 levelData.dataOffset = dataOffset;
                 levelData.dataSize = NumBytes;
                 levelData.rowPitch = RowBytes;
@@ -129,8 +129,8 @@ namespace
     }
 } // anonymous namespace
 
-std::expected<std::pair<st::gfx::TextureInfo, st::Blob>, std::string>
-st::gfx::LoadDDSTexture(const st::WeakBlob& fileData)
+std::expected<std::pair<alm::gfx::TextureInfo, alm::Blob>, std::string>
+alm::gfx::LoadDDSTexture(const alm::WeakBlob& fileData)
 {
 	DirectX::TexMetadata metadata;
     auto image = std::make_unique<DirectX::ScratchImage>();
@@ -140,9 +140,9 @@ st::gfx::LoadDDSTexture(const st::WeakBlob& fileData)
 		return std::unexpected(std::format("Error loading DDS image, hr [{:#x}]", hr));
 	}
 
-	st::gfx::TextureInfo texInfo;
+	alm::gfx::TextureInfo texInfo;
     texInfo.format = GetFormat(metadata.format);
-    assert(texInfo.format != st::rhi::Format::UNKNOWN);
+    assert(texInfo.format != alm::rhi::Format::UNKNOWN);
 	texInfo.width = metadata.width;
 	texInfo.height = metadata.height;
 	texInfo.mipLevels = metadata.mipLevels;
@@ -153,19 +153,19 @@ st::gfx::LoadDDSTexture(const st::WeakBlob& fileData)
     switch (metadata.dimension)
     {
     case DirectX::TEX_DIMENSION_TEXTURE1D:
-        texInfo.dimension = metadata.arraySize > 1 ? st::rhi::TextureDimension::Texture1DArray : st::rhi::TextureDimension::Texture1D;
+        texInfo.dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::Texture1DArray : alm::rhi::TextureDimension::Texture1D;
         texInfo.arraySize = metadata.arraySize;
         break;
 
     case DirectX::TEX_DIMENSION_TEXTURE2D:
         if (metadata.IsCubemap())
         {
-            texInfo.dimension = metadata.arraySize > 1 ? st::rhi::TextureDimension::TextureCubeArray : st::rhi::TextureDimension::TextureCube;
+            texInfo.dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::TextureCubeArray : alm::rhi::TextureDimension::TextureCube;
             texInfo.arraySize = metadata.arraySize * 6;
         }
         else
         {
-            texInfo.dimension = metadata.arraySize > 1 ? st::rhi::TextureDimension::Texture2DArray : st::rhi::TextureDimension::Texture2D;
+            texInfo.dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::Texture2DArray : alm::rhi::TextureDimension::Texture2D;
             texInfo.arraySize = metadata.arraySize;
         }
         break;
@@ -173,21 +173,21 @@ st::gfx::LoadDDSTexture(const st::WeakBlob& fileData)
     case DirectX::TEX_DIMENSION_TEXTURE3D:
         assert(metadata.IsVolumemap());
         texInfo.depth = metadata.depth;
-        texInfo.dimension = st::rhi::TextureDimension::Texture3D;
+        texInfo.dimension = alm::rhi::TextureDimension::Texture3D;
         break;
     }
 
     FillTextureInfoOffsets(texInfo, image->GetPixelsSize(), 0);
 
     DirectX::ScratchImage* image_ptr = image.release();
-    st::Blob blob
+    alm::Blob blob
         { (char*)image_ptr->GetPixels(), image_ptr->GetPixelsSize(), (char*)image_ptr, [](void* ptr) { delete (DirectX::ScratchImage*)ptr; } };
 
-    return std::pair<st::gfx::TextureInfo, st::Blob> { texInfo, std::move(blob) };
+    return std::pair<alm::gfx::TextureInfo, alm::Blob> { texInfo, std::move(blob) };
 }
 
-std::expected<std::pair<st::gfx::TextureInfo, st::Blob>, std::string> 
-st::gfx::LoadImageTexture(const st::WeakBlob& fileData, bool forceSRGB)
+std::expected<std::pair<alm::gfx::TextureInfo, alm::Blob>, std::string> 
+alm::gfx::LoadImageTexture(const alm::WeakBlob& fileData, bool forceSRGB)
 {
 	int width = 0, height = 0, originalChannels = 0;
 	if (!stbi_info_from_memory((stbi_uc*)fileData.data(), fileData.size(), &width, &height, &originalChannels))
@@ -216,12 +216,12 @@ st::gfx::LoadImageTexture(const st::WeakBlob& fileData, bool forceSRGB)
 		return std::unexpected("Couldn't load generic texture");
 	}
 
-	st::gfx::TextureInfo texInfo;
+	alm::gfx::TextureInfo texInfo;
 	//texInfo.originalBitsPerPixel = static_cast<uint32_t>(originalChannels) * (is_hdr ? 32 : 8);
 	texInfo.width = static_cast<uint32_t>(width);
 	texInfo.height = static_cast<uint32_t>(height);
 	texInfo.mipLevels = 1;
-	texInfo.dimension = st::rhi::TextureDimension::Texture2D;
+	texInfo.dimension = alm::rhi::TextureDimension::Texture2D;
 
 	texInfo.dataLayout.resize(1);
 	texInfo.dataLayout[0].resize(1);
@@ -229,24 +229,24 @@ st::gfx::LoadImageTexture(const st::WeakBlob& fileData, bool forceSRGB)
 	texInfo.dataLayout[0][0].rowPitch = static_cast<size_t>(width * bytesPerPixel);
 	texInfo.dataLayout[0][0].dataSize = static_cast<size_t>(width * height * bytesPerPixel);
 
-	st::Blob blob{ 
+	alm::Blob blob{ 
 		(char*)bitmap, (size_t)(width * height * channels), (char*)bitmap, [](void* ptr) { stbi_image_free(ptr); } };
 
 	switch (channels)
 	{
 	case 1:
-		texInfo.format = is_hdr ? st::rhi::Format::R32_FLOAT : st::rhi::Format::R8_UNORM;
+		texInfo.format = is_hdr ? alm::rhi::Format::R32_FLOAT : alm::rhi::Format::R8_UNORM;
 		break;
 	case 2:
-		texInfo.format = is_hdr ? st::rhi::Format::RG32_FLOAT : st::rhi::Format::RG8_UNORM;
+		texInfo.format = is_hdr ? alm::rhi::Format::RG32_FLOAT : alm::rhi::Format::RG8_UNORM;
 		break;
 	case 4:
-		texInfo.format = is_hdr ? st::rhi::Format::RGBA32_FLOAT :
-            forceSRGB ? st::rhi::Format::SRGBA8_UNORM : st::rhi::Format::RGBA8_UNORM;
+		texInfo.format = is_hdr ? alm::rhi::Format::RGBA32_FLOAT :
+            forceSRGB ? alm::rhi::Format::SRGBA8_UNORM : alm::rhi::Format::RGBA8_UNORM;
 		break;
 	default:
 		return std::unexpected(std::format("Unsupported number of components ({})", channels));
 	}
 
-	return std::pair<st::gfx::TextureInfo, st::Blob>{ texInfo, std::move(blob) };
+	return std::pair<alm::gfx::TextureInfo, alm::Blob>{ texInfo, std::move(blob) };
 }

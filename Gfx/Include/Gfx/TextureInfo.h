@@ -4,7 +4,7 @@
 #include "RHI/Format.h"
 #include "RHI/Texture.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 enum class TextureAlphaMode

@@ -1,13 +1,13 @@
 #pragma once
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class MeshInstance;
 
-struct RenderSet : public st::noncopyable_nonmovable
+struct RenderSet : public alm::noncopyable_nonmovable
 {
-	using CullSet = std::pair<rhi::CullMode, std::vector<const st::gfx::MeshInstance*>>;
+	using CullSet = std::pair<rhi::CullMode, std::vector<const alm::gfx::MeshInstance*>>;
 	using MaterialDomainSet = std::pair<gfx::MaterialDomain, std::vector<CullSet>>;
 
 	std::vector<MaterialDomainSet> Elements;

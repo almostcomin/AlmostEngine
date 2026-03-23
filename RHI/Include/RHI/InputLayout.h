@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 enum class InputClassification : uint8_t

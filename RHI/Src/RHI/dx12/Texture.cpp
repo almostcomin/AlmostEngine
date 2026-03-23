@@ -3,7 +3,7 @@
 #include "RHI/dx12/Texture.h"
 #include "RHI/dx12/GpuDevice.h"
 
-st::rhi::dx12::Texture::Texture(const st::rhi::TextureDesc& desc, ComPtr<ID3D12Resource> resource, Device* device, const std::string& debugName)
+alm::rhi::dx12::Texture::Texture(const alm::rhi::TextureDesc& desc, ComPtr<ID3D12Resource> resource, Device* device, const std::string& debugName)
     : ITexture{ device, debugName }
     , m_Desc{ desc }
 	, m_D3d12Resource{ resource }
@@ -19,14 +19,14 @@ st::rhi::dx12::Texture::Texture(const st::rhi::TextureDesc& desc, ComPtr<ID3D12R
     }
 }
 
-const st::rhi::TextureDesc& st::rhi::dx12::Texture::GetDesc() const
+const alm::rhi::TextureDesc& alm::rhi::dx12::Texture::GetDesc() const
 {
 	return m_Desc;
 }
 
-void st::rhi::dx12::Texture::Swap(ITexture& other)
+void alm::rhi::dx12::Texture::Swap(ITexture& other)
 {
-    auto* otherTex = st::checked_cast<Texture*>(&other);
+    auto* otherTex = alm::checked_cast<Texture*>(&other);
 
     std::swap(m_Desc, otherTex->m_Desc);
     std::swap(m_SampledView, otherTex->m_SampledView);
@@ -34,7 +34,7 @@ void st::rhi::dx12::Texture::Swap(ITexture& other)
     std::swap(m_D3d12Resource, otherTex->m_D3d12Resource);
 }
 
-void st::rhi::dx12::Texture::Release(Device* device)
+void alm::rhi::dx12::Texture::Release(Device* device)
 {
     if (m_SampledView.IsValid())
     {

@@ -14,15 +14,15 @@
 
 namespace
 {
-	constexpr uint32_t ImageAspectToPlane(st::rhi::ImageAspect value)
+	constexpr uint32_t ImageAspectToPlane(alm::rhi::ImageAspect value)
 	{
 		switch (value)
 		{
-		case st::rhi::ImageAspect::Undef:
-		case st::rhi::ImageAspect::Color:
-		case st::rhi::ImageAspect::Depth:
+		case alm::rhi::ImageAspect::Undef:
+		case alm::rhi::ImageAspect::Color:
+		case alm::rhi::ImageAspect::Depth:
 			return 0;
-		case st::rhi::ImageAspect::Stencil:
+		case alm::rhi::ImageAspect::Stencil:
 			return 1;
 		default:
 			return 0;
@@ -30,7 +30,7 @@ namespace
 	}
 } // anonymous namespace
 
-void st::rhi::dx12::CommandList::Open()
+void alm::rhi::dx12::CommandList::Open()
 {
 	m_D3d12CommandAllocator->Reset();
 	m_D3d12Commandlist->Reset(m_D3d12CommandAllocator.Get(), nullptr);
@@ -56,7 +56,7 @@ void st::rhi::dx12::CommandList::Open()
 	m_EndTimerQueries.clear();
 }
 
-void st::rhi::dx12::CommandList::Close()
+void alm::rhi::dx12::CommandList::Close()
 {
 	// Resolve timer queries
 	if(!m_BeginTimerQueries.empty() || !m_EndTimerQueries.empty())
@@ -68,12 +68,12 @@ void st::rhi::dx12::CommandList::Close()
 
 		for (const TimerQueryHandle& handle : m_BeginTimerQueries)
 		{
-			auto* tq = st::checked_cast<const TimerQuery*>(handle.get());
+			auto* tq = alm::checked_cast<const TimerQuery*>(handle.get());
 			toResolveQueries.push_back(tq->m_BeginQueryIndex);
 		}
 		for (const TimerQueryHandle& handle : m_EndTimerQueries)
 		{
-			auto* tq = st::checked_cast<const TimerQuery*>(handle.get());
+			auto* tq = alm::checked_cast<const TimerQuery*>(handle.get());
 			toResolveQueries.push_back(tq->m_EndQueryIndex);
 		}
 
@@ -103,7 +103,7 @@ void st::rhi::dx12::CommandList::Close()
 	assert(hr == S_OK);
 }
 
-void st::rhi::dx12::CommandList::WriteBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, size_t size)
+void alm::rhi::dx12::CommandList::WriteBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, size_t size)
 {
 	assert(srcOffset + size <= srcBuffer->GetDesc().sizeBytes);
 	assert(dstOffset + size <= dstBuffer->GetDesc().sizeBytes);
@@ -114,7 +114,7 @@ void st::rhi::dx12::CommandList::WriteBuffer(IBuffer* dstBuffer, uint64_t dstOff
 	m_D3d12Commandlist->CopyBufferRegion(d3d12DstBuffer->GetNativeResource(), dstOffset, d3d12SrcBuffer->GetNativeResource(), srcOffset, size);
 }
 
-void st::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& subresources, IBuffer* srcBuffer, uint64_t srcOffset)
+void alm::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& subresources, IBuffer* srcBuffer, uint64_t srcOffset)
 {
 	const TextureDesc& desc = dstTexture->GetDesc();
 	uint32_t lastArraySlice = subresources.GetLastArraySlice(desc);
@@ -161,7 +161,7 @@ void st::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::T
 	}
 }
 
-void st::rhi::dx12::CommandList::CopyTextureToTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& dstSubresources,
+void alm::rhi::dx12::CommandList::CopyTextureToTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& dstSubresources,
 	ITexture* srcTexture, const rhi::TextureSubresourceSet& srcSubresources)
 {
 	// Only single slice copy supported
@@ -191,7 +191,7 @@ void st::rhi::dx12::CommandList::CopyTextureToTexture(ITexture* dstTexture, cons
 	m_D3d12Commandlist->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 }
 
-void st::rhi::dx12::CommandList::CopyBufferToBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, uint64_t size)
+void alm::rhi::dx12::CommandList::CopyBufferToBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, uint64_t size)
 {
 	const auto& dstDesc = dstBuffer->GetDesc();
 	const auto& srcDesc = srcBuffer->GetDesc();
@@ -204,7 +204,7 @@ void st::rhi::dx12::CommandList::CopyBufferToBuffer(IBuffer* dstBuffer, uint64_t
 		size);
 }
 
-void st::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers)
+void alm::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers)
 {
 	std::vector<D3D12_RESOURCE_BARRIER> d3d12Barriers;
 	d3d12Barriers.reserve(barriers.size());
@@ -285,7 +285,7 @@ void st::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers)
 	}
 }
 
-void st::rhi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
+void alm::rhi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
 {
 	if (!m_CurrentGraphicsPSO || m_CurrentGraphicsPSO.get() != pso)
 	{
@@ -299,7 +299,7 @@ void st::rhi::dx12::CommandList::SetPipelineState(IGraphicsPipelineState* pso)
 	}
 }
 
-void st::rhi::dx12::CommandList::SetPipelineState(IComputePipelineState* pso)
+void alm::rhi::dx12::CommandList::SetPipelineState(IComputePipelineState* pso)
 {
 	if (!m_CurrentComputePSO || m_CurrentComputePSO.get() != pso)
 	{
@@ -310,7 +310,7 @@ void st::rhi::dx12::CommandList::SetPipelineState(IComputePipelineState* pso)
 	}
 }
 
-void st::rhi::dx12::CommandList::SetViewport(const st::rhi::ViewportState& vp)
+void alm::rhi::dx12::CommandList::SetViewport(const alm::rhi::ViewportState& vp)
 {
 	D3D12_VIEWPORT d3d12Viewport[c_MaxViewports];
 	for (int i = 0; i < vp.viewports.size(); ++i)
@@ -335,17 +335,17 @@ void st::rhi::dx12::CommandList::SetViewport(const st::rhi::ViewportState& vp)
 	m_D3d12Commandlist->RSSetScissorRects(vp.scissorRects.size(), sr);
 }
 
-void st::rhi::dx12::CommandList::SetStencilRef(uint8_t value)
+void alm::rhi::dx12::CommandList::SetStencilRef(uint8_t value)
 {
 	m_D3d12Commandlist->OMSetStencilRef(value);
 }
 
-void st::rhi::dx12::CommandList::SetBlendFactor(const float4& value)
+void alm::rhi::dx12::CommandList::SetBlendFactor(const float4& value)
 {
 	m_D3d12Commandlist->OMSetBlendFactor(&value.x);
 }
 
-void st::rhi::dx12::CommandList::PushConstants(uint32_t slot, const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute)
+void alm::rhi::dx12::CommandList::PushConstants(uint32_t slot, const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute)
 {
 	assert(IsAligned(sizeBytes, sizeof(uint32_t)));
 	assert(IsAligned(offsetBytes, sizeof(uint32_t)));
@@ -361,12 +361,12 @@ void st::rhi::dx12::CommandList::PushConstants(uint32_t slot, const void* data, 
 	}
 }
 
-void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, 
+void alm::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const std::vector<RenderPassOp>& rtvRenderPassOp, 
 	const RenderPassOp& depthRenderPassOp, const RenderPassOp& stencilRenderPassOp, RenderPassFlags rpFlags)
 {
 	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
 	
-	m_CurrentFB = st::checked_pointer_cast<rhi::IFramebuffer>(_fb->weak_from_this());
+	m_CurrentFB = alm::checked_pointer_cast<rhi::IFramebuffer>(_fb->weak_from_this());
 	Framebuffer* fb = checked_cast<Framebuffer*>(_fb);
 
 	D3D12_RENDER_PASS_RENDER_TARGET_DESC RTVs[c_MaxRenderTargets] = {};
@@ -406,13 +406,13 @@ void st::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const s
 		(float)fb->GetFramebufferInfo().width, (float)fb->GetFramebufferInfo().height }));
 }
 
-void st::rhi::dx12::CommandList::EndRenderPass()
+void alm::rhi::dx12::CommandList::EndRenderPass()
 {
 	m_D3d12Commandlist->EndRenderPass();
 	m_CurrentFB = {};
 }
 
-void st::rhi::dx12::CommandList::Draw(uint32_t vertexCount)
+void alm::rhi::dx12::CommandList::Draw(uint32_t vertexCount)
 {
 	m_D3d12Commandlist->DrawInstanced(vertexCount, 1, 0, 0);
 	
@@ -420,7 +420,7 @@ void st::rhi::dx12::CommandList::Draw(uint32_t vertexCount)
 	m_PrimitiveCount += GetPrimitiveCount(vertexCount, m_CurrentGraphicsPSO->GetDesc().primTopo);
 }
 
-void st::rhi::dx12::CommandList::DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount, uint32_t startVertex)
+void alm::rhi::dx12::CommandList::DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount, uint32_t startVertex)
 {
 	m_D3d12Commandlist->DrawInstanced(vertexCountPerInstance, instanceCount, startVertex, 0);
 
@@ -428,19 +428,19 @@ void st::rhi::dx12::CommandList::DrawInstanced(uint32_t vertexCountPerInstance, 
 	m_PrimitiveCount += GetPrimitiveCount(vertexCountPerInstance, m_CurrentGraphicsPSO->GetDesc().primTopo) * instanceCount;
 }
 
-void st::rhi::dx12::CommandList::Dispatch(uint32_t threadGroupCountX, uint32_t threadGroupCountY, uint32_t threadGroupCountZ)
+void alm::rhi::dx12::CommandList::Dispatch(uint32_t threadGroupCountX, uint32_t threadGroupCountY, uint32_t threadGroupCountZ)
 {
 	m_D3d12Commandlist->Dispatch(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 
 	++m_DispatchCalls;
 }
 
-void st::rhi::dx12::CommandList::Discard(IBuffer* buffer)
+void alm::rhi::dx12::CommandList::Discard(IBuffer* buffer)
 {
 	m_D3d12Commandlist->DiscardResource(buffer->GetNativeResource(), nullptr);
 }
 
-void st::rhi::dx12::CommandList::Discard(ITexture* texture, int mipLevel, int arraySlice)
+void alm::rhi::dx12::CommandList::Discard(ITexture* texture, int mipLevel, int arraySlice)
 {
 	if (mipLevel == -1 && arraySlice == -1)
 	{
@@ -456,37 +456,37 @@ void st::rhi::dx12::CommandList::Discard(ITexture* texture, int mipLevel, int ar
 	}
 }
 
-void st::rhi::dx12::CommandList::BeginMarker(const char* str)
+void alm::rhi::dx12::CommandList::BeginMarker(const char* str)
 {
 	PIXBeginEvent(m_D3d12Commandlist.Get(), 0, str);
 }
 
-void st::rhi::dx12::CommandList::EndMarker()
+void alm::rhi::dx12::CommandList::EndMarker()
 {
 	PIXEndEvent(m_D3d12Commandlist.Get());
 }
 
-void st::rhi::dx12::CommandList::BeginTimerQuery(ITimerQuery* query)
+void alm::rhi::dx12::CommandList::BeginTimerQuery(ITimerQuery* query)
 {
 	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
-	auto* tq = st::checked_cast<TimerQuery*>(query);
+	auto* tq = alm::checked_cast<TimerQuery*>(query);
 
 	m_D3d12Commandlist->EndQuery(gpuDevice->GetQueryHeap(), D3D12_QUERY_TYPE_TIMESTAMP, tq->m_BeginQueryIndex);
 
 	m_BeginTimerQueries.push_back(static_pointer_cast<TimerQuery>(query->weak_from_this()));
 }
 
-void st::rhi::dx12::CommandList::EndTimerQuery(ITimerQuery* query)
+void alm::rhi::dx12::CommandList::EndTimerQuery(ITimerQuery* query)
 {
 	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
-	auto* tq = st::checked_cast<TimerQuery*>(query);
+	auto* tq = alm::checked_cast<TimerQuery*>(query);
 
 	m_D3d12Commandlist->EndQuery(gpuDevice->GetQueryHeap(), D3D12_QUERY_TYPE_TIMESTAMP, tq->m_EndQueryIndex);
 
 	m_EndTimerQueries.push_back(static_pointer_cast<ITimerQuery>(query->weak_from_this()));
 }
 
-void st::rhi::dx12::CommandList::OnExecuted(st::rhi::dx12::Queue& queue)
+void alm::rhi::dx12::CommandList::OnExecuted(alm::rhi::dx12::Queue& queue)
 {
 	for (const auto& it : m_BeginTimerQueries)
 	{
@@ -498,7 +498,7 @@ void st::rhi::dx12::CommandList::OnExecuted(st::rhi::dx12::Queue& queue)
 	}
 }
 
-void st::rhi::dx12::CommandList::Release(Device* device)
+void alm::rhi::dx12::CommandList::Release(Device* device)
 {
 	assert(!m_CurrentFB);
 	m_D3d12CommandAllocator.Reset();

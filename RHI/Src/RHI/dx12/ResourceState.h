@@ -3,7 +3,7 @@
 #include "RHI/dx12/d3d12_headers.h"
 #include "RHI/ResourceState.h"
 
-namespace st::rhi::dx12
+namespace alm::rhi::dx12
 {
 	constexpr D3D12_RESOURCE_STATES MapResourceState(ResourceState value)
 	{

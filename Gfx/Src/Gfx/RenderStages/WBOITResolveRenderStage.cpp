@@ -7,7 +7,7 @@
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
-void st::gfx::WBOITResolveRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::WBOITResolveRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_AccumWOITTexture = builder.GetTextureHandle("AccumWOIT");
 	m_RevealageWOITTexture = builder.GetTextureHandle("RevealageWOIT");
@@ -21,7 +21,7 @@ void st::gfx::WBOITResolveRenderStage::Setup(RenderGraphBuilder& builder)
 		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 }
 
-void st::gfx::WBOITResolveRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::WBOITResolveRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -43,10 +43,10 @@ void st::gfx::WBOITResolveRenderStage::Render(st::rhi::CommandListHandle command
 	commandList->EndRenderPass();
 }
 
-void st::gfx::WBOITResolveRenderStage::OnAttached()
+void alm::gfx::WBOITResolveRenderStage::OnAttached()
 {
-	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
-	st::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
+	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
+	alm::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create Framebuffer
@@ -58,7 +58,7 @@ void st::gfx::WBOITResolveRenderStage::OnAttached()
 
 	// Load shaders
 	{
-		st::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
+		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_PS = shaderFactory->LoadShader("WBOITResolve_ps", rhi::ShaderType::Pixel);
 	}
 
@@ -99,17 +99,17 @@ void st::gfx::WBOITResolveRenderStage::OnAttached()
 	}
 }
 
-void st::gfx::WBOITResolveRenderStage::OnDetached()
+void alm::gfx::WBOITResolveRenderStage::OnDetached()
 {
 	m_PSO.reset();
 	m_PS.reset();
 	m_FB.reset();
 }
 
-void st::gfx::WBOITResolveRenderStage::OnBackbufferResize()
+void alm::gfx::WBOITResolveRenderStage::OnBackbufferResize()
 {
-	st::gfx::DeviceManager* deviceManager = GetDeviceManager();
-	st::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
+	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
+	alm::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create Framebuffer

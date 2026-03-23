@@ -8,7 +8,7 @@
 #include "Gfx/RenderGraphBuilder.h"
 #include "Interop/RenderResources.h"
 
-void st::gfx::DebugRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::DebugRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_TonemappedTexture = builder.GetTextureHandle("ToneMapped");
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
@@ -19,7 +19,7 @@ void st::gfx::DebugRenderStage::Setup(RenderGraphBuilder& builder)
 		rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 }
 
-void st::gfx::DebugRenderStage::Render(st::rhi::CommandListHandle commandList)
+void alm::gfx::DebugRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	const auto* scene = GetScene();
 	if (!scene)
@@ -58,7 +58,7 @@ void st::gfx::DebugRenderStage::Render(st::rhi::CommandListHandle commandList)
 	commandList->EndRenderPass();
 };
 
-void st::gfx::DebugRenderStage::OnAttached()
+void alm::gfx::DebugRenderStage::OnAttached()
 {
 	// Create Framebuffer
 	{
@@ -95,7 +95,7 @@ void st::gfx::DebugRenderStage::OnAttached()
 	}
 }
 
-void st::gfx::DebugRenderStage::OnDetached()
+void alm::gfx::DebugRenderStage::OnDetached()
 {
 	m_PSO.reset();
 	m_VS.reset();
@@ -104,7 +104,7 @@ void st::gfx::DebugRenderStage::OnDetached()
 	m_FB.reset();
 }
 
-void st::gfx::DebugRenderStage::OnBackbufferResize()
+void alm::gfx::DebugRenderStage::OnBackbufferResize()
 {
 	// Re-create fb
 	{
@@ -133,7 +133,7 @@ void st::gfx::DebugRenderStage::OnBackbufferResize()
 	}
 }
 
-std::pair<st::rhi::BufferReadOnlyView, size_t> st::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, BoundsType boundsType, rhi::CommandListHandle commandList)
+std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, BoundsType boundsType, rhi::CommandListHandle commandList)
 {
 	rhi::Device* device = GetDeviceManager()->GetDevice();
 
@@ -142,8 +142,8 @@ std::pair<st::rhi::BufferReadOnlyView, size_t> st::gfx::DebugRenderStage::GetAAB
 		return { rhi::c_InvalidDescriptorIndex, 0 };
 	 
 	// Collect all bboxes
-	std::vector<st::math::aabox3f> aabboxes;
-	st::gfx::SceneGraph::Walker walker{ *scene->GetSceneGraph() };
+	std::vector<alm::math::aabox3f> aabboxes;
+	alm::gfx::SceneGraph::Walker walker{ *scene->GetSceneGraph() };
 	while (walker)
 	{
 		auto node = *walker;

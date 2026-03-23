@@ -9,18 +9,18 @@
 #include "Core/Common.h"
 #include "Core/Signal.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 	class Device;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class DataUploader;
 	class LoadedTexture;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class TextureCache
@@ -35,21 +35,21 @@ public:
 		IsNormalMap = 1 << 2	// When generate mips, renormalize
 	};
 
-	using LoadResult = std::expected<std::pair<std::shared_ptr<LoadedTexture>, st::SignalListener>, std::string>;
+	using LoadResult = std::expected<std::pair<std::shared_ptr<LoadedTexture>, alm::SignalListener>, std::string>;
 
-	TextureCache(st::gfx::DataUploader* dataUploader, rhi::Device* device);
+	TextureCache(alm::gfx::DataUploader* dataUploader, rhi::Device* device);
 	~TextureCache();
 
 	std::shared_ptr<LoadedTexture> Get(const std::string& id);
 
 	LoadResult Load(const std::string& path, Flags flags);
-	LoadResult Load(const st::WeakBlob& blob, Flags flags = Flags::None, bool isDDS = false, const std::string& id = MakeUniqueStringId());
+	LoadResult Load(const alm::WeakBlob& blob, Flags flags = Flags::None, bool isDDS = false, const std::string& id = MakeUniqueStringId());
 
 	void Update();
 
 private:
 
-	LoadResult LoadInternal(const st::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id);
+	LoadResult LoadInternal(const alm::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id);
 
 	std::shared_ptr<LoadedTexture> CreateHandle();
 
@@ -61,7 +61,7 @@ private:
 	{
 		std::string id;
 		std::shared_ptr<LoadedTexture> texture;
-		st::SignalListener event;
+		alm::SignalListener event;
 	};
 
 	std::unordered_map<std::string, std::weak_ptr<LoadedTexture>> m_Textures;
@@ -78,4 +78,4 @@ private:
 
 } // namespace st::gfx
 
-ENUM_CLASS_FLAG_OPERATORS(st::gfx::TextureCache::Flags)
+ENUM_CLASS_FLAG_OPERATORS(alm::gfx::TextureCache::Flags)

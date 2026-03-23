@@ -3,7 +3,7 @@
 #include "RHI/Fence.h"
 #include "RHI/dx12/d3d12_headers.h"
 
-namespace st::rhi::dx12
+namespace alm::rhi::dx12
 {
 	class Fence : public IFence
 	{

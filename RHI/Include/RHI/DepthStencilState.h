@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 enum class ComparisonFunc : uint8_t

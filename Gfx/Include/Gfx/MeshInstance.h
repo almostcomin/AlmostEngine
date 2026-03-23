@@ -5,14 +5,14 @@
 #include "Gfx/MaterialDomain.h"
 #include "RHI/RasterizerState.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class SceneGraphNode;
 	class Mesh;
 }
 
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class MeshInstance : public SceneGraphLeaf
@@ -24,12 +24,12 @@ public:
 
 	bool HasBounds() const override;
 	BoundsType GetBoundsType() const override { return BoundsType::Mesh; }
-	const st::math::aabox3f& GetBounds() const override;
+	const alm::math::aabox3f& GetBounds() const override;
 
 	SceneContentFlags GetContentFlags() const override { return SceneContentFlags::OpaqueMeshes; }
 	Type GetType() const override { return Type::MeshInstance; }
 
-	const std::shared_ptr<st::gfx::Mesh>& GetMesh() const { return m_Mesh; }
+	const std::shared_ptr<alm::gfx::Mesh>& GetMesh() const { return m_Mesh; }
 
 	void SetMeshSceneIndex(int i) { m_MeshSceneIndex = i; }
 	int GetMeshSceneIndex() const { return m_MeshSceneIndex; }
@@ -42,7 +42,7 @@ public:
 
 private:
 
-	std::shared_ptr<st::gfx::Mesh> m_Mesh;
+	std::shared_ptr<alm::gfx::Mesh> m_Mesh;
 	int m_MeshSceneIndex;
 	int m_MaterialSceneIndex;
 };

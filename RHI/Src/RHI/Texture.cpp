@@ -1,6 +1,6 @@
 #include "RHI/Texture.h"
 
-st::rhi::MipLevel st::rhi::TextureSubresourceSet::GetLastMipLevel(const TextureDesc& desc) const
+alm::rhi::MipLevel alm::rhi::TextureSubresourceSet::GetLastMipLevel(const TextureDesc& desc) const
 {
     if (numMipLevels == AllMipLevels)
     {
@@ -12,7 +12,7 @@ st::rhi::MipLevel st::rhi::TextureSubresourceSet::GetLastMipLevel(const TextureD
     }
 }
 
-st::rhi::ArraySlice st::rhi::TextureSubresourceSet::GetLastArraySlice(const TextureDesc& desc) const
+alm::rhi::ArraySlice alm::rhi::TextureSubresourceSet::GetLastArraySlice(const TextureDesc& desc) const
 {
     if (numArraySlices == AllArraySlices)
     {
@@ -24,23 +24,23 @@ st::rhi::ArraySlice st::rhi::TextureSubresourceSet::GetLastArraySlice(const Text
     }
 }
 
-size_t st::rhi::TextureSubresourceSet::GetNumMipLevels(const TextureDesc& desc) const
+size_t alm::rhi::TextureSubresourceSet::GetNumMipLevels(const TextureDesc& desc) const
 {
     return GetLastMipLevel(desc) - baseMipLevel + 1;
 }
 
-size_t st::rhi::TextureSubresourceSet::GetNumArraySlices(const TextureDesc& desc) const
+size_t alm::rhi::TextureSubresourceSet::GetNumArraySlices(const TextureDesc& desc) const
 {
     return GetLastArraySlice(desc) - baseArraySlice + 1;
 }
 
-void st::rhi::TextureSubresourceSet::Resolve(const TextureDesc& desc)
+void alm::rhi::TextureSubresourceSet::Resolve(const TextureDesc& desc)
 {
     numMipLevels = GetNumMipLevels(desc);
     numArraySlices = GetNumArraySlices(desc);
 }
 
-bool st::rhi::TextureSubresourceSet::IsEntireTexture(const st::rhi::TextureDesc& desc) const
+bool alm::rhi::TextureSubresourceSet::IsEntireTexture(const alm::rhi::TextureDesc& desc) const
 {
     if (baseMipLevel > 0u || baseMipLevel + numMipLevels < desc.mipLevels)
         return false;

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "Core/Common.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 using DescriptorIndex = uint32_t;

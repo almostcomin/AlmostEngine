@@ -11,14 +11,14 @@ namespace
 
 struct ImGuiImplData
 {
-	st::gfx::DeviceManager* DeviceManager;
-	std::shared_ptr<st::gfx::ImGuiRenderStage> MainRenderStage;
+	alm::gfx::DeviceManager* DeviceManager;
+	std::shared_ptr<alm::gfx::ImGuiRenderStage> MainRenderStage;
 };
 
 struct ImGuiImplViewportData
 {
-	st::gfx::ViewportSwapChainId ViewportId;
-	st::unique<st::gfx::RenderView> RenderView;
+	alm::gfx::ViewportSwapChainId ViewportId;
+	alm::unique<alm::gfx::RenderView> RenderView;
 };
 
 ImGuiImplData* GetImplData()
@@ -33,11 +33,11 @@ void ImGui_Impl_CreateWindow(ImGuiViewport* viewport)
 	SDL_Window* window = SDL_GetWindowFromID((SDL_WindowID)(uintptr_t)viewport->PlatformHandle);
 	assert(window != nullptr);
 	
-	st::gfx::ViewportSwapChainId viewportId = bd->DeviceManager->CreateViewportSwapChain({ window }, SDL_GetWindowTitle(window));
+	alm::gfx::ViewportSwapChainId viewportId = bd->DeviceManager->CreateViewportSwapChain({ window }, SDL_GetWindowTitle(window));
 	
-	auto renderStage = std::make_shared<st::gfx::ImGuiViewportRenderStage>(bd->MainRenderStage.get(), viewport);
+	auto renderStage = std::make_shared<alm::gfx::ImGuiViewportRenderStage>(bd->MainRenderStage.get(), viewport);
 
-	auto renderView = st::make_unique_with_weak<st::gfx::RenderView>(viewportId, bd->DeviceManager, "ImGui Viewport");
+	auto renderView = alm::make_unique_with_weak<alm::gfx::RenderView>(viewportId, bd->DeviceManager, "ImGui Viewport");
 	renderView->GetRenderGraph()->SetRenderStages({ renderStage });
 	renderView->GetRenderGraph()->SetRenderMode("Default", { renderStage.get() });
 
@@ -71,7 +71,7 @@ void ImGui_Impl_RenderWindow(ImGuiViewport* viewport, void*)
 {
 	ImGuiImplData* bd = GetImplData();
 	ImGuiImplViewportData* viewportData = (ImGuiImplViewportData*)viewport->RendererUserData;
-	st::gfx::RenderView* renderView = viewportData->RenderView.get();
+	alm::gfx::RenderView* renderView = viewportData->RenderView.get();
 
 	renderView->Render(ImGui::GetIO().DeltaTime);
 }
@@ -83,7 +83,7 @@ void ImGui_Impl_SwapBuffers(ImGuiViewport*, void*)
 
 } // anonymous namespace
 
-void st::gfx::InitImGuiViewportsRenderer(std::shared_ptr<st::gfx::ImGuiRenderStage> mainRenderStage, st::gfx::DeviceManager* deviceManager)
+void alm::gfx::InitImGuiViewportsRenderer(std::shared_ptr<alm::gfx::ImGuiRenderStage> mainRenderStage, alm::gfx::DeviceManager* deviceManager)
 {
 	ImGuiImplData* implData = new ImGuiImplData;
 	implData->MainRenderStage = mainRenderStage;
@@ -104,7 +104,7 @@ void st::gfx::InitImGuiViewportsRenderer(std::shared_ptr<st::gfx::ImGuiRenderSta
 	platformIO.Renderer_SwapBuffers = ImGui_Impl_SwapBuffers;			// Present
 }
 
-void st::gfx::ReleaseImGuiViewportsRenderer()
+void alm::gfx::ReleaseImGuiViewportsRenderer()
 {
 	ImGuiImplData* bd = GetImplData();
 	delete bd;

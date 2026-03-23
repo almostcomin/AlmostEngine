@@ -2,7 +2,7 @@
 
 #include <memory>
 
-namespace st
+namespace alm
 {
 
 template<class T>
@@ -18,13 +18,13 @@ class weak
     friend class enable_weak_from_this;
 
     template<class T, class U>
-    friend st::weak<T> static_pointer_cast(const st::weak<U>& r) noexcept;
+    friend alm::weak<T> static_pointer_cast(const alm::weak<U>& r) noexcept;
 
     template<class T, class U>
-    friend st::weak<T> dynamic_pointer_cast(const st::weak<U>& r) noexcept;
+    friend alm::weak<T> dynamic_pointer_cast(const alm::weak<U>& r) noexcept;
 
     template<class T, class U>
-    friend st::weak<T> checked_pointer_cast(const st::weak<U>& r) noexcept;
+    friend alm::weak<T> checked_pointer_cast(const alm::weak<U>& r) noexcept;
 
 public:
     weak() : ptr(nullptr) {};
@@ -126,7 +126,7 @@ class unique
     friend class unique;
 
     template<class T, class U>
-    friend st::unique<T> adopt_unique(st::unique<U>&& r) noexcept;
+    friend alm::unique<T> adopt_unique(alm::unique<U>&& r) noexcept;
 
 public:
 
@@ -272,25 +272,25 @@ unique<T> make_unique_with_weak(Args&&... args)
 }
 
 template<class T, class U>
-st::weak<T> static_pointer_cast(const st::weak<U>& r) noexcept
+alm::weak<T> static_pointer_cast(const alm::weak<U>& r) noexcept
 {
     static_assert(!std::is_same<T, U>::value, "Redundant static_pointer_cast");
     auto* p = static_cast<T*>(r.get());
-    return st::weak<T>{ p, r.flag };
+    return alm::weak<T>{ p, r.flag };
 }
 
 template<class T, class U>
-st::weak<T> dynamic_pointer_cast(const st::weak<U>& r) noexcept
+alm::weak<T> dynamic_pointer_cast(const alm::weak<U>& r) noexcept
 {
     static_assert(!std::is_same<T, U>::value, "Redundant checked_pointer_cast");
     if (!r) return nullptr;
     auto* p = dynamic_cast<T*>(r.get());
     if (!p) return { nullptr };
-    return st::weak<T>{ p, r.flag };
+    return alm::weak<T>{ p, r.flag };
 }
 
 template<class T, class U>
-st::weak<T> checked_pointer_cast(const st::weak<U>& r) noexcept
+alm::weak<T> checked_pointer_cast(const alm::weak<U>& r) noexcept
 {
 #ifdef _DEBUG
     if (!r) return nullptr;
@@ -300,19 +300,19 @@ st::weak<T> checked_pointer_cast(const st::weak<U>& r) noexcept
         assert(!"Invalid type cast");
         return { nullptr };
     }
-    return st::weak<T>{ p, r.flag };
+    return alm::weak<T>{ p, r.flag };
 #else
     return static_pointer_cast<T>(r);
 #endif
 }
 
 template<class T, class U>
-st::unique<T> adopt_unique(st::unique<U>&& r) noexcept
+alm::unique<T> adopt_unique(alm::unique<U>&& r) noexcept
 {
     static_assert(std::is_base_of_v<U, T> || std::is_base_of_v<T, U>,
         "adopt_unique requires related types");
 
-    st::unique<T> ret;
+    alm::unique<T> ret;
     ret.obj = decltype(ret.obj)(
         static_cast<T*>(r.obj.release()),
         std::move(r.obj.get_deleter()));

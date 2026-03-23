@@ -10,7 +10,7 @@
 
 struct SDL_Window;
 
-namespace st::gfx
+namespace alm::gfx
 {
     class ShaderFactory;
     class DataUploader;
@@ -19,13 +19,13 @@ namespace st::gfx
     class UploadBuffer;
 }
 
-namespace st::rhi
+namespace alm::rhi
 {
     class Device;
     class ITexture;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 enum class GraphicsAPI : uint8_t
@@ -50,7 +50,7 @@ struct AdapterInfo
     std::optional<LUID> luid;
 };
 
-class DeviceManager : st::noncopyable_nonmovable
+class DeviceManager : alm::noncopyable_nonmovable
 {
 public:
 
@@ -75,7 +75,7 @@ public:
         int SwapChainSampleQuality = 0;
         int SwapChainBufferCount = 3;
         // Format can be forced setting it here. If UNKNOWN then will be set automatically to SRGBA8_UNORM (sdr) or R10G10B10A2_UNORM (hdr)
-        st::rhi::Format SwapChainFormat = st::rhi::Format::UNKNOWN;
+        alm::rhi::Format SwapChainFormat = alm::rhi::Format::UNKNOWN;
         bool ForceSDR = false; // Force SDR or allow hdr. Only if SwapChainFormat is set to UNKNOWN
 
         uint32_t RefreshRate = 0;           // 0 forces the native display's refresh rate
@@ -83,7 +83,7 @@ public:
         int AdapterIndex = -1;              // -1 Get default adapter (first in the list)
     };
 
-    static DeviceManager* Create(st::gfx::GraphicsAPI api);
+    static DeviceManager* Create(alm::gfx::GraphicsAPI api);
 
     virtual ~DeviceManager();
 
@@ -106,14 +106,14 @@ public:
 
     virtual glm::ivec2 GetWindowDimensions() const = 0;
     
-    st::rhi::FramebufferHandle GetCurrentFramebuffer();
-    virtual st::rhi::FramebufferHandle GetViewportCurrentFramebuffer(ViewportSwapChainId id) = 0;
+    alm::rhi::FramebufferHandle GetCurrentFramebuffer();
+    virtual alm::rhi::FramebufferHandle GetViewportCurrentFramebuffer(ViewportSwapChainId id) = 0;
 
     virtual uint32_t GetCurrentBackBufferIndex() const = 0;
     virtual uint32_t GetViewportCurrentBackBufferIndex(ViewportSwapChainId id) = 0;
 
-    virtual st::rhi::TextureHandle GetCurrentBackBuffer() = 0;
-    virtual st::rhi::TextureHandle GetBackBuffer(uint32_t index) = 0;
+    virtual alm::rhi::TextureHandle GetCurrentBackBuffer() = 0;
+    virtual alm::rhi::TextureHandle GetBackBuffer(uint32_t index) = 0;
 
     virtual ViewportSwapChainId CreateViewportSwapChain(const ViewportSwapChainInitParams& initParams, const std::string& debugName) = 0;
     virtual bool ResizeViewportSwapChain(ViewportSwapChainId id) = 0;
@@ -127,11 +127,11 @@ public:
 
     void Render(std::function<void(void)> cb);
 
-    st::gfx::ShaderFactory* GetShaderFactory() { return m_ShaderFactory.get(); }
-    st::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
-    st::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }
-    st::gfx::CommonResources* GetCommonResources() { return m_CommonResources.get(); }
-    st::gfx::UploadBuffer* GetUploadBuffer() { return m_UploadBuffer.get(); }
+    alm::gfx::ShaderFactory* GetShaderFactory() { return m_ShaderFactory.get(); }
+    alm::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
+    alm::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }
+    alm::gfx::CommonResources* GetCommonResources() { return m_CommonResources.get(); }
+    alm::gfx::UploadBuffer* GetUploadBuffer() { return m_UploadBuffer.get(); }
 
     uint64_t GetFrameIndex() const { return m_FrameIndex; }
     uint32_t GetSwapchainBufferCount() const { return m_SwapChainFramebuffers.size(); }
@@ -142,7 +142,7 @@ public:
 
     float GetGPUFrameTime();
 
-    st::rhi::Device* GetDevice() { return m_Device.get(); }
+    alm::rhi::Device* GetDevice() { return m_Device.get(); }
 
 protected:
 
@@ -154,13 +154,13 @@ protected:
     // To be updated by backend implementations
     uint64_t m_FrameIndex = 1;
 
-    std::vector<st::rhi::FramebufferOwner> m_SwapChainFramebuffers;
+    std::vector<alm::rhi::FramebufferOwner> m_SwapChainFramebuffers;
 
     uint32_t m_BackBufferWidth = 0;
     uint32_t m_BackBufferHeight = 0;
     bool m_WindowVisible = true;
 
-    std::unique_ptr<st::rhi::Device> m_Device;
+    std::unique_ptr<alm::rhi::Device> m_Device;
 
 private:
 
@@ -169,11 +169,11 @@ private:
 
 private:
 
-    std::unique_ptr<st::gfx::ShaderFactory> m_ShaderFactory;
-    std::unique_ptr<st::gfx::DataUploader> m_DataUploader;
-    std::unique_ptr<st::gfx::TextureCache> m_TextureCache;
-    std::unique_ptr<st::gfx::CommonResources> m_CommonResources;
-    std::unique_ptr<st::gfx::UploadBuffer> m_UploadBuffer;
+    std::unique_ptr<alm::gfx::ShaderFactory> m_ShaderFactory;
+    std::unique_ptr<alm::gfx::DataUploader> m_DataUploader;
+    std::unique_ptr<alm::gfx::TextureCache> m_TextureCache;
+    std::unique_ptr<alm::gfx::CommonResources> m_CommonResources;
+    std::unique_ptr<alm::gfx::UploadBuffer> m_UploadBuffer;
 
     static const uint32_t QueuedFramesCount = 6;
     rhi::TimerQueryOwner m_FrameTimers[QueuedFramesCount];

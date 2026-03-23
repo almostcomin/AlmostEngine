@@ -6,7 +6,7 @@
 #include "RHI/Common.h"
 #include "ShaderViews.h"
 
-namespace st::rhi
+namespace alm::rhi
 {
 
 struct BufferDesc

@@ -11,13 +11,13 @@
 
 struct SDL_Window;
 
-namespace st::gfx
+namespace alm::gfx
 {
 	class DeviceManager;
 	class ShaderFactory;
 }
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class ImGuiRenderStage : public RenderStage
@@ -51,7 +51,7 @@ public:
 protected:
 
 	void Setup(RenderGraphBuilder& builder) override;
-	void Render(st::rhi::CommandListHandle commandList) override;
+	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
@@ -101,10 +101,10 @@ private:
 	rhi::GraphicsPipelineStateOwner m_PSO;
 
 	rhi::TextureOwner m_FontTexture;
-	st::unique<ImGuiTexture> m_GuiFontTexture;
+	alm::unique<ImGuiTexture> m_GuiFontTexture;
 
 	GeometryBuffers m_GeometryBuffers;
-	std::vector<st::unique<ImGuiTexture>> m_CurrentTextures;
+	std::vector<alm::unique<ImGuiTexture>> m_CurrentTextures;
 };
 
 }

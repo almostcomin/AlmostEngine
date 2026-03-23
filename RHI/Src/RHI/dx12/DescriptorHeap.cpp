@@ -4,11 +4,11 @@
 #include <cassert>
 #include <algorithm>
 
-st::rhi::dx12::DescriptorHeap::DescriptorHeap(ID3D12Device* device)
+alm::rhi::dx12::DescriptorHeap::DescriptorHeap(ID3D12Device* device)
 	: m_Device{ device }
 {}
 
-HRESULT st::rhi::dx12::DescriptorHeap::AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t numDescriptors, bool shaderVisible)
+HRESULT alm::rhi::dx12::DescriptorHeap::AllocateResources(D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t numDescriptors, bool shaderVisible)
 {
     m_Heap = nullptr;
 
@@ -36,7 +36,7 @@ HRESULT st::rhi::dx12::DescriptorHeap::AllocateResources(D3D12_DESCRIPTOR_HEAP_T
     return S_OK;
 }
 
-st::rhi::DescriptorIndex st::rhi::dx12::DescriptorHeap::DescriptorHeap::AllocateDescriptors(uint32_t count)
+alm::rhi::DescriptorIndex alm::rhi::dx12::DescriptorHeap::DescriptorHeap::AllocateDescriptors(uint32_t count)
 {
     std::lock_guard lockGuard(m_Mutex);
 
@@ -83,12 +83,12 @@ st::rhi::DescriptorIndex st::rhi::dx12::DescriptorHeap::DescriptorHeap::Allocate
     return foundIndex;
 }
 
-st::rhi::DescriptorIndex st::rhi::dx12::DescriptorHeap::AllocateDescriptor()
+alm::rhi::DescriptorIndex alm::rhi::dx12::DescriptorHeap::AllocateDescriptor()
 {
     return AllocateDescriptors(1);
 }
 
-void st::rhi::dx12::DescriptorHeap::ReleaseDescriptors(DescriptorIndex baseIndex, uint32_t count)
+void alm::rhi::dx12::DescriptorHeap::ReleaseDescriptors(DescriptorIndex baseIndex, uint32_t count)
 {
     std::lock_guard lockGuard(m_Mutex);
 
@@ -113,12 +113,12 @@ void st::rhi::dx12::DescriptorHeap::ReleaseDescriptors(DescriptorIndex baseIndex
         m_SearchStart = baseIndex;
 }
 
-void st::rhi::dx12::DescriptorHeap::ReleaseDescriptor(DescriptorIndex index)
+void alm::rhi::dx12::DescriptorHeap::ReleaseDescriptor(DescriptorIndex index)
 {
     ReleaseDescriptors(index, 1);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE st::rhi::dx12::DescriptorHeap::GetCpuHandle(DescriptorIndex index)
+D3D12_CPU_DESCRIPTOR_HANDLE alm::rhi::dx12::DescriptorHeap::GetCpuHandle(DescriptorIndex index)
 {
     if (index == c_InvalidDescriptorIndex)
         return { 0u };
@@ -130,7 +130,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE st::rhi::dx12::DescriptorHeap::GetCpuHandle(Descript
     return handle;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE st::rhi::dx12::DescriptorHeap::GetGpuHandle(DescriptorIndex index)
+D3D12_GPU_DESCRIPTOR_HANDLE alm::rhi::dx12::DescriptorHeap::GetGpuHandle(DescriptorIndex index)
 {
     assert(m_ShaderVisible);
 
@@ -139,7 +139,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE st::rhi::dx12::DescriptorHeap::GetGpuHandle(Descript
     return handle;
 }
 
-ID3D12DescriptorHeap* st::rhi::dx12::DescriptorHeap::GetHeap() const
+ID3D12DescriptorHeap* alm::rhi::dx12::DescriptorHeap::GetHeap() const
 {
     return m_Heap.Get();
 }
@@ -151,7 +151,7 @@ void st::rhi::dx12::DescriptorHeap::CopyToShaderVisibleHeap(DescriptorIndex inde
 }
 */
 
-HRESULT st::rhi::dx12::DescriptorHeap::Grow(uint32_t minRequiredSize)
+HRESULT alm::rhi::dx12::DescriptorHeap::Grow(uint32_t minRequiredSize)
 {
     uint32_t oldSize = m_NumDescriptors;
     uint32_t newSize = NextPowerOf2(minRequiredSize);

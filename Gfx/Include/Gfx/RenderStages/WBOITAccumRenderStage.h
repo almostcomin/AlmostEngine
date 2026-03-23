@@ -4,7 +4,7 @@
 #include "Gfx/RenderContext.h"
 #include "Gfx/RenderGraphTypes.h"
 
-namespace st::gfx
+namespace alm::gfx
 {
 
 class WBOITAccumRenderStage : public RenderStage
@@ -16,7 +16,7 @@ public:
 private:
 
 	void Setup(RenderGraphBuilder& builder) override;
-	void Render(st::rhi::CommandListHandle commandList) override;
+	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
@@ -29,10 +29,10 @@ private:
 	RGTextureHandle m_ShadowmapTexture;
 	RGTextureHandle m_AmbientOcclusionTexture;
 
-	st::rhi::ShaderOwner m_VS;
-	st::rhi::ShaderOwner m_PS;
-	st::rhi::FramebufferOwner m_FB;
-	st::gfx::RenderContext m_RenderContext;
+	alm::rhi::ShaderOwner m_VS;
+	alm::rhi::ShaderOwner m_PS;
+	alm::rhi::FramebufferOwner m_FB;
+	alm::gfx::RenderContext m_RenderContext;
 };
 
 } // namespace st::gfx

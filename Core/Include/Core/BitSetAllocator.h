@@ -3,7 +3,7 @@
 #include <vector>
 #include <mutex>
 
-namespace st
+namespace alm
 {
 
 class BitSetAllocator

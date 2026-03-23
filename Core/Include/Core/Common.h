@@ -5,7 +5,7 @@
 #include <cassert>
 #include <algorithm>
 
-namespace st
+namespace alm
 {
 
 // Inherit from this to avoid copy/move
