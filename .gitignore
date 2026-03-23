@@ -51,5 +51,6 @@ build/*
 Data/*
 !Data/Models/
 !Data/Models/**
+!Data/Shaders/.do_not_delete
 
 imgui.ini
