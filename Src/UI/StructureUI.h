@@ -59,6 +59,11 @@ public:
 		float SSAO_Power;
 		float SSAO_Bias;
 
+		bool bloomEnabled = true;
+		float bloomRadius;
+		float bloomStrength;
+		int bloomMaxMip;
+
 		bool tonemappingEnabled = true;
 		float middleGrayNits = 0.18f;
 		float paperWhiteNits = 203.f;

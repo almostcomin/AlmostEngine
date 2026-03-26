@@ -24,6 +24,7 @@
 #include "Gfx/RenderStages/WireframeRenderStage.h"
 #include "Gfx/RenderStages/WBOITAccumRenderStage.h"
 #include "Gfx/RenderStages/WBOITResolveRenderStage.h"
+#include "Gfx/RenderStages/BloomRenderStage.h"
 #include "Gfx/ImGUIViewportsRenderer.h"
 #include "UI/StructureUI.h"
 
@@ -184,6 +185,8 @@ int SDL_main(int argc, char* argv[])
 	std::shared_ptr<alm::gfx::WBOITAccumRenderStage> WBOITAccumRS{ new alm::gfx::WBOITAccumRenderStage };
 	// Create Weighted-blended-OIT resolve render stage
 	std::shared_ptr<alm::gfx::WBOITResolveRenderStage> WBOITResolveRS{ new alm::gfx::WBOITResolveRenderStage };
+	// Create Bloom render stage
+	std::shared_ptr<alm::gfx::BloomRenderStage> bloomRS{ new alm::gfx::BloomRenderStage };
 	// Create ToneMapping
 	std::shared_ptr<alm::gfx::ToneMappingRenderStage> toneMappingRS{ new alm::gfx::ToneMappingRenderStage };
 	// Create debug render stage
@@ -215,12 +218,12 @@ int SDL_main(int argc, char* argv[])
 	// Add stages to render graph
 	alm::gfx::RenderGraph* renderGraph = mainRenderView->GetRenderGraph().get();
 	renderGraph->SetRenderStages({ 
-		shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, WBOITAccumRS, WBOITResolveRS, toneMappingRS, debugRS, uiRS,
+		shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, WBOITAccumRS, WBOITResolveRS, bloomRS, toneMappingRS, debugRS, uiRS,
 		compositeRS, wireframeRS });
 	// Define default render mode
 	renderGraph->SetRenderMode("Default",
 		{ shadowmapRS.get(), depthPrepassRS.get(), linearizeDepthRS.get(), gBufRS.get(), SSAORS.get(), lightingRS.get(), WBOITAccumRS.get(),
-		  WBOITResolveRS.get(), toneMappingRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
+		  WBOITResolveRS.get(), bloomRS.get(), toneMappingRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
 	// Define wireframe render mode
 	renderGraph->SetRenderMode("Wireframe",
 		{ depthPrepassRS.get(), wireframeRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
@@ -238,6 +241,10 @@ int SDL_main(int argc, char* argv[])
 	uiRS->m_Data.SSAO_Radius = SSAORS->GetRadius();
 	uiRS->m_Data.SSAO_Power = SSAORS->GetPower();
 	uiRS->m_Data.SSAO_Bias = SSAORS->GetBias();
+
+	uiRS->m_Data.bloomRadius = bloomRS->GetFilterRadius();
+	uiRS->m_Data.bloomStrength = bloomRS->GetStrength();
+	uiRS->m_Data.bloomMaxMip = bloomRS->GetMaxMipChainLenght();
 
 	uiRS->m_Data.middleGrayNits = toneMappingRS->GetSceneMiddleGray() * compositeRS->GetPaperWhiteNits();
 	uiRS->m_Data.paperWhiteNits = compositeRS->GetPaperWhiteNits();
@@ -453,6 +460,11 @@ int SDL_main(int argc, char* argv[])
 			SSAORS->SetPower(uiRS->m_Data.SSAO_Power);
 			SSAORS->SetBias(uiRS->m_Data.SSAO_Bias);
 
+			bloomRS->SetBloomEnabled(uiRS->m_Data.bloomEnabled);
+			bloomRS->SetFilterRadius(uiRS->m_Data.bloomRadius);
+			bloomRS->SetStrength(uiRS->m_Data.bloomStrength);
+			bloomRS->SetMaxMipChainLenght(uiRS->m_Data.bloomMaxMip);
+
 			toneMappingRS->SetTonemappingEnabled(uiRS->m_Data.tonemappingEnabled);
 			// Scene middlegray is middle_gray_nits / paper_white_nits
 			toneMappingRS->SetSceneMiddleGray(uiRS->m_Data.middleGrayNits / uiRS->m_Data.paperWhiteNits);
@@ -499,6 +511,7 @@ int SDL_main(int argc, char* argv[])
 	compositeRS.reset();
 	SSAORS.reset();
 	linearizeDepthRS.reset();
+	bloomRS.reset();
 	WBOITResolveRS.reset();
 	WBOITAccumRS.reset();
 	lightingRS.reset();

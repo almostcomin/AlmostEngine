@@ -50,7 +50,7 @@ void alm::gfx::ToneMappingRenderStage::Setup(RenderGraphBuilder& builder)
 		m_ToneMappedTexture = builder.CreateTexture("ToneMapped", RenderGraph::TextureResourceType::RenderTarget,
 			RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
 
-		m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
+		m_SceneColorTexture = builder.GetTextureHandle("BloomResult");
 	}
 
 	// Request resources access

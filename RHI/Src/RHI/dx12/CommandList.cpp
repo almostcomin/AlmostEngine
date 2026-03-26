@@ -161,6 +161,11 @@ void alm::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::
 	}
 }
 
+void alm::rhi::dx12::CommandList::CopyTextureToTexture(ITexture* dstTexture, ITexture* srcTexture)
+{
+	m_D3d12Commandlist->CopyResource(dstTexture->GetNativeResource(), srcTexture->GetNativeResource());
+}
+
 void alm::rhi::dx12::CommandList::CopyTextureToTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& dstSubresources,
 	ITexture* srcTexture, const rhi::TextureSubresourceSet& srcSubresources)
 {

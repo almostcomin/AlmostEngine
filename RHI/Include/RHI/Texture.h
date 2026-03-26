@@ -40,12 +40,6 @@ namespace alm::rhi
         TextureShaderUsage shaderUsage = TextureShaderUsage::None;
 
         bool isTypeless = false;
-        bool isShadingRateSurface = false;
-
-        // Indicates that the texture is created with no backing memory,
-        // and memory is bound to the texture later using bindTextureMemory.
-        // On DX12, the texture resource is created at the time of memory binding.
-        bool isVirtual = false;
         bool isTiled = false;
 
         float4 clearValue;
@@ -62,7 +56,6 @@ namespace alm::rhi
         constexpr TextureDesc& setDimension(TextureDimension value) { dimension = value; return *this; }
         constexpr TextureDesc& setShaderUsage(TextureShaderUsage value) { shaderUsage = value; return *this; }
         constexpr TextureDesc& setIsTypeless(bool value) { isTypeless = value; return *this; }
-        constexpr TextureDesc& setIsVirtual(bool value) { isVirtual = value; return *this; }
         constexpr TextureDesc& setClearValue(const float4& value) { clearValue = value; useClearValue = true; return *this; }
         constexpr TextureDesc& setUseClearValue(bool value) { useClearValue = value; return *this; }
     };

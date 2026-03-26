@@ -81,6 +81,7 @@ public:
 	virtual void WriteBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, size_t size) = 0;
 	virtual void WriteTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& subresources, IBuffer* srcBuffer, uint64_t srcOffset) = 0;
 
+	virtual void CopyTextureToTexture(ITexture* dstTexture, ITexture* srcTexture) = 0;
 	virtual void CopyTextureToTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& dstSubresources,
 		ITexture* srcTexture, const rhi::TextureSubresourceSet& srcSubresources) = 0;
 

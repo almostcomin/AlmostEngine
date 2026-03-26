@@ -318,10 +318,29 @@ namespace interop
     struct BilaterialBlurConstants
     {
         TextureSampledViewIndex inputTextureDI;
-        TextureSampledViewIndex depthTextureDI; // linear
+        TextureSampledViewIndex depthTextureDI; // linearized
         TextureStorageViewIndex outputTextureDI;
         float textureWidth;
         float textureHeight;
+    };
+
+    struct BloomDownsampleConstants
+    {
+        TextureSampledViewIndex inputTextureDI;
+        float2 invInputTexResolution;
+    };
+
+    struct BloomUpsampleConstants
+    {
+        TextureSampledViewIndex inputTextureDI;
+        float filterRadius;
+    };
+
+    struct BloomMixConstants
+    {
+        TextureSampledViewIndex sceneTextureDI;
+        TextureSampledViewIndex bloomTextureDI;
+        float bloomStrength;
     };
 }
 

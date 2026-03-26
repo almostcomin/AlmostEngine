@@ -684,6 +684,18 @@ void StructureUI::BuildSettingsWindow()
         ImGui::InputFloat("Bias##Bias", &m_Data.SSAO_Bias);
     }
 
+    if (ImGui::CollapsingHeader("Bloom"))
+    {
+        ImGui::Checkbox("Enabled##Bloom", &m_Data.bloomEnabled);
+        ImGui::InputFloat("Radius##Bloom", &m_Data.bloomRadius);
+        ImGui::InputFloat("Strength##Bloom", &m_Data.bloomStrength);
+
+        // Calc whats the max mip chain
+        alm::rhi::TextureHandle tex = m_RenderView->GetRenderGraph()->GetTexture("SceneColor");
+        int maxMips = static_cast<int>(std::floor(std::log2((std::max)(tex->GetDesc().width, tex->GetDesc().height))));
+        ImGui::SliderInt("MaxMip##Bloom", &m_Data.bloomMaxMip, 1, maxMips);
+    }
+
     if (ImGui::CollapsingHeader("Tonemapping"))
     {
         ImGui::Checkbox("Enabled##Tonemapping", &m_Data.tonemappingEnabled);
