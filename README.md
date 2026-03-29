@@ -14,9 +14,10 @@
 - glTF file loader
 - Physically Based Rendering (PBR)
 - Fully bindless pipeline
-- WBOIT - Weighted Blended Order Independent Transparency
+- WBOIT (Weighted Blended Order Independent Transparency)
 - Directional, point and spot lights
-- Shadow mapping
+- Shadow mapping (no cascade)
+- Physically Based Bloom
 
 ---
 
@@ -67,5 +68,9 @@ cmake ..
 ---
 ## Future Work
 - MBOIT (Moment Based Order Independent Transparency)
-- Bloom (Physically based, compute shader optimized)
+- Bloom in compute
 - Raytracing (DXR integration)
+- GPU Driven Rendering
+- Image Based Lighting)
+- Cascaded Shadow Mapping
+- Depth of Field effect
