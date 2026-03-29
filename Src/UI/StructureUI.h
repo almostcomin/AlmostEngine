@@ -1,8 +1,10 @@
 #pragma once
 
+#include "Core/CorePCH.h"
 #include "Core/Math/plane.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
+#include "Gfx/RenderStages/SkyRenderStage.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/Scene.h"
 #include <functional>
@@ -49,6 +51,9 @@ public:
 		bool AmbientParamsUpdated = false;
 		alm::gfx::Scene::SunParams SunParams;
 		bool SunParamsUpdated = false;
+
+		bool SkyEnabled = true;
+		alm::gfx::SkyRenderStage::SkyParams SkyParams;
 
 		alm::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
 

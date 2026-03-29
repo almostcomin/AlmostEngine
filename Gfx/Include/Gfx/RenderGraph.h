@@ -5,7 +5,6 @@
 #include "Gfx/ViewportSwapChain.h"
 #include "RHI/ResourceState.h"
 #include "Gfx/RenderGraphTypes.h"
-#include <map>
 
 namespace alm::gfx
 {
@@ -106,6 +105,9 @@ public:
 	const std::string& GetId(RGTextureHandle handle);
 	const std::string& GetId(RGBufferHandle handle);
 
+	RGFramebufferHandle RequestFramebuffer(const std::vector<RGTextureHandle>& colorTargets, RGTextureHandle depthTarget);
+	rhi::FramebufferHandle GetFrameBuffer(RGFramebufferHandle handle);
+
 	rhi::TextureSampledView GetTextureSampledView(RGTextureHandle handle);
 	rhi::TextureStorageView GetTextureStorageView(RGTextureHandle handle);
 
@@ -142,6 +144,7 @@ private:
 		rhi::Format format;
 		bool needsUAV;
 		RenderStage* owner;
+		std::vector<RGFramebufferHandle> framebuffers;
 	};
 
 	struct DeclaredBuffer
@@ -149,6 +152,14 @@ private:
 		std::string id;
 		rhi::BufferOwner buffer;
 		RenderStage* owner;
+	};
+
+	struct RequestedFramebufferData
+	{
+		std::vector<RGTextureHandle> colorTargets;
+		RGTextureHandle depthTarget;
+		rhi::FramebufferOwner fb;
+		int refCount = 0;
 	};
 
 	struct TextureViewRequest
@@ -173,6 +184,7 @@ private:
 
 	DeclaredTexture* GetDeclTex(RGTextureHandle handle);
 	DeclaredBuffer* GetDeclBuffer(RGBufferHandle handle);
+	RequestedFramebufferData* GetReqFb(RGFramebufferHandle handle);
 
 	RGTextureHandle GetHandle(DeclaredTexture* declTex);
 	RGBufferHandle GetHandle(DeclaredBuffer* declBuffer);
@@ -189,6 +201,7 @@ private:
 
 	std::map<std::string, std::unique_ptr<DeclaredTexture>> m_Textures;
 	std::map<std::string, std::unique_ptr<DeclaredBuffer>> m_Buffers;
+	std::set<std::unique_ptr<RequestedFramebufferData>> m_Framebuffers;
 
 	std::vector<std::unique_ptr<StageData>> m_RenderStages;
 	std::unordered_map<std::string, std::vector<StageData*>> m_RenderModes;

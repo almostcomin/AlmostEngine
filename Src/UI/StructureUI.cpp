@@ -1,5 +1,5 @@
 #include "StructureUI.h"
-#include <Windows.h>
+#include <commdlg.h>
 #include "Gfx/GfxPCH.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/SceneGraph.h"
@@ -643,6 +643,30 @@ void StructureUI::BuildSettingsWindow()
         m_Data.AmbientParamsUpdated |= ImGui::SliderFloat("Intensity", &m_Data.AmbientParams.Intensity, 0.f, 1.f);
         m_Data.AmbientParamsUpdated |= ImGui::ColorEdit3("Sky Color", &m_Data.AmbientParams.SkyColor.x, ImGuiColorEditFlags_Float);
         m_Data.AmbientParamsUpdated |= ImGui::ColorEdit3("Ground Color", &m_Data.AmbientParams.GroundColor.x, ImGuiColorEditFlags_Float);
+    }
+
+    if (ImGui::CollapsingHeader("Sky"))
+    {
+        ImGui::Checkbox("Enabled##Sky", &m_Data.SkyEnabled);
+        ImGui::ColorEdit3("Sky color##Sky", &m_Data.SkyParams.skyColor.x, ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("Horizon color##Sky", &m_Data.SkyParams.horizonColor.x, ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("Ground color##Sky", &m_Data.SkyParams.groundColor.x, ImGuiColorEditFlags_Float);
+        ImGui::SliderFloat("Brightness scaler", &m_Data.SkyParams.brightness, 0.f, 10.f);
+
+        float horizonSizeRad = glm::radians(m_Data.SkyParams.horizonSize);
+        if (ImGui::SliderAngle("Horizon size", &horizonSizeRad, 0.f, 90.f))
+        {
+            m_Data.SkyParams.horizonSize = glm::degrees(horizonSizeRad);
+        }
+        float glowSizeRad = glm::radians(m_Data.SkyParams.glowSize);
+        if (ImGui::SliderAngle("Glow size", &glowSizeRad, 0.f, 90.f))
+        {
+            m_Data.SkyParams.glowSize = glm::degrees(glowSizeRad);
+        }
+
+        ImGui::SliderFloat("Glow intensity", &m_Data.SkyParams.glowIntensity, 0.f, 1.f);
+        ImGui::SliderFloat("Glow sharpness", &m_Data.SkyParams.glowIntensity, 1.f, 10.f);
+        ImGui::InputFloat("Max radiance", &m_Data.SkyParams.maxLightRadiance);
     }
 
     if (ImGui::CollapsingHeader("Material channels"))

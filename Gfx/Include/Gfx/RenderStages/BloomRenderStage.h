@@ -47,7 +47,8 @@ private:
 
 	RGTextureHandle m_SceneColorTexture;
 	RGTextureHandle m_BloomResultTexture;
-	rhi::FramebufferOwner m_FB;
+	RGFramebufferHandle m_FB;
+
 	rhi::GraphicsPipelineStateDesc m_BlendPSODesc;
 	rhi::GraphicsPipelineStateOwner m_PSO;
 

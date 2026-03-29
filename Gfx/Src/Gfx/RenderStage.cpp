@@ -13,6 +13,11 @@ alm::gfx::RenderView* alm::gfx::RenderStage::GetRenderView() const
 	return m_RenderGraph->GetRenderView();
 }
 
+alm::gfx::Camera* alm::gfx::RenderStage::GetCamera() const
+{
+	return GetRenderView()->GetCamera().get();
+}
+
 alm::gfx::Scene* alm::gfx::RenderStage::GetScene() const
 {
 	auto scene = GetRenderView()->GetScene();

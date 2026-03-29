@@ -25,6 +25,7 @@
 #include "Gfx/RenderStages/WBOITAccumRenderStage.h"
 #include "Gfx/RenderStages/WBOITResolveRenderStage.h"
 #include "Gfx/RenderStages/BloomRenderStage.h"
+#include "Gfx/RenderStages/SkyRenderStage.h"
 #include "Gfx/ImGUIViewportsRenderer.h"
 #include "UI/StructureUI.h"
 
@@ -181,6 +182,8 @@ int SDL_main(int argc, char* argv[])
 	std::shared_ptr<alm::gfx::GBuffersRenderStage> gBufRS{ new alm::gfx::GBuffersRenderStage };
 	// Create lighting render stage
 	std::shared_ptr<alm::gfx::DeferredLightingRenderStage> lightingRS{ new alm::gfx::DeferredLightingRenderStage };
+	// Create sky render stage
+	std::shared_ptr<alm::gfx::SkyRenderStage> skyRS{ new alm::gfx::SkyRenderStage };
 	// Create Weighted-blended-OIT accumulation render stage
 	std::shared_ptr<alm::gfx::WBOITAccumRenderStage> WBOITAccumRS{ new alm::gfx::WBOITAccumRenderStage };
 	// Create Weighted-blended-OIT resolve render stage
@@ -218,22 +221,25 @@ int SDL_main(int argc, char* argv[])
 	// Add stages to render graph
 	alm::gfx::RenderGraph* renderGraph = mainRenderView->GetRenderGraph().get();
 	renderGraph->SetRenderStages({ 
-		shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, WBOITAccumRS, WBOITResolveRS, bloomRS, toneMappingRS, debugRS, uiRS,
+		shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, skyRS, WBOITAccumRS, WBOITResolveRS, bloomRS, toneMappingRS, debugRS, uiRS,
 		compositeRS, wireframeRS });
 	// Define default render mode
 	renderGraph->SetRenderMode("Default",
-		{ shadowmapRS.get(), depthPrepassRS.get(), linearizeDepthRS.get(), gBufRS.get(), SSAORS.get(), lightingRS.get(), WBOITAccumRS.get(),
+		{ shadowmapRS.get(), depthPrepassRS.get(), linearizeDepthRS.get(), gBufRS.get(), SSAORS.get(), lightingRS.get(), skyRS.get(), WBOITAccumRS.get(),
 		  WBOITResolveRS.get(), bloomRS.get(), toneMappingRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
 	// Define wireframe render mode
 	renderGraph->SetRenderMode("Wireframe",
 		{ depthPrepassRS.get(), wireframeRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
 
+	mainRenderView->SetScene(scene.get_weak());
 	mainRenderView->SetCamera(camera);
 
 	// Update UI data with initial render stages values
 	uiRS->m_Data.ShadowmapSize = shadowmapRS->GetSize();
 	uiRS->m_Data.AmbientParams = scene->GetAmbientParams();
 	uiRS->m_Data.SunParams = scene->GetSunParams();
+
+	uiRS->m_Data.SkyParams = skyRS->GetSkyParams();
 
 	uiRS->m_Data.ShadowmapDepthBias = shadowmapRS->GetDepthBias();
 	uiRS->m_Data.ShadowmapSlopeScaledDepthBias = shadowmapRS->GetSlopeScaledDepthBias();
@@ -275,7 +281,6 @@ int SDL_main(int argc, char* argv[])
 			if (importResult)
 			{
 				scene->SetSceneGraph(std::move(*importResult));
-				mainRenderView->SetScene(scene.get_weak());
 
 				const alm::math::aabox3f& bounds = scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::BoundsType::Mesh);
 				const float radius = glm::length(bounds.extents()) / 2.f;
@@ -449,6 +454,9 @@ int SDL_main(int argc, char* argv[])
 				uiRS->m_Data.SunParamsUpdated = false;
 			}
 
+			skyRS->SetEnabled(uiRS->m_Data.SkyEnabled);
+			skyRS->SetSkyParams(uiRS->m_Data.SkyParams);
+
 			lightingRS->SetMaterialChannel(uiRS->m_Data.MatChannel);
 
 			if (uiRS->m_Data.SSAOEnabled != SSAORS->IsSSAOEnabled())
@@ -514,6 +522,7 @@ int SDL_main(int argc, char* argv[])
 	bloomRS.reset();
 	WBOITResolveRS.reset();
 	WBOITAccumRS.reset();
+	skyRS.reset();
 	lightingRS.reset();
 	gBufRS.reset();
 	depthPrepassRS.reset();

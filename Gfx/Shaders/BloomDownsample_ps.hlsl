@@ -61,5 +61,5 @@ float3 main(PS_INPUT input) : SV_Target
     downsample += (b + d + f + h) * 0.0625;
     downsample += (j + k + l + m) * 0.125;
 
-    return downsample;
+    return max(downsample, 1e-6);
 }

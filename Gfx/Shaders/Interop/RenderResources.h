@@ -342,6 +342,28 @@ namespace interop
         TextureSampledViewIndex bloomTextureDI;
         float bloomStrength;
     };
+
+    struct SkyData
+    {
+        float3 directionToLight;
+        float angularSizeOfLight;
+        float3 lightColor;
+        float glowSize;
+        float3 skyColor;
+        float glowIntensity;
+        float3 horizonColor;
+        float horizonSize;
+        float3 groundColor;
+        float glowSharpness;
+        float3 directionUp;
+        float pad0;
+    };
+
+    struct SkyConstants
+    {
+        float4x4 matClipToTranslatedWorld;
+        BufferUniformIndex skyDataDI;
+    };
 }
 
 #endif // __SHADERS_INTEROP_RENDERRESOURCES_H__

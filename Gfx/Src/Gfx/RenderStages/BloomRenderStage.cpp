@@ -27,6 +27,7 @@ void alm::gfx::BloomRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_BloomResultTexture = builder.CreateColorTarget("BloomResult", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
+	m_FB = builder.RequestFramebuffer({ m_BloomResultTexture }, nullptr);
 
 	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
@@ -124,7 +125,7 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		commandList->PushBarrier(rhi::Barrier::Texture(
 			m_MipChain[0].Texture.get(), rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE));
 
-		commandList->BeginRenderPass(m_FB.get(),
+		commandList->BeginRenderPass(m_RenderGraph->GetFrameBuffer(m_FB).get(),
 			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Discard, rhi::RenderPassOp::StoreOp::Store } },
 			{}, {}, rhi::RenderPassFlags::None);
 
@@ -159,13 +160,13 @@ void alm::gfx::BloomRenderStage::OnAttached()
 	auto* deviceManager = m_RenderGraph->GetDeviceManager();
 	auto* device = deviceManager->GetDevice();
 	auto* commonResources = deviceManager->GetCommonResources();
+	auto* shaderFactory = deviceManager->GetShaderFactory();
 	rhi::TextureHandle sceneTex = m_RenderGraph->GetTexture(m_SceneColorTexture);
 	const auto& sceneTexDesc = sceneTex->GetDesc();
 	rhi::TextureHandle bloomTex = m_RenderGraph->GetTexture(m_BloomResultTexture);
 
 	// Create shaders
 	{
-		auto* shaderFactory = deviceManager->GetShaderFactory();
 		m_DownsampleShader = shaderFactory->LoadShader("BloomDownsample_ps", rhi::ShaderType::Pixel);
 		m_UpsampleShader = shaderFactory->LoadShader("BloomUpsample_ps", rhi::ShaderType::Pixel);
 		m_MixShader = shaderFactory->LoadShader("BloomMix_ps", rhi::ShaderType::Pixel);
@@ -187,45 +188,20 @@ void alm::gfx::BloomRenderStage::OnAttached()
 	}
 
 	// Create resources for main render target
-	{
-		m_FB = device->CreateFramebuffer(rhi::FramebufferDesc()
-			.AddColorAttachment(bloomTex), "BloomFramebuffer");
-		
-		m_PSO = commonResources->CreateFullscreenPassPSO(m_FB->GetFramebufferInfo(), m_MixShader.get_weak(), "BloomMixPSO");
+	{		
+		m_PSO = commonResources->CreateFullscreenPassPSO(
+			m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(),
+			m_MixShader.get_weak(), "BloomMixPSO");
 	}
 
 	// Create texture mips / framebuffers
-	uint32_t width = sceneTexDesc.width;
-	uint32_t height = sceneTexDesc.height;
-	for (int i = 0; i < m_MipChainLength; ++i)
-	{
-		width /= 2; height /= 2;
-		if (width == 0 || height == 0)
-			break;
-
-		rhi::TextureDesc desc = sceneTexDesc;
-		desc.width = width;
-		desc.height = height;
-
-		auto mipTex = device->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, std::format("BloomMip[{}]", i));
-
-		auto fb = device->CreateFramebuffer(rhi::FramebufferDesc()
-			.AddColorAttachment(mipTex.get_weak()), std::format("BloomMipFramebuffer[{}]", i));
-
-		auto downPSO = commonResources->CreateFullscreenPassPSO(fb->GetFramebufferInfo(), m_DownsampleShader.get_weak(),
-			std::format("BloomMipDownsamplePSO[{}]", i));
-
-		auto upPSO = device->CreateGraphicsPipelineState(m_BlendPSODesc, fb->GetFramebufferInfo(), std::format("BloomMipUpsamplePSO[{}]", i));
-
-		m_MipChain.emplace_back(std::move(mipTex), std::move(fb), std::move(downPSO), std::move(upPSO));
-	}
+	ResetMipChain(false);
 }
 
 void alm::gfx::BloomRenderStage::OnDetached()
 {
 	ReleaseMipChain(false);
 
-	m_FB.reset();
 	m_BlendPSODesc = {};
 	m_PSO.reset();
 
@@ -233,18 +209,6 @@ void alm::gfx::BloomRenderStage::OnDetached()
 
 void alm::gfx::BloomRenderStage::OnBackbufferResize()
 {
-	auto* deviceManager = m_RenderGraph->GetDeviceManager();
-	auto* device = deviceManager->GetDevice();
-	auto* commonResources = deviceManager->GetCommonResources();
-
-	// Create resources for main render target
-	{
-		m_FB = device->CreateFramebuffer(rhi::FramebufferDesc()
-			.AddColorAttachment(m_RenderGraph->GetTexture(m_BloomResultTexture)), "BloomFramebuffer");
-
-		m_PSO = commonResources->CreateFullscreenPassPSO(m_FB->GetFramebufferInfo(), m_MixShader.get_weak(), "BloomMixPSO");
-	}
-
 	ResetMipChain(true);
 }
 

@@ -6,19 +6,25 @@ namespace alm::gfx
 	struct Handle 
 	{
 		void* ptr = nullptr;
+
+		Handle() : ptr{ nullptr } {}
+		Handle(void* p) : ptr(p) {}
 		bool IsValid() const { return ptr != nullptr; }
 
 		bool operator ==(const Handle<Tag>& other) const { return ptr == other.ptr; }
 		bool operator <(const Handle<Tag>& other) const { return ptr < other.ptr; }
+		operator bool() const { return ptr != nullptr; }
 	};
 
 	struct TextureTag {};
 	struct BufferTag {};
+	struct FramebufferTag {};
 	struct TextureViewTicketTag {};
 	struct BufferViewTicketTag {};
 
 	using RGTextureHandle = Handle<TextureTag>;
 	using RGBufferHandle = Handle<BufferTag>;
+	using RGFramebufferHandle = Handle<FramebufferTag>;
 
 	using RGTextureViewTicket = Handle<TextureViewTicketTag>;
 	using RGBufferViewTicket = Handle<BufferViewTicketTag>;

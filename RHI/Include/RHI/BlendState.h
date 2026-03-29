@@ -51,6 +51,7 @@ enum class ColorMask : uint8_t
 	Green = 2,
 	Blue = 4,
 	Alpha = 8,
+	RGB = 0x7,
 	All = 0xF
 };
 

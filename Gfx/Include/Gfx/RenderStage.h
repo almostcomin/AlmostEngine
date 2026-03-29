@@ -16,6 +16,7 @@ namespace alm::gfx
 {
 	class RenderGraphBuilder;
 	class Scene;
+	class Camera;
 	class RenderGraph;
 	class DeviceManager;
 }
@@ -38,6 +39,7 @@ class RenderStage
 public:
 
 	RenderView* GetRenderView() const;
+	Camera* GetCamera() const;
 	Scene* GetScene() const;
 	DeviceManager* GetDeviceManager() const;
 

@@ -1376,6 +1376,10 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
     std::vector<std::pair<const cgltf_node*, alm::weak<alm::gfx::SceneGraphNode>>> stack;
     stack.emplace_back(nullptr, rootNode.get_weak());
 
+    if (!objects->scene)
+    {
+        objects->scene = objects->scenes;
+    }
     const cgltf_node* srcNode = *objects->scene->nodes;
     while (srcNode)
     {

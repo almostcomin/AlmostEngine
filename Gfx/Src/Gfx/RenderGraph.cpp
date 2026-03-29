@@ -126,13 +126,13 @@ void alm::gfx::RenderGraph::SetRenderStages(const std::vector<std::shared_ptr<Re
 	{
 		auto rsd = new StageData;
 		rsd->renderStage = rs;
-		rsd->timerQueries.reserve(m_DeviceManager->GetSwapchainBufferCount());
+		rsd->timerQueries.reserve(m_DeviceManager->GetSwapchainBufferCount() * 2);
 		rsd->cpuElapsed.resize(8, 0.f); // 8 samples
 		m_RenderStages.emplace_back(rsd);
 	}
 
 	// Init timer queries
-	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
+	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount() * 2; ++i)
 	{
 		for (auto& rsd : m_RenderStages)
 		{
@@ -301,8 +301,9 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 			stageCommandList->BeginMarker(rs->renderStage->GetDebugName());
 
 			// GPU time query
-			rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()]->Reset();
-			stageCommandList->BeginTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
+			const int timeQueryIndex = m_DeviceManager->GetFrameIndex() % rs->timerQueries.size();
+			rs->timerQueries[timeQueryIndex]->Reset();
+			stageCommandList->BeginTimerQuery(rs->timerQueries[timeQueryIndex].get());
 
 			// Entry barriers
 			{
@@ -359,7 +360,7 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 				rs->cpuElapsed[m_DeviceManager->GetFrameIndex() % rs->cpuElapsed.size()] = ms;
 			}
 
-			stageCommandList->EndTimerQuery(rs->timerQueries[m_DeviceManager->GetFrameModuleIndex()].get());
+			stageCommandList->EndTimerQuery(rs->timerQueries[timeQueryIndex].get());
 			stageCommandList->EndMarker();
 
 			// Update the resource states
@@ -414,6 +415,8 @@ void alm::gfx::RenderGraph::OnSceneChanged()
 
 void alm::gfx::RenderGraph::OnRenderTargetChanged(const int2& newSize)
 {
+	alm::unique_vector<RGFramebufferHandle> framebuffersToUpdate;
+
 	// Update all the textures whose size is dependant on BB size
 	for (auto& it : m_Textures)
 	{
@@ -427,7 +430,30 @@ void alm::gfx::RenderGraph::OnRenderTargetChanged(const int2& newSize)
 			m_DeviceManager->GetDevice()->ReleaseImmediately(std::move(declTex->texture));
 			declTex->texture = m_DeviceManager->GetDevice()->CreateTexture(
 				newDesc, GetInitialState(declTex->type), declTex->id);
+
+			for (auto& fbHandle : declTex->framebuffers)
+			{
+				framebuffersToUpdate.insert(fbHandle);
+			}
 		}
+	}
+
+	// Update framebuffers
+	for (auto fbHandle : framebuffersToUpdate)
+	{
+		RequestedFramebufferData* fbData = GetReqFb(fbHandle);
+
+		rhi::FramebufferDesc desc;
+		for (RGTextureHandle handle : fbData->colorTargets)
+		{
+			desc.AddColorAttachment(GetTexture(handle));
+		}
+		if (fbData->depthTarget)
+		{
+			desc.SetDepthAttachment(GetTexture(fbData->depthTarget));
+		}
+		auto fb = m_DeviceManager->GetDevice()->CreateFramebuffer(desc, fbData->fb->GetDebugName());
+		fbData->fb = std::move(fb);
 	}
 
 	// Forward to render stages
@@ -624,6 +650,54 @@ const std::string& alm::gfx::RenderGraph::GetId(RGBufferHandle handle)
 	return GetDeclBuffer(handle)->id;
 }
 
+alm::gfx::RGFramebufferHandle alm::gfx::RenderGraph::RequestFramebuffer(const std::vector<RGTextureHandle>& colorTargets, RGTextureHandle depthTarget)
+{
+	auto it = std::ranges::find_if(m_Framebuffers, [&](const auto& v)
+	{
+		return v->colorTargets == colorTargets && v->depthTarget == depthTarget;
+	});
+
+	RGFramebufferHandle result;
+	if (it != m_Framebuffers.end())
+	{
+		(*it)->refCount++;
+		result = { it->get() };
+	}
+	else
+	{
+		rhi::FramebufferDesc desc;
+		for (RGTextureHandle handle : colorTargets)
+		{
+			desc.AddColorAttachment(GetTexture(handle));
+		}
+		if (depthTarget)
+		{
+			desc.SetDepthAttachment(GetTexture(depthTarget));
+		}
+		auto fb = m_DeviceManager->GetDevice()->CreateFramebuffer(desc, std::format("RGFramebuffer[{}]", m_Framebuffers.size()));
+		auto entry = std::make_unique<RequestedFramebufferData>(colorTargets, depthTarget, std::move(fb), 1);
+
+		// Dependencies
+		for (RGTextureHandle handle : colorTargets)
+		{
+			GetDeclTex(handle)->framebuffers.push_back(entry.get());
+		}
+		if (depthTarget)
+		{
+			GetDeclTex(depthTarget)->framebuffers.push_back(entry.get());
+		}
+
+		result = { entry.get() };
+		m_Framebuffers.insert(std::move(entry));
+	}
+	return result;
+}
+
+alm::rhi::FramebufferHandle alm::gfx::RenderGraph::GetFrameBuffer(RGFramebufferHandle handle)
+{
+	return reinterpret_cast<RequestedFramebufferData*>(handle.ptr)->fb.get_weak();
+}
+
 alm::rhi::TextureSampledView alm::gfx::RenderGraph::GetTextureSampledView(RGTextureHandle handle)
 {
 	auto tex = GetTexture(handle);
@@ -771,6 +845,11 @@ alm::gfx::RenderGraph::DeclaredTexture* alm::gfx::RenderGraph::GetDeclTex(RGText
 alm::gfx::RenderGraph::DeclaredBuffer* alm::gfx::RenderGraph::GetDeclBuffer(RGBufferHandle handle)
 {
 	return reinterpret_cast<DeclaredBuffer*>(handle.ptr);
+}
+
+alm::gfx::RenderGraph::RequestedFramebufferData* alm::gfx::RenderGraph::GetReqFb(RGFramebufferHandle handle)
+{
+	return reinterpret_cast<RequestedFramebufferData*>(handle.ptr);
 }
 
 alm::gfx::RGTextureHandle alm::gfx::RenderGraph::GetHandle(DeclaredTexture* declTex)

@@ -41,4 +41,10 @@ inline std::pair<float, float> DirToElevationAzimuthRad(const float3& dir)
     return { elevation, azimuth };
 }
 
+template<class T>
+inline T square(T v)
+{
+    return v * v;
+}
+
 } // namespace st

@@ -43,6 +43,12 @@ alm::gfx::RGBufferHandle alm::gfx::RenderGraphBuilder::GetBufferHandle(const std
 	return m_RenderGraph->GetBufferHandle(id);
 }
 
+alm::gfx::RGFramebufferHandle alm::gfx::RenderGraphBuilder::RequestFramebuffer(const std::vector<RGTextureHandle>& colorTargets,
+	RGTextureHandle depthTarget)
+{
+	return m_RenderGraph->RequestFramebuffer(colorTargets, depthTarget);
+}
+
 void alm::gfx::RenderGraphBuilder::AddTextureDependency(RGTextureHandle textureHandle, RenderGraph::AccessMode accessMode,
 													   rhi::ResourceState inputState, rhi::ResourceState outputState)
 {
