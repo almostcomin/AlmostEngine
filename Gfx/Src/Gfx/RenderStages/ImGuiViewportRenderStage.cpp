@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderStages/ImGuiViewportRenderStage.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraphBuilder.h"

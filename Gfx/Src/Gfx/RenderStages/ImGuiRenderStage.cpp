@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Core/Log.h"
 #include "Gfx/DeviceManager.h"

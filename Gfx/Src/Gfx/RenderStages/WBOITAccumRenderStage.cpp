@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderStages/WBOITAccumRenderStage.h"
 #include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/DeviceManager.h"

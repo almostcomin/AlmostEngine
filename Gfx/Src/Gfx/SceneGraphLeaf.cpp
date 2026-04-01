@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/SceneGraphNode.h"
 

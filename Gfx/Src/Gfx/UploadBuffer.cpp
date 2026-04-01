@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/UploadBuffer.h"
 #include "RHI/Device.h"
 

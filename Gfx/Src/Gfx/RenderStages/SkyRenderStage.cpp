@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderStages/SkyRenderStage.h"
 #include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/DeviceManager.h"
@@ -57,6 +58,10 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		skyData->groundColor = m_Params.groundColor * m_Params.brightness;
 		skyData->glowSharpness = glm::clamp(m_Params.glowSharpness, 1.f, 10.f);
 		skyData->directionUp = glm::normalize(m_Params.directionUp);
+		skyData->resolution = float2(
+			m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().width,
+			m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().height);
+		skyData->aspect = skyData->resolution.x / skyData->resolution.y;
 	}
 	m_ShaderCB.Unmap();
 

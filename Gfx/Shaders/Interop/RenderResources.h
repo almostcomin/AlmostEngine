@@ -356,7 +356,8 @@ namespace interop
         float3 groundColor;
         float glowSharpness;
         float3 directionUp;
-        float pad0;
+        float aspect;
+        float2 resolution;
     };
 
     struct SkyConstants

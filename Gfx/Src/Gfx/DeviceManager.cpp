@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/Backend/dx12/DeviceManager.h"
 #include "Core/Log.h"

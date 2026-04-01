@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/Util.h"
 #include "Gfx/ShaderFactory.h"

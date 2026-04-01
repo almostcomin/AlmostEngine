@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderStages/SSAORenderStage.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/DeviceManager.h"

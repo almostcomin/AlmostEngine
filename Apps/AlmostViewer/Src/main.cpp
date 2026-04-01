@@ -31,61 +31,6 @@
 
 namespace
 {
-void PrintSceneGraph(const alm::weak<alm::gfx::SceneGraphNode>& root)
-{
-    alm::gfx::SceneGraph::Walker walker(root);
-    int depth = 0;
-    while(walker)
-    {
-        std::stringstream ss;
-		ss << std::fixed << std::setprecision(2);
-
-        for (int i = 0; i < depth; i++)
-            ss << "   ";
-
-        if (walker->GetName().empty())
-            ss << "<Unnamed>";
-        else
-            ss << walker->GetName();
-
-        if (walker->HasBounds(alm::gfx::BoundsType::Mesh))
-        {
-            const auto& bbox = walker->GetWorldBounds(alm::gfx::BoundsType::Mesh);
-            ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
-                << bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
-        }
-
-		if (walker->HasBounds(alm::gfx::BoundsType::Light))
-		{
-			const auto& bbox = walker->GetWorldBounds(alm::gfx::BoundsType::Light);
-			ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
-				<< bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
-		}
-
-        if (walker->GetLeaf())
-        {
-			switch (walker->GetLeaf()->GetType())
-			{
-			case alm::gfx::SceneGraphLeaf::Type::MeshInstance:
-				ss << " : MESH_INSTANCE ";
-				break;
-			case alm::gfx::SceneGraphLeaf::Type::Camera:
-				ss << " : CAMERA ";
-				break;
-			case alm::gfx::SceneGraphLeaf::Type::PointLight:
-				ss << " : POINT_LIGHT ";
-				break;
-			default:
-				ss << " : UNKNOWN_LEAF ";
-			}
-        }
-
-		if (!ss.str().empty())
-			alm::log::Info("{}", ss.str());
-
-        depth += walker.Next();
-    }
-}
 
 std::unordered_map<std::string, std::string> ParseArgs(int argc, char* argv[])
 {
@@ -291,7 +236,7 @@ int SDL_main(int argc, char* argv[])
 
 				uiRS->m_Data.CameraSpeed = radius * 1.f;
 
-				PrintSceneGraph(scene->GetSceneGraph()->GetRoot());
+				scene->GetSceneGraph()->LogGraph();
 			}
 			else
 			{

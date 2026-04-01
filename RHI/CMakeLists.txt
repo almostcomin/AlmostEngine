@@ -19,8 +19,9 @@ target_include_directories(RHI
 )
 
 # PCH
-target_precompile_headers(RHI PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/Include/RHI/RHI_PCH.h"
+setup_pch(RHI
+    "RHI/RHI_PCH.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/RHI/RHI_PCH.cpp"
 )
 
 # Dependencies

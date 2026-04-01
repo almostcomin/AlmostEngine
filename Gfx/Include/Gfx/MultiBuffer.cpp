@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/MultiBuffer.h"
 #include "RHI/Buffer.h"
 #include "Gfx/DeviceManager.h"

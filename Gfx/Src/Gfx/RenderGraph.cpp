@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderGraph.h"
 #include "RHI/Texture.h"
 #include "RHI/Device.h"

@@ -1,3 +1,4 @@
+#include "RHI/RHI_PCH.h"
 #include "RHI/Texture.h"
 
 alm::rhi::MipLevel alm::rhi::TextureSubresourceSet::GetLastMipLevel(const TextureDesc& desc) const

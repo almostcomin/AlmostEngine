@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderGraphBuilder.h"
 
 alm::gfx::RenderGraphBuilder::RenderGraphBuilder(alm::gfx::RenderGraph* renderGraph, alm::gfx::RenderStage* renderStage) :

@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/SceneCamera.h"
 
 alm::gfx::PerspectiveCamera& alm::gfx::PerspectiveCamera::SetFar(float _far)

@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/Material.h"
 #include "RHI/Device.h"
 

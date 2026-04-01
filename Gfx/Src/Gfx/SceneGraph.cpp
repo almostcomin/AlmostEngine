@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/SceneGraphLeaf.h"
@@ -297,6 +298,62 @@ void alm::gfx::SceneGraph::Refresh()
             }
         }
     } // Root is dirty
+}
+
+void alm::gfx::SceneGraph::LogGraph() const
+{
+    alm::gfx::SceneGraph::Walker walker(m_Root.get_weak());
+    int depth = 0;
+    while (walker)
+    {
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(2);
+
+        for (int i = 0; i < depth; i++)
+            ss << "   ";
+
+        if (walker->GetName().empty())
+            ss << "<Unnamed>";
+        else
+            ss << walker->GetName();
+
+        if (walker->HasBounds(alm::gfx::BoundsType::Mesh))
+        {
+            const auto& bbox = walker->GetWorldBounds(alm::gfx::BoundsType::Mesh);
+            ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
+                << bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
+        }
+
+        if (walker->HasBounds(alm::gfx::BoundsType::Light))
+        {
+            const auto& bbox = walker->GetWorldBounds(alm::gfx::BoundsType::Light);
+            ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
+                << bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
+        }
+
+        if (walker->GetLeaf())
+        {
+            switch (walker->GetLeaf()->GetType())
+            {
+            case alm::gfx::SceneGraphLeaf::Type::MeshInstance:
+                ss << " : MESH_INSTANCE ";
+                break;
+            case alm::gfx::SceneGraphLeaf::Type::Camera:
+                ss << " : CAMERA ";
+                break;
+            case alm::gfx::SceneGraphLeaf::Type::PointLight:
+                ss << " : POINT_LIGHT ";
+                break;
+            default:
+                ss << " : UNKNOWN_LEAF ";
+            }
+        }
+
+        if (!ss.str().empty())
+            alm::log::Info("{}", ss.str());
+
+        depth += walker.Next();
+    }
 }
 
 void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)

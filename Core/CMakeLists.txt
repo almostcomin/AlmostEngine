@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
+include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 
 project(Core)
 
@@ -22,8 +23,10 @@ target_include_directories(Core PUBLIC
     "${CMAKE_SOURCE_DIR}/3rdParty/Sources/glm"
 )
 
-target_precompile_headers(Core PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/Include/Core/CorePCH.h"
+# PCH
+setup_pch(Core
+    "Core/CorePCH.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/Core/CorePCH.cpp"
 )
 
 target_compile_features(Core PUBLIC cxx_std_23)

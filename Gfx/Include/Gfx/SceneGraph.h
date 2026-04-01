@@ -117,6 +117,8 @@ public:
     // 
     void Refresh();
 
+    void LogGraph() const;
+
 private:
 
     void RegisterLeaf(SceneGraphLeaf* leaf);

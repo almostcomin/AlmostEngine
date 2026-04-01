@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/CommonResources.h"
 #include "Gfx/ShaderFactory.h"
 #include "RHI/Device.h"

@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/RenderGraphBuilder.h"

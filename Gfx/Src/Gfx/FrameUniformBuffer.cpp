@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/FrameUniformBuffer.h"
 #include "RHI/Device.h"
 #include "RHI/Buffer.h"
@@ -34,4 +35,3 @@ alm::rhi::BufferUniformView alm::gfx::FrameUniformBufferRaw::GetUniformView()
 {
 	return m_Buffers[m_CurrentIndex]->GetUniformView();
 }
-

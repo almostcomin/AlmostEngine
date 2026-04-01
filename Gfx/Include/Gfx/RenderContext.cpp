@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderContext.h"
 #include "Gfx/RenderSet.h"
 #include "Gfx/Mesh.h"

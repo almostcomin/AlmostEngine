@@ -1,3 +1,4 @@
+#include "RHI/RHI_PCH.h"
 #include "RHI/dx12/DescriptorHeap.h"
 #include "Core/Log.h"
 #include "Core/Common.h"

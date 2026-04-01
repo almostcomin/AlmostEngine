@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/Camera.h"
 #include "Gfx/Util.h"
 

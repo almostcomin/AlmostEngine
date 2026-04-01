@@ -32,8 +32,9 @@ target_compile_definitions(Gfx PRIVATE
 )
 
 # PCH
-target_precompile_headers(Gfx PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/Include/Gfx/GfxPCH.h"
+setup_pch(Gfx
+    "Gfx/GfxPCH.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/Gfx/GfxPCH.cpp"
 )
 
 # Dependencies

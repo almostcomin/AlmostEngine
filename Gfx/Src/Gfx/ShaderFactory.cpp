@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/ShaderFactory.h"
 #include "Core/Log.h"
 #include "Core/File.h"

@@ -1,3 +1,4 @@
+#include "RHI/RHI_PCH.h"
 #include "RHI/Barriers.h"
 
 alm::rhi::Barrier alm::rhi::Barrier::Memory(alm::rhi::IResource* resource)

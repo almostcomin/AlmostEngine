@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/GltfImporter.h"
 #include "Core/Log.h"
 #include "Gfx/Material.h"

@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "Gfx/DeviceManager.h"
 #include "RHI/Device.h"

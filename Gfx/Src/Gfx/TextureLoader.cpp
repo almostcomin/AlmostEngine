@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/TextureLoader.h"
 #include "Core/File.h"
 #include "Core/Log.h"

@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/MaterialFactory.h"
 #include "Gfx/Material.h"
 #include "Gfx/MaterialInstance.h"

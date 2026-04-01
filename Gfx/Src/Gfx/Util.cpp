@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/Util.h"
 #include "Core/Log.h"
 #include "Core/Math.h"

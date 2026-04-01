@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/Backend/dx12/DeviceManager.h"
 #include "RHI/dx12/Device.h"
 #include "RHI/DxgiFormatMapping.h"

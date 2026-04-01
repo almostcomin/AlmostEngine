@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderStages/WireframeRenderStage.h"
 #include "Core/Log.h"
 #include "Gfx/Scene.h"

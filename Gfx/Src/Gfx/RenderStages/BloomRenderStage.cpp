@@ -1,3 +1,4 @@
+#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderStages/BloomRenderStage.h"
 #include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/RenderView.h"
