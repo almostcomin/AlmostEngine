@@ -23,10 +23,17 @@ class App //: public alm::noncopyable_nonmovable
 public:
 
     using AppArgs = std::unordered_map<std::string, std::string>;
+
+    enum class RenderStageSetMode
+    {
+        None,
+        Default,
+        User
+    };
     
 public:
 
-    App(const std::string& windowTitle);
+    App(const std::string& windowTitle, RenderStageSetMode renderStageSetMode);
     virtual ~App();
 
     void Run(const AppArgs& params);
@@ -39,6 +46,7 @@ protected:
     virtual void Shutdown() {}
     
     virtual void OnSDLEvent(const SDL_Event& event) {};
+    virtual std::shared_ptr<alm::gfx::ImGuiRenderStage> UserInitRenderStages() { return nullptr; };
 
     virtual gfx::RenderStageTypeID GetUIRenderStageType() const { return gfx::RenderStageType_None; }
 
@@ -53,6 +61,8 @@ protected:
 
     SDL_Window* m_Window = nullptr;
     std::string m_WindowTitle;
+
+    RenderStageSetMode m_RenderStageSetMode;
 
     float m_CPUTime;
     float m_GPUTime;

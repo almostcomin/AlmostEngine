@@ -61,7 +61,9 @@ int SDL_main(int argc, char* argv[])
 	return 0;
 }
 
-alm::App::App(const std::string& windowTitle) : m_WindowTitle{ windowTitle }
+alm::App::App(const std::string& windowTitle, RenderStageSetMode renderStageSetMode) : 
+	m_WindowTitle{ windowTitle },
+	m_RenderStageSetMode{ renderStageSetMode }
 {}
 
 alm::App::~App()
@@ -181,79 +183,89 @@ void alm::App::ShutdownInternal()
 
 void alm::App::InitRenderStages()
 {
-	std::vector<alm::gfx::RenderStage*> renderStages;
+	if (m_RenderStageSetMode == RenderStageSetMode::None)
+		return;
 
-	auto shadowmapRS = gfx::RenderStageFactory::CreateShared<gfx::ShadowmapRenderStage>();
-	auto depthPrepassRS = gfx::RenderStageFactory::CreateShared<gfx::DepthPrepassRenderStage>();
-	auto linearizeDepthRS = gfx::RenderStageFactory::CreateShared<gfx::LinearizeDepthRenderStage>();
-	auto SSAORS = gfx::RenderStageFactory::CreateShared<gfx::SSAORenderStage>();
-	auto GBuffersRS = gfx::RenderStageFactory::CreateShared<gfx::GBuffersRenderStage>();
-	auto deferredLightingRS = gfx::RenderStageFactory::CreateShared<gfx::DeferredLightingRenderStage>();
-	auto simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SkyRenderStage>();
-	auto WBOITAccumRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
-	auto WBOITResolveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
-	auto bloomRS = gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
-	auto toneMappingRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ToneMappingRenderStage>();
-	auto debugRS = gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
-	auto wireframeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
-	auto compositeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
-
-	std::shared_ptr<alm::gfx::ImGuiRenderStage> ImGuiRS;
-	if (GetUIRenderStageType() != gfx::RenderStageType_None)
+	if (m_RenderStageSetMode == RenderStageSetMode::User)
 	{
-		auto userUI = gfx::RenderStageFactory::CreateShared(GetUIRenderStageType());
-		ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(std::move(userUI));
+		m_ImGuiRS = UserInitRenderStages();
+		return;
 	}
-	else
+
+	// Lets create a default set of render stages
 	{
-		ImGuiRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ImGuiRenderStage>();
+		auto shadowmapRS = gfx::RenderStageFactory::CreateShared<gfx::ShadowmapRenderStage>();
+		auto depthPrepassRS = gfx::RenderStageFactory::CreateShared<gfx::DepthPrepassRenderStage>();
+		auto linearizeDepthRS = gfx::RenderStageFactory::CreateShared<gfx::LinearizeDepthRenderStage>();
+		auto SSAORS = gfx::RenderStageFactory::CreateShared<gfx::SSAORenderStage>();
+		auto GBuffersRS = gfx::RenderStageFactory::CreateShared<gfx::GBuffersRenderStage>();
+		auto deferredLightingRS = gfx::RenderStageFactory::CreateShared<gfx::DeferredLightingRenderStage>();
+		auto simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SkyRenderStage>();
+		auto WBOITAccumRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
+		auto WBOITResolveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
+		auto bloomRS = gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
+		auto toneMappingRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ToneMappingRenderStage>();
+		auto debugRS = gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
+		auto wireframeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
+		auto compositeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
+
+		std::shared_ptr<alm::gfx::ImGuiRenderStage> ImGuiRS;
+		if (GetUIRenderStageType() != gfx::RenderStageType_None)
+		{
+			auto userUI = gfx::RenderStageFactory::CreateShared(GetUIRenderStageType());
+			ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(std::move(userUI));
+		}
+		else
+		{
+			ImGuiRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ImGuiRenderStage>();
+		}
+
+		// Add stages to render graph.
+		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
+		renderGraph->SetRenderStages({
+			shadowmapRS,
+			depthPrepassRS,
+			linearizeDepthRS,
+			GBuffersRS,
+			SSAORS,
+			deferredLightingRS,
+			simpleSkyRS,
+			WBOITAccumRS,
+			WBOITResolveRS,
+			bloomRS,
+			toneMappingRS,
+			debugRS,
+			ImGuiRS,
+			compositeRS,
+			wireframeRS });
+
+		// Define default render mode
+		renderGraph->SetRenderMode("Default", {
+			shadowmapRS.get(),
+			depthPrepassRS.get(),
+			linearizeDepthRS.get(),
+			GBuffersRS.get(),
+			SSAORS.get(),
+			deferredLightingRS.get(),
+			simpleSkyRS.get(),
+			WBOITAccumRS.get(),
+			WBOITResolveRS.get(),
+			bloomRS.get(),
+			toneMappingRS.get(),
+			debugRS.get(),
+			ImGuiRS.get(),
+			compositeRS.get() });
+
+		// Define wireframe render mode
+		renderGraph->SetRenderMode("Wireframe", {
+			depthPrepassRS.get(),
+			wireframeRS.get(),
+			debugRS.get(),
+			ImGuiRS.get(),
+			compositeRS.get() });
+
+		m_ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(ImGuiRS);
 	}
-	
-	// Add stages to render graph.
-	alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
-	renderGraph->SetRenderStages({
-		shadowmapRS,
-		depthPrepassRS,
-		linearizeDepthRS,
-		GBuffersRS,
-		SSAORS,
-		deferredLightingRS,
-		simpleSkyRS,
-		WBOITAccumRS,
-		WBOITResolveRS,
-		bloomRS,
-		toneMappingRS,
-		debugRS,
-		ImGuiRS,
-		compositeRS,
-		wireframeRS });
-
-	// Define default render mode
-	renderGraph->SetRenderMode("Default", { 
-		shadowmapRS.get(),
-		depthPrepassRS.get(),
-		linearizeDepthRS.get(),
-		GBuffersRS.get(),
-		SSAORS.get(),
-		deferredLightingRS.get(),
-		simpleSkyRS.get(),
-		WBOITAccumRS.get(),
-		WBOITResolveRS.get(),
-		bloomRS.get(),
-		toneMappingRS.get(),
-		debugRS.get(),
-		ImGuiRS.get(),
-		compositeRS.get() });
-
-	// Define wireframe render mode
-	renderGraph->SetRenderMode("Wireframe", { 
-		depthPrepassRS.get(),
-		wireframeRS.get(),
-		debugRS.get(),
-		ImGuiRS.get(),
-		compositeRS.get() });
-
-	m_ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(ImGuiRS);
 }
 
 void alm::App::MainLoop()

@@ -48,7 +48,7 @@ public:
 	virtual void BuildUI() {};
 
 	void SetRenderStats(float fps, float cpuTime, float gpuTime);
-	void ShowBottomBar(bool b);
+	void ShowBottomBar(bool b) { m_ShowBottomBar = b; }
 
 	void RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList);
 

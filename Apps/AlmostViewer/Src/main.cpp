@@ -21,7 +21,7 @@ class AlmostViewerApp : public alm::App
 {
 public:
 
-	AlmostViewerApp() : alm::App{ "Almost Viewer" } {}
+	AlmostViewerApp() : alm::App{ "Almost Viewer", alm::App::RenderStageSetMode::Default } {}
 	~AlmostViewerApp() override = default;
 
 	bool Initialize(const AppArgs& args) override
