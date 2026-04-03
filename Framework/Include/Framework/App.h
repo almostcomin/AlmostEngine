@@ -65,10 +65,6 @@ private:
     void InitRenderStages();
 
     void MainLoop();
-
-private:
-
-    bool m_RequestQuit = false;
 };
 
 } // namespace alm

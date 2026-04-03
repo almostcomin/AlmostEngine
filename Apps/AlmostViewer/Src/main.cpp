@@ -195,13 +195,6 @@ public:
 			m_TonemappingRS->SetAdaptationDownSpeed(data.adaptationDownSpeed);
 		}
 
-		// Update FPS counter
-		{
-			m_UIRS->m_Data.CPUTime = m_CPUTime;
-			m_UIRS->m_Data.GPUTime = m_GPUTime;
-			m_UIRS->m_Data.FPS = m_FPS;
-		}
-
 		if (m_RequestQuit)
 			return false;
 

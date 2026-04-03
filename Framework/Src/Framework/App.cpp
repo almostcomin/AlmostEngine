@@ -196,8 +196,18 @@ void alm::App::InitRenderStages()
 	auto toneMappingRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ToneMappingRenderStage>();
 	auto debugRS = gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
 	auto wireframeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
-	auto ImGuiRS = gfx::RenderStageFactory::CreateShared(GetUIRenderStageType());
 	auto compositeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
+
+	std::shared_ptr<alm::gfx::ImGuiRenderStage> ImGuiRS;
+	if (GetUIRenderStageType() != gfx::RenderStageType_None)
+	{
+		auto userUI = gfx::RenderStageFactory::CreateShared(GetUIRenderStageType());
+		ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(std::move(userUI));
+	}
+	else
+	{
+		ImGuiRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ImGuiRenderStage>();
+	}
 	
 	// Add stages to render graph.
 	alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
@@ -284,14 +294,14 @@ void alm::App::MainLoop()
 			switch (event.type)
 			{
 			case SDL_EVENT_QUIT:
-				m_RequestQuit = true;
+				requestQuit = true;
 				forwardEvent = false;
 				break;
 
 			case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
 				if (event.window.windowID == SDL_GetWindowID(m_Window))
 				{
-					m_RequestQuit = true;
+					requestQuit = true;
 				}
 				forwardEvent = false;
 				break;
@@ -316,6 +326,11 @@ void alm::App::MainLoop()
 		{
 			// Update scene
 			m_Scene->Update();
+		}
+
+		if (m_ImGuiRS)
+		{
+			m_ImGuiRS->SetRenderStats(m_FPS, m_CPUTime, m_GPUTime);
 		}
 
 		if (m_DeviceManager->UpdateWindowSize())

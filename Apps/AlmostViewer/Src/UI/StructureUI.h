@@ -34,9 +34,6 @@ public:
 	struct Data
 	{
 		bool ShowUI = true;
-		float FPS = 0.f;
-		float CPUTime = 0.f;
-		float GPUTime = 0.f;
 
 		std::string RenderMode;
 
@@ -130,7 +127,6 @@ private:
 	void OnAttached() override;
 
 	void BuildMainMenu();
-	void BuildBottomBar();
 	void BuildMenuFile();
 
 	void BuildSettingsWindow();

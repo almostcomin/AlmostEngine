@@ -5,6 +5,7 @@
 #include "RHI/PipelineState.h"
 #include "RHI/CommandList.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 #include <imgui/imgui.h>
 #include <unordered_map>
 #include <array>
@@ -22,6 +23,8 @@ namespace alm::gfx
 
 class ImGuiRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(ImGuiRenderStage)
+
 public:
 
 	using ImGuiTexFlags = uint32_t;
@@ -42,11 +45,12 @@ public:
 
 public:
 
-	virtual void BuildUI() = 0;
+	virtual void BuildUI() {};
+
+	void SetRenderStats(float fps, float cpuTime, float gpuTime);
+	void ShowBottomBar(bool b);
 
 	void RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList);
-
-	const char* GetDebugName() const override { return "ImGuiRenderStage"; }
 
 protected:
 
@@ -55,18 +59,6 @@ protected:
 	void OnAttached() override;
 	void OnDetached() override;
 	void OnBackbufferResize() override;
-
-private:
-
-	bool Init();
-	void Release();
-
-	bool UpdateFontTexture(rhi::ICommandList* commandList);
-	bool UpdateGeometry(ImDrawData* drawData, GeometryBuffers& geometryBuffers);
-
-	bool ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
-
-protected:
 
 	void BeginFullScreenWindow();
 	void EndFullScreenWindow();
@@ -79,6 +71,18 @@ protected:
 
 	rhi::BufferOwner& GetCurrentVB(GeometryBuffers& geometryBuffers);
 	rhi::BufferOwner& GetCurrentIB(GeometryBuffers& geometryBuffers);
+
+private:
+
+	bool Init();
+	void Release();
+
+	bool UpdateFontTexture(rhi::ICommandList* commandList);
+	bool UpdateGeometry(ImDrawData* drawData, GeometryBuffers& geometryBuffers);
+
+	bool ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
+
+	void BuildBottomBar();
 
 private:
 
@@ -105,6 +109,11 @@ private:
 
 	GeometryBuffers m_GeometryBuffers;
 	std::vector<alm::unique<ImGuiTexture>> m_CurrentTextures;
+
+	float m_FPS = 0.f;
+	float m_CPUTime = 0.f;
+	float m_GPUTime = 0.f;
+	bool m_ShowBottomBar = true;
 };
 
 }
