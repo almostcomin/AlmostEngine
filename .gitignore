@@ -54,3 +54,4 @@ Data/*
 !Data/Shaders/.do_not_delete
 
 imgui.ini
+Apps/*/Data/Shaders/*.bin
