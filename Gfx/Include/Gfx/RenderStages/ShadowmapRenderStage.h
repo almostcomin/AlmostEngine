@@ -4,15 +4,18 @@
 #include "Gfx/RenderContext.h"
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
 class ShadowmapRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(ShadowmapRenderStage)
+
 public:
 
-	ShadowmapRenderStage(size_t resolution, size_t numCascades, rhi::Format pixelFormat);
+	ShadowmapRenderStage();
 
 	int2 GetSize() const { return int2{ m_TextureWidth, m_TextureHeight }; }
 	void SetSize(const int2& textureSize);
@@ -38,8 +41,6 @@ private:
 	void OnBackbufferResize() override;
 	void OnEnabled() override;
 	void OnDisabled() override;
-
-	virtual const char* GetDebugName() const { return "ShadowmapRenderStage"; }
 
 private:
 

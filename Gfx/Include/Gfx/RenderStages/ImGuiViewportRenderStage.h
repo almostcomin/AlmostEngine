@@ -2,6 +2,7 @@
 
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
@@ -13,13 +14,15 @@ namespace alm::gfx
 
 class ImGuiViewportRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(ImGuiViewportRenderStage);
+
 public:
 
-	ImGuiViewportRenderStage(ImGuiRenderStage* mainViewportRS, ImGuiViewport* imGuiViewport);
+	ImGuiViewportRenderStage();
+	
+	void Init(ImGuiRenderStage* mainViewportRS, ImGuiViewport* imGuiViewport);
 
 	const ImGuiViewport* GetImGuiViewport() const { return m_ImGuiViewport; }
-
-	const char* GetDebugName() const override { return "ImGuiViewportRenderStage"; }
 
 private:
 

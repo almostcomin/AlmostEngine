@@ -7,6 +7,7 @@
 #include "RHI/FrameBuffer.h"
 #include "Gfx/SceneBounds.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
@@ -18,13 +19,13 @@ namespace alm::gfx
 
 class DebugRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(DebugRenderStage)
+
 public:
 
 	DebugRenderStage() = default;
 
 	void ShowRenderBBoxes(BoundsType boundsType, bool b) { m_RenderBBoxes[(int)boundsType] = b; }
-
-	const char* GetDebugName() const override { return "DebugRenderStage"; }
 
 private:
 

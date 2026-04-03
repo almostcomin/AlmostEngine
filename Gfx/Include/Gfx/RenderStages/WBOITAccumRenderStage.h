@@ -3,15 +3,14 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderContext.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
 class WBOITAccumRenderStage : public RenderStage
 {
-public:
-
-	const char* GetDebugName() const override { return "WBOITAccumRenderStage"; }
+	REGISTER_RENDER_STAGE(WBOITAccumRenderStage)
 
 private:
 

@@ -3,17 +3,18 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderGraphTypes.h"
 #include "RHI/PipelineState.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
 class BloomRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(BloomRenderStage)
+
 public:
 
 	BloomRenderStage();
-
-	virtual const char* GetDebugName() const { return "BloomRenderStage"; }
 
 	void SetBloomEnabled(bool b) { m_BloomEnabled = b; }
 	void SetFilterRadius(float v) { m_FilterRadius = v; }

@@ -745,7 +745,7 @@ size_t alm::gfx::RenderGraph::GetNumRenderStages(const std::string& mode) const
 	return it->second.size();
 }
 
-const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStage(uint32_t idx, const std::string& mode) const
+const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageData(uint32_t idx, const std::string& mode) const
 {
 	auto it = m_RenderModes.find(mode.empty() ? m_CurrentRenderMode : mode);
 	if (it == m_RenderModes.end())
@@ -755,6 +755,19 @@ const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStage(ui
 	}
 
 	return it->second.at(idx);
+}
+
+std::shared_ptr<alm::gfx::RenderStage> alm::gfx::RenderGraph::GetRenderStage(RenderStageTypeID id)
+{
+	auto it = std::ranges::find_if(m_RenderStages, [id](const std::unique_ptr<StageData>& stageDataPtr)
+	{
+		return stageDataPtr->renderStage->GetType() == id;
+	});
+	if (it != m_RenderStages.end())
+	{
+		return (*it)->renderStage;
+	}
+	return nullptr;
 }
 
 alm::gfx::RGTextureViewTicket alm::gfx::RenderGraph::RequestTextureView(RenderStage* rs, AccessMode accessMode, RGTextureHandle handle)

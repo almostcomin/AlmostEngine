@@ -36,7 +36,8 @@ void ImGui_Impl_CreateWindow(ImGuiViewport* viewport)
 	
 	alm::gfx::ViewportSwapChainId viewportId = bd->DeviceManager->CreateViewportSwapChain({ window }, SDL_GetWindowTitle(window));
 	
-	auto renderStage = std::make_shared<alm::gfx::ImGuiViewportRenderStage>(bd->MainRenderStage.get(), viewport);
+	auto renderStage = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::ImGuiViewportRenderStage>();
+	renderStage->Init(bd->MainRenderStage.get(), viewport);
 
 	auto renderView = alm::make_unique_with_weak<alm::gfx::RenderView>(viewportId, bd->DeviceManager, "ImGui Viewport");
 	renderView->GetRenderGraph()->SetRenderStages({ renderStage });

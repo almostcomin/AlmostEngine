@@ -4,20 +4,21 @@
 #include "RHI/Texture.h"
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
 class CompositeRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(CompositeRenderStage)
+
 public:
 
 	CompositeRenderStage() = default;
 
 	float GetPaperWhiteNits() const { return m_PaperWhiteNits; }
 	void SetPaperWhiteNits(float v) { m_PaperWhiteNits = v; }
-
-	const char* GetDebugName() const override { return "CompositeRenderStage"; }
 
 private:
 

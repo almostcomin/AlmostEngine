@@ -4,17 +4,18 @@
 #include "Gfx/RenderStage.h"
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
 class DepthPrepassRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(DepthPrepassRenderStage)
+
 public:
 
 	DepthPrepassRenderStage() = default;
-
-	const char* GetDebugName() const override { return "DepthPrepassRenderStage"; }
 
 private:
 

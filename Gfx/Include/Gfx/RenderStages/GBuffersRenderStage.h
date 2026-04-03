@@ -4,16 +4,17 @@
 #include "Gfx/RenderContext.h"
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 class GBuffersRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(GBuffersRenderStage)
+
 public:
 
 	GBuffersRenderStage() = default;
-
-	const char* GetDebugName() const override { return "GBuffersRenderStage"; }
 
 private:
 

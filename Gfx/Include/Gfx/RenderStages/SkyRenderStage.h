@@ -3,12 +3,15 @@
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderGraphTypes.h"
 #include "Gfx/MultiBuffer.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
 class SkyRenderStage : public RenderStage
 {
+    REGISTER_RENDER_STAGE(SkyRenderStage)
+
 public:
 
 	struct SkyParams
@@ -29,8 +32,6 @@ public:
 
     const SkyParams& GetSkyParams() const { return m_Params; }
     void SetSkyParams(const SkyParams& params) { m_Params = params; }
-
-    const char* GetDebugName() const override { return "SkyRenderStage"; }
 
 private:
 

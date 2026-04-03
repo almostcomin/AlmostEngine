@@ -12,11 +12,11 @@
 
 #define DEBUG_STAGE
 
-alm::gfx::ShadowmapRenderStage::ShadowmapRenderStage(size_t resolution, size_t numCascades, rhi::Format pixelFormat) :
-	m_TextureWidth{ resolution },
-	m_TextureHeight{ resolution },
-	m_NumCascades{ numCascades },
-	m_PixelFormat{ pixelFormat },
+alm::gfx::ShadowmapRenderStage::ShadowmapRenderStage() :
+	m_TextureWidth{ 4096 },
+	m_TextureHeight{ 4096 },
+	m_NumCascades{ 4 },
+	m_PixelFormat{ alm::rhi::Format::D32 },
 	m_DepthBias{ -10000 },
 	m_SlopeScaledDepthBias{ -5.f }
 {}

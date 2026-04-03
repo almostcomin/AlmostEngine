@@ -275,6 +275,9 @@ void alm::gfx::ToneMappingRenderStage::OnAttached()
 
 void alm::gfx::ToneMappingRenderStage::OnDetached()
 {
+	m_StatsBufferReadBack = nullptr;
+	m_StatsBuffer = nullptr;
+
 	m_TonemappingHDR_PSO = nullptr;
 	m_TonemappingHDR_CS = nullptr;
 

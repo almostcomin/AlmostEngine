@@ -20,6 +20,7 @@
 #include <sstream>
 #include <format>
 #include <thread>
+#include <glm/glm.hpp>
 
 #if _WIN32
 
@@ -45,5 +46,5 @@
 #include "Core/Math/plane.h"
 #include "Core/Math/frustum.h"
 #include "Core/Memory.h"
-
+#include "Core/Common.h"
 

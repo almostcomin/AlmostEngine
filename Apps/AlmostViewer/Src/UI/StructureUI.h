@@ -9,6 +9,7 @@
 #include "Gfx/Scene.h"
 #include <functional>
 #include "Core/Memory.h"
+#include "Gfx/RenderStageFactory.h"
 
 struct MemoryEditor;
 
@@ -26,6 +27,8 @@ namespace alm::gfx
 
 class StructureUI : public alm::gfx::ImGuiRenderStage
 {
+	REGISTER_RENDER_STAGE(StructureUI)
+
 public:
 
 	struct Data
@@ -79,9 +82,10 @@ public:
 		float sdrExposureBias = 0.5f;
 	};
 
-	StructureUI(alm::weak<alm::gfx::RenderView> renderView, SDL_Window* window, alm::gfx::ShadowmapRenderStage* shadowmapRS, alm::gfx::ToneMappingRenderStage* tonemappingRS, 
-		alm::gfx::DeviceManager* deviceManager);
+	StructureUI();
 	~StructureUI();
+
+	void Init(SDL_Window* window);
 
 	void BuildUI() override;
 
@@ -123,6 +127,8 @@ private:
 
 private:
 
+	void OnAttached() override;
+
 	void BuildMainMenu();
 	void BuildBottomBar();
 	void BuildMenuFile();
@@ -152,11 +158,11 @@ private:
 
 	SDL_Window* m_Window;
 	alm::gfx::DeviceManager* m_DeviceManager;
-	alm::weak<alm::gfx::RenderView> m_RenderView;
+	alm::gfx::RenderView* m_RenderView;
 
 	bool m_ShowSettings;
 	int2 m_ShadowmapSize;
-	alm::gfx::ShadowmapRenderStage* m_ShadowmapRS;
+	std::shared_ptr<alm::gfx::ShadowmapRenderStage> m_ShadowmapRS;
 
 	bool m_ShowSceneWindow;
 	const alm::gfx::SceneGraphNode* m_SelectedNode;
@@ -174,5 +180,5 @@ private:
 	bool m_ShowLuminanceHistogram;
 	alm::gfx::RGBufferViewTicket m_LumHistogramBufferTicket;
 	int m_LumHistogramMode = 0;
-	alm::gfx::ToneMappingRenderStage* m_TonemappingRS;
+	std::shared_ptr<alm::gfx::ToneMappingRenderStage> m_TonemappingRS;
 };

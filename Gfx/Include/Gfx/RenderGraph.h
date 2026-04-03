@@ -5,6 +5,7 @@
 #include "Gfx/ViewportSwapChain.h"
 #include "RHI/ResourceState.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageType.h"
 
 namespace alm::gfx
 {
@@ -118,7 +119,16 @@ public:
 	alm::rhi::CommandListHandle GetCommandList();
 
 	size_t GetNumRenderStages(const std::string& mode = {}) const;
-	const StageData* GetRenderStage(uint32_t idx, const std::string& mode = {}) const;
+	const StageData* GetRenderStageData(uint32_t idx, const std::string& mode = {}) const;
+	
+	std::shared_ptr<RenderStage> GetRenderStage(RenderStageTypeID id);
+
+	template<class T> 
+	std::shared_ptr<T> GetRenderStage()
+	{
+		auto ptr = GetRenderStage(T::StaticType());
+		return ptr ? std::dynamic_pointer_cast<T>(ptr) : nullptr;
+	}
 
 	RGTextureViewTicket RequestTextureView(RenderStage* rs, AccessMode accessMode, RGTextureHandle handle);
 	RGBufferViewTicket RequestBufferView(RenderStage* rs, AccessMode accessMode, RGBufferHandle handle);

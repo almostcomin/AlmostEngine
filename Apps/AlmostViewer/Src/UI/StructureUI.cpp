@@ -283,25 +283,24 @@ void BuildTexture(const char* title, const alm::gfx::LoadedTexture& diffuseTex)
 
 } // anonymous namespace
 
-StructureUI::StructureUI(alm::weak<alm::gfx::RenderView> renderView, SDL_Window* window, alm::gfx::ShadowmapRenderStage* shadowmapRS, 
-                         alm::gfx::ToneMappingRenderStage* tonemappingRS, alm::gfx::DeviceManager* deviceManager) :
-    m_Window{ window },
-    m_DeviceManager{ deviceManager },
-    m_RenderView{ renderView },
+StructureUI::StructureUI() :
+    m_Window{ nullptr },
+    m_DeviceManager{ nullptr },
+    m_RenderView{ nullptr },
     m_ShowSettings{ false },
     m_ShowSceneWindow{ false },
     m_SelectedNode{ nullptr },
     m_ShowResourcesWindow{ false },
     m_ShowRenderStages{ false },
-    m_ShadowmapRS{ shadowmapRS },
+    m_ShadowmapRS{ nullptr },
     m_ShowLuminanceHistogram{ false },
     m_LumHistogramBufferTicket{ nullptr },
-    m_TonemappingRS{ tonemappingRS }
+    m_TonemappingRS{ nullptr }
+{}
+
+void StructureUI::Init(SDL_Window* window)
 {
-    if (m_ShadowmapRS)
-    {
-        m_ShadowmapSize = m_ShadowmapRS->GetSize();
-    }
+    m_Window = window;
 }
 
 StructureUI::~StructureUI()
@@ -348,6 +347,26 @@ void StructureUI::BuildUI()
 void StructureUI::OnSceneChanged()
 {
     m_SelectedNode = nullptr;
+}
+
+void StructureUI::OnAttached()
+{
+    alm::gfx::ImGuiRenderStage::OnAttached();
+
+    m_DeviceManager = GetDeviceManager();
+    m_RenderView = GetRenderView();
+
+    alm::gfx::RenderGraph* renderGraph = m_RenderView->GetRenderGraph().get();
+    
+    m_ShadowmapRS = std::dynamic_pointer_cast<alm::gfx::ShadowmapRenderStage>(
+        renderGraph->GetRenderStage(alm::gfx::ShadowmapRenderStage::StaticType()));
+    if (m_ShadowmapRS)
+    {
+        m_ShadowmapSize = m_ShadowmapRS->GetSize();
+    }
+
+    m_TonemappingRS = std::dynamic_pointer_cast<alm::gfx::ToneMappingRenderStage>(
+        renderGraph->GetRenderStage(alm::gfx::ToneMappingRenderStage::StaticType()));
 }
 
 void StructureUI::BuildMainMenu()
@@ -1017,7 +1036,7 @@ void StructureUI::BuildRenderStagesWindow()
     std::string newHoveredId;
     for (int rs_idx = 0; rs_idx < renderGraph->GetNumRenderStages(); ++rs_idx)
     {
-        const auto* rs = renderGraph->GetRenderStage(rs_idx);
+        const auto* rs = renderGraph->GetRenderStageData(rs_idx);
         if (ImGui::CollapsingHeader(rs->renderStage->GetDebugName(), ImGuiTreeNodeFlags_DefaultOpen))
         {
             auto addDep = [this, &newHoveredId, &propid, rs]<typename T>(const std::vector<T>& deps, bool isWrite, bool isBuffer)
@@ -1154,7 +1173,7 @@ void StructureUI::BuildLumnincaHistogram()
     if (!m_LumHistogramBufferTicket.IsValid())
     {
         m_LumHistogramBufferTicket = renderGraph->RequestBufferView(
-            m_TonemappingRS, alm::gfx::RenderGraph::AccessMode::Write, renderGraph->GetBufferHandle("LuminanceHistogram"));
+            m_TonemappingRS.get(), alm::gfx::RenderGraph::AccessMode::Write, renderGraph->GetBufferHandle("LuminanceHistogram"));
     }
     if (!m_LumHistogramBufferTicket.IsValid())
     {

@@ -2,12 +2,15 @@
 
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderGraphBuilder.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
 class ToneMappingRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(ToneMappingRenderStage)
+
 public:
 
 	static constexpr int c_NumHistogramBins = 256;
@@ -44,8 +47,6 @@ public:
 
 	float GetAdaptationUpSpeed() { return m_AdaptationUpSpeed; }
 	float GetAdaptationDownSpeed() { return m_AdaptationDownSpeed; }
-
-	const char* GetDebugName() const override { return "ToneMappingRenderStage"; }
 
 	Stats GetStats();
 

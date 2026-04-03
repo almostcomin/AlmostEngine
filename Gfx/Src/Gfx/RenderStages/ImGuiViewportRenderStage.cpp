@@ -3,9 +3,15 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraphBuilder.h"
 
-alm::gfx::ImGuiViewportRenderStage::ImGuiViewportRenderStage(ImGuiRenderStage* mainViewportRS, ImGuiViewport* imGuiViewport) :
-	m_MainRS{ mainViewportRS }, m_ImGuiViewport{ imGuiViewport }
+alm::gfx::ImGuiViewportRenderStage::ImGuiViewportRenderStage() :
+	m_MainRS{ nullptr }, m_ImGuiViewport{ nullptr }
 {}
+
+void alm::gfx::ImGuiViewportRenderStage::Init(ImGuiRenderStage* mainViewportRS, ImGuiViewport* imGuiViewport)
+{
+	m_MainRS = mainViewportRS;
+	m_ImGuiViewport = imGuiViewport;
+}
 
 void alm::gfx::ImGuiViewportRenderStage::Setup(RenderGraphBuilder& builder)
 {

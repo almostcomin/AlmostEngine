@@ -91,13 +91,13 @@ float4 main(PS_INPUT input) : SV_Target
     float3 color = ProceduralSky(skyData, direction, angularSizeOfPixel);
 
     //---
-    
+/*    
     float2 x = input.uv * 10;
     x.x *= skyData.aspect;
     
     //float r = rand(input.uv);
     //color = float3(r, r, r);
-    
+*/
 /*        
     float2 i = floor(x);
     float2 f = frac(x); 
@@ -114,8 +114,9 @@ float4 main(PS_INPUT input) : SV_Target
     color = float3(y, y, y);
   */
     
+/*    
     float y = noise(x) * 0.5 + 0.5;
     color = float3(y, y, y);
-            
+*/            
     return float4(color, 1.0);
 }

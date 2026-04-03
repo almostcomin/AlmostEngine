@@ -6,6 +6,7 @@
 #include "RHI/ResourceState.h"
 #include "RHI/TypeForwards.h"
 #include "Core/Math.h"
+#include "Gfx/RenderStageType.h"
 
 namespace alm::rhi
 {
@@ -48,6 +49,7 @@ public:
 
 	void SetEnabled(bool b);
 
+	virtual RenderStageTypeID GetType() const = 0;
 	virtual const char* GetDebugName() const = 0;
 
 protected:

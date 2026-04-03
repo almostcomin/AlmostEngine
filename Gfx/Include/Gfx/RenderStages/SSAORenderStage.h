@@ -2,12 +2,15 @@
 
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
 class SSAORenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(SSAORenderStage)
+
 public:
 
 	SSAORenderStage() = default;
@@ -23,8 +26,6 @@ public:
 
 	const float GetBias() const { return m_Bias; }
 	void SetBias(float v) { m_Bias = v; }
-
-	virtual const char* GetDebugName() const { return "SSAORenderStage"; }
 
 private:
 

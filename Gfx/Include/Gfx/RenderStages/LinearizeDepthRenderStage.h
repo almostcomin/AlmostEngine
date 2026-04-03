@@ -2,32 +2,33 @@
 
 #include "Gfx/RenderStage.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
-	class LinearizeDepthRenderStage : public RenderStage
-	{
-	public:
+class LinearizeDepthRenderStage : public RenderStage
+{
+	REGISTER_RENDER_STAGE(LinearizeDepthRenderStage)
 
-		LinearizeDepthRenderStage() = default;
+public:
 
-		virtual const char* GetDebugName() const { return "LinearizeDepthRenderStage"; }
+	LinearizeDepthRenderStage() = default;
 
-	private:
+private:
 
-		void Setup(RenderGraphBuilder& builder);
-		void Render(alm::rhi::CommandListHandle commandList) override;
-		void OnAttached() override;
-		void OnDetached() override;
+	void Setup(RenderGraphBuilder& builder);
+	void Render(alm::rhi::CommandListHandle commandList) override;
+	void OnAttached() override;
+	void OnDetached() override;
 
-	private:
+private:
 
-		RGTextureHandle m_LinearDepthTexture;
-		RGTextureHandle m_SceneDepthTexture;
+	RGTextureHandle m_LinearDepthTexture;
+	RGTextureHandle m_SceneDepthTexture;
 
-		rhi::ShaderOwner m_LinearizeDepthCS;
-		rhi::ComputePipelineStateOwner m_LinearizeDepthPSO;
-	};
+	rhi::ShaderOwner m_LinearizeDepthCS;
+	rhi::ComputePipelineStateOwner m_LinearizeDepthPSO;
+};
 
 } // namespace st::gfx

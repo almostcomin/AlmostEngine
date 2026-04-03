@@ -1,10 +1,5 @@
 #pragma once
 
-#include <string>
-#include <string_view>
-#include <cassert>
-#include <algorithm>
-
 namespace alm
 {
 
@@ -26,6 +21,15 @@ std::string_view GetExtensionFromPath(const std::string_view& path);
 
 // a 128 bits number stringyfied
 std::string MakeUniqueStringId();
+
+// FNV-1a hash
+constexpr uint32_t Hash(std::string_view str)
+{
+    uint32_t hash = 2166136261u;
+    for (char c : str)
+        hash = (hash ^ c) * 16777619u;
+    return hash;
+}
 
 // String conversion
 std::wstring ToWide(const char* utf8);

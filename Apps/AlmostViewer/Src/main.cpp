@@ -1,490 +1,311 @@
-#include "Gfx/GfxPCH.h"
-#include <SDL3/SDL_main.h>
-#include <SDL3/SDL_init.h>
-#include <imgui/imgui_impl_sdl3.h>
-#include "Gfx/DeviceManager.h"
-#include "Gfx/ShaderFactory.h"
+#include "Framework/FrameworkPCH.h"
+#include "Framework/App.h"
+#include "UI/StructureUI.h"
 #include "Gfx/RenderView.h"
-#include "Gfx/GltfImporter.h"
-#include "Gfx/DataUploader.h"
-#include "Gfx/Scene.h"
-#include "Gfx/SceneGraph.h"
-#include "Gfx/SceneGraphNode.h"
-#include "Gfx/SceneGraphLeaf.h"
-#include "Gfx/Camera.h"
+#include "Gfx/RenderGraph.h"
+#include "Gfx/RenderStages/ShadowmapRenderStage.h"
+#include "Gfx/RenderStages/SSAORenderStage.h"
+#include "Gfx/RenderStages/BloomRenderStage.h"
+#include "Gfx/RenderStages/ToneMappingRenderStage.h"
 #include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "Gfx/RenderStages/DebugRenderStage.h"
-#include "Gfx/RenderStages/DepthPrepassRenderStage.h"
-#include "Gfx/RenderStages/GBuffersRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
-#include "Gfx/RenderStages/ShadowmapRenderStage.h"
-#include "Gfx/RenderStages/ToneMappingRenderStage.h"
-#include "Gfx/RenderStages/LinearizeDepthRenderStage.h"
-#include "Gfx/RenderStages/SSAORenderStage.h"
-#include "Gfx/RenderStages/WireframeRenderStage.h"
-#include "Gfx/RenderStages/WBOITAccumRenderStage.h"
-#include "Gfx/RenderStages/WBOITResolveRenderStage.h"
-#include "Gfx/RenderStages/BloomRenderStage.h"
-#include "Gfx/RenderStages/SkyRenderStage.h"
-#include "Gfx/ImGUIViewportsRenderer.h"
-#include "UI/StructureUI.h"
+#include "Gfx/GltfImporter.h"
+#include "Gfx/Scene.h"
+#include "Gfx/SceneGraph.h"
+#include "Gfx/Camera.h"
+#include <SDL3/SDL.h>
+#include <imgui/imgui_impl_sdl3.h>
 
-namespace
+class AlmostViewerApp : public alm::App
 {
+public:
 
-std::unordered_map<std::string, std::string> ParseArgs(int argc, char* argv[])
-{
-	std::unordered_map<std::string, std::string> args;
-	for (int i = 1; i < argc - 1; i++)
+	AlmostViewerApp() : alm::App{ "Almost Viewer" } {}
+	~AlmostViewerApp() override = default;
+
+	bool Initialize(const AppArgs& args) override
 	{
-		if (argv[i][0] == '-')
+		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
+
+		m_UIRS = renderGraph->GetRenderStage<StructureUI>();
+		m_ShadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
+		m_SimpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SkyRenderStage>();
+		m_SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
+		m_BloomRS = renderGraph->GetRenderStage<alm::gfx::BloomRenderStage>();
+		m_TonemappingRS = renderGraph->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
+		m_CompositeRS = renderGraph->GetRenderStage<alm::gfx::CompositeRenderStage>();
+		m_DebugRS = renderGraph->GetRenderStage<alm::gfx::DebugRenderStage>();
+		m_LightingRS = renderGraph->GetRenderStage<alm::gfx::DeferredLightingRenderStage>();
+
+		m_UIRS->m_RequestLoadFile = [this](const char* filename) { m_RequestLoadFile = filename; };
+		m_UIRS->m_RequestClose = [this] { m_RequestClose = true; };
+		m_UIRS->m_RequestQuit = [this] { m_RequestQuit = true; };
+
+		// Update UI data with initial render stages values
+		m_UIRS->m_Data.ShadowmapSize = m_ShadowmapRS->GetSize();
+		m_UIRS->m_Data.ShadowmapDepthBias = m_ShadowmapRS->GetDepthBias();
+		m_UIRS->m_Data.ShadowmapSlopeScaledDepthBias = m_ShadowmapRS->GetSlopeScaledDepthBias();
+
+		m_UIRS->m_Data.AmbientParams = m_Scene->GetAmbientParams();
+		m_UIRS->m_Data.SunParams = m_Scene->GetSunParams();
+
+		m_UIRS->m_Data.SkyParams = m_SimpleSkyRS->GetSkyParams();
+
+		m_UIRS->m_Data.SSAO_Radius = m_SSAORS->GetRadius();
+		m_UIRS->m_Data.SSAO_Power = m_SSAORS->GetPower();
+		m_UIRS->m_Data.SSAO_Bias = m_SSAORS->GetBias();
+
+		m_UIRS->m_Data.bloomRadius = m_BloomRS->GetFilterRadius();
+		m_UIRS->m_Data.bloomStrength = m_BloomRS->GetStrength();
+		m_UIRS->m_Data.bloomMaxMip = m_BloomRS->GetMaxMipChainLenght();
+
+		m_UIRS->m_Data.middleGrayNits = m_TonemappingRS->GetSceneMiddleGray() * m_CompositeRS->GetPaperWhiteNits();
+		m_UIRS->m_Data.paperWhiteNits = m_CompositeRS->GetPaperWhiteNits();
+		m_UIRS->m_Data.sdrExposureBias = m_TonemappingRS->GetSDRExposureBias();
+		m_UIRS->m_Data.minLogLuminance = m_TonemappingRS->GetMinLogLuminance();
+		m_UIRS->m_Data.logLuminanceRange = m_TonemappingRS->GetLogLuminanceRange();
+		m_UIRS->m_Data.adaptationUpSpeed = m_TonemappingRS->GetAdaptationUpSpeed();
+		m_UIRS->m_Data.adaptationDownSpeed = m_TonemappingRS->GetAdaptationDownSpeed();
+
+		return true;
+	}
+
+	bool Update(float deltaTime) override
+	{
+		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
+
+		if (!m_RequestLoadFile.empty())
 		{
-			args[argv[i] + 1] = argv[i + 1];
-			i++;
-		}
-	}
-	return args;
-}
-
-} // anonymous namespace
-
-int SDL_main(int argc, char* argv[]) 
-{
-	auto args = ParseArgs(argc, argv);
-	const bool graphicsDebug = args["gd"] == "1";
-	const bool vSync = args["vsync"] == "1";
-
-	// Your SDL application code goes here
-	// For example, initializing SDL and creating a window
-	// Initialize SDL
-	if (!SDL_Init(SDL_INIT_VIDEO)) 
-	{
-		LOG_FATAL("Error initializing SDL.");
-		return -1; // Initialization failed
-	}
-
-	// Create a window
-	SDL_Window* window = SDL_CreateWindow("Structure", 1920, 1080, SDL_WINDOW_RESIZABLE);
-	if (!window) 
-	{
-		SDL_Quit();
-		return -1; // Window creation failed
-	}
-
-	// Init device manager
-	std::unique_ptr<alm::gfx::DeviceManager> deviceManager{ alm::gfx::DeviceManager::Create(alm::gfx::GraphicsAPI::D3D12) };
-	alm::gfx::DeviceManager::DeviceParams initParams{
-		.WindowHandle = window,
-		.DebugRuntime = graphicsDebug,
-		.GPUValidation = graphicsDebug,
-		.VSyncEnabled = vSync,
-		.ForceSDR = false
-	};
-	deviceManager->Init(initParams);
-	std::string windowTitle = "Structure";
-	windowTitle = windowTitle + " - " + deviceManager->GetBackEndHWName();
-	SDL_SetWindowTitle(window, windowTitle.c_str());
-
-	// Init ImGui
-	{
-		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO();
-		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-		
-		ImGui::StyleColorsDark();
-
-		ImGuiStyle& style = ImGui::GetStyle();
-		//style.ScaleAllSizes(1.0f);			// Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
-		//style.FontScaleDpi = 1.0f;			// Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
-		//io.ConfigDpiScaleFonts = true;      // [Experimental] Automatically overwrite style.FontScaleDpi in Begin() when Monitor DPI changes. This will scale fonts but _NOT_ scale sizes/padding for now.
-		//io.ConfigDpiScaleViewports = true;  // [Experimental] Scale Dear ImGui and Platform Windows when Monitor DPI changes.
-
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		{
-			style.WindowRounding = 0.0f;
-			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-		}
-
-		ImGui_ImplSDL3_InitForOther(window);
-	}
-
-	// Our scene
-	auto scene = alm::make_unique_with_weak<alm::gfx::Scene>(deviceManager.get());
-
-	// Create main RenderView
-	auto mainRenderView = alm::make_unique_with_weak<alm::gfx::RenderView>(deviceManager.get(), "Main view");
-
-	// Create shadowmap render stage
-	std::shared_ptr<alm::gfx::ShadowmapRenderStage> shadowmapRS{ new alm::gfx::ShadowmapRenderStage{ 4096, 4, alm::rhi::Format::D32 }};
-	// Create depth prepass render stage
-	std::shared_ptr<alm::gfx::DepthPrepassRenderStage> depthPrepassRS{ new alm::gfx::DepthPrepassRenderStage };
-	// Create linearize-depth render stage
-	std::shared_ptr<alm::gfx::LinearizeDepthRenderStage> linearizeDepthRS{ new alm::gfx::LinearizeDepthRenderStage };
-	// Screen-space ambient occlusion
-	std::shared_ptr<alm::gfx::SSAORenderStage> SSAORS{ new alm::gfx::SSAORenderStage };
-	// Create deferred render stage
-	std::shared_ptr<alm::gfx::GBuffersRenderStage> gBufRS{ new alm::gfx::GBuffersRenderStage };
-	// Create lighting render stage
-	std::shared_ptr<alm::gfx::DeferredLightingRenderStage> lightingRS{ new alm::gfx::DeferredLightingRenderStage };
-	// Create sky render stage
-	std::shared_ptr<alm::gfx::SkyRenderStage> skyRS{ new alm::gfx::SkyRenderStage };
-	// Create Weighted-blended-OIT accumulation render stage
-	std::shared_ptr<alm::gfx::WBOITAccumRenderStage> WBOITAccumRS{ new alm::gfx::WBOITAccumRenderStage };
-	// Create Weighted-blended-OIT resolve render stage
-	std::shared_ptr<alm::gfx::WBOITResolveRenderStage> WBOITResolveRS{ new alm::gfx::WBOITResolveRenderStage };
-	// Create Bloom render stage
-	std::shared_ptr<alm::gfx::BloomRenderStage> bloomRS{ new alm::gfx::BloomRenderStage };
-	// Create ToneMapping
-	std::shared_ptr<alm::gfx::ToneMappingRenderStage> toneMappingRS{ new alm::gfx::ToneMappingRenderStage };
-	// Create debug render stage
-	std::shared_ptr<alm::gfx::DebugRenderStage> debugRS{ new alm::gfx::DebugRenderStage };
-	// Wireframe render stage
-	std::shared_ptr<alm::gfx::WireframeRenderStage> wireframeRS{ new alm::gfx::WireframeRenderStage };
-
-	// Create UI render stage
-	std::string requestLoadFile;
-	bool requestClose = false;
-	bool requestQuit = false;
-	std::shared_ptr<StructureUI> uiRS{ new StructureUI{ mainRenderView.get_weak(), window, shadowmapRS.get(), toneMappingRS.get(), deviceManager.get() }};
-	uiRS->m_RequestLoadFile = [&requestLoadFile](const char* filename) { requestLoadFile = filename; };
-	uiRS->m_RequestClose = [&requestClose] { requestClose = true; };
-	uiRS->m_RequestQuit = [&requestQuit] { requestQuit = true; };
-
-	alm::gfx::InitImGuiViewportsRenderer(uiRS, deviceManager.get());
-
-	// Create composite render stage
-	std::shared_ptr<alm::gfx::CompositeRenderStage> compositeRS{ new alm::gfx::CompositeRenderStage };
-
-	// Create camera
-	auto camera = std::make_shared<alm::gfx::Camera>();
-	int windowWidth, windowHeight;
-	SDL_GetWindowSize(window, (int*)&windowWidth, (int*)&windowHeight);
-	camera->SetAspect((float)windowWidth / windowHeight);
-	camera->SetPosition({ 0.f, 0.f, 5.f });
-
-	// Add stages to render graph
-	alm::gfx::RenderGraph* renderGraph = mainRenderView->GetRenderGraph().get();
-	renderGraph->SetRenderStages({ 
-		shadowmapRS, depthPrepassRS, linearizeDepthRS, gBufRS, SSAORS, lightingRS, skyRS, WBOITAccumRS, WBOITResolveRS, bloomRS, toneMappingRS, debugRS, uiRS,
-		compositeRS, wireframeRS });
-	// Define default render mode
-	renderGraph->SetRenderMode("Default",
-		{ shadowmapRS.get(), depthPrepassRS.get(), linearizeDepthRS.get(), gBufRS.get(), SSAORS.get(), lightingRS.get(), skyRS.get(), WBOITAccumRS.get(),
-		  WBOITResolveRS.get(), bloomRS.get(), toneMappingRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
-	// Define wireframe render mode
-	renderGraph->SetRenderMode("Wireframe",
-		{ depthPrepassRS.get(), wireframeRS.get(), debugRS.get(), uiRS.get(), compositeRS.get() });
-
-	mainRenderView->SetScene(scene.get_weak());
-	mainRenderView->SetCamera(camera);
-
-	// Update UI data with initial render stages values
-	uiRS->m_Data.ShadowmapSize = shadowmapRS->GetSize();
-	uiRS->m_Data.AmbientParams = scene->GetAmbientParams();
-	uiRS->m_Data.SunParams = scene->GetSunParams();
-
-	uiRS->m_Data.SkyParams = skyRS->GetSkyParams();
-
-	uiRS->m_Data.ShadowmapDepthBias = shadowmapRS->GetDepthBias();
-	uiRS->m_Data.ShadowmapSlopeScaledDepthBias = shadowmapRS->GetSlopeScaledDepthBias();
-
-	uiRS->m_Data.SSAO_Radius = SSAORS->GetRadius();
-	uiRS->m_Data.SSAO_Power = SSAORS->GetPower();
-	uiRS->m_Data.SSAO_Bias = SSAORS->GetBias();
-
-	uiRS->m_Data.bloomRadius = bloomRS->GetFilterRadius();
-	uiRS->m_Data.bloomStrength = bloomRS->GetStrength();
-	uiRS->m_Data.bloomMaxMip = bloomRS->GetMaxMipChainLenght();
-
-	uiRS->m_Data.middleGrayNits = toneMappingRS->GetSceneMiddleGray() * compositeRS->GetPaperWhiteNits();
-	uiRS->m_Data.paperWhiteNits = compositeRS->GetPaperWhiteNits();
-	uiRS->m_Data.sdrExposureBias = toneMappingRS->GetSDRExposureBias();
-	uiRS->m_Data.minLogLuminance = toneMappingRS->GetMinLogLuminance();
-	uiRS->m_Data.logLuminanceRange = toneMappingRS->GetLogLuminanceRange();
-	uiRS->m_Data.adaptationUpSpeed = toneMappingRS->GetAdaptationUpSpeed();
-	uiRS->m_Data.adaptationDownSpeed = toneMappingRS->GetAdaptationDownSpeed();
-
-	// Main loop
-
-	auto lastTime = std::chrono::steady_clock::now();
-	auto fpsLastTime = lastTime;
-	uint32_t fpsFrameCount = 0;
-	float2 cameraSpeed{ 0.f };
-	bool mouseMiddlePressed = false;
-	while (!requestQuit)
-	{
-		const auto currentTime = std::chrono::steady_clock::now();
-		const std::chrono::duration<float> elapsed = currentTime - lastTime;
-		const float elapsedSec = elapsed.count();
-		uiRS->m_Data.CPUTime = elapsedSec * 1000;
-		uiRS->m_Data.GPUTime = (std::max)(deviceManager->GetGPUFrameTime(), 0.f);
-
-		if (!requestLoadFile.empty())
-		{
-			auto importResult = alm::gfx::ImportGlTF(requestLoadFile.c_str(), deviceManager.get());
+			auto importResult = alm::gfx::ImportGlTF(m_RequestLoadFile.c_str(), m_DeviceManager.get());
 			if (importResult)
 			{
-				scene->SetSceneGraph(std::move(*importResult));
+				m_Scene->SetSceneGraph(std::move(*importResult));
 
-				const alm::math::aabox3f& bounds = scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::BoundsType::Mesh);
+				const alm::math::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::BoundsType::Mesh);
 				const float radius = glm::length(bounds.extents()) / 2.f;
-				camera->SetZNear(radius * 0.05f);
+				m_MainCamera->SetZNear(radius * 0.05f);
 
-				camera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
-				camera->Fit(bounds);
+				m_MainCamera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
+				m_MainCamera->Fit(bounds);
 
-				uiRS->m_Data.CameraSpeed = radius * 1.f;
+				m_UIRS->m_Data.CameraSpeed = radius * 1.f;
 
-				scene->GetSceneGraph()->LogGraph();
+				m_Scene->GetSceneGraph()->LogGraph();
 			}
 			else
 			{
-				LOG_ERROR("Error importing file '{}': {}", requestLoadFile, importResult.error());
+				LOG_ERROR("Error importing file '{}': {}", m_RequestLoadFile, importResult.error());
 			}
-			requestLoadFile.clear();
-		}
-		if (requestClose)
-		{
-			if (scene)
-			{
-				scene->SetSceneGraph(nullptr);
-			}
-			requestClose = false;
+			m_RequestLoadFile.clear();
 		}
 
-		// Input
-		SDL_Event event;
-		while (SDL_PollEvent(&event)) 
+		if (m_RequestClose)
 		{
-			ImGui_ImplSDL3_ProcessEvent(&event);
-			const ImGuiIO& io = ImGui::GetIO();
-
-			switch (event.type)
+			if (m_Scene)
 			{
-			case SDL_EVENT_MOUSE_MOTION:
-				// Pass event to ImGui
-				if (!io.WantCaptureMouse)
-				{
-					if (mouseMiddlePressed)
-					{
-						int windowWidth, windowHeight;
-						SDL_GetWindowSize(window, (int*)&windowWidth, (int*)&windowHeight);
-						{
-							float angleRad = event.motion.yrel * PI / windowHeight;
-							glm::quat q = glm::angleAxis(-angleRad, camera->GetRight());
-							float3 newFwd = q * camera->GetForward();
-							camera->SetForward(newFwd);
-						}
-						{
-							float angleRad = event.motion.xrel * PI / windowWidth;
-							glm::quat q = glm::angleAxis(-angleRad, camera->GetUp());
-							float3 newFwd = q * camera->GetForward();
-							camera->SetForward(newFwd);
-						}
-					}
-				}
-				break;
-			case SDL_EVENT_MOUSE_BUTTON_DOWN:
-			case SDL_EVENT_MOUSE_BUTTON_UP:
-				if (!io.WantCaptureMouse)
-				{
-					switch (event.button.button)
-					{
-					case SDL_BUTTON_LEFT:
-						break;
-					case SDL_BUTTON_MIDDLE:
-						mouseMiddlePressed = event.button.down;
-						break;
-					case SDL_BUTTON_RIGHT:
-						break;
-					}
-				}
-				break;
-			case SDL_EVENT_KEY_DOWN:
-				if (!io.WantCaptureKeyboard)
-				{
-					switch (event.key.key)
-					{
-					case SDLK_W: cameraSpeed.y = uiRS->m_Data.CameraSpeed; break;
-					case SDLK_S: cameraSpeed.y = -uiRS->m_Data.CameraSpeed; break;
-					case SDLK_A: cameraSpeed.x = uiRS->m_Data.CameraSpeed; break;
-					case SDLK_D: cameraSpeed.x = -uiRS->m_Data.CameraSpeed; break;
-					}
-					break;
-
-				case SDL_EVENT_KEY_UP:
-					switch (event.key.key)
-					{
-					case SDLK_W: cameraSpeed.y = 0.f; break;
-					case SDLK_S: cameraSpeed.y = 0.f; break;
-					case SDLK_A: cameraSpeed.x = 0.f; break;
-					case SDLK_D: cameraSpeed.x = 0.f; break;
-					}
-				}
-				break;
-
-			case SDL_EVENT_QUIT:
-				requestQuit = true;
-				break;
-
-			case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-				if (event.window.windowID == SDL_GetWindowID(window))
-				{
-					requestQuit = true;
-				}
+				m_Scene->SetSceneGraph(nullptr);
 			}
+			m_RequestClose = false;
 		}
 
 		// Camera movement
 		{
-			const float3& camFwd = camera->GetForward();
-			const float3& camRight = camera->GetRight();
+			const float3& camFwd = m_MainCamera->GetForward();
+			const float3& camRight = m_MainCamera->GetRight();
 
-			float3 newPos = camera->GetPosition();
-			float2 cameraTurboSpeed = cameraSpeed;
+			float3 newPos = m_MainCamera->GetPosition();
+			float2 cameraTurboSpeed = m_CameraSpeed;
 			SDL_Keymod mod = SDL_GetModState();
 			if (mod & SDL_KMOD_SHIFT)
 				cameraTurboSpeed *= 2.f;
-			newPos += camFwd * cameraTurboSpeed.y * elapsedSec;
-			newPos += -camRight * cameraTurboSpeed.x * elapsedSec;
+			newPos += camFwd * cameraTurboSpeed.y * deltaTime;
+			newPos += -camRight * cameraTurboSpeed.x * deltaTime;
 
-			camera->SetPosition(newPos);
-		}
-
-		// Scene graph update
-		if (scene)
-		{
-			// Update scene
-			scene->Update();
+			m_MainCamera->SetPosition(newPos);
 		}
 
 		// Update UI values
 		{
-			if (!uiRS->m_Data.RenderMode.empty() && uiRS->m_Data.RenderMode != renderGraph->GetCurrentRenderMode())
+			auto& data = m_UIRS->m_Data;
+			if (!data.RenderMode.empty() && data.RenderMode != renderGraph->GetCurrentRenderMode())
 			{
-				renderGraph->SetCurrentRenderMode(uiRS->m_Data.RenderMode);
+				renderGraph->SetCurrentRenderMode(data.RenderMode);
 			}
 
-			debugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Mesh, uiRS->m_Data.ShowMeshBBoxes);
-			debugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Light, uiRS->m_Data.ShowLightBBoxes);
+			m_DebugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Mesh, data.ShowMeshBBoxes);
+			m_DebugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Light, data.ShowLightBBoxes);
 
-			lightingRS->ShowShadowmap(uiRS->m_Data.ShowShadowmap);
-			if (uiRS->m_Data.ShadowmapDepthBias != shadowmapRS->GetDepthBias())
+			m_LightingRS->ShowShadowmap(data.ShowShadowmap);
+			if (data.ShadowmapDepthBias != m_ShadowmapRS->GetDepthBias())
 			{
-				shadowmapRS->SetDepthBias(uiRS->m_Data.ShadowmapDepthBias);
+				m_ShadowmapRS->SetDepthBias(data.ShadowmapDepthBias);
 			}
-			if (uiRS->m_Data.ShadowmapSlopeScaledDepthBias != shadowmapRS->GetSlopeScaledDepthBias())
+			if (data.ShadowmapSlopeScaledDepthBias != m_ShadowmapRS->GetSlopeScaledDepthBias())
 			{
-				shadowmapRS->SetSlopeScaledDepthBias(uiRS->m_Data.ShadowmapSlopeScaledDepthBias);
+				m_ShadowmapRS->SetSlopeScaledDepthBias(data.ShadowmapSlopeScaledDepthBias);
 			}
-			if (uiRS->m_Data.ShadowmapSize != shadowmapRS->GetSize())
+			if (data.ShadowmapSize != m_ShadowmapRS->GetSize())
 			{
-				shadowmapRS->SetSize(uiRS->m_Data.ShadowmapSize);
+				m_ShadowmapRS->SetSize(data.ShadowmapSize);
 			}
-			if (uiRS->m_Data.ShadowmapEnabled != shadowmapRS->IsEnabled())
+			if (data.ShadowmapEnabled != m_ShadowmapRS->IsEnabled())
 			{
-				shadowmapRS->SetEnabled(uiRS->m_Data.ShadowmapEnabled);
-			}
-
-			if (uiRS->m_Data.AmbientParamsUpdated)
-			{
-				scene->SetAmbientParams(uiRS->m_Data.AmbientParams);
-				uiRS->m_Data.AmbientParamsUpdated = false;
+				m_ShadowmapRS->SetEnabled(data.ShadowmapEnabled);
 			}
 
-			if (uiRS->m_Data.SunParamsUpdated)
+			if (data.AmbientParamsUpdated)
 			{
-				scene->SetSunParams(uiRS->m_Data.SunParams);
-				uiRS->m_Data.SunParamsUpdated = false;
+				m_Scene->SetAmbientParams(data.AmbientParams);
+				data.AmbientParamsUpdated = false;
 			}
 
-			skyRS->SetEnabled(uiRS->m_Data.SkyEnabled);
-			skyRS->SetSkyParams(uiRS->m_Data.SkyParams);
-
-			lightingRS->SetMaterialChannel(uiRS->m_Data.MatChannel);
-
-			if (uiRS->m_Data.SSAOEnabled != SSAORS->IsSSAOEnabled())
+			if (data.SunParamsUpdated)
 			{
-				SSAORS->SetSSAOEnabled(uiRS->m_Data.SSAOEnabled);
+				m_Scene->SetSunParams(data.SunParams);
+				data.SunParamsUpdated = false;
 			}
-			lightingRS->ShowSSAO(uiRS->m_Data.ShowSSAO);
-			SSAORS->SetRadius(uiRS->m_Data.SSAO_Radius);
-			SSAORS->SetPower(uiRS->m_Data.SSAO_Power);
-			SSAORS->SetBias(uiRS->m_Data.SSAO_Bias);
 
-			bloomRS->SetBloomEnabled(uiRS->m_Data.bloomEnabled);
-			bloomRS->SetFilterRadius(uiRS->m_Data.bloomRadius);
-			bloomRS->SetStrength(uiRS->m_Data.bloomStrength);
-			bloomRS->SetMaxMipChainLenght(uiRS->m_Data.bloomMaxMip);
+			m_SimpleSkyRS->SetEnabled(data.SkyEnabled);
+			m_SimpleSkyRS->SetSkyParams(data.SkyParams);
 
-			toneMappingRS->SetTonemappingEnabled(uiRS->m_Data.tonemappingEnabled);
+			m_LightingRS->SetMaterialChannel(data.MatChannel);
+
+			if (data.SSAOEnabled != m_SSAORS->IsSSAOEnabled())
+			{
+				m_SSAORS->SetSSAOEnabled(data.SSAOEnabled);
+			}
+			m_LightingRS->ShowSSAO(data.ShowSSAO);
+			m_SSAORS->SetRadius(data.SSAO_Radius);
+			m_SSAORS->SetPower(data.SSAO_Power);
+			m_SSAORS->SetBias(data.SSAO_Bias);
+
+			m_BloomRS->SetBloomEnabled(data.bloomEnabled);
+			m_BloomRS->SetFilterRadius(data.bloomRadius);
+			m_BloomRS->SetStrength(data.bloomStrength);
+			m_BloomRS->SetMaxMipChainLenght(data.bloomMaxMip);
+
+			m_TonemappingRS->SetTonemappingEnabled(data.tonemappingEnabled);
 			// Scene middlegray is middle_gray_nits / paper_white_nits
-			toneMappingRS->SetSceneMiddleGray(uiRS->m_Data.middleGrayNits / uiRS->m_Data.paperWhiteNits);
-			toneMappingRS->SetMinLogLuminance(uiRS->m_Data.minLogLuminance);
-			toneMappingRS->SetLogLuminanceRange(uiRS->m_Data.logLuminanceRange);
-			toneMappingRS->SetSDRExposureBias(uiRS->m_Data.sdrExposureBias);
-			toneMappingRS->SetAdaptationUpSpeed(uiRS->m_Data.adaptationUpSpeed);
-			toneMappingRS->SetAdaptationDownSpeed(uiRS->m_Data.adaptationDownSpeed);
+			m_TonemappingRS->SetSceneMiddleGray(data.middleGrayNits / data.paperWhiteNits);
+			m_TonemappingRS->SetMinLogLuminance(data.minLogLuminance);
+			m_TonemappingRS->SetLogLuminanceRange(data.logLuminanceRange);
+			m_TonemappingRS->SetSDRExposureBias(data.sdrExposureBias);
+			m_TonemappingRS->SetAdaptationUpSpeed(data.adaptationUpSpeed);
+			m_TonemappingRS->SetAdaptationDownSpeed(data.adaptationDownSpeed);
 		}
 
 		// Update FPS counter
 		{
-			std::chrono::duration<float> fpsElapsed = currentTime - fpsLastTime;
-			if (fpsElapsed.count() > 1.f)
-			{
-				uiRS->m_Data.FPS = fpsFrameCount / fpsElapsed.count();
-				fpsFrameCount = 0;
-				fpsLastTime = currentTime;
-			}
+			m_UIRS->m_Data.CPUTime = m_CPUTime;
+			m_UIRS->m_Data.GPUTime = m_GPUTime;
+			m_UIRS->m_Data.FPS = m_FPS;
 		}
 
-		if (deviceManager->UpdateWindowSize())
-		{
-			float2 newSize = deviceManager->GetWindowDimensions();
-			camera->SetAspect(newSize.x / newSize.y);
+		if (m_RequestQuit)
+			return false;
 
-			mainRenderView->OnWindowSizeChanged();
-		}
-
-		deviceManager->Render([&mainRenderView, elapsedSec]()
-		{
-			mainRenderView->Render(elapsedSec);
-		});
-
-		fpsFrameCount++;
-		lastTime = currentTime;
-		std::this_thread::yield();
+		return true;
 	}
 
-	// Clean up
-	camera.reset();
-	mainRenderView.reset();
-	uiRS.reset();
-	compositeRS.reset();
-	SSAORS.reset();
-	linearizeDepthRS.reset();
-	bloomRS.reset();
-	WBOITResolveRS.reset();
-	WBOITAccumRS.reset();
-	skyRS.reset();
-	lightingRS.reset();
-	gBufRS.reset();
-	depthPrepassRS.reset();
-	shadowmapRS.reset();
-	wireframeRS.reset();
-	debugRS.reset();
-	toneMappingRS.reset();
-	scene.reset();
+	void Shutdown() override
+	{
+		m_CompositeRS.reset();
+		m_TonemappingRS.reset();
+		m_BloomRS.reset();
+		m_SSAORS.reset();
+		m_SimpleSkyRS.reset();
+		m_ShadowmapRS.reset();
+		m_UIRS.reset();
+	}
 
-	ImGui::DestroyPlatformWindows();
-	alm::gfx::ReleaseImGuiViewportsRenderer();
-	ImGui_ImplSDL3_Shutdown();
-	ImGui::DestroyContext();
+	void OnSDLEvent(const SDL_Event& event) override
+	{
+		switch (event.type)
+		{
+		case SDL_EVENT_MOUSE_MOTION:
+		{
+			if (m_MouseMiddlePressed)
+			{
+				int windowWidth, windowHeight;
+				SDL_GetWindowSize(m_Window, (int*)&windowWidth, (int*)&windowHeight);
+				{
+					float angleRad = event.motion.yrel * PI / windowHeight;
+					glm::quat q = glm::angleAxis(-angleRad, m_MainCamera->GetRight());
+					float3 newFwd = q * m_MainCamera->GetForward();
+					m_MainCamera->SetForward(newFwd);
+				}
+				{
+					float angleRad = event.motion.xrel * PI / windowWidth;
+					glm::quat q = glm::angleAxis(-angleRad, m_MainCamera->GetUp());
+					float3 newFwd = q * m_MainCamera->GetForward();
+					m_MainCamera->SetForward(newFwd);
+				}
+			}
+		} break;
 
-	deviceManager->Shutdown();
+		case SDL_EVENT_MOUSE_BUTTON_DOWN:
+		case SDL_EVENT_MOUSE_BUTTON_UP:
+		{
+			switch (event.button.button)
+			{
+			case SDL_BUTTON_LEFT:
+				break;
+			case SDL_BUTTON_MIDDLE:
+				m_MouseMiddlePressed = event.button.down;
+				break;
+			case SDL_BUTTON_RIGHT:
+				break;
+			}
+		} break;
 
-	SDL_DestroyWindow(window);
-	SDL_Quit();
-	return 0; // Exit successfully
+		case SDL_EVENT_KEY_DOWN:
+		{
+			switch (event.key.key)
+			{
+			case SDLK_W: m_CameraSpeed.y = m_UIRS->m_Data.CameraSpeed; break;
+			case SDLK_S: m_CameraSpeed.y = -m_UIRS->m_Data.CameraSpeed; break;
+			case SDLK_A: m_CameraSpeed.x = m_UIRS->m_Data.CameraSpeed; break;
+			case SDLK_D: m_CameraSpeed.x = -m_UIRS->m_Data.CameraSpeed; break;
+			}
+		} break;
+
+		case SDL_EVENT_KEY_UP:
+		{
+			switch (event.key.key)
+			{
+			case SDLK_W: m_CameraSpeed.y = 0.f; break;
+			case SDLK_S: m_CameraSpeed.y = 0.f; break;
+			case SDLK_A: m_CameraSpeed.x = 0.f; break;
+			case SDLK_D: m_CameraSpeed.x = 0.f; break;
+			}
+		} break;
+		}
+	}
+
+	alm::gfx::RenderStageTypeID GetUIRenderStageType() const override { return StructureUI::StaticType(); }
+
+private:
+
+	std::shared_ptr<StructureUI> m_UIRS;
+	std::shared_ptr<alm::gfx::ShadowmapRenderStage> m_ShadowmapRS;
+	std::shared_ptr<alm::gfx::SkyRenderStage> m_SimpleSkyRS;
+	std::shared_ptr<alm::gfx::SSAORenderStage> m_SSAORS;
+	std::shared_ptr<alm::gfx::BloomRenderStage> m_BloomRS;
+	std::shared_ptr<alm::gfx::ToneMappingRenderStage> m_TonemappingRS;
+	std::shared_ptr<alm::gfx::CompositeRenderStage> m_CompositeRS;
+	std::shared_ptr<alm::gfx::DebugRenderStage> m_DebugRS;
+	std::shared_ptr<alm::gfx::DeferredLightingRenderStage> m_LightingRS;
+
+	std::string m_RequestLoadFile;
+	bool m_RequestClose = false;
+	bool m_RequestQuit = false;
+
+	bool m_MouseMiddlePressed = false;
+	float2 m_CameraSpeed{ 0.f };
+};
+
+std::unique_ptr<alm::App> CreateApp()
+{
+	return std::unique_ptr<alm::App>{ new AlmostViewerApp };
 }

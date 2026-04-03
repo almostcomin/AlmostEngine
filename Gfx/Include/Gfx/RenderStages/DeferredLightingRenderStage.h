@@ -3,12 +3,15 @@
 #include "Gfx/RenderStage.h"
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
+#include "Gfx/RenderStageFactory.h"
 
 namespace alm::gfx
 {
 
 class DeferredLightingRenderStage : public RenderStage
 {
+	REGISTER_RENDER_STAGE(DeferredLightingRenderStage)
+
 public:
 
 	enum class MaterialChannel
@@ -33,8 +36,6 @@ public:
 	void SetMaterialChannel(MaterialChannel v) { m_MaterialChannel = v; }
 	void ShowSSAO(bool b) { m_ShowSSAO = b; }
 	void ShowShadowmap(bool b) { m_ShowShadowmap = b; }
-
-	const char* GetDebugName() const override { return "DeferredLightingRenderStage"; }
 
 private:
 
