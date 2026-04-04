@@ -30,7 +30,7 @@ public:
 
 		m_UIRS = renderGraph->GetRenderStage<StructureUI>();
 		m_ShadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
-		m_SimpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SkyRenderStage>();
+		m_SimpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
 		m_SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
 		m_BloomRS = renderGraph->GetRenderStage<alm::gfx::BloomRenderStage>();
 		m_TonemappingRS = renderGraph->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
@@ -282,7 +282,7 @@ private:
 
 	std::shared_ptr<StructureUI> m_UIRS;
 	std::shared_ptr<alm::gfx::ShadowmapRenderStage> m_ShadowmapRS;
-	std::shared_ptr<alm::gfx::SkyRenderStage> m_SimpleSkyRS;
+	std::shared_ptr<alm::gfx::SimpleSkyRenderStage> m_SimpleSkyRS;
 	std::shared_ptr<alm::gfx::SSAORenderStage> m_SSAORS;
 	std::shared_ptr<alm::gfx::BloomRenderStage> m_BloomRS;
 	std::shared_ptr<alm::gfx::ToneMappingRenderStage> m_TonemappingRS;

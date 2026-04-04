@@ -8,9 +8,9 @@
 namespace alm::gfx
 {
 
-class SkyRenderStage : public RenderStage
+class SimpleSkyRenderStage : public RenderStage
 {
-    REGISTER_RENDER_STAGE(SkyRenderStage)
+    REGISTER_RENDER_STAGE(SimpleSkyRenderStage)
 
 public:
 

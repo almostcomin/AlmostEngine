@@ -1,5 +1,5 @@
 #include "Gfx/GfxPCH.h"
-#include "Gfx/RenderStages/SkyRenderStage.h"
+#include "Gfx/RenderStages/SimpleSkyRenderStage.h"
 #include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
@@ -10,7 +10,7 @@
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
-void alm::gfx::SkyRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::SimpleSkyRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
@@ -21,7 +21,7 @@ void alm::gfx::SkyRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 }
 
-void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
+void alm::gfx::SimpleSkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	auto scene = GetScene();
 	if (!scene)
@@ -80,14 +80,14 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	commandList->EndRenderPass();
 }
 
-void alm::gfx::SkyRenderStage::OnAttached()
+void alm::gfx::SimpleSkyRenderStage::OnAttached()
 {
 	auto* deviceManager = m_RenderGraph->GetDeviceManager();
 	auto* device = deviceManager->GetDevice();
 	auto* commonResources = deviceManager->GetCommonResources();
 	auto* shaderFactory = deviceManager->GetShaderFactory();
 
-	m_PS = shaderFactory->LoadShader("Sky_ps", rhi::ShaderType::Pixel);
+	m_PS = shaderFactory->LoadShader("SimpleSky_ps", rhi::ShaderType::Pixel);
 
 	{
 		rhi::DepthStencilState depthStencilState{
@@ -105,7 +105,7 @@ void alm::gfx::SkyRenderStage::OnAttached()
 	m_ShaderCB.InitUniformBuffer(sizeof(interop::SkyData), deviceManager, "SkyData");
 }
 
-void alm::gfx::SkyRenderStage::OnDetached()
+void alm::gfx::SimpleSkyRenderStage::OnDetached()
 {
 	m_ShaderCB.Release();
 	m_PSO.reset();

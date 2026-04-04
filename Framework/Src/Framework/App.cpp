@@ -17,7 +17,7 @@
 #include "Gfx/RenderStages/WBOITAccumRenderStage.h"
 #include "Gfx/RenderStages/WBOITResolveRenderStage.h"
 #include "Gfx/RenderStages/BloomRenderStage.h"
-#include "Gfx/RenderStages/SkyRenderStage.h"
+#include "Gfx/RenderStages/SimpleSkyRenderStage.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/ImGUIViewportsRenderer.h"
 #include <SDL3/SDL_main.h>
@@ -200,7 +200,7 @@ void alm::App::InitRenderStages()
 		auto SSAORS = gfx::RenderStageFactory::CreateShared<gfx::SSAORenderStage>();
 		auto GBuffersRS = gfx::RenderStageFactory::CreateShared<gfx::GBuffersRenderStage>();
 		auto deferredLightingRS = gfx::RenderStageFactory::CreateShared<gfx::DeferredLightingRenderStage>();
-		auto simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SkyRenderStage>();
+		auto simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SimpleSkyRenderStage>();
 		auto WBOITAccumRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
 		auto WBOITResolveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
 		auto bloomRS = gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
