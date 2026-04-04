@@ -35,7 +35,7 @@ void alm::gfx::SimpleSkyRenderStage::Render(alm::rhi::CommandListHandle commandL
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	interop::SkyData* skyData = (interop::SkyData*)m_ShaderCB.Map();
+	interop::SimpleSkyData* skyData = (interop::SimpleSkyData*)m_ShaderCB.Map();
 	{
 		const Scene::SunParams& sunParams = scene->GetSunParams();
 
@@ -65,7 +65,7 @@ void alm::gfx::SimpleSkyRenderStage::Render(alm::rhi::CommandListHandle commandL
 	}
 	m_ShaderCB.Unmap();
 
-	interop::SkyConstants shaderConstants;
+	interop::SimpleSkyConstants shaderConstants;
 	float4x4 invView = glm::inverse(GetCamera()->GetViewMatrix());
 	invView[3] = float4(0, 0, 0, 1);
 	float4x4 invProj = glm::inverse(GetCamera()->GetProjectionMatrix());
@@ -102,7 +102,7 @@ void alm::gfx::SimpleSkyRenderStage::OnAttached()
 		m_PSO = device->CreateGraphicsPipelineState(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(), "SkyRenderStage");
 	}
 
-	m_ShaderCB.InitUniformBuffer(sizeof(interop::SkyData), deviceManager, "SkyData");
+	m_ShaderCB.InitUniformBuffer(sizeof(interop::SimpleSkyData), deviceManager, "SimpleSkyData");
 }
 
 void alm::gfx::SimpleSkyRenderStage::OnDetached()

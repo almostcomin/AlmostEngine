@@ -343,7 +343,7 @@ namespace interop
         float bloomStrength;
     };
 
-    struct SkyData
+    struct SimpleSkyData
     {
         float3 directionToLight;
         float angularSizeOfLight;
@@ -360,10 +360,15 @@ namespace interop
         float2 resolution;
     };
 
-    struct SkyConstants
+    struct SimpleSkyConstants
     {
         float4x4 matClipToTranslatedWorld;
-        BufferUniformIndex skyDataDI;
+        BufferUniformIndex skyDataDI; // SimpleSkyData
+    };
+
+    struct SkyConstants
+    {
+        float aspect;
     };
 }
 

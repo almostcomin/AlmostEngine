@@ -11,7 +11,7 @@ struct PS_INPUT
     float2 uv : TEXCOORD0;
 };
 
-float3 ProceduralSky(interop::SkyData params, float3 direction, float angularSizeOfPixel)
+float3 ProceduralSky(interop::SimpleSkyData params, float3 direction, float angularSizeOfPixel)
 {
     float elevation = asin(clamp(dot(direction, params.directionUp), -1.0, 1.0));    
     float top = smoothstep(0.f, params.horizonSize, elevation);
@@ -32,7 +32,7 @@ float3 ProceduralSky(interop::SkyData params, float3 direction, float angularSiz
 [RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {
-    ConstantBuffer<interop::SkyData> skyData = ResourceDescriptorHeap[Constants.skyDataDI];
+    ConstantBuffer<interop::SimpleSkyData> skyData = ResourceDescriptorHeap[Constants.skyDataDI];
     
     float4 clipPos;
     clipPos.x = input.uv.x * 2 - 1;

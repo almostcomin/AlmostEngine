@@ -35,43 +35,9 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	interop::SkyData* skyData = (interop::SkyData*)m_ShaderCB.Map();
-	{
-		const Scene::SunParams& sunParams = scene->GetSunParams();
-
-		float lightAngularSize = glm::radians(glm::clamp(sunParams.AngularSizeDeg, 0.1f, 90.f));
-		float lightSolidAngle = 4 * PI * square(sinf(lightAngularSize * 0.5f));
-		float lightRadiance = sunParams.Irradiance / lightSolidAngle;
-		if (m_Params.maxLightRadiance > 0.f)
-			lightRadiance = std::min(lightRadiance, m_Params.maxLightRadiance);
-		const float3 sunDir = alm::ElevationAzimuthRadToDir(
-			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
-
-		skyData->directionToLight = -sunDir;
-		skyData->angularSizeOfLight = lightAngularSize;
-		skyData->lightColor = lightRadiance * sunParams.Color;
-		skyData->glowSize = glm::radians(glm::clamp(m_Params.glowSize, 0.f, 90.f));
-		skyData->skyColor = m_Params.skyColor * m_Params.brightness;
-		skyData->glowIntensity = glm::clamp(m_Params.glowIntensity, 0.f, 1.f);
-		skyData->horizonColor = m_Params.horizonColor * m_Params.brightness;
-		skyData->horizonSize = glm::radians(glm::clamp(m_Params.horizonSize, 0.f, 90.f));
-		skyData->groundColor = m_Params.groundColor * m_Params.brightness;
-		skyData->glowSharpness = glm::clamp(m_Params.glowSharpness, 1.f, 10.f);
-		skyData->directionUp = glm::normalize(m_Params.directionUp);
-		skyData->resolution = float2(
-			m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().width,
-			m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().height);
-		skyData->aspect = skyData->resolution.x / skyData->resolution.y;
-	}
-	m_ShaderCB.Unmap();
-
 	interop::SkyConstants shaderConstants;
-	float4x4 invView = glm::inverse(GetCamera()->GetViewMatrix());
-	invView[3] = float4(0, 0, 0, 1);
-	float4x4 invProj = glm::inverse(GetCamera()->GetProjectionMatrix());
-
-	shaderConstants.matClipToTranslatedWorld = invView * invProj;
-	shaderConstants.skyDataDI = m_ShaderCB.GetUniformView();
+	shaderConstants.aspect = (float)m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().width /
+		m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().height;
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
@@ -101,13 +67,10 @@ void alm::gfx::SkyRenderStage::OnAttached()
 
 		m_PSO = device->CreateGraphicsPipelineState(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(), "SkyRenderStage");
 	}
-
-	m_ShaderCB.InitUniformBuffer(sizeof(interop::SkyData), deviceManager, "SkyData");
 }
 
 void alm::gfx::SkyRenderStage::OnDetached()
 {
-	m_ShaderCB.Release();
 	m_PSO.reset();
 	m_PS.reset();
 }
