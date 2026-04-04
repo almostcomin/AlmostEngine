@@ -1,5 +1,5 @@
 #include "Gfx/GfxPCH.h"
-#include "RenderStageFactory.h"
+#include "Gfx/RenderStageFactory.h"
 #include "Gfx/RenderStage.h"
 
 void alm::gfx::RenderStageFactory::Register(alm::gfx::RenderStageTypeID id, CreateFn fn)
