@@ -62,8 +62,9 @@ public:
 
 	void OnWindowSizeChanged();
 
-	void Render(float timeDeltaSec);
+	void Render(double timeSec, float timeDeltaSec);
 
+	double GetTime() const { return m_TimeSec; }
 	float GetTimeDelta() const { return m_TimeDeltaSec; }
 
 	std::string GetName() const { return m_DebugName; }
@@ -123,7 +124,8 @@ private:
 	std::vector<rhi::CommandListOwner> m_BeginCommandLists;
 	std::vector<rhi::CommandListOwner> m_EndCommandLists;
 
-	float m_TimeDeltaSec = 0.f;
+	double m_TimeSec;
+	float m_TimeDeltaSec;
 
 	std::string m_DebugName;
 	DeviceManager* m_DeviceManager;

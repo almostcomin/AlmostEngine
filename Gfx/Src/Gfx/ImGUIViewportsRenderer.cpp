@@ -75,7 +75,7 @@ void ImGui_Impl_RenderWindow(ImGuiViewport* viewport, void*)
 	ImGuiImplViewportData* viewportData = (ImGuiImplViewportData*)viewport->RendererUserData;
 	alm::gfx::RenderView* renderView = viewportData->RenderView.get();
 
-	renderView->Render(ImGui::GetIO().DeltaTime);
+	renderView->Render(ImGui::GetTime(), ImGui::GetIO().DeltaTime);
 }
 
 void ImGui_Impl_SwapBuffers(ImGuiViewport*, void*)

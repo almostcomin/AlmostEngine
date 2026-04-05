@@ -27,6 +27,10 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	if (!scene)
 		return;
 
+	const auto& sunParams = GetScene()->GetSunParams();
+
+	m_Params.Offset += GetRenderView()->GetTimeDelta();
+
 	commandList->BeginRenderPass(
 		m_RenderGraph->GetFrameBuffer(m_FB).get(),
 		{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store } },
@@ -36,8 +40,12 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	commandList->SetPipelineState(m_PSO.get());
 
 	interop::SkyConstants shaderConstants;
-	shaderConstants.aspect = (float)m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().width /
-		m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().height;
+	shaderConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
+	shaderConstants.windVelocity = float2{ 0.1, 0.05 };
+	shaderConstants.cloudScale = 0.002f;
+	shaderConstants.sunDirection = alm::ElevationAzimuthRadToDir(
+		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
+	shaderConstants.time = GetRenderView()->GetTime() * 1.0;
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 

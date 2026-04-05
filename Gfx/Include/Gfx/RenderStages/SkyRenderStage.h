@@ -16,6 +16,7 @@ public:
 
 	struct SkyParams
 	{
+        float2 Offset = { 0.f, 0.f };
 	};
 
 public:

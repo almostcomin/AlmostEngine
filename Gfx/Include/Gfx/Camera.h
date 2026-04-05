@@ -46,6 +46,10 @@ public:
 	const float4x4& GetViewMatrix();
 	const float4x4& GetProjectionMatrix();
 	float4x4 GetViewProjectionMatrix();
+	
+	// Inverse view-projection matrix but removing view translation
+	float4x4 GetClipToTranslatedWorldMatrix();
+
 	const alm::math::frustum3f& GetFrustum();
 
 	float GetYaw() const;

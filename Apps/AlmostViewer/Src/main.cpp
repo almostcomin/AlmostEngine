@@ -1,5 +1,6 @@
 #include "Framework/FrameworkPCH.h"
 #include "Framework/App.h"
+#include "Framework/CameraController.h"
 #include "UI/StructureUI.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
@@ -24,7 +25,7 @@ public:
 	AlmostViewerApp() : alm::App{ "Almost Viewer", alm::App::RenderStageSetMode::Default } {}
 	~AlmostViewerApp() override = default;
 
-	bool Initialize(const AppArgs& args) override
+	bool Initialize() override
 	{
 		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
 
@@ -68,6 +69,9 @@ public:
 		m_UIRS->m_Data.adaptationUpSpeed = m_TonemappingRS->GetAdaptationUpSpeed();
 		m_UIRS->m_Data.adaptationDownSpeed = m_TonemappingRS->GetAdaptationDownSpeed();
 
+		m_CameraController.SetWindow(m_Window);
+		m_CameraController.SetCamera(m_MainCamera);
+
 		return true;
 	}
 
@@ -89,6 +93,7 @@ public:
 				m_MainCamera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
 				m_MainCamera->Fit(bounds);
 
+				m_CameraController.SetSpeed(radius * 1.f);
 				m_UIRS->m_Data.CameraSpeed = radius * 1.f;
 
 				m_Scene->GetSceneGraph()->LogGraph();
@@ -110,20 +115,7 @@ public:
 		}
 
 		// Camera movement
-		{
-			const float3& camFwd = m_MainCamera->GetForward();
-			const float3& camRight = m_MainCamera->GetRight();
-
-			float3 newPos = m_MainCamera->GetPosition();
-			float2 cameraTurboSpeed = m_CameraSpeed;
-			SDL_Keymod mod = SDL_GetModState();
-			if (mod & SDL_KMOD_SHIFT)
-				cameraTurboSpeed *= 2.f;
-			newPos += camFwd * cameraTurboSpeed.y * deltaTime;
-			newPos += -camRight * cameraTurboSpeed.x * deltaTime;
-
-			m_MainCamera->SetPosition(newPos);
-		}
+		m_CameraController.Update(deltaTime);
 
 		// Update UI values
 		{
@@ -132,6 +124,8 @@ public:
 			{
 				renderGraph->SetCurrentRenderMode(data.RenderMode);
 			}
+
+			m_CameraController.SetSpeed(data.CameraSpeed);
 
 			m_DebugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Mesh, data.ShowMeshBBoxes);
 			m_DebugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Light, data.ShowLightBBoxes);
@@ -214,66 +208,7 @@ public:
 
 	void OnSDLEvent(const SDL_Event& event) override
 	{
-		switch (event.type)
-		{
-		case SDL_EVENT_MOUSE_MOTION:
-		{
-			if (m_MouseMiddlePressed)
-			{
-				int windowWidth, windowHeight;
-				SDL_GetWindowSize(m_Window, (int*)&windowWidth, (int*)&windowHeight);
-				{
-					float angleRad = event.motion.yrel * PI / windowHeight;
-					glm::quat q = glm::angleAxis(-angleRad, m_MainCamera->GetRight());
-					float3 newFwd = q * m_MainCamera->GetForward();
-					m_MainCamera->SetForward(newFwd);
-				}
-				{
-					float angleRad = event.motion.xrel * PI / windowWidth;
-					glm::quat q = glm::angleAxis(-angleRad, m_MainCamera->GetUp());
-					float3 newFwd = q * m_MainCamera->GetForward();
-					m_MainCamera->SetForward(newFwd);
-				}
-			}
-		} break;
-
-		case SDL_EVENT_MOUSE_BUTTON_DOWN:
-		case SDL_EVENT_MOUSE_BUTTON_UP:
-		{
-			switch (event.button.button)
-			{
-			case SDL_BUTTON_LEFT:
-				break;
-			case SDL_BUTTON_MIDDLE:
-				m_MouseMiddlePressed = event.button.down;
-				break;
-			case SDL_BUTTON_RIGHT:
-				break;
-			}
-		} break;
-
-		case SDL_EVENT_KEY_DOWN:
-		{
-			switch (event.key.key)
-			{
-			case SDLK_W: m_CameraSpeed.y = m_UIRS->m_Data.CameraSpeed; break;
-			case SDLK_S: m_CameraSpeed.y = -m_UIRS->m_Data.CameraSpeed; break;
-			case SDLK_A: m_CameraSpeed.x = m_UIRS->m_Data.CameraSpeed; break;
-			case SDLK_D: m_CameraSpeed.x = -m_UIRS->m_Data.CameraSpeed; break;
-			}
-		} break;
-
-		case SDL_EVENT_KEY_UP:
-		{
-			switch (event.key.key)
-			{
-			case SDLK_W: m_CameraSpeed.y = 0.f; break;
-			case SDLK_S: m_CameraSpeed.y = 0.f; break;
-			case SDLK_A: m_CameraSpeed.x = 0.f; break;
-			case SDLK_D: m_CameraSpeed.x = 0.f; break;
-			}
-		} break;
-		}
+		m_CameraController.OnSDLEvent(event);
 	}
 
 	alm::gfx::RenderStageTypeID GetUIRenderStageType() const override { return StructureUI::StaticType(); }
@@ -290,12 +225,11 @@ private:
 	std::shared_ptr<alm::gfx::DebugRenderStage> m_DebugRS;
 	std::shared_ptr<alm::gfx::DeferredLightingRenderStage> m_LightingRS;
 
+	alm::CameraController m_CameraController;
+
 	std::string m_RequestLoadFile;
 	bool m_RequestClose = false;
-	bool m_RequestQuit = false;
-
-	bool m_MouseMiddlePressed = false;
-	float2 m_CameraSpeed{ 0.f };
+	bool m_RequestQuit = false;	
 };
 
 std::unique_ptr<alm::App> CreateApp()

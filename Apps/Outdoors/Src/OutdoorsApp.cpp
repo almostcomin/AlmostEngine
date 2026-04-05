@@ -1,5 +1,6 @@
 #include "Framework/FrameworkPCH.h"
 #include "Framework/App.h"
+#include "Framework/CameraController.h"
 #include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "Gfx/RenderStages/DebugRenderStage.h"
 #include "Gfx/RenderStages/DepthPrepassRenderStage.h"
@@ -17,6 +18,10 @@
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
+#include "Gfx/GltfImporter.h"
+#include "Gfx/Camera.h"
+#include "Gfx/Scene.h"
+#include "Gfx/SceneGraph.h"
 
 class OutdoorsApp : public alm::App
 {
@@ -25,13 +30,40 @@ public:
 	OutdoorsApp() : alm::App{ "OutdoorsApp", alm::App::RenderStageSetMode::User } {}
 	~OutdoorsApp() override = default;
 
-	bool Initialize(const AppArgs& args) override
+	bool Initialize() override
 	{
+		m_MainCamera->SetPosition(float3{ 0.f, 0.f, 100.f });
+
+		m_CameraController.SetWindow(m_Window);
+		m_CameraController.SetCamera(m_MainCamera);
+
+		std::string path = GetStartupArgString("load");
+		if (!path.empty())
+		{
+			auto importResult = alm::gfx::ImportGlTF(path.c_str(), m_DeviceManager.get());
+			if (importResult)
+			{
+				m_Scene->SetSceneGraph(std::move(*importResult));
+
+				const alm::math::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::BoundsType::Mesh);
+				const float radius = glm::length(bounds.extents()) / 2.f;
+				m_MainCamera->SetZNear(radius * 0.05f);
+
+				m_MainCamera->SetPosition(float3{ 0.f, 0.f, 100.f });
+				m_MainCamera->Fit(bounds);
+
+				m_CameraController.SetSpeed(radius * 1.f);
+			}
+		}
+
 		return true;
 	}
 
 	bool Update(float deltaTime) override
 	{
+		// Camera movement
+		m_CameraController.Update(deltaTime);
+
 		return true;
 	}
 
@@ -41,6 +73,7 @@ public:
 
 	void OnSDLEvent(const SDL_Event& event) override
 	{
+		m_CameraController.OnSDLEvent(event);
 	}
 
 	std::shared_ptr<alm::gfx::ImGuiRenderStage> UserInitRenderStages() override
@@ -101,6 +134,7 @@ public:
 
 private:
 
+	alm::CameraController m_CameraController;
 };
 
 std::unique_ptr<alm::App> CreateApp()

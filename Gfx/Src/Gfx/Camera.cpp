@@ -109,6 +109,17 @@ float4x4 alm::gfx::Camera::GetViewProjectionMatrix()
 	return m_ProjectionMatrix * m_ViewMatrix;
 }
 
+float4x4 alm::gfx::Camera::GetClipToTranslatedWorldMatrix()
+{
+	UpdateMatrices();
+
+	float4x4 invView = glm::inverse(m_ViewMatrix);
+	invView[3] = float4(0.f, 0.f, 0.f, 1.f);
+	float4x4 invProj = glm::inverse(m_ProjectionMatrix);
+
+	return invView * invProj;
+}
+
 const alm::math::frustum3f& alm::gfx::Camera::GetFrustum()
 {
 	UpdateMatrices();

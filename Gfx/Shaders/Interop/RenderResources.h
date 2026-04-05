@@ -127,16 +127,21 @@ namespace interop
         uint _padding[2];
     };
 
+    // Warning! can't use _padding[2] since in a constant buffer each array element consumes 4 bytes:
+    // https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules#more-aggressive-packing
     struct SceneConstants
     {
         float2 invScreenResolution;
-        // Warning! can't use _padding[2] since in a constant buffer each array element consumes 4 bytes:
-        // https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules#more-aggressive-packing
-        uint _padding0;        
+        float aspect;
+        uint _padding0;
+
+        float time;
+        float deltaTime;
         uint _padding1;
+        uint _padding2;
 
         // Camera
-        float4x4 camViewProjMatrix;             // offset 16
+        float4x4 camViewProjMatrix;             // offset 32
         float4x4 invCamViewProjMatrix;
         float4x4 camViewMatrix;
         float4x4 invCamViewMatrix;
@@ -152,9 +157,8 @@ namespace interop
         float4 ambientTop;      // rgb
         float4 ambientBottom;   // rgb
 
-        DirLightData mainDirLight;
-
         // Lights
+        DirLightData mainDirLight;
         uint dirLightCount;
         BufferReadOnlyIndex dirLightsDataDI;    // DirLightData
         uint pointLightCount;
@@ -368,7 +372,11 @@ namespace interop
 
     struct SkyConstants
     {
-        float aspect;
+        float4x4 matClipToTranslatedWorld;
+        float2 windVelocity;
+        float cloudScale;
+        float time;
+        float3 sunDirection;
     };
 }
 

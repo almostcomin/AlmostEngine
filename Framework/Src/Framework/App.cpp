@@ -50,6 +50,15 @@ bool GetBoolArg(const alm::App::AppArgs& args, const std::string& key, bool defa
 		return it->second == "0" ? false : true;
 }
 
+std::string GetStringArg(const alm::App::AppArgs& args, const std::string& key, const std::string& defaultValue = {})
+{
+	auto it = args.find(key);
+	if (it == args.end())
+		return defaultValue;
+	else
+		return it->second;
+}
+
 } // anonymous namespace
 
 int SDL_main(int argc, char* argv[])
@@ -69,10 +78,12 @@ alm::App::App(const std::string& windowTitle, RenderStageSetMode renderStageSetM
 alm::App::~App()
 {}
 
-void alm::App::Run(const AppArgs& params)
+void alm::App::Run(const AppArgs& args)
 {
-	InitInternal(params);
-	Initialize(params);
+	m_StartupArgs = args;
+
+	InitInternal();
+	Initialize();
 
 	MainLoop();
 
@@ -80,7 +91,17 @@ void alm::App::Run(const AppArgs& params)
 	ShutdownInternal();
 }
 
-bool alm::App::InitInternal(const AppArgs& args)
+bool alm::App::GetStartupArgBool(const std::string& key, bool defaultValue)
+{
+	return GetBoolArg(m_StartupArgs, key, defaultValue);
+}
+
+std::string alm::App::GetStartupArgString(const std::string& key, const std::string& defaultValue)
+{
+	return GetStringArg(m_StartupArgs, key, defaultValue);
+}
+
+bool alm::App::InitInternal()
 {
 	// Initialize SDL
 	if (!SDL_Init(SDL_INIT_VIDEO))
@@ -98,8 +119,8 @@ bool alm::App::InitInternal(const AppArgs& args)
 	}
 
 	// Init device manager
-	const bool graphicsDebug = GetBoolArg(args, "gd", false);
-	const bool vSync = GetBoolArg(args, "vsync", false);
+	const bool graphicsDebug = GetStartupArgBool("gd", false);
+	const bool vSync = GetStartupArgBool("vsync", false);
 
 	m_DeviceManager = std::unique_ptr<alm::gfx::DeviceManager>{ alm::gfx::DeviceManager::Create(alm::gfx::GraphicsAPI::D3D12) };
 	alm::gfx::DeviceManager::DeviceParams initParams{
@@ -271,16 +292,20 @@ void alm::App::InitRenderStages()
 void alm::App::MainLoop()
 {
 	bool requestQuit = false;
-	auto lastTime = std::chrono::steady_clock::now();
-	auto fpsLastTime = lastTime;
+	auto appStartTime = std::chrono::steady_clock::now();
+	auto lastTime = appStartTime;
+	auto fpsLastTime = appStartTime;
 	uint32_t fpsFrameCount = 0;
 	bool mouseMiddlePressed = false;
 
 	while (!requestQuit)
 	{
 		const auto currentTime = std::chrono::steady_clock::now();
-		const std::chrono::duration<float> elapsed = currentTime - lastTime;
-		const float elapsedSec = elapsed.count();
+		const std::chrono::duration<double> totalDuration = currentTime - appStartTime;
+		const double totalSec = totalDuration.count();
+		const std::chrono::duration<float> elapsedDuration = currentTime - lastTime;
+		const float elapsedSec = elapsedDuration.count();
+		lastTime = currentTime;
 
 		// Update timers
 		{
@@ -355,11 +380,10 @@ void alm::App::MainLoop()
 
 		m_DeviceManager->Render([&]()
 		{
-			m_MainRenderView->Render(elapsedSec);
+			m_MainRenderView->Render(totalSec, elapsedSec);
 		});
 
 		fpsFrameCount++;
-		lastTime = currentTime;
 		std::this_thread::yield();
 	}
 }

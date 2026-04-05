@@ -36,11 +36,14 @@ public:
     App(const std::string& windowTitle, RenderStageSetMode renderStageSetMode);
     virtual ~App();
 
-    void Run(const AppArgs& params);
+    void Run(const AppArgs& args);
+
+    bool GetStartupArgBool(const std::string& key, bool defaultValue = false);
+    std::string GetStartupArgString(const std::string& key, const std::string& defaultValue = {});
 
 protected:
 
-    virtual bool Initialize(const AppArgs& args) { return true; }
+    virtual bool Initialize() { return true; }
     virtual bool Update(float deltaTime) { return true; }
     virtual void Render() {}    
     virtual void Shutdown() {}
@@ -68,9 +71,11 @@ protected:
     float m_GPUTime;
     float m_FPS;
 
+    AppArgs m_StartupArgs;
+
 private:
 
-    bool InitInternal(const AppArgs& args);
+    bool InitInternal();
     void ShutdownInternal();
     void InitRenderStages();
 

@@ -66,11 +66,7 @@ void alm::gfx::SimpleSkyRenderStage::Render(alm::rhi::CommandListHandle commandL
 	m_ShaderCB.Unmap();
 
 	interop::SimpleSkyConstants shaderConstants;
-	float4x4 invView = glm::inverse(GetCamera()->GetViewMatrix());
-	invView[3] = float4(0, 0, 0, 1);
-	float4x4 invProj = glm::inverse(GetCamera()->GetProjectionMatrix());
-
-	shaderConstants.matClipToTranslatedWorld = invView * invProj;
+	shaderConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
 	shaderConstants.skyDataDI = m_ShaderCB.GetUniformView();
 
 	commandList->PushGraphicsConstants(0, shaderConstants);

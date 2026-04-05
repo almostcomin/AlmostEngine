@@ -1,7 +1,7 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
-
-// Based on NVidia's Donut sample: https://github.com/NVIDIA-RTX/Donut
+#include "Noise.hlsli"
+#include "Common.hlsli"
 
 ConstantBuffer<interop::SkyConstants> Constants : register(b0);
 
@@ -11,77 +11,64 @@ struct PS_INPUT
     float2 uv : TEXCOORD0;
 };
 
-float random(float2 st)
-{
-    return frac(sin(dot(st.xy, float2(12.9898, 78.233))) * 43758.5453123);
-}
+static const float CLOUD_RADIUS = 1000.0; // Radius of the skydome    
+static const float CLOUD_DENSITY_POW = 2.0f;
+static const float SUN_SCATTER_POW = 4.0f;
+static const float SUN_CLOUD_POW = 2.0f;
+static const float CLOUD_FADE_START = 0.05f;
+static const float CLOUD_FADE_RANGE = 0.15f;
+static const float CLOUD_FADE_POW = 1.5f;
 
-// Returns a random valuer in the range [-1, 1]
-float2 random2(float2 st)
+float GetCloudDensity(float v)
 {
-    st = float2(dot(st, float2(127.1, 311.7)), dot(st, float2(269.5, 183.3)));
-    return -1.0 + 2.0 * frac(sin(st) * 43758.5453123);
-}
-
-// Gradient Noise by Inigo Quilez - iq/2013
-// https://www.shadertoy.com/view/XdXGW8
-// Returns a noise value in the range [-1, 1]
-float noise(float2 st)
-{
-    float2 i = floor(st);
-    float2 f = frac(st);
-
-    // Gradients for each corner
-    float2 g00 = random2(i + float2(0.0, 0.0));
-    float2 g10 = random2(i + float2(1.0, 0.0));
-    float2 g01 = random2(i + float2(0.0, 1.0));
-    float2 g11 = random2(i + float2(1.0, 1.0));
-    
-    // Offset vectors
-    float2 d00 = f - float2(0.0, 0.0);
-    float2 d10 = f - float2(1.0, 0.0);
-    float2 d01 = f - float2(0.0, 1.0);
-    float2 d11 = f - float2(1.0, 1.0);
-    
-    // Dot products gradient.offset
-    float n00 = dot(g00, d00);
-    float n10 = dot(g10, d10);
-    float n01 = dot(g01, d01);
-    float n11 = dot(g11, d11);
-    
-    float2 u = smoothstep(0, 1, f);
-    
-    return lerp(lerp(n00, n10, u.x), 
-                lerp(n01, n11, u.x), u.y);
+    //v = NormalizeNoise(v);
+    return pow(v, CLOUD_DENSITY_POW);
 }
 
 [RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {    
-    float2 x = input.uv * 10;
-    x.x *= Constants.aspect;
+    float4 clipPos;
+    clipPos.x = input.uv.x * 2.0 - 1.0;
+    clipPos.y = 1.0 - input.uv.y * 2.0;
+    clipPos.z = 1.0;
+    clipPos.w = 1.0;
     
-    //float r = rand(input.uv);
-    //color = float3(r, r, r);
+    float4 worldPos = mul(Constants.matClipToTranslatedWorld, clipPos);
+    float3 worldDir = normalize(worldPos.xyz);
+        
+    // Planar projection
+    float3 cloudPos = worldDir * (CLOUD_RADIUS / max(worldDir.y, 0.0001f));
+    float2 st = cloudPos.xz * Constants.cloudScale;
+    st += Constants.windVelocity * Constants.time;
+        
+    // Sample noise and convert to density via GetCloudDensity
+    //float noiseValue = GradientFbm(st, 6);
+    float noiseValue = Turbulence(st, 6, 0.5);
+    float cloudDensity = GetCloudDensity(noiseValue);
 
-/*        
-    float2 i = floor(x);
-    float2 f = frac(x); 
+    // Horizon mask
+    float horizonMask = saturate((worldDir.y - CLOUD_FADE_START) / CLOUD_FADE_RANGE);
+    cloudDensity *= pow(horizonMask, CLOUD_FADE_POW);
+    
+    // Sun direction
+    float3 sunDir = normalize(Constants.sunDirection);
+    float sunDot = max(0.0f, dot(worldDir, sunDir));
+    float sunScatter = pow(sunDot, SUN_SCATTER_POW);
 
-    float a = rand(i);
-    float b = rand(i + float2(1, 0));
-    float c = rand(i + float2(0, 1));
-    float d = rand(i + float2(1, 1));
-    
-    float2 u = smoothstep(0, 1, f);
-    
-    float y = lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
-    
-    color = float3(y, y, y);
-  */
-    
-    float y = noise(x) * 0.5 + 0.5;
-    float3 color = float3(y, y, y);
+    // Sky gradient: zenith-to-horizon + directional sun scatter
+    float3 skyZenith = float3(0.00f, 0.10f, 0.20f);
+    float3 skyHorizon = float3(0.10f, 0.20f, 0.40f);
+    float3 sunColor = float3(1.00f, 0.75f, 0.45f); // warm scatter near sun
 
-    return float4(color, 1.0);
+    float3 skyGradient = lerp(skyHorizon, skyZenith, saturate(worldDir.y));
+    skyGradient = lerp(skyGradient, sunColor, sunScatter * 0.35f);
+
+    // Cloud color: shadowed vs. lit by sun
+    float3 cloudShadow = float3(0.70f, 0.70f, 0.80f);
+    float3 cloudLit = float3(1.00f, 1.00f, 0.90f);
+    float3 cloudColor = lerp(cloudShadow, cloudLit, pow(sunDot, SUN_CLOUD_POW));
+
+    float3 color = lerp(skyGradient, cloudColor, cloudDensity);
+    return float4(color, 1.0f);
 }

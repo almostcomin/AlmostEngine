@@ -21,6 +21,7 @@ alm::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debug
 
 alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* deviceManager, const char* debugName) :
 	m_ViewportSwapChainId{ viewportId },
+	m_TimeSec{ 0.0 },
 	m_TimeDeltaSec{ 0.f },
 	m_DebugName{ debugName },
 	m_DeviceManager{ deviceManager }
@@ -125,7 +126,7 @@ void alm::gfx::RenderView::OnWindowSizeChanged()
 	}
 }
 
-void alm::gfx::RenderView::Render(float timeDeltaSec)
+void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 {
 	alm::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
 	if (!frameBuffer)
@@ -140,6 +141,9 @@ void alm::gfx::RenderView::Render(float timeDeltaSec)
 	beginCommandList->BeginMarker("Begin commands");
 
 	// Update common data
+	m_TimeSec = timeSec;
+	m_TimeDeltaSec = timeDeltaSec;
+
 	UpdateCameraVisibleSet(beginCommandList);
 	UpdateShadowmapData(beginCommandList);
 	UpdateDirLightsVisibleBuffer(beginCommandList);
@@ -147,8 +151,6 @@ void alm::gfx::RenderView::Render(float timeDeltaSec)
 	UpdateSpotLightsVisibleBuffer(beginCommandList);
 
 	UpdateSceneConstantBuffer();
-
-	m_TimeDeltaSec = timeDeltaSec;
 
 	// Back buffer is in COMMON state and need to be transitioned to RT
 	beginCommandList->PushBarrier(rhi::Barrier::Texture(
@@ -191,10 +193,13 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 	*sceneShaderConstant = {};
 
 	// Screen resolution
-	sceneShaderConstant->invScreenResolution = float2{
-		1.f / GetFramebuffer()->GetFramebufferInfo().width,
-		1.f / GetFramebuffer()->GetFramebufferInfo().height };
-	
+	float2 screenResolution = float2{ GetFramebuffer()->GetFramebufferInfo().width, GetFramebuffer()->GetFramebufferInfo().height };
+	sceneShaderConstant->invScreenResolution = 1.0f / screenResolution;	
+	sceneShaderConstant->aspect = screenResolution.x / screenResolution.y;
+
+	sceneShaderConstant->time = m_TimeSec;
+	sceneShaderConstant->deltaTime = m_TimeDeltaSec;
+
 	// Camera
 	if (m_Camera)
 	{
