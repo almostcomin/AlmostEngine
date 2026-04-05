@@ -28,6 +28,8 @@ float GetCloudDensity(float v)
 [RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {    
+    Texture3D baseTexture = ResourceDescriptorHeap[Constants.cloudBaseShapeTexture];
+    
     float4 clipPos;
     clipPos.x = input.uv.x * 2.0 - 1.0;
     clipPos.y = 1.0 - input.uv.y * 2.0;
@@ -70,5 +72,13 @@ float4 main(PS_INPUT input) : SV_Target
     float3 cloudColor = lerp(cloudShadow, cloudLit, pow(sunDot, SUN_CLOUD_POW));
 
     float3 color = lerp(skyGradient, cloudColor, cloudDensity);
+    
+    
+    float3 uvw = float3(input.uv, 0.0);
+    color = baseTexture.SampleLevel(pointClampSampler, uvw, 0.5).rgb;
+        
+    
+    
+    
     return float4(color, 1.0f);
 }

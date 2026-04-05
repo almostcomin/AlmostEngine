@@ -136,4 +136,9 @@ constexpr bool any(const T& c)
     return std::any_of(c.begin(), c.end(), std::identity{});
 }
 
+constexpr uint32_t MakeRGBA(byte r, byte g, byte b, byte a)
+{
+    return uint32_t(r) << 24 | uint32_t(g) << 16 | uint32_t(b) << 8 | a;
+}
+
 } // namespace st

@@ -150,57 +150,6 @@ RSDepResult ShowRSDep(const char* label, const char* value, bool selected, int i
     return ret;
 }
 
-void ShowPropertyText(const char* label, float labelWidth, const char* value, float valueWidth, int id)
-{
-    ImGui::PushID(id);
-    float startX = ImGui::GetCursorPosX();
-
-    // Label
-    ImGui::SetNextItemWidth(labelWidth);
-    ImGui::TextUnformatted(label);
-
-    ImGui::SameLine(startX + labelWidth + 8.0f);
-
-    ImGui::BeginDisabled();
-    ImGui::SetNextItemWidth(valueWidth);
-    ImGui::InputText("##value", (char*)value, strlen(value), ImGuiInputTextFlags_ReadOnly);
-    ImGui::EndDisabled();
-
-    ImGui::PopID();
-}
-
-void ShowPropertyInt(const char* label, float labelWidth, int value, float valueWidth, int id)
-{
-    ImGui::PushID(id);
-    float startX = ImGui::GetCursorPosX();
-
-    // Label
-    ImGui::SetNextItemWidth(labelWidth);
-    ImGui::TextUnformatted(label);
-
-    ImGui::SameLine(startX + labelWidth + 8.0f);
-
-    ImGui::BeginDisabled();
-    ImGui::SetNextItemWidth(valueWidth);
-    ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
-    ImGui::EndDisabled();
-
-    ImGui::PopID();
-}
-
-void TextAlignedRight(float rightPos, const char* fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    char buffer[256];
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-
-    float textWidth = ImGui::CalcTextSize(buffer).x;
-    ImGui::SetCursorPosX(rightPos - textWidth);
-    ImGui::TextUnformatted(buffer);
-}
-
 const char* GetTextureDimensionText(alm::rhi::TextureDimension dim)
 {
     switch (dim)
@@ -310,6 +259,8 @@ void StructureUI::BuildUI()
 {
     if (!m_Data.ShowUI)
         return;
+
+    FrameworkUI::BuildUI();
 
     ImGuiIO const& io = ImGui::GetIO();
 

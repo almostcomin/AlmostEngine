@@ -47,9 +47,6 @@ public:
 
 	virtual void BuildUI() {};
 
-	void SetRenderStats(float fps, float cpuTime, float gpuTime);
-	void ShowBottomBar(bool b) { m_ShowBottomBar = b; }
-
 	void RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList);
 
 protected:
@@ -67,8 +64,6 @@ protected:
 
 	void ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, ImGuiTexFlags flags = ImGuiTexFlags_None);
 
-	bool ShowToggleButton(const char* label, bool* v);
-
 	rhi::BufferOwner& GetCurrentVB(GeometryBuffers& geometryBuffers);
 	rhi::BufferOwner& GetCurrentIB(GeometryBuffers& geometryBuffers);
 
@@ -81,8 +76,6 @@ private:
 	bool UpdateGeometry(ImDrawData* drawData, GeometryBuffers& geometryBuffers);
 
 	bool ReallocateBuffer(rhi::BufferOwner& buffer, size_t requiredSize, size_t reallocateSize, const bool indexBuffer);
-
-	void BuildBottomBar();
 
 private:
 

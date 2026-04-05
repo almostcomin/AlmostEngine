@@ -1,5 +1,6 @@
 #include "Framework/FrameworkPCH.h"
 #include "Framework/App.h"
+#include "Framework/FrameworkUI.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/Scene.h"
 #include "Gfx/Camera.h"
@@ -27,9 +28,9 @@
 namespace
 {
 
-alm::App::AppArgs ParseArgs(int argc, char* argv[])
+alm::fw::App::AppArgs ParseArgs(int argc, char* argv[])
 {
-	alm::App::AppArgs args;
+	alm::fw::App::AppArgs args;
 	for (int i = 1; i < argc - 1; i++)
 	{
 		if (argv[i][0] == '-')
@@ -41,7 +42,7 @@ alm::App::AppArgs ParseArgs(int argc, char* argv[])
 	return args;
 }
 
-bool GetBoolArg(const alm::App::AppArgs& args, const std::string& key, bool defaultValue = false)
+bool GetBoolArg(const alm::fw::App::AppArgs& args, const std::string& key, bool defaultValue = false)
 {
 	auto it = args.find(key);
 	if (it == args.end())
@@ -50,7 +51,7 @@ bool GetBoolArg(const alm::App::AppArgs& args, const std::string& key, bool defa
 		return it->second == "0" ? false : true;
 }
 
-std::string GetStringArg(const alm::App::AppArgs& args, const std::string& key, const std::string& defaultValue = {})
+std::string GetStringArg(const alm::fw::App::AppArgs& args, const std::string& key, const std::string& defaultValue = {})
 {
 	auto it = args.find(key);
 	if (it == args.end())
@@ -70,15 +71,17 @@ int SDL_main(int argc, char* argv[])
 	return 0;
 }
 
-alm::App::App(const std::string& windowTitle, RenderStageSetMode renderStageSetMode) : 
+alm::fw::App::App(const std::string& windowTitle, RenderStageSetMode renderStageSetMode) :
+	m_FrameworkUI{ nullptr },
+	m_Window{ nullptr },
 	m_WindowTitle{ windowTitle },
 	m_RenderStageSetMode{ renderStageSetMode }
 {}
 
-alm::App::~App()
+alm::fw::App::~App()
 {}
 
-void alm::App::Run(const AppArgs& args)
+void alm::fw::App::Run(const AppArgs& args)
 {
 	m_StartupArgs = args;
 
@@ -91,17 +94,22 @@ void alm::App::Run(const AppArgs& args)
 	ShutdownInternal();
 }
 
-bool alm::App::GetStartupArgBool(const std::string& key, bool defaultValue)
+bool alm::fw::App::GetStartupArgBool(const std::string& key, bool defaultValue)
 {
 	return GetBoolArg(m_StartupArgs, key, defaultValue);
 }
 
-std::string alm::App::GetStartupArgString(const std::string& key, const std::string& defaultValue)
+std::string alm::fw::App::GetStartupArgString(const std::string& key, const std::string& defaultValue)
 {
 	return GetStringArg(m_StartupArgs, key, defaultValue);
 }
 
-bool alm::App::InitInternal()
+alm::gfx::RenderStageTypeID alm::fw::App::GetUIRenderStageType() const
+{ 
+	return alm::fw::FrameworkUI::StaticType(); 
+}
+
+bool alm::fw::App::InitInternal()
 {
 	// Initialize SDL
 	if (!SDL_Init(SDL_INIT_VIDEO))
@@ -180,12 +188,13 @@ bool alm::App::InitInternal()
 	if (m_ImGuiRS)
 	{
 		alm::gfx::InitImGuiViewportsRenderer(m_ImGuiRS, m_DeviceManager.get());
+		m_FrameworkUI = dynamic_cast<alm::fw::FrameworkUI*>(m_ImGuiRS.get());
 	}
 
 	return true;
 }
 
-void alm::App::ShutdownInternal()
+void alm::fw::App::ShutdownInternal()
 {
 	m_MainRenderView.reset();
 	m_Scene.reset();
@@ -202,7 +211,7 @@ void alm::App::ShutdownInternal()
 	SDL_Quit();
 }
 
-void alm::App::InitRenderStages()
+void alm::fw::App::InitRenderStages()
 {
 	if (m_RenderStageSetMode == RenderStageSetMode::None)
 		return;
@@ -289,7 +298,7 @@ void alm::App::InitRenderStages()
 	}
 }
 
-void alm::App::MainLoop()
+void alm::fw::App::MainLoop()
 {
 	bool requestQuit = false;
 	auto appStartTime = std::chrono::steady_clock::now();
@@ -365,9 +374,9 @@ void alm::App::MainLoop()
 			m_Scene->Update();
 		}
 
-		if (m_ImGuiRS)
+		if (m_FrameworkUI)
 		{
-			m_ImGuiRS->SetRenderStats(m_FPS, m_CPUTime, m_GPUTime);
+			m_FrameworkUI->SetRenderStats(m_FPS, m_CPUTime, m_GPUTime);
 		}
 
 		if (m_DeviceManager->UpdateWindowSize())

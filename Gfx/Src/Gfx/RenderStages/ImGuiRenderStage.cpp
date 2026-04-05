@@ -87,10 +87,6 @@ void alm::gfx::ImGuiRenderStage::Render(alm::rhi::CommandListHandle commandList)
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
-    if (m_ShowBottomBar)
-    {
-        BuildBottomBar();
-    }
     BuildUI();
 
     ImGui::Render();
@@ -325,13 +321,6 @@ bool alm::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size
     return true;
 }
 
-void alm::gfx::ImGuiRenderStage::SetRenderStats(float fps, float cpuTime, float gpuTime)
-{
-    m_FPS = fps;
-    m_CPUTime = cpuTime;
-    m_GPUTime = gpuTime;
-}
-
 void alm::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList)
 {
     if (drawData->TotalIdxCount == 0)
@@ -435,74 +424,4 @@ void alm::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2&
     m_CurrentTextures.push_back(alm::unique<ImGuiTexture>{ imGuiTex });
 
     ImGui::Image(ImTextureRef{ imGuiTex }, ImVec2{ size.x, size.y }, ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
-}
-
-bool alm::gfx::ImGuiRenderStage::ShowToggleButton(const char* label, bool* v)
-{
-    bool newV = *v;
-    if (*v)
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-    if (ImGui::Button(label))
-        newV = !newV;
-    if (*v)
-        ImGui::PopStyleColor();
-    *v = newV;
-    return *v;
-}
-
-void alm::gfx::ImGuiRenderStage::BuildBottomBar()
-{
-    auto* deviceManager = GetDeviceManager();
-    const auto renderStats = deviceManager->GetDevice()->GetStats();
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(0, 0));
-
-    ImGuiViewport* vp = ImGui::GetMainViewport();
-    const float statusBarHeight = ImGui::GetFrameHeight();
-
-    ImGui::SetNextWindowPos(ImVec2{ vp->Pos.x, vp->Pos.y + vp->Size.y - statusBarHeight });
-    ImGui::SetNextWindowSize(ImVec2{ vp->Size.x, statusBarHeight });
-
-    ImGuiWindowFlags flags =
-        ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoScrollbar |
-        ImGuiWindowFlags_NoSavedSettings;
-
-    ImGui::Begin("##StatusBar", nullptr, flags);
-    {
-        float textHeight = ImGui::GetTextLineHeight();
-        float paddingY = ImGui::GetStyle().WindowPadding.y;
-
-        // Centro vertical real
-        float cursorY = (statusBarHeight - textHeight) * 0.5f;
-
-        ImGui::SetCursorPosY(cursorY);
-
-        ImGui::Text(" FPS: %1.3f", m_FPS);
-        float xpos = 160.f;
-
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(xpos);
-        ImGui::Text("| Draw calls: %d", renderStats.DrawCalls);
-        xpos += 160.f;
-
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(xpos);
-        ImGui::Text("| Primitives: %d", renderStats.PrimitiveCount);
-        xpos += 200.f;
-
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(xpos);
-        ImGui::Text("| GPU: %1.2f ms", m_GPUTime);
-        xpos += 160.f;
-
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(xpos);
-        ImGui::Text("| CPU: %1.2f ms", m_CPUTime);
-    }
-    ImGui::End();
-
-    ImGui::PopStyleVar();
 }

@@ -15,7 +15,12 @@ namespace alm::gfx
     class ImGuiRenderStage;
 }
 
-namespace alm
+namespace alm::fw
+{
+    class FrameworkUI;
+}
+
+namespace alm::fw
 {
 
 class App //: public alm::noncopyable_nonmovable
@@ -51,7 +56,7 @@ protected:
     virtual void OnSDLEvent(const SDL_Event& event) {};
     virtual std::shared_ptr<alm::gfx::ImGuiRenderStage> UserInitRenderStages() { return nullptr; };
 
-    virtual gfx::RenderStageTypeID GetUIRenderStageType() const { return gfx::RenderStageType_None; }
+    virtual gfx::RenderStageTypeID GetUIRenderStageType() const; // default FrameworkUI
 
 protected:
 
@@ -61,8 +66,9 @@ protected:
     std::shared_ptr<alm::gfx::Camera> m_MainCamera;
 
     std::shared_ptr<alm::gfx::ImGuiRenderStage> m_ImGuiRS;
+    alm::fw::FrameworkUI* m_FrameworkUI;
 
-    SDL_Window* m_Window = nullptr;
+    SDL_Window* m_Window;
     std::string m_WindowTitle;
 
     RenderStageSetMode m_RenderStageSetMode;
@@ -85,4 +91,4 @@ private:
 } // namespace alm
 
 // To be implemented by final app
-std::unique_ptr<alm::App> CreateApp();
+std::unique_ptr<alm::fw::App> CreateApp();

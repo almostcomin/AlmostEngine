@@ -22,12 +22,13 @@
 #include "Gfx/Camera.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
+#include "OutdoorsUI.h"
 
-class OutdoorsApp : public alm::App
+class OutdoorsApp : public alm::fw::App
 {
 public:
 
-	OutdoorsApp() : alm::App{ "OutdoorsApp", alm::App::RenderStageSetMode::User } {}
+	OutdoorsApp() : alm::fw::App{ "OutdoorsApp", alm::fw::App::RenderStageSetMode::User } {}
 	~OutdoorsApp() override = default;
 
 	bool Initialize() override
@@ -78,6 +79,8 @@ public:
 
 	std::shared_ptr<alm::gfx::ImGuiRenderStage> UserInitRenderStages() override
 	{
+		m_UI = alm::gfx::RenderStageFactory::CreateShared<OutdoorsUI>();
+
 		auto shadowmapRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::ShadowmapRenderStage>();
 		auto depthPrepassRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::DepthPrepassRenderStage>();
 		auto linearizeDepthRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::LinearizeDepthRenderStage>();
@@ -92,7 +95,7 @@ public:
 		auto debugRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
 		auto wireframeRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
 		auto compositeRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
-		auto ImGuiRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::ImGuiRenderStage>();
+		auto ImGuiRS = m_UI;
 
 		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
 		renderGraph->SetRenderStages({
@@ -135,9 +138,10 @@ public:
 private:
 
 	alm::CameraController m_CameraController;
+	std::shared_ptr<OutdoorsUI> m_UI;
 };
 
-std::unique_ptr<alm::App> CreateApp()
+std::unique_ptr<alm::fw::App> CreateApp()
 {
-	return std::unique_ptr<alm::App>{ new OutdoorsApp };
+	return std::unique_ptr<alm::fw::App>{ new OutdoorsApp };
 }

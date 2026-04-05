@@ -31,6 +31,8 @@ private:
 	void OnAttached() override;
 	void OnDetached() override;
 
+    void CreateNoiseTextures();
+
 private:
 
     RGTextureHandle m_SceneColorTexture;
@@ -39,6 +41,8 @@ private:
 
     rhi::ShaderOwner m_PS;
     rhi::GraphicsPipelineStateOwner m_PSO;
+
+    rhi::TextureOwner m_CloudBaseShapeTexture;
 
     SkyParams m_Params;
 };

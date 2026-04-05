@@ -2,7 +2,7 @@
 
 #include "Core/CorePCH.h"
 #include "Core/Math/plane.h"
-#include "Gfx/RenderStages/ImGuiRenderStage.h"
+#include "Framework/FrameworkUI.h"	
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/SimpleSkyRenderStage.h"
 #include "Gfx/RenderGraph.h"
@@ -25,7 +25,7 @@ namespace alm::gfx
 	class ToneMappingRenderStage;
 };
 
-class StructureUI : public alm::gfx::ImGuiRenderStage
+class StructureUI : public alm::fw::FrameworkUI
 {
 	REGISTER_RENDER_STAGE(StructureUI)
 

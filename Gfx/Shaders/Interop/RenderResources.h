@@ -377,6 +377,7 @@ namespace interop
         float cloudScale;
         float time;
         float3 sunDirection;
+        TextureSampledViewIndex cloudBaseShapeTexture;
     };
 }
 

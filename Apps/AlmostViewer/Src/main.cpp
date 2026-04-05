@@ -18,11 +18,11 @@
 #include <SDL3/SDL.h>
 #include <imgui/imgui_impl_sdl3.h>
 
-class AlmostViewerApp : public alm::App
+class AlmostViewerApp : public alm::fw::App
 {
 public:
 
-	AlmostViewerApp() : alm::App{ "Almost Viewer", alm::App::RenderStageSetMode::Default } {}
+	AlmostViewerApp() : alm::fw::App{ "Almost Viewer", alm::fw::App::RenderStageSetMode::Default } {}
 	~AlmostViewerApp() override = default;
 
 	bool Initialize() override
@@ -232,7 +232,7 @@ private:
 	bool m_RequestQuit = false;	
 };
 
-std::unique_ptr<alm::App> CreateApp()
+std::unique_ptr<alm::fw::App> CreateApp()
 {
-	return std::unique_ptr<alm::App>{ new AlmostViewerApp };
+	return std::unique_ptr<alm::fw::App>{ new AlmostViewerApp };
 }

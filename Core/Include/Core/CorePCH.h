@@ -20,7 +20,6 @@
 #include <sstream>
 #include <format>
 #include <thread>
-#include <glm/glm.hpp>
 
 #if _WIN32
 
@@ -36,11 +35,10 @@
 
 #endif // _WIN32
 
-
+#include "Core/Math/glm_config.h"
 #include "Core/static_vector.h"
 #include "Core/unique_vector.h"
 #include "Core/Log.h"
-#include "Core/Math/glm_config.h"
 #include "Core/Math.h"
 #include "Core/Math/aabox.h"
 #include "Core/Math/plane.h"

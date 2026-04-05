@@ -46,6 +46,7 @@ public:
 		UploadTicket(UploadTicket&&) = default;
 		UploadTicket& operator=(UploadTicket&&) = default;
 
+		uint64_t GetSize() const { return size; }
 		void* GetPtr() { return ptr; }
 
 	private:
