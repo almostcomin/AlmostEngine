@@ -127,6 +127,7 @@ void alm::gfx::SkyRenderStage::OnAttached()
 
 void alm::gfx::SkyRenderStage::OnDetached()
 {
+	m_CloudBaseShapeTexture.reset();
 	m_PSO.reset();
 	m_PS.reset();
 }
@@ -161,6 +162,9 @@ void alm::gfx::SkyRenderStage::CreateNoiseTextures()
 			for (int x = 0; x < 128; ++x)
 			{
 				float2 st = float2{ x, y } / 128.f;
+
+				st.x += z / 128.f;
+
 				float w = WorleyNoise(st);
 				byte v = (byte)(w * 255.f);
 				*data = MakeRGBA(v, v, v, v);

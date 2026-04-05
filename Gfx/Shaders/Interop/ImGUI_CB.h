@@ -13,8 +13,11 @@ namespace interop
         BufferReadOnlyIndex vertexBuffer;
         uint vertexBufferOffset;
         TextureSampledViewIndex textureIndex;
-        uint flags;
+        uint bool_Is3DTexture;
         float2 clipOffset;
+        float mip;
+        float slice;
+        uint flags;
     };
 
 } // namespace interlop

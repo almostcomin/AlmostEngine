@@ -167,7 +167,7 @@ alm::rhi::dx12::GpuDevice::GpuDevice(const alm::rhi::dx12::DeviceDesc& desc) :
 		D3D12_RESOURCE_DESC d3d12Desc = {};
 		d3d12Desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 		d3d12Desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-		d3d12Desc.Width = queryHeapDesc.Count * 4;
+		d3d12Desc.Width = queryHeapDesc.Count * sizeof(uint64_t);
 		d3d12Desc.Height = 1;
 		d3d12Desc.DepthOrArraySize = 1;
 		d3d12Desc.MipLevels = 1;
@@ -885,6 +885,15 @@ void alm::rhi::dx12::GpuDevice::Shutdown()
 		}
 		m_LivingResources.clear();
 	}
+}
+
+void alm::rhi::dx12::GpuDevice::ReleaseTimerQuery(dx12::TimerQuery* timerQuery)
+{
+	uint32_t beginIdx = timerQuery->GetBeginQueryIndex();
+	uint32_t endIdx = timerQuery->GetEndQueryIndex();
+	assert(beginIdx + 1 == endIdx);
+
+	m_TimerQueries.Release(beginIdx / 2);
 }
 
 void alm::rhi::dx12::GpuDevice::ReleaseImmediatelyInternal(IResource* resource)

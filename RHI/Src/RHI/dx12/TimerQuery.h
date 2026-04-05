@@ -36,9 +36,12 @@ namespace alm::rhi::dx12
 		void OnBeginExecuted();
 		void OnEndExecuted(Queue& queue);
 
+		uint32_t GetBeginQueryIndex() const { return m_BeginQueryIndex; }
+		uint32_t GetEndQueryIndex() const { return m_EndQueryIndex; }
+
 	private:
 
-		void Release(Device* device) override {}
+		void Release(Device* device) override;
 
 	public:
 

@@ -2,6 +2,7 @@
 #include "Framework/FrameworkUI.h"
 #include "gfx/DeviceManager.h"
 #include "rhi/Device.h"
+#include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
 
 namespace
 {
@@ -33,15 +34,23 @@ void alm::fw::FrameworkUI::SetRenderStats(float fps, float cpuTime, float gpuTim
 
 bool alm::fw::FrameworkUI::ShowToggleButton(const char* label, bool* v)
 {
+    bool pressed = false;
     bool newV = *v;
     if (*v)
+    {
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+    }
     if (ImGui::Button(label))
+    {
         newV = !newV;
+        pressed = true;
+    }
     if (*v)
+    {
         ImGui::PopStyleColor();
+    }
     *v = newV;
-    return *v;
+    return pressed;
 }
 
 void alm::fw::FrameworkUI::ShowPropertyInt(const char* label, float labelWidth, int value, float valueWidth, int id)
@@ -205,42 +214,167 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
 
         fitPressed = ImGui::Button("Fit");
         ImGui::SameLine();
-        ShowToggleButton("Alpha", &tw.applyAlpha);
+        ShowToggleButton("Opaque", &tw.opaque);
         ImGui::SameLine();
-        if (ShowToggleButton("R", &tw.redChannel))
+
+        bool showRed = tw.redChannel && !tw.alphaChannel;
+        if (ShowToggleButton("R", &showRed))
         {
-            tw.alphaChannel = false;
+            if (tw.alphaChannel)
+            {
+                tw.redChannel = true;
+                tw.greenChannel = false;
+                tw.blueChannel = false;
+                tw.alphaChannel = false;
+            }
+            else
+            {
+                tw.redChannel = showRed;
+            }            
         }
+
         ImGui::SameLine();
-        if (ShowToggleButton("G", &tw.greenChannel))
+        bool showGreen = tw.greenChannel && !tw.alphaChannel;
+        if (ShowToggleButton("G", &showGreen))
         {
-            tw.alphaChannel = false;
+            if (tw.alphaChannel)
+            {
+                tw.redChannel = false;
+                tw.greenChannel = true;
+                tw.blueChannel = false;
+                tw.alphaChannel = false;
+            }
+            else
+            {
+                tw.greenChannel = showGreen;
+            }
         }
+
         ImGui::SameLine();
-        if (ShowToggleButton("B", &tw.blueChannel))
+        bool showBlue = tw.blueChannel && !tw.alphaChannel;
+        if (ShowToggleButton("B", &showBlue))
         {
-            tw.alphaChannel = false;
+            if (tw.alphaChannel)
+            {
+                tw.redChannel = false;
+                tw.greenChannel = false;
+                tw.blueChannel = false;
+                tw.alphaChannel = true;
+            }
+            else
+            {
+                tw.blueChannel = showBlue;
+            }
         }
         ImGui::SameLine();
         if (ShowToggleButton("A", &tw.alphaChannel))
         {
-            tw.redChannel = false;
-            tw.greenChannel = false;
-            tw.blueChannel = false;
+            tw.alphaChannel = tw.alphaChannel;
         }
 
-        if (!tw.applyAlpha)
+        if (!tw.opaque)
             texFlags |= ImGuiTexFlags_IgnoreAlpha;
-        if (!tw.redChannel)
+        if (!showRed)
             texFlags |= ImGuiTexFlags_HideRedChannel;
-        if (!tw.greenChannel)
+        if (!showGreen)
             texFlags |= ImGuiTexFlags_HideGreenChannel;
-        if (!tw.blueChannel)
+        if (!showBlue)
             texFlags |= ImGuiTexFlags_HideBlueChannel;
         if (tw.alphaChannel)
             texFlags |= ImGuiTexFlags_ShowAlphaChannel;
+
+        ImGui::SameLine();
+        std::vector<std::string> mips;
+        mips.resize(texDesc.mipLevels);
+        for (int i = 0; i < texDesc.mipLevels; ++i)
+        {
+            mips[i] = std::to_string(i);
+        }
+        if (ImGui::BeginCombo("Mip", mips[tw.selectedMip].c_str()))
+        {
+            for (int i = 0; i < texDesc.mipLevels; ++i)
+            {
+                if (ImGui::Selectable(mips[i].c_str(), tw.selectedMip == i))
+                {
+                    tw.selectedMip = i;
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        if (texDesc.dimension == rhi::TextureDimension::Texture3D)
+        {
+            ImGui::SameLine();
+            std::vector<std::string> depth;
+            depth.resize(texDesc.depth);
+            for (int i = 0; i < texDesc.depth; ++i)
+            {
+                depth[i] = std::to_string(i);
+            }
+            if (ImGui::BeginCombo("Depth", depth[tw.selectedSlice].c_str()))
+            {
+                for (int i = 0; i < texDesc.depth; ++i)
+                {
+                    if (ImGui::Selectable(depth[i].c_str(), tw.selectedSlice == i))
+                    {
+                        tw.selectedSlice = i;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+        }
+
     }
     ImGui::EndChild();
 
+    //
+    // Image child
+    //
+
+    ImGui::SetNextWindowContentSize(imageSize);
+    ImGuiWindowFlags imageChildFlags = ImGuiWindowFlags_None;
+    if (tw.firstShow)
+    {
+        imageChildFlags |= ImGuiWindowFlags_NoScrollbar;
+    }
+    else
+    {
+        imageChildFlags |= ImGuiWindowFlags_HorizontalScrollbar;
+    }
+
+    ImVec2 childSize{ 0.f, 0.f };
+    if (tw.firstShow)
+    {
+        childSize = { imageSize.x, imageSize.y };
+    }
+
+    ImGui::BeginChild("##image", childSize, ImGuiChildFlags_None, imageChildFlags);
+    {
+        ImRect clip = ImGui::GetCurrentWindow()->ClipRect;
+        ImVec2 avail = clip.GetSize();//ImGui::GetContentRegionAvail();
+
+        if (tw.firstShow)
+        {
+            float scale = (std::max)((float)texDesc.width / avail.x, (float)texDesc.height / avail.y);
+            tw.defaultImageWidth = texDesc.width / scale - 1.f;
+        }
+        else
+        {
+            if (fitPressed)
+            {
+                float scale = (std::max)((float)texDesc.width / avail.x, (float)texDesc.height / avail.y);
+                tw.defaultImageWidth = texDesc.width / scale - 1.f;
+            }
+
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+            ShowImage(tw.texture, { imageSize.x, imageSize.y }, { 0.f , 0.f }, { 1.f, 1.f }, tw.selectedMip, tw.selectedSlice, texFlags);
+            ImGui::PopStyleVar();
+        }
+    }
+    ImGui::EndChild();
+
+    ImGui::End();
+
+    tw.firstShow = false;
     return isOpen;
 }

@@ -237,7 +237,7 @@ bool alm::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandLis
         commandList->PushBarrier(
             rhi::Barrier::Texture(m_FontTexture.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 
-        m_GuiFontTexture = alm::make_unique_with_weak<ImGuiTexture>(m_FontTexture.get_weak(), ImGuiTexFlags_None);
+        m_GuiFontTexture = alm::make_unique_with_weak<ImGuiTexture>(m_FontTexture.get_weak(), 0, 0, ImGuiTexFlags_None);
         io.Fonts->SetTexID((ImTextureID)m_GuiFontTexture.get());
         io.Fonts->TexRef._TexData->Status = ImTextureStatus_OK;
     }
@@ -392,6 +392,11 @@ void alm::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBu
                 {
                     assert(!guiTex->tex.expired());
                     cb.textureIndex = guiTex->tex->GetSampledView();
+                    cb.bool_Is3DTexture = guiTex->tex->GetDesc().dimension == rhi::TextureDimension::Texture3D;
+                    cb.mip = guiTex->mip;
+                    cb.slice = guiTex->slice;
+                    if (cb.bool_Is3DTexture)
+                        cb.slice /= guiTex->tex->GetDesc().depth;
                     cb.flags = guiTex->flags;
                     // Delete guiTex if it was a requested one (via ShowImage).
                     for (auto it = m_CurrentTextures.begin(); it != m_CurrentTextures.end(); ++it)
@@ -418,9 +423,10 @@ void alm::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBu
     }
 }
 
-void alm::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, ImGuiTexFlags flags)
+void alm::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, int mip, int slice,
+    ImGuiTexFlags flags)
 {
-    auto* imGuiTex = new ImGuiTexture{ tex, flags };
+    auto* imGuiTex = new ImGuiTexture{ tex, mip, slice, flags };
     m_CurrentTextures.push_back(alm::unique<ImGuiTexture>{ imGuiTex });
 
     ImGui::Image(ImTextureRef{ imGuiTex }, ImVec2{ size.x, size.y }, ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });

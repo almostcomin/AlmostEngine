@@ -62,7 +62,8 @@ protected:
 
 	void DrawCenteredText(const char* text);
 
-	void ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, ImGuiTexFlags flags = ImGuiTexFlags_None);
+	void ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, int mip = 0, int slice = 0,
+		ImGuiTexFlags flags = ImGuiTexFlags_None);
 
 	rhi::BufferOwner& GetCurrentVB(GeometryBuffers& geometryBuffers);
 	rhi::BufferOwner& GetCurrentIB(GeometryBuffers& geometryBuffers);
@@ -82,6 +83,8 @@ private:
 	struct ImGuiTexture
 	{
 		rhi::TextureHandle tex;
+		int mip;
+		int slice;
 		ImGuiTexFlags flags;
 	};
 

@@ -24,6 +24,8 @@ public:
     const SkyParams& GetSkyParams() const { return m_Params; }
     void SetSkyParams(const SkyParams& params) { m_Params = params; }
 
+    rhi::TextureHandle GetCloudBaseShapeTexture() const { return m_CloudBaseShapeTexture.get_weak(); }
+
 private:
 
 	void Setup(RenderGraphBuilder& builder);

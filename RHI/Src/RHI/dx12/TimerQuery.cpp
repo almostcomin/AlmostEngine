@@ -71,3 +71,9 @@ void alm::rhi::dx12::TimerQuery::OnEndExecuted(Queue& queue)
     m_Fence = queue.d3d12Fence;
     m_FenceCounter = queue.lastSubmittedInstance;
 }
+
+void alm::rhi::dx12::TimerQuery::Release(Device* device)
+{
+    auto* dx12Device = checked_cast<rhi::dx12::GpuDevice*>(device);
+    dx12Device->ReleaseTimerQuery(this);
+}

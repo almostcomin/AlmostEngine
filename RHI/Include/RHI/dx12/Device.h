@@ -17,8 +17,8 @@ namespace alm::rhi::dx12
         uint32_t renderTargetViewHeapSize = 256;
         uint32_t depthStencilViewHeapSize = 32;
         uint32_t shaderResourceViewHeapSize = UINT_MAX; // Platform defined max
-        uint32_t samplerHeapSize = 16; // Though static ones should be enough
-        uint32_t maxTimerQueries = 256;
+        uint32_t samplerHeapSize = 16; // But static ones should be enough
+        uint32_t maxTimerQueries = 1024;
 
         uint32_t swapChainFrames = 3;        
     };

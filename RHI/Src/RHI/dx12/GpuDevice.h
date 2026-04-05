@@ -7,6 +7,8 @@
 
 namespace alm::rhi::dx12
 {
+	class TimerQuery;
+
 	struct Queue
 	{
 		ComPtr<ID3D12CommandQueue> d3d12Queue;
@@ -94,6 +96,8 @@ namespace alm::rhi::dx12
 		ID3D12Resource* GetQueryResolveBuffer() { return m_TimerQueryResolveBuffer.Get(); }
 
 		ID3D12RootSignature* GetBindlessRootSignature() { return m_BindlessRootSignature.Get(); }
+
+		void ReleaseTimerQuery(dx12::TimerQuery* timerQuery);
 
 		ID3D12Device* GetD3d12Device() { return m_D3d12Device.Get(); }
 

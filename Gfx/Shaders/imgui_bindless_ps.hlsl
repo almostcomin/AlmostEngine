@@ -24,12 +24,19 @@ float4 main(PS_INPUT input) : SV_Target
     if (CB.textureIndex == INVALID_DESCRIPTOR_INDEX)
         return float4(0.0, 0.0, 0.0, 1.0);
         
-    Texture2D texture = ResourceDescriptorHeap[CB.textureIndex];
-    
-    float4 out_col = input.col * texture.Sample(pointWrapSampler, input.uv);
-    
-    if (CB.flags & ImGuiTexFlags_ShowAlphaChannel)
-        out_col.rgb = out_col.aaa;
+    float4 src_col;
+    if (CB.bool_Is3DTexture == 0)
+    {
+        Texture2D texture = ResourceDescriptorHeap[CB.textureIndex];
+        src_col = input.col * texture.SampleLevel(pointWrapSampler, input.uv, CB.mip);
+    }
+    else
+    {
+        Texture3D texture = ResourceDescriptorHeap[CB.textureIndex];
+        src_col = input.col * texture.SampleLevel(pointWrapSampler, float3(input.uv, CB.slice), CB.mip);
+    }
+
+    float4 out_col = src_col;
     
     if (CB.flags & ImGuiTexFlags_IgnoreAlpha)
         out_col.a = 1.0;
@@ -42,7 +49,9 @@ float4 main(PS_INPUT input) : SV_Target
     
     if (CB.flags & ImGuiTexFlags_HideBlueChannel)
         out_col.b = 0.0;
+    
+    if (CB.flags & ImGuiTexFlags_ShowAlphaChannel)
+        out_col.rgb = src_col.aaa;
 
-    //out_col = 1.0;
     return out_col;
 }

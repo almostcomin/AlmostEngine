@@ -31,13 +31,15 @@ private:
 	{
 		std::string title;
 		alm::rhi::TextureHandle texture;
-		bool applyAlpha = false;
+		bool opaque = false;
 		bool redChannel = true;
 		bool greenChannel = true;
 		bool blueChannel = true;
 		bool alphaChannel = false;
 		float defaultImageWidth = 360.f;
 		bool firstShow = true;
+		int selectedMip = 0;
+		int selectedSlice = 0;
 	};
 
 private:

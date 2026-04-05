@@ -62,6 +62,17 @@ public:
 
 	bool Update(float deltaTime) override
 	{
+		static bool firstTime = true;
+		if (firstTime)
+		{
+			auto texture = m_SkyRS->GetCloudBaseShapeTexture();
+			if (texture)
+			{
+				m_UI->AddTextureWindow(texture->GetDebugName(), texture);
+			}
+			firstTime = false;
+		}
+
 		// Camera movement
 		m_CameraController.Update(deltaTime);
 
@@ -79,8 +90,6 @@ public:
 
 	std::shared_ptr<alm::gfx::ImGuiRenderStage> UserInitRenderStages() override
 	{
-		m_UI = alm::gfx::RenderStageFactory::CreateShared<OutdoorsUI>();
-
 		auto shadowmapRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::ShadowmapRenderStage>();
 		auto depthPrepassRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::DepthPrepassRenderStage>();
 		auto linearizeDepthRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::LinearizeDepthRenderStage>();
@@ -95,7 +104,7 @@ public:
 		auto debugRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
 		auto wireframeRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
 		auto compositeRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
-		auto ImGuiRS = m_UI;
+		auto ImGuiRS = alm::gfx::RenderStageFactory::CreateShared<OutdoorsUI>();
 
 		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
 		renderGraph->SetRenderStages({
@@ -132,12 +141,17 @@ public:
 			ImGuiRS.get(),
 			compositeRS.get() });
 
+		m_UI = ImGuiRS;
+		m_SkyRS = skyRS;
+
 		return ImGuiRS;
 	}
 
 private:
 
 	alm::CameraController m_CameraController;
+
+	std::shared_ptr<alm::gfx::SkyRenderStage> m_SkyRS;
 	std::shared_ptr<OutdoorsUI> m_UI;
 };
 
