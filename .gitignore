@@ -48,10 +48,7 @@
 
 build/*
 
-Data/*
-!Data/Models/
-!Data/Models/**
-!Data/Shaders/.do_not_delete
+Apps/*/Data/**/*
+!Apps/*/Data/**/.do_not_delete
 
 imgui.ini
-Apps/*/Data/Shaders/*.bin
