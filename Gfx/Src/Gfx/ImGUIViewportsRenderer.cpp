@@ -61,7 +61,7 @@ void ImGui_Impl_DestroyWindow(ImGuiViewport* viewport)
 	}
 }
 
-void ImGui_ImplDX12_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
+void ImGui_Impl_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
 {
 	ImGuiImplData* bd = GetImplData();
 	ImGuiImplViewportData* viewportData = (ImGuiImplViewportData*)viewport->RendererUserData;
@@ -93,7 +93,7 @@ void alm::gfx::InitImGuiViewportsRenderer(std::shared_ptr<alm::gfx::ImGuiRenderS
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.BackendRendererUserData = implData;
-	io.BackendRendererName = "imgui_impl_dx12";
+	io.BackendRendererName = "imgui_impl_rhi";
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;   // We can honor ImGuiPlatformIO::Textures[] requests during render.
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasViewports;  // We can create multi-viewports on the Renderer side (optional)
@@ -101,7 +101,7 @@ void alm::gfx::InitImGuiViewportsRenderer(std::shared_ptr<alm::gfx::ImGuiRenderS
 	ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
 	platformIO.Renderer_CreateWindow = ImGui_Impl_CreateWindow;			// Creates the swap chain for the new window
 	platformIO.Renderer_DestroyWindow = ImGui_Impl_DestroyWindow;		// Destroys the swap chain
-	platformIO.Renderer_SetWindowSize = ImGui_ImplDX12_SetWindowSize;	// Resize the swap chain
+	platformIO.Renderer_SetWindowSize = ImGui_Impl_SetWindowSize;		// Resize the swap chain
 	platformIO.Renderer_RenderWindow = ImGui_Impl_RenderWindow;			// Render the viewport
 	platformIO.Renderer_SwapBuffers = ImGui_Impl_SwapBuffers;			// Present
 }

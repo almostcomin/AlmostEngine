@@ -40,6 +40,8 @@ namespace alm::rhi::dx12
 
 		void CopyBufferToBuffer(IBuffer* dstBuffer, uint64_t dstOffset, IBuffer* srcBuffer, uint64_t srcOffset, uint64_t size) override;
 
+		void CopyTextureToBuffer(IBuffer* dstBuffer, ITexture* srcTexture, const rhi::TextureSubresourceSet& srcSubresources) override;
+
 		void PushBarriers(std::span<const Barrier> barriers) override;
 		
 		void SetPipelineState(IGraphicsPipelineState* pso) override;

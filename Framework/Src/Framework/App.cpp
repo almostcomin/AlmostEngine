@@ -126,10 +126,10 @@ bool alm::fw::App::InitInternal()
 		return false; // Window creation failed
 	}
 
-	// Init device manager
 	const bool graphicsDebug = GetStartupArgBool("gd", false);
 	const bool vSync = GetStartupArgBool("vsync", false);
 
+	// Init device manager
 	m_DeviceManager = std::unique_ptr<alm::gfx::DeviceManager>{ alm::gfx::DeviceManager::Create(alm::gfx::GraphicsAPI::D3D12) };
 	alm::gfx::DeviceManager::DeviceParams initParams{
 		.WindowHandle = m_Window,

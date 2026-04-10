@@ -1,10 +1,5 @@
 #pragma once
 
-#include <stdint.h>
-//#include <glm/vec2.hpp>
-//#include <glm/vec3.hpp>
-//#include <glm/vec4.hpp>
-//#include <glm/geometric.hpp>
 #include "Core/Math/glm_config.h"
 
 namespace alm::math

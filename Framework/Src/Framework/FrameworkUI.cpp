@@ -215,7 +215,8 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
         fitPressed = ImGui::Button("Fit");
         ImGui::SameLine();
         ShowToggleButton("Opaque", &tw.opaque);
-        ImGui::SameLine();
+        
+        ImGui::SameLine(0.f, 20.f);
 
         bool showRed = tw.redChannel && !tw.alphaChannel;
         if (ShowToggleButton("R", &showRed))
@@ -283,13 +284,13 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
         if (tw.alphaChannel)
             texFlags |= ImGuiTexFlags_ShowAlphaChannel;
 
-        ImGui::SameLine();
         std::vector<std::string> mips;
         mips.resize(texDesc.mipLevels);
         for (int i = 0; i < texDesc.mipLevels; ++i)
         {
             mips[i] = std::to_string(i);
         }
+        ImGui::SetNextItemWidth(60);
         if (ImGui::BeginCombo("Mip", mips[tw.selectedMip].c_str()))
         {
             for (int i = 0; i < texDesc.mipLevels; ++i)
@@ -304,7 +305,9 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
 
         if (texDesc.dimension == rhi::TextureDimension::Texture3D)
         {
-            ImGui::SameLine();
+            ImGui::SameLine(0.f, 60.0f);
+
+            ImGui::SetNextItemWidth(60);
             std::vector<std::string> depth;
             depth.resize(texDesc.depth);
             for (int i = 0; i < texDesc.depth; ++i)

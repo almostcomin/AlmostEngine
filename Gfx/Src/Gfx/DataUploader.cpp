@@ -286,21 +286,26 @@ std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::UploadTe
 	// Perform copy
 	size_t srcOffset = 0;
 	size_t dstOffset = 0;
+	size_t sliceCount = 0;
+
 	for (auto arraySlice = subresources.baseArraySlice; arraySlice < subresources.GetNumArraySlices(texDesc); ++arraySlice)
 	{
 		for (auto mipLevel = subresources.baseMipLevel; mipLevel < subresources.GetNumMipLevels(texDesc); ++mipLevel)
 		{
+			rhi::SubresourceCopyableRequirements req = m_Device->GetSubresourceCopyableRequirements(texDesc, mipLevel, arraySlice);
 			size_t width = texDesc.width >> mipLevel / formatInfo.blockSize;
 			size_t srcRowSize = width * formatInfo.bytesPerBlock;
-
-			rhi::SubresourceCopyableRequirements req = m_Device->GetSubresourceCopyableRequirements(texDesc, mipLevel, arraySlice);
 			assert(srcRowSize == req.rowSizeBytes);
 			dstOffset = req.offset;
-			for (size_t row = 0; row < req.numRows; ++row)
-			{
-				std::memcpy((char*)ticket->ptr + dstOffset, srcData.data() + srcOffset, srcRowSize);
-				srcOffset += srcRowSize;
-				dstOffset += req.rowStride;
+
+			for (auto depth = 0; depth < texDesc.depth >> mipLevel; ++depth)
+			{				
+				for (size_t row = 0; row < req.numRows; ++row)
+				{
+					std::memcpy((char*)ticket->ptr + dstOffset, srcData.data() + srcOffset, srcRowSize);
+					srcOffset += srcRowSize;
+					dstOffset += req.rowStride;
+				}
 			}
 		}
 	}

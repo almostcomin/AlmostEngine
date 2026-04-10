@@ -136,11 +136,6 @@ void alm::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::
 			D3D12_TEXTURE_COPY_LOCATION src = {};
 			src.pResource = srcBuffer->GetNativeResource();
 			src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-			src.PlacedFootprint.Offset = srcOffset;
-			src.PlacedFootprint.Footprint.Format = GetDxgiFormatMapping(desc.format).typelessFormat;
-			src.PlacedFootprint.Footprint.Width = desc.width >> mip;
-			src.PlacedFootprint.Footprint.Height = desc.height >> mip;
-			src.PlacedFootprint.Footprint.Depth = desc.depth;
 
 			GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
 			uint64_t totalBytes = 0;
@@ -207,6 +202,47 @@ void alm::rhi::dx12::CommandList::CopyBufferToBuffer(IBuffer* dstBuffer, uint64_
 		dstBuffer->GetNativeResource(), dstOffset,
 		srcBuffer->GetNativeResource(), srcOffset,
 		size);
+}
+
+void alm::rhi::dx12::CommandList::CopyTextureToBuffer(IBuffer* dstBuffer, ITexture* srcTexture, const rhi::TextureSubresourceSet& srcSubresources)
+{
+	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+	assert(srcSubresources == AllSubresources);
+
+	const auto& srcDesc = srcTexture->GetDesc();
+	const auto& dstDesc = dstBuffer->GetDesc();
+	ID3D12Resource* d3d12Src = srcTexture->GetNativeResource();
+	D3D12_RESOURCE_DESC d3d12SrcDesc = d3d12Src->GetDesc();
+
+	uint32_t numberOfResources = (srcDesc.dimension == rhi::TextureDimension::Texture3D) ? 1u : srcDesc.arraySize;
+	numberOfResources *= srcDesc.mipLevels;
+	numberOfResources *= 1;// numberOfPlanes;
+
+	UINT64 totalResourceSize = 0;
+	std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layout;
+	layout.resize(numberOfResources);
+	gpuDevice->GetD3d12Device()->GetCopyableFootprints(&d3d12SrcDesc, 0, numberOfResources, 0,
+		layout.data(), nullptr, nullptr, &totalResourceSize);
+	assert(totalResourceSize == dstDesc.sizeBytes);
+
+	for (uint32_t i = 0; i < numberOfResources; ++i)
+	{
+		D3D12_TEXTURE_COPY_LOCATION src =
+		{
+			srcTexture->GetNativeResource(),
+			D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+			D3D12CalcSubresource(0, 0, 0, srcDesc.mipLevels, srcDesc.arraySize)
+		};
+
+		D3D12_TEXTURE_COPY_LOCATION dst =
+		{
+			.pResource = dstBuffer->GetNativeResource(),
+			.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+			.PlacedFootprint = layout[i]
+		};
+
+		m_D3d12Commandlist->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+	}
 }
 
 void alm::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers)

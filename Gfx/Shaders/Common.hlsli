@@ -125,4 +125,9 @@ float3 slerp(float3 a, float3 b, float angle, float t)
     return normalize(result);
 }
 
+float remap(float v, float srcMin, float srcMax, float dstMin, float dstMax)
+{
+    return (((v - srcMin) / (srcMax - srcMin)) * (dstMax - dstMin)) + dstMin;
+}
+
 #endif // __COMMON_HLSLI__

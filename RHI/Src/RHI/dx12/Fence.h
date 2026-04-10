@@ -13,6 +13,7 @@ namespace alm::rhi::dx12
 		{}
 
 		uint64_t GetCompletedValue() override { return m_D3d12Fence->GetCompletedValue(); }
+		void Wait(uint64_t value) override;
 
 		ResourceType GetResourceType() const override { return ResourceType::Fence; }
 		NativeResource GetNativeResource() override { return m_D3d12Fence.Get(); }

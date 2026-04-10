@@ -20,6 +20,8 @@
 #include <sstream>
 #include <format>
 #include <thread>
+#include <expected>
+#include <queue>
 
 #if _WIN32
 

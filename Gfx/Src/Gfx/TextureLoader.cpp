@@ -1,9 +1,8 @@
 #include "Gfx/GfxPCH.h"
 #include "Gfx/TextureLoader.h"
 #include "Core/File.h"
-#include "Core/Log.h"
 #include "Gfx/Util.h"
-
+#include "RHI/Device.h"
 #include <DirectXTex.h>
 #include <filesystem>
 
@@ -88,8 +87,6 @@ namespace
 
     size_t FillTextureInfoOffsets(alm::gfx::TextureInfo& textureInfo, size_t dataSize, ptrdiff_t dataOffset)
     {
-        //textureInfo.originalBitsPerPixel = BitsPerPixel(textureInfo.format);
-
         textureInfo.dataLayout.resize(textureInfo.arraySize);
         for (uint32_t arraySlice = 0; arraySlice < textureInfo.arraySize; arraySlice++)
         {
@@ -114,7 +111,7 @@ namespace
                 levelData.depthPitch = RowBytes * NumRows;
 
                 dataOffset += NumBytes * d;
-                assert(dataOffset < static_cast<ptrdiff_t>(dataSize));
+                assert(dataOffset <= static_cast<ptrdiff_t>(dataSize));
 
                 w = w >> 1;
                 h = h >> 1;

@@ -834,13 +834,12 @@ void alm::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList* cons
 	}
 
 	queue.d3d12Queue->ExecuteCommandLists(d3d12CommandLists.size(), d3d12CommandLists.data());
+	queue.d3d12Queue->Signal(queue.d3d12Fence.Get(), ++queue.lastSubmittedInstance);
 
 	if (signal)
 	{
 		queue.d3d12Queue->Signal(signal->GetNativeResource(), value);
 	}
-
-	queue.d3d12Queue->Signal(queue.d3d12Fence.Get(), ++queue.lastSubmittedInstance);
 
 	for (auto cl : commandLists)
 	{

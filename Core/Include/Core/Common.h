@@ -138,7 +138,20 @@ constexpr bool any(const T& c)
 
 constexpr uint32_t MakeRGBA(byte r, byte g, byte b, byte a)
 {
-    return uint32_t(r) << 24 | uint32_t(g) << 16 | uint32_t(b) << 8 | a;
+    return uint32_t(a) << 24 | uint32_t(b) << 16 | uint32_t(g) << 8 | r;
+}
+
+template<typename T>
+constexpr T Saturate(T x) 
+{
+    return std::clamp(x, T(0), T(1));
+}
+
+template<typename T>
+constexpr T Remap(T v, T srcMin, T srcMax, T dstMin, T dstMax)
+{
+    T normalized = (v - srcMin) / (srcMax - srcMin);
+    return dstMin + normalized * (dstMax - dstMin);
 }
 
 } // namespace st

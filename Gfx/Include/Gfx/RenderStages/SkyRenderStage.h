@@ -4,6 +4,7 @@
 #include "Gfx/RenderGraphTypes.h"
 #include "Gfx/MultiBuffer.h"
 #include "Gfx/RenderStageFactory.h"
+#include "Core/Signal.h"
 
 namespace alm::gfx
 {
@@ -21,10 +22,16 @@ public:
 
 public:
 
+    ~SkyRenderStage() = default;
+
     const SkyParams& GetSkyParams() const { return m_Params; }
     void SetSkyParams(const SkyParams& params) { m_Params = params; }
 
-    rhi::TextureHandle GetCloudBaseShapeTexture() const { return m_CloudBaseShapeTexture.get_weak(); }
+    void SetCloudsShapeTexture(rhi::TextureOwner&& texture) { m_CloudsShapeTexture = std::move(texture); }
+    rhi::TextureHandle GetCloudsShapeTexture() const { return m_CloudsShapeTexture.get_weak(); }
+
+    static std::expected<std::pair<rhi::TextureOwner, alm::SignalListener>, std::string>
+    CreateCloudsShapeTexture(DeviceManager* deviceManager);
 
 private:
 
@@ -44,7 +51,7 @@ private:
     rhi::ShaderOwner m_PS;
     rhi::GraphicsPipelineStateOwner m_PSO;
 
-    rhi::TextureOwner m_CloudBaseShapeTexture;
+    rhi::TextureOwner m_CloudsShapeTexture;
 
     SkyParams m_Params;
 };

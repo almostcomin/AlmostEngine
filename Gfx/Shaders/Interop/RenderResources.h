@@ -372,11 +372,17 @@ namespace interop
 
     struct SkyConstants
     {
-        float4x4 matClipToTranslatedWorld;
-        float2 windVelocity;
+        float4x4 matClipToTranslatedWorld;  
+        float2 windVelocity;        // offset 16
         float cloudScale;
+        float coverage;
+        float cloudLayerMin;        // offset 20
+        float cloudLayerMax;
+        float absorptionCoeff;
+        uint maxSteps;
+        float3 sunDirection;        // offset 24
+        uint lightSteps;
         float time;
-        float3 sunDirection;
         TextureSampledViewIndex cloudBaseShapeTexture;
     };
 }

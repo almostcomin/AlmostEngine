@@ -22,6 +22,10 @@
 #include "Gfx/Camera.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
+#include "Gfx/TextureLoader.h"
+#include "Gfx/DeviceManager.h"
+#include "Gfx/TextureCache.h"
+#include "Gfx/LoadedTexture.h"
 #include "OutdoorsUI.h"
 
 class OutdoorsApp : public alm::fw::App
@@ -57,6 +61,34 @@ public:
 			}
 		}
 
+		// Set clouds texture
+		if (std::filesystem::exists("Generated/CloudShape.dds"))
+		{
+			alm::gfx::TextureCache* txtrCache = m_DeviceManager->GetTextureCache();
+			auto loadResult = txtrCache->Load("Generated/CloudShape.dds", alm::gfx::TextureCache::Flags::None);
+			if (!loadResult)
+			{
+				LOG_ERROR("Failed loading CloudsShape.dds\n{}", loadResult.error());
+			}
+			else
+			{
+				loadResult->second.Wait();
+				alm::rhi::TextureOwner cloudsTexture = std::move(loadResult->first->texture);
+				m_SkyRS->SetCloudsShapeTexture(std::move(cloudsTexture));
+			}
+		}
+		else
+		{
+			auto createResult = alm::gfx::SkyRenderStage::CreateCloudsShapeTexture(m_DeviceManager.get());
+			assert(createResult);
+			createResult->second.Wait();
+			alm::rhi::TextureOwner& cloudsTexture = createResult->first;
+			alm::gfx::SaveDDSTexture(cloudsTexture.get_weak(), alm::rhi::ResourceState::SHADER_RESOURCE, alm::rhi::ResourceState::SHADER_RESOURCE,
+				m_DeviceManager->GetDevice(), "Generated/CloudShape.dds");
+
+			m_SkyRS->SetCloudsShapeTexture(std::move(cloudsTexture));
+		}
+
 		return true;
 	}
 
@@ -65,7 +97,7 @@ public:
 		static bool firstTime = true;
 		if (firstTime)
 		{
-			auto texture = m_SkyRS->GetCloudBaseShapeTexture();
+			auto texture = m_SkyRS->GetCloudsShapeTexture();
 			if (texture)
 			{
 				m_UI->AddTextureWindow(texture->GetDebugName(), texture);
@@ -81,6 +113,8 @@ public:
 
 	void Shutdown() override
 	{
+		m_SkyRS.reset();
+		m_UI.reset();
 	}
 
 	void OnSDLEvent(const SDL_Event& event) override
@@ -143,6 +177,8 @@ public:
 
 		m_UI = ImGuiRS;
 		m_SkyRS = skyRS;
+
+		toneMappingRS->SetTonemappingEnabled(false);
 
 		return ImGuiRS;
 	}
