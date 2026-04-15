@@ -125,9 +125,20 @@ float3 slerp(float3 a, float3 b, float angle, float t)
     return normalize(result);
 }
 
+// Given v in the range [srcMin,  srcMax] returns it remapes in the range [dstMin, dstMax]
 float remap(float v, float srcMin, float srcMax, float dstMin, float dstMax)
 {
     return (((v - srcMin) / (srcMax - srcMin)) * (dstMax - dstMin)) + dstMin;
+}
+
+// Ray-plane intersection wuth horizontal plane
+// Return distance from origin to intersection point
+// Returns -1 if no intersection (parallel ray or wrong direction)
+float RayPlaneIntersection(float3 origin, float3 dir, float planeY)
+{
+    if (abs(dir.y) < 0.0001f)
+        return -1.0f;
+    return (planeY - origin.y) / dir.y;
 }
 
 #endif // __COMMON_HLSLI__

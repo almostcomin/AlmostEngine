@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Framework/FrameworkUI.h"
-#include "Gfx/RenderStageFactory.h"
+#include "Gfx/Scene.h"
+#include "Gfx/RenderStages/SkyRenderStage.h"
 
 class OutdoorsUI : public alm::fw::FrameworkUI
 {
@@ -9,6 +10,18 @@ class OutdoorsUI : public alm::fw::FrameworkUI
 
 public:
 
+	struct Data
+	{
+		bool ShowUI = true;
+
+		alm::gfx::Scene::SunParams SunParams;
+		alm::gfx::SkyRenderStage::SkyParams SkyParams;
+		bool SunParamsUpdated = false;
+	};
+
+	Data m_Data;
+
 private:
 
+	void BuildUI() override;
 };

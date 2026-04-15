@@ -370,20 +370,28 @@ namespace interop
         BufferUniformIndex skyDataDI; // SimpleSkyData
     };
 
+    struct CloudsData
+    {
+        TextureSampledViewIndex cloudBaseShapeTexture;
+        float cloudScale;
+        float coverage;
+        float cloudFadeDistance;
+        float2 windVelocity;        // offset 4
+        float cloudLayerMin;
+        float cloudLayerMax;
+        float3 toSunDirection;      // offset 8
+        float absorptionCoeff;
+        uint maxSteps;              // offset 12
+        uint lightSteps;
+        uint _padding0;
+        uint _padding1;
+    };
+
     struct SkyConstants
     {
         float4x4 matClipToTranslatedWorld;  
-        float2 windVelocity;        // offset 16
-        float cloudScale;
-        float coverage;
-        float cloudLayerMin;        // offset 20
-        float cloudLayerMax;
-        float absorptionCoeff;
-        uint maxSteps;
-        float3 sunDirection;        // offset 24
-        uint lightSteps;
+        BufferUniformIndex cloudsDataDI; // CloudsConstants
         float time;
-        TextureSampledViewIndex cloudBaseShapeTexture;
     };
 }
 

@@ -89,21 +89,23 @@ public:
 			m_SkyRS->SetCloudsShapeTexture(std::move(cloudsTexture));
 		}
 
+		// Init UI params
+		m_UI->m_Data.SunParams = m_Scene->GetSunParams();
+		m_UI->m_Data.SkyParams = m_SkyRS->GetSkyParams();
+
+		m_UI->AddTextureWindow("CloudShape.dds", m_SkyRS->GetCloudsShapeTexture());
+
 		return true;
 	}
 
 	bool Update(float deltaTime) override
 	{
-		static bool firstTime = true;
-		if (firstTime)
+		if (m_UI->m_Data.SunParamsUpdated)
 		{
-			auto texture = m_SkyRS->GetCloudsShapeTexture();
-			if (texture)
-			{
-				m_UI->AddTextureWindow(texture->GetDebugName(), texture);
-			}
-			firstTime = false;
+			m_Scene->SetSunParams(m_UI->m_Data.SunParams);
+			m_UI->m_Data.SunParamsUpdated = false;
 		}
+		m_SkyRS->SetSkyParams(m_UI->m_Data.SkyParams);
 
 		// Camera movement
 		m_CameraController.Update(deltaTime);

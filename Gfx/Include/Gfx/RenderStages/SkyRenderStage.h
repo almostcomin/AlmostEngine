@@ -17,7 +17,15 @@ public:
 
 	struct SkyParams
 	{
-        float2 Offset = { 0.f, 0.f };
+        float2 WindVelocity = { 0.001f, 0.0005f };
+        float CloudsScale = 0.0001f;
+        float CloudsCoverage = 0.3f;
+        float AbsorptionCoeff = 0.1f;
+        float CloudsLayerMin = 2000.f;
+        float CloudsLayerMax = 7000.f;
+        float CloudsFadeDistance = 50000.f;
+        uint32_t CloudRaymarchIterations = 128;
+        uint32_t LightRaymarchIterations = 8;
 	};
 
 public:
@@ -40,8 +48,6 @@ private:
 	void OnAttached() override;
 	void OnDetached() override;
 
-    void CreateNoiseTextures();
-
 private:
 
     RGTextureHandle m_SceneColorTexture;
@@ -52,6 +58,7 @@ private:
     rhi::GraphicsPipelineStateOwner m_PSO;
 
     rhi::TextureOwner m_CloudsShapeTexture;
+    gfx::MultiBuffer m_CloudsCB;
 
     SkyParams m_Params;
 };
