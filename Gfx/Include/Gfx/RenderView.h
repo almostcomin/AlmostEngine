@@ -53,6 +53,8 @@ public:
 	alm::rhi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
 	alm::rhi::TextureHandle GetBackBuffer(int idx = 0);
 
+	const float4x4& GetPrevFrameViewProjMatrix() const { return m_PrevViewProjectionMatrix; }
+
 	alm::rhi::BufferUniformView GetSceneBufferUniformView();
 	alm::rhi::BufferReadOnlyView GetCameraVisiblityBufferROView();
 	alm::rhi::BufferReadOnlyView GetShadowMapVisibilityBufferROView();
@@ -88,7 +90,15 @@ private:
 	std::shared_ptr<Camera> m_Camera;
 	alm::unique<RenderGraph> m_RenderGraph;
 
+	// Prev frame camera
+	float4x4 m_PrevViewProjectionMatrix;
+	float3 m_PrevCameraPosition;
+	bool m_ResetPrevFrameCamera;
+
+	// ImGui viewports
 	ViewportSwapChainId m_ViewportSwapChainId;
+
+	// Offscreen framebuffer
 	alm::rhi::FramebufferHandle m_OffscreenFramebuffer;
 
 	// Bounds of the visible scene

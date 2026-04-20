@@ -26,7 +26,7 @@ namespace interop
 
     struct BlitGraphicsConstants
     {
-        uint textureDI;
+        TextureSampledViewIndex textureDI;
     };
 
     struct BlitComputeConstants
@@ -373,23 +373,29 @@ namespace interop
     struct CloudsData
     {
         TextureSampledViewIndex cloudBaseShapeTexture;
-        float cloudScale;
+        float cloudsScale;
         float coverage;
         float cloudFadeDistance;
-        float2 windVelocity;        // offset 4
+        float2 windOffset;              // offset 4
         float cloudLayerMin;
         float cloudLayerMax;
-        float3 toSunDirection;      // offset 8
+        float3 toSunDirection;          // offset 8
         float absorptionCoeff;
-        uint maxSteps;              // offset 12
+        float3 earthCenter;             // offset 12
+        float earthRadius;
+        float invCloudLayerThickness;   // offset 16  
+        uint maxSteps;              
         uint lightSteps;
-        uint _padding0;
-        uint _padding1;
+        TextureSampledViewIndex linearDepthTexDI;
+        float3 cameraForward;
+        TextureSampledViewIndex prevCloudsTexDI;
+        float4x4 matPrevFrameViewProj;
     };
 
     struct SkyConstants
     {
-        float4x4 matClipToTranslatedWorld;  
+        float4x4 matClipToTranslatedWorld;        
+        float3 cameraPosition;
         BufferUniformIndex cloudsDataDI; // CloudsConstants
         float time;
     };

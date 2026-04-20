@@ -22,8 +22,8 @@ namespace alm::rhi::dx12
         DescriptorIndex AllocateDescriptor();
         void ReleaseDescriptors(DescriptorIndex baseIndex, uint32_t count);
         void ReleaseDescriptor(DescriptorIndex index);
-        D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(DescriptorIndex index);
-        D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(DescriptorIndex index);
+        D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(DescriptorIndex index) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(DescriptorIndex index) const;
         [[nodiscard]] ID3D12DescriptorHeap* GetHeap() const;
         //[[nodiscard]] ID3D12DescriptorHeap* GetShaderVisibleHeap() const;
 

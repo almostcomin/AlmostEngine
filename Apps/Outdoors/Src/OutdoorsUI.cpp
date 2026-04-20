@@ -5,6 +5,9 @@ void OutdoorsUI::BuildUI()
 {
 	alm::fw::FrameworkUI::BuildUI();
 
+    if (!m_Data.ShowUI)
+        return;
+
     if (!ImGui::Begin("Params", &m_Data.ShowUI, ImGuiWindowFlags_None))
     {
         ImGui::End();
@@ -32,14 +35,33 @@ void OutdoorsUI::BuildUI()
 
     if (ImGui::CollapsingHeader("Clouds", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::InputFloat("Scale##Clouds", &m_Data.SkyParams.CloudsScale);
-        ImGui::InputFloat("Coverage##Clouds", &m_Data.SkyParams.CloudsCoverage);
-        ImGui::InputFloat("Absorption##Clouds", &m_Data.SkyParams.AbsorptionCoeff);
-        ImGui::InputFloat("MinHeight##Clouds", &m_Data.SkyParams.CloudsLayerMin);
-        ImGui::InputFloat("MaxHeight##Clouds", &m_Data.SkyParams.CloudsLayerMax);
-        ImGui::InputFloat("FadeDistance", &m_Data.SkyParams.CloudsFadeDistance);
-        ImGui::InputScalar("Density interations", ImGuiDataType_U32, &m_Data.SkyParams.CloudRaymarchIterations);
-        ImGui::InputScalar("Light interations", ImGuiDataType_U32, &m_Data.SkyParams.LightRaymarchIterations);
+        float2 velDir = m_Data.SkyParams.WindVelocity;
+        float velMag = glm::length(velDir);
+        float velYaw = 0.f;
+        if (velMag > 0.0001f)
+        {
+            velDir /= velMag;
+            velYaw = atan2(velDir.x, velDir.y);
+        }
+        bool windUpdated = false;
+        windUpdated |= ImGui::SliderAngle("Wind Velocity Yaw##Clouds", &velYaw, -180.f, 180.f);
+        windUpdated |= ImGui::InputFloat("Wind Magnitude", &velMag);
+        if (windUpdated)
+        {
+            m_Data.SkyParams.WindVelocity.x = glm::sin(velYaw);
+            m_Data.SkyParams.WindVelocity.y = glm::cos(velYaw);
+            m_Data.SkyParams.WindVelocity *= velMag;
+        }
+
+        ImGui::SliderFloat("Scale##Clouds", &m_Data.SkyParams.CloudsScale, 0.f, 1.f, "%.6f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("Coverage##Clouds", &m_Data.SkyParams.CloudsCoverage, 0.f, 1.f);
+        ImGui::SliderFloat("Absorption##Clouds", &m_Data.SkyParams.AbsorptionCoeff, 0.f, 1.f);
+        ImGui::InputFloat("Clouds Bottom##Clouds", &m_Data.SkyParams.CloudsLayerMin);
+        ImGui::InputFloat("Clouds Top##Clouds", &m_Data.SkyParams.CloudsLayerMax);
+        ImGui::InputFloat("Fade Distance##Clouds", &m_Data.SkyParams.CloudsFadeDistance);
+        ImGui::InputFloat("Earth Radius##Clouds", &m_Data.SkyParams.EarthRadius);
+        ImGui::InputScalar("Density interations##Clouds", ImGuiDataType_U32, &m_Data.SkyParams.CloudRaymarchIterations);
+        ImGui::InputScalar("Light interations##Clouds", ImGuiDataType_U32, &m_Data.SkyParams.LightRaymarchIterations);
     }
 
     ImGui::End();

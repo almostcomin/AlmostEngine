@@ -2,6 +2,13 @@
 #include "RHI/dx12/FrameBuffer.h"
 #include "RHI/dx12/GpuDevice.h"
 
+alm::rhi::TextureColorTargetView alm::rhi::dx12::Framebuffer::GetColorTargetView(uint32_t idx) const
+{
+    if (idx > RTVs.size())
+        return {};
+    return TextureColorTargetView{ RTVs[idx] };
+}
+
 void alm::rhi::dx12::Framebuffer::Release(Device* device)
 {
     auto* gpuDevice = checked_cast<GpuDevice*>(device);

@@ -93,6 +93,8 @@ public:
     virtual TextureHandle GetBackBuffer(uint32_t idx) = 0;
     virtual TextureHandle GetDepthStencil() = 0;
 
+    virtual TextureColorTargetView GetColorTargetView(uint32_t idx) const = 0;
+
 protected:
 
     IFramebuffer(Device* device, const std::string& debugName) : IResource{ device, debugName } {};

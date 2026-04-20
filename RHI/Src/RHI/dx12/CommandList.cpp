@@ -497,6 +497,19 @@ void alm::rhi::dx12::CommandList::Discard(ITexture* texture, int mipLevel, int a
 	}
 }
 
+void alm::rhi::dx12::CommandList::ClearRenderTarget(TextureColorTargetView rtView, const float4& color) 
+{
+	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
+	const rhi::dx12::DescriptorHeap* rtHeap = gpuDevice->GetRenderTargetViewHeap();
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = rtHeap->GetCpuHandle(rtView.GetIdx());
+	if (handle.ptr == 0u)
+	{
+		LOG_ERROR("Invalid render target view");
+		return;
+	}
+	m_D3d12Commandlist->ClearRenderTargetView(handle, (FLOAT*)&color.x, 0, NULL);
+}
+
 void alm::rhi::dx12::CommandList::BeginMarker(const char* str)
 {
 	PIXBeginEvent(m_D3d12Commandlist.Get(), 0, str);

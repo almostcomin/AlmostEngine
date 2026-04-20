@@ -126,6 +126,8 @@ public:
 	virtual void Discard(IBuffer* buffer) = 0;
 	virtual void Discard(ITexture* texture, int mipLevel = -1, int arraySlice = -1) = 0;
 
+	virtual void ClearRenderTarget(TextureColorTargetView rtView, const float4& color) = 0;
+
 	virtual void BeginMarker(const char* str) = 0;
 	virtual void EndMarker() = 0;
 

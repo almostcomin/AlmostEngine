@@ -20,6 +20,9 @@ alm::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debug
 {}
 
 alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* deviceManager, const char* debugName) :
+	m_PrevViewProjectionMatrix{ glm::identity<float4x4>() },
+	m_PrevCameraPosition{ 0.f, 0.f, 0.f },
+	m_ResetPrevFrameCamera{ true },
 	m_ViewportSwapChainId{ viewportId },
 	m_TimeSec{ 0.0 },
 	m_TimeDeltaSec{ 0.f },
@@ -143,6 +146,12 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 	// Update common data
 	m_TimeSec = timeSec;
 	m_TimeDeltaSec = timeDeltaSec;
+	if (m_Camera && m_ResetPrevFrameCamera)
+	{
+		m_PrevViewProjectionMatrix = m_Camera->GetViewProjectionMatrix();
+		m_PrevCameraPosition = m_Camera->GetPosition();
+		m_ResetPrevFrameCamera = false;
+	}
 
 	UpdateCameraVisibleSet(beginCommandList);
 	UpdateShadowmapData(beginCommandList);
@@ -185,6 +194,12 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 
 	// Done with endCommandList
 	m_DeviceManager->GetDevice()->ExecuteCommandList(endCommandList, alm::rhi::QueueType::Graphics);
+
+	if (m_Camera)
+	{
+		m_PrevViewProjectionMatrix = m_Camera->GetViewProjectionMatrix();
+		m_PrevCameraPosition = m_Camera->GetPosition();
+	}
 }
 
 void alm::gfx::RenderView::UpdateSceneConstantBuffer()

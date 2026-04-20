@@ -41,6 +41,7 @@ public:
 
 		m_CameraController.SetWindow(m_Window);
 		m_CameraController.SetCamera(m_MainCamera);
+		m_CameraController.SetSpeed(200.f);
 
 		std::string path = GetStartupArgString("load");
 		if (!path.empty())

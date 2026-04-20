@@ -67,6 +67,8 @@ namespace alm::rhi::dx12
 		void Discard(IBuffer* buffer) override;
 		void Discard(ITexture* texture, int mipLevel, int arraySlice) override;
 
+		void ClearRenderTarget(TextureColorTargetView rtView, const float4& color) override;
+
 		void BeginMarker(const char* str) override;
 		void EndMarker() override;
 

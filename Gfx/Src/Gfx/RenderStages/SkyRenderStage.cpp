@@ -112,6 +112,9 @@ namespace
 
 } // anonymous namespace
 
+alm::gfx::SkyRenderStage::SkyRenderStage() : m_SkyTextureIdx{ -1 }
+{}
+
 std::expected<std::pair<alm::rhi::TextureOwner, alm::SignalListener>, std::string>
 alm::gfx::SkyRenderStage::CreateCloudsShapeTexture(alm::gfx::DeviceManager* deviceManager)
 {
@@ -176,57 +179,147 @@ alm::gfx::SkyRenderStage::CreateCloudsShapeTexture(alm::gfx::DeviceManager* devi
 void alm::gfx::SkyRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
-	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+	m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
 
-	m_FB = builder.RequestFramebuffer({ m_SceneColorTexture }, m_SceneDepthTexture);
+	m_CompositeFB = builder.RequestFramebuffer({ m_SceneColorTexture });
 
 	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	builder.AddTextureDependency(m_LinearDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 }
 
 void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
-	auto scene = GetScene();
-	if (!scene)
+	if (!GetScene())
 		return;
-
+	if (!GetCamera())
+		return;
 	if (!m_CloudsShapeTexture)
+	{
+		LOG_WARNING("SkyRenderStage: No clouds texture defined");
 		return;
+	}
 
+	auto* deviceManager = m_RenderGraph->GetDeviceManager();
+	auto* commonResources = deviceManager->GetCommonResources();
 	const auto& sunParams = GetScene()->GetSunParams();
 
-	commandList->BeginRenderPass(
-		m_RenderGraph->GetFrameBuffer(m_FB).get(),
-		{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store } },
-		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::NoAccess },
-		{}, rhi::RenderPassFlags::None);
+	// Initialize buffers
+	bool clearSkyTextures = false;
+	if (m_SkyTextureIdx < 0)
+	{
+		clearSkyTextures = true;
+		m_SkyTextureIdx = 0;
+	}
+	else
+	{
+		m_SkyTextureIdx = ++m_SkyTextureIdx % 2;
+	}
+	int skyOtherIdx = (m_SkyTextureIdx + 1) % 2;
 
-	commandList->SetPipelineState(m_PSO.get());
+	// Clear SRV texture if requested
+	if (clearSkyTextures)
+	{
+		if (m_SkyTextureState[skyOtherIdx] != rhi::ResourceState::RENDERTARGET)
+		{
+			commandList->PushBarrier(rhi::Barrier::Texture(
+				m_SkyTexture[skyOtherIdx].get(), m_SkyTextureState[skyOtherIdx], rhi::ResourceState::RENDERTARGET));
+			m_SkyTextureState[skyOtherIdx] = rhi::ResourceState::RENDERTARGET;
+		}
 
-	auto* cloudsConstants = (interop::CloudsData*)m_CloudsCB.Map();
-	cloudsConstants->windVelocity = m_Params.WindVelocity;
-	cloudsConstants->cloudScale = m_Params.CloudsScale;
-	cloudsConstants->coverage = m_Params.CloudsCoverage;
-	cloudsConstants->cloudLayerMin = m_Params.CloudsLayerMin;
-	cloudsConstants->cloudLayerMax = m_Params.CloudsLayerMax;
-	cloudsConstants->absorptionCoeff = m_Params.AbsorptionCoeff;
-	cloudsConstants->maxSteps = m_Params.CloudRaymarchIterations;
-	cloudsConstants->toSunDirection = -glm::normalize(alm::ElevationAzimuthRadToDir(
-		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg)));
-	cloudsConstants->lightSteps = m_Params.LightRaymarchIterations;
-	cloudsConstants->cloudBaseShapeTexture = m_CloudsShapeTexture->GetSampledView();
-	cloudsConstants->cloudFadeDistance = m_Params.CloudsFadeDistance;
+		commandList->ClearRenderTarget(m_SkyFB[skyOtherIdx]->GetColorTargetView(0), float4{ 0.f, 0.f, 0.f, 1.f });
+	}
 
-	interop::SkyConstants shaderConstants;
-	shaderConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
-	shaderConstants.cloudsDataDI = m_CloudsCB.GetUniformView();
-	shaderConstants.time = GetRenderView()->GetTime() * 1.0;
+	// Do initial transitions
+	std::vector<rhi::Barrier> barriers;
+	barriers.reserve(2);
 
-	commandList->PushGraphicsConstants(0, shaderConstants);
+	if (m_SkyTextureState[m_SkyTextureIdx] != rhi::ResourceState::RENDERTARGET)
+	{
+		barriers.push_back(rhi::Barrier::Texture(
+			m_SkyTexture[m_SkyTextureIdx].get(), m_SkyTextureState[m_SkyTextureIdx], rhi::ResourceState::RENDERTARGET));
+		m_SkyTextureState[m_SkyTextureIdx] = rhi::ResourceState::RENDERTARGET;
+	}
+	if (m_SkyTextureState[skyOtherIdx] != rhi::ResourceState::SHADER_RESOURCE)
+	{
+		barriers.push_back(rhi::Barrier::Texture(
+			m_SkyTexture[skyOtherIdx].get(), m_SkyTextureState[skyOtherIdx], rhi::ResourceState::SHADER_RESOURCE));
+		m_SkyTextureState[skyOtherIdx] = rhi::ResourceState::SHADER_RESOURCE;
+	}
+	if (!barriers.empty())
+	{
+		commandList->PushBarriers(barriers);
+	}
 
-	commandList->Draw(3);
+	// Render sky pass
+	{
+		commandList->BeginRenderPass(
+			m_SkyFB[m_SkyTextureIdx].get(),
+			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, float4{ 0.f, 0.f, 0.f, 1.f }} },
+			rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::NoAccess },
+			{}, rhi::RenderPassFlags::None);
 
-	commandList->EndRenderPass();
+		commandList->SetPipelineState(m_SkyPSO.get());
+
+		// Update clouds position offset
+		m_CloudsOffset += m_Params.WindVelocity * GetRenderView()->GetTimeDelta();
+
+		// Fill shader constants
+		auto* cloudsConstants = (interop::CloudsData*)m_CloudsCB.Map();
+
+		cloudsConstants->cloudBaseShapeTexture = m_CloudsShapeTexture->GetSampledView();
+		cloudsConstants->cloudsScale = m_Params.CloudsScale;
+		cloudsConstants->coverage = m_Params.CloudsCoverage;
+		cloudsConstants->cloudFadeDistance = m_Params.CloudsFadeDistance;
+		cloudsConstants->windOffset = m_CloudsOffset;
+		cloudsConstants->cloudLayerMin = m_Params.CloudsLayerMin;
+		cloudsConstants->cloudLayerMax = m_Params.CloudsLayerMax;
+		cloudsConstants->toSunDirection = -glm::normalize(alm::ElevationAzimuthRadToDir(
+			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg)));
+		cloudsConstants->absorptionCoeff = m_Params.AbsorptionCoeff;
+		cloudsConstants->earthCenter = float3(0.f, -m_Params.EarthRadius, 0.f);// GetCamera()->GetPosition() + float3(0.f, -m_Params.EarthRadius, 0.f);
+		cloudsConstants->earthRadius = m_Params.EarthRadius;
+		cloudsConstants->invCloudLayerThickness = 1.f / (m_Params.CloudsLayerMax - m_Params.CloudsLayerMin);
+		cloudsConstants->maxSteps = m_Params.CloudRaymarchIterations;
+		cloudsConstants->lightSteps = m_Params.LightRaymarchIterations;
+		cloudsConstants->linearDepthTexDI = m_RenderGraph->GetTextureSampledView(m_LinearDepthTexture);
+		cloudsConstants->cameraForward = GetCamera()->GetForward();
+		cloudsConstants->prevCloudsTexDI = m_SkyTexture[skyOtherIdx]->GetSampledView();
+		cloudsConstants->matPrevFrameViewProj = GetRenderView()->GetPrevFrameViewProjMatrix();
+
+		interop::SkyConstants skyConstants;
+		skyConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
+		skyConstants.cameraPosition = GetCamera()->GetPosition();
+		skyConstants.cloudsDataDI = m_CloudsCB.GetUniformView();
+		skyConstants.time = GetRenderView()->GetTime() * 1.0;
+
+		commandList->PushGraphicsConstants(0, skyConstants);
+
+		commandList->Draw(3);
+
+		commandList->EndRenderPass();
+	}
+
+	commandList->PushBarrier(rhi::Barrier::Texture(
+		m_SkyTexture[m_SkyTextureIdx].get(), rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE));
+	m_SkyTextureState[m_SkyTextureIdx] = rhi::ResourceState::SHADER_RESOURCE;
+
+	// Composite pass
+	{
+		commandList->BeginRenderPass(
+			m_RenderGraph->GetFrameBuffer(m_CompositeFB).get(),
+			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store } },
+			{}, {}, rhi::RenderPassFlags::None);
+
+		commandList->SetPipelineState(m_CompositePSO.get());
+
+		interop::BlitGraphicsConstants shaderConstants;
+		shaderConstants.textureDI = m_SkyTexture[m_SkyTextureIdx]->GetSampledView();
+
+		commandList->PushGraphicsConstants(0, shaderConstants);
+		commandList->Draw(3);
+
+		commandList->EndRenderPass();
+	}
 }
 
 void alm::gfx::SkyRenderStage::OnAttached()
@@ -236,19 +329,25 @@ void alm::gfx::SkyRenderStage::OnAttached()
 	auto* commonResources = deviceManager->GetCommonResources();
 	auto* shaderFactory = deviceManager->GetShaderFactory();
 
-	m_PS = shaderFactory->LoadShader("Sky_ps", rhi::ShaderType::Pixel);
+	m_SkyPS = shaderFactory->LoadShader("Sky_ps", rhi::ShaderType::Pixel);
 
+	ResetSkyResources();
+
+	// Composite
 	{
-		rhi::DepthStencilState depthStencilState{
-			.depthTestEnable = true,
-			.depthFunc = rhi::ComparisonFunc::GreaterEqual };
+		rhi::BlendState blendState;
+		blendState.renderTarget[0] = {
+			.blendEnable = true,
+			.srcBlend = rhi::BlendFactor::One,
+			.destBlend = rhi::BlendFactor::SrcAlpha,
+			.blendOp = rhi::BlendOp::Add };
 
 		rhi::GraphicsPipelineStateDesc psoDesc{
 			.VS = commonResources->GetBlitVS(),
-			.PS = m_PS.get_weak(),
-			.depthStencilState = depthStencilState };
+			.PS = commonResources->GetBlitPS(),
+			.blendState = blendState };
 
-		m_PSO = device->CreateGraphicsPipelineState(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(), "SkyRenderStage");
+		m_CompositePSO = device->CreateGraphicsPipelineState(psoDesc, m_RenderGraph->GetFrameBuffer(m_CompositeFB)->GetFramebufferInfo(), "SkyRS_Composite");
 	}
 
 	m_CloudsCB.InitUniformBuffer(sizeof(interop::CloudsData), deviceManager, "CloudsConstantBuffer");
@@ -256,7 +355,59 @@ void alm::gfx::SkyRenderStage::OnAttached()
 
 void alm::gfx::SkyRenderStage::OnDetached()
 {
+	m_SkyFB[0].reset();
+	m_SkyFB[1].reset();
+	m_SkyTexture[0].reset();
+	m_SkyTexture[1].reset();
 	m_CloudsCB.Release();
-	m_PSO.reset();
-	m_PS.reset();
+	m_SkyPSO.reset();
+	m_SkyPS.reset();
+	m_CompositePSO.reset();
+}
+
+void alm::gfx::SkyRenderStage::OnBackbufferResize()
+{
+	ResetSkyResources();
+}
+
+void alm::gfx::SkyRenderStage::ResetSkyResources()
+{
+	auto* deviceManager = m_RenderGraph->GetDeviceManager();
+	auto* commonResources = deviceManager->GetCommonResources();
+	auto* device = deviceManager->GetDevice();
+	const auto& bbDesc = GetRenderView()->GetBackBuffer()->GetDesc();
+
+	// Textures and framebuffers
+	{
+		rhi::TextureDesc desc = {
+			.width = bbDesc.width,
+			.height = bbDesc.height,
+			.format = rhi::Format::RGBA16_FLOAT,
+			.shaderUsage = rhi::TextureShaderUsage::Sampled | rhi::TextureShaderUsage::ColorTarget };
+
+		m_SkyTexture[0] = device->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, "SkyTexture[0]");
+		m_SkyTextureState[0] = rhi::ResourceState::RENDERTARGET;
+		m_SkyTexture[1] = device->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, "SkyTexture[1]");
+		m_SkyTextureState[1] = rhi::ResourceState::RENDERTARGET;
+
+		m_SkyFB[0] = device->CreateFramebuffer(rhi::FramebufferDesc()
+			.AddColorAttachment(m_SkyTexture[0].get_weak()), "SkyFB[0]");
+		m_SkyFB[1] = device->CreateFramebuffer(rhi::FramebufferDesc()
+			.AddColorAttachment(m_SkyTexture[1].get_weak()), "SkyFB[1]");
+	}
+	m_SkyTextureIdx = -1;
+
+	// Sky PSO
+	{
+		rhi::DepthStencilState depthStencilState{
+			.depthTestEnable = false,
+			.depthFunc = rhi::ComparisonFunc::GreaterEqual };
+
+		rhi::GraphicsPipelineStateDesc psoDesc{
+			.VS = commonResources->GetBlitVS(),
+			.PS = m_SkyPS.get_weak(),
+			.depthStencilState = depthStencilState };
+
+		m_SkyPSO = device->CreateGraphicsPipelineState(psoDesc, m_SkyFB[0]->GetFramebufferInfo(), "SkyRS");
+	}
 }

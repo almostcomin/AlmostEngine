@@ -28,6 +28,8 @@ public:
     TextureHandle GetBackBuffer(uint32_t idx) override { assert(idx < c_MaxRenderTargets); return rtvTextures[idx]; }
     TextureHandle GetDepthStencil() override { return dsvTexture; }
 
+    TextureColorTargetView GetColorTargetView(uint32_t idx) const override;
+
     ResourceType GetResourceType() const override { return ResourceType::Framebuffer; }
 
 protected:

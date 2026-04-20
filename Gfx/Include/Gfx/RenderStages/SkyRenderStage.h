@@ -21,15 +21,17 @@ public:
         float CloudsScale = 0.0001f;
         float CloudsCoverage = 0.3f;
         float AbsorptionCoeff = 0.1f;
-        float CloudsLayerMin = 2000.f;
-        float CloudsLayerMax = 7000.f;
+        float CloudsLayerMin = 1350.f;// 2000.f;
+        float CloudsLayerMax = 2350.f;// 7000.f;
         float CloudsFadeDistance = 50000.f;
-        uint32_t CloudRaymarchIterations = 128;
+        float EarthRadius = 1500000.f; // 6360000.0.f;
+        uint32_t CloudRaymarchIterations = 16;
         uint32_t LightRaymarchIterations = 8;
 	};
 
 public:
 
+    SkyRenderStage();
     ~SkyRenderStage() = default;
 
     const SkyParams& GetSkyParams() const { return m_Params; }
@@ -47,20 +49,31 @@ private:
 	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
+    void OnBackbufferResize() override;
+
+    void ResetSkyResources();
 
 private:
 
     RGTextureHandle m_SceneColorTexture;
-    RGTextureHandle m_SceneDepthTexture;
-    RGFramebufferHandle m_FB;
+    RGTextureHandle m_LinearDepthTexture;
+    RGFramebufferHandle m_CompositeFB;
 
-    rhi::ShaderOwner m_PS;
-    rhi::GraphicsPipelineStateOwner m_PSO;
+    rhi::TextureOwner m_SkyTexture[2];
+    rhi::ResourceState m_SkyTextureState[2];
+    rhi::FramebufferOwner m_SkyFB[2];
+    int m_SkyTextureIdx;
+
+    rhi::ShaderOwner m_SkyPS;
+    rhi::GraphicsPipelineStateOwner m_SkyPSO;
+
+    rhi::GraphicsPipelineStateOwner m_CompositePSO;
 
     rhi::TextureOwner m_CloudsShapeTexture;
     gfx::MultiBuffer m_CloudsCB;
 
     SkyParams m_Params;
+    float2 m_CloudsOffset = { 0.f, 0.f };
 };
 
 } // namespace alm::gfx

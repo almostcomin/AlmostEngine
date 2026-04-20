@@ -13,10 +13,16 @@ float hash(float p)
 }
 
 // Range [0, 1]
-float hash(float2 p)
+float hash(float2 p2)
 {
-    float3 p3 = frac(float3(p.xyx) * 0.13);
-    p3 += dot(p3, p3.yzx + 3.333);
+    p2 = 50.0 * frac(p2 * 0.3183099);
+    return frac(p2.x * p2.y * (p2.x + p2.y));
+}
+
+float hash(float3 p3)
+{
+    p3 = frac(p3 * 1031.1031);
+    p3 += dot(p3, p3.yzx + 19.19);
     return frac((p3.x + p3.y) * p3.z);
 }
 

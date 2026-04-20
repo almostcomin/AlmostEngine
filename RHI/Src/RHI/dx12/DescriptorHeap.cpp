@@ -119,7 +119,7 @@ void alm::rhi::dx12::DescriptorHeap::ReleaseDescriptor(DescriptorIndex index)
     ReleaseDescriptors(index, 1);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE alm::rhi::dx12::DescriptorHeap::GetCpuHandle(DescriptorIndex index)
+D3D12_CPU_DESCRIPTOR_HANDLE alm::rhi::dx12::DescriptorHeap::GetCpuHandle(DescriptorIndex index) const
 {
     if (index == c_InvalidDescriptorIndex)
         return { 0u };
@@ -131,7 +131,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE alm::rhi::dx12::DescriptorHeap::GetCpuHandle(Descrip
     return handle;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE alm::rhi::dx12::DescriptorHeap::GetGpuHandle(DescriptorIndex index)
+D3D12_GPU_DESCRIPTOR_HANDLE alm::rhi::dx12::DescriptorHeap::GetGpuHandle(DescriptorIndex index) const
 {
     assert(m_ShaderVisible);
 

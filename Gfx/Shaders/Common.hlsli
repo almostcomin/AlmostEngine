@@ -3,6 +3,8 @@
 
 #define M_PI 3.14159265358979323846
 #define M_INV_PI 0.31830988618379067154
+#define POS_INFINITY asfloat(0x7F800000)
+#define NEG_INFINITY asfloat(0xFF800000)
 
 // Typically:
 //   invMatrix is invViewProjMatrix for world space position reconstruction
@@ -139,6 +141,31 @@ float RayPlaneIntersection(float3 origin, float3 dir, float planeY)
     if (abs(dir.y) < 0.0001f)
         return -1.0f;
     return (planeY - origin.y) / dir.y;
+}
+
+// Generic ray-sphere intersection
+// Returns the distance t from origin to the first intersection point
+// Returns -1.0 if no intersection or intersection is behind the ray
+float RaySphereIntersection(float3 rayOrigin, float3 rayDirection, float3 sphereCenter, float sphereRadius)
+{
+    float3 oc = rayOrigin - sphereCenter;
+    float b = dot(oc, rayDirection);
+    float c = dot(oc, oc) - square(sphereRadius);
+    float d = b * b - c;
+    
+    if (d < 0.0f)
+        return -1.0f; // no intersection
+    
+    float sqrtD = sqrt(d);
+    float t0 = -b - sqrtD; // near intersection
+    float t1 = -b + sqrtD; // far intersection
+    
+    // Return nearest positive t
+    if (t0 >= 0.0f)
+        return t0; // ray enters the sphere
+    if (t1 >= 0.0f)
+        return t1; // rayOrigin is inside the sphere
+    return -1.0f; // sphere is entirely behind the ray
 }
 
 #endif // __COMMON_HLSLI__
