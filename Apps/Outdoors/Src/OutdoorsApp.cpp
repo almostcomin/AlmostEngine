@@ -15,6 +15,7 @@
 #include "Gfx/RenderStages/WBOITResolveRenderStage.h"
 #include "Gfx/RenderStages/BloomRenderStage.h"
 #include "Gfx/RenderStages/SkyRenderStage.h"
+#include "Gfx/RenderStages/CloudsRenderStage.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
@@ -75,26 +76,26 @@ public:
 			{
 				loadResult->second.Wait();
 				alm::rhi::TextureOwner cloudsTexture = std::move(loadResult->first->texture);
-				m_SkyRS->SetCloudsShapeTexture(std::move(cloudsTexture));
+				m_CloudsRS->SetCloudsShapeTexture(std::move(cloudsTexture));
 			}
 		}
 		else
 		{
-			auto createResult = alm::gfx::SkyRenderStage::CreateCloudsShapeTexture(m_DeviceManager.get());
+			auto createResult = alm::gfx::CloudsRenderStage::CreateCloudsShapeTexture(m_DeviceManager.get());
 			assert(createResult);
 			createResult->second.Wait();
 			alm::rhi::TextureOwner& cloudsTexture = createResult->first;
 			alm::gfx::SaveDDSTexture(cloudsTexture.get_weak(), alm::rhi::ResourceState::SHADER_RESOURCE, alm::rhi::ResourceState::SHADER_RESOURCE,
 				m_DeviceManager->GetDevice(), "Generated/CloudShape.dds");
 
-			m_SkyRS->SetCloudsShapeTexture(std::move(cloudsTexture));
+			m_CloudsRS->SetCloudsShapeTexture(std::move(cloudsTexture));
 		}
 
 		// Init UI params
 		m_UI->m_Data.SunParams = m_Scene->GetSunParams();
-		m_UI->m_Data.SkyParams = m_SkyRS->GetSkyParams();
+		m_UI->m_Data.CloudsParams = m_CloudsRS->GetCloudsParams();
 
-		m_UI->AddTextureWindow("CloudShape.dds", m_SkyRS->GetCloudsShapeTexture());
+		m_UI->AddTextureWindow("CloudShape.dds", m_CloudsRS->GetCloudsShapeTexture());
 
 		return true;
 	}
@@ -106,7 +107,7 @@ public:
 			m_Scene->SetSunParams(m_UI->m_Data.SunParams);
 			m_UI->m_Data.SunParamsUpdated = false;
 		}
-		m_SkyRS->SetSkyParams(m_UI->m_Data.SkyParams);
+		m_CloudsRS->SetCloudsParams(m_UI->m_Data.CloudsParams);
 
 		// Camera movement
 		m_CameraController.Update(deltaTime);
@@ -117,6 +118,7 @@ public:
 	void Shutdown() override
 	{
 		m_SkyRS.reset();
+		m_CloudsRS.reset();
 		m_UI.reset();
 	}
 
@@ -134,6 +136,7 @@ public:
 		auto GBuffersRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::GBuffersRenderStage>();
 		auto deferredLightingRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::DeferredLightingRenderStage>();
 		auto skyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::SkyRenderStage>();
+		auto cloudsRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsRenderStage>();
 		auto WBOITAccumRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
 		auto WBOITResolveRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
 		auto bloomRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
@@ -152,6 +155,7 @@ public:
 			SSAORS,
 			deferredLightingRS,
 			skyRS,
+			cloudsRS,
 			WBOITAccumRS,
 			WBOITResolveRS,
 			bloomRS,
@@ -170,6 +174,7 @@ public:
 			SSAORS.get(),
 			deferredLightingRS.get(),
 			skyRS.get(),
+			cloudsRS.get(),
 			WBOITAccumRS.get(),
 			WBOITResolveRS.get(),
 			bloomRS.get(),
@@ -180,6 +185,7 @@ public:
 
 		m_UI = ImGuiRS;
 		m_SkyRS = skyRS;
+		m_CloudsRS = cloudsRS;
 
 		toneMappingRS->SetTonemappingEnabled(false);
 
@@ -191,6 +197,7 @@ private:
 	alm::CameraController m_CameraController;
 
 	std::shared_ptr<alm::gfx::SkyRenderStage> m_SkyRS;
+	std::shared_ptr<alm::gfx::CloudsRenderStage> m_CloudsRS;
 	std::shared_ptr<OutdoorsUI> m_UI;
 };
 

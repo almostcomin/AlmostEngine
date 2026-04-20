@@ -2,7 +2,7 @@
 
 #include "Framework/FrameworkUI.h"
 #include "Gfx/Scene.h"
-#include "Gfx/RenderStages/SkyRenderStage.h"
+#include "Gfx/RenderStages/CloudsRenderStage.h"
 
 class OutdoorsUI : public alm::fw::FrameworkUI
 {
@@ -15,7 +15,7 @@ public:
 		bool ShowUI = true;
 
 		alm::gfx::Scene::SunParams SunParams;
-		alm::gfx::SkyRenderStage::SkyParams SkyParams;
+		alm::gfx::CloudsRenderStage::CloudsParams CloudsParams;
 		bool SunParamsUpdated = false;
 	};
 

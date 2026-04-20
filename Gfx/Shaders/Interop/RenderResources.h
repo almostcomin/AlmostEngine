@@ -370,6 +370,13 @@ namespace interop
         BufferUniformIndex skyDataDI; // SimpleSkyData
     };
 
+    struct SkyConstants
+    {
+        float4x4 matClipToTranslatedWorld;
+        float3 toSunDirection;        
+        float lightRadiance;
+    };
+
     struct CloudsData
     {
         TextureSampledViewIndex cloudBaseShapeTexture;
@@ -392,11 +399,11 @@ namespace interop
         float4x4 matPrevFrameViewProj;
     };
 
-    struct SkyConstants
+    struct CloudsConstants
     {
-        float4x4 matClipToTranslatedWorld;        
+        float4x4 matClipToTranslatedWorld;
         float3 cameraPosition;
-        BufferUniformIndex cloudsDataDI; // CloudsConstants
+        BufferUniformIndex cloudsDataDI; // CloudsData
         float time;
     };
 }
