@@ -370,11 +370,24 @@ namespace interop
         BufferUniformIndex skyDataDI; // SimpleSkyData
     };
 
+    struct SkyData
+    {
+        float3 ToSunDirection;
+        uint _padding0;
+        float3 SunColor;
+        float SunIrradiance;
+        float3 ZenitColor;
+        float ZenitFalloff;
+        float3 HorizonColor;
+        float HorizonFalloff;
+        float3 GroundColor;
+        float GroundFalloff;
+    };
+
     struct SkyConstants
     {
         float4x4 matClipToTranslatedWorld;
-        float3 toSunDirection;        
-        float lightRadiance;
+        BufferUniformIndex SkyDataDI;  // SkyData
     };
 
     struct CloudsData
