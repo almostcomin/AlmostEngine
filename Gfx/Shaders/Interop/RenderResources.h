@@ -382,11 +382,15 @@ namespace interop
         float HorizonFalloff;
         float3 GroundColor;
         float GroundFalloff;
+        float3 EarthCenter;
+        uint _padding1;
+        //uint numSteps;
     };
 
     struct SkyConstants
     {
         float4x4 matClipToTranslatedWorld;
+        float3 CameraPosition;
         BufferUniformIndex SkyDataDI;  // SkyData
     };
 

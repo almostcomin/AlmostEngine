@@ -81,7 +81,7 @@ public:
 
 public:
 
-	SceneGraph() = default;
+    SceneGraph();
     SceneGraph(alm::unique<SceneGraphNode>&& rootNode);
 
 	// Replaces the current root node of the graph with the new one. Returns the old root.
@@ -89,7 +89,8 @@ public:
 
 	// Attaches a node and its subgraph to the parent.
 	// If the node is already attached to this or other graph, a deep copy of the subgraph is made first.
-	alm::weak<SceneGraphNode> Attach(SceneGraphNode* parent, alm::unique<SceneGraphNode>&& child);
+	//alm::weak<SceneGraphNode> Attach(SceneGraphNode* parent, alm::unique<SceneGraphNode>&& child);
+    void OnNodeAttached(SceneGraphNode* node);
 
     // Removes the node and its subgraph from the graph.
     alm::unique<SceneGraphNode> Detach(const SceneGraphNode* node);
@@ -121,6 +122,7 @@ public:
 
 private:
 
+    void UpdateNodeRecursive(SceneGraphNode* node);
     void RegisterLeaf(SceneGraphLeaf* leaf);
     void UnregisterLeaf(SceneGraphLeaf* leaf);
 

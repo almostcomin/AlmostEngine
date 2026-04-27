@@ -3,17 +3,31 @@
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/SceneGraph.h"
 
-alm::gfx::SceneGraphNode::SceneGraphNode() :
-	m_HasBounds{},
+alm::gfx::SceneGraphNode::SceneGraphNode(const std::string& name) :
 	m_ContentFlags{ SceneContentFlags::None },
 	m_DirtyFlags{ DirtyFlags::None },
-	m_Name{ "<noname>" }
+	m_Name{ name.empty() ? "<noname>" : name }
 {
 	m_WorldBounds.fill(alm::math::aabox3f::InitEmpty);
 }
 
 alm::gfx::SceneGraphNode::~SceneGraphNode()
 {}
+
+void alm::gfx::SceneGraphNode::AddChild(alm::unique<SceneGraphNode>&& child)
+{
+	assert(!child->m_Graph);
+	assert(!child->m_Parent);
+
+	SceneGraphNode* pchild = child.get();
+	m_Children.push_back(std::move(child));
+
+	pchild->m_Parent = weak_from_this();
+	if (m_Graph)
+	{
+		m_Graph->OnNodeAttached(pchild);
+	}
+}
 
 void alm::gfx::SceneGraphNode::SetLeaf(alm::unique<SceneGraphLeaf>&& leaf)
 { 
@@ -62,9 +76,17 @@ const float3& alm::gfx::SceneGraphNode::GetWorldPosition() const
 	return *(float3*)&m_WorldMatrix[3];
 }
 
-bool alm::gfx::SceneGraphNode::Test(BoundsType boundsType, std::span<const math::plane3f> planes) const
+const alm::math::aabox3f& alm::gfx::SceneGraphNode::GetWorldBounds(SceneContentType type) const
+{ 
+	assert(HasBoundsCategory(type));
+	return m_WorldBounds[(int)type]; 
+}
+
+bool alm::gfx::SceneGraphNode::Test(SceneContentType boundsType, std::span<const math::plane3f> planes) const
 {
-	assert(m_HasBounds[(int)boundsType] && "Test on a node without bounds!");
+	assert(HasBoundsCategory(boundsType));
+	assert(m_WorldBounds[(int)boundsType].valid());
+
 	for (const auto& plane : planes)
 	{
 		if (!m_WorldBounds[(int)boundsType].test(plane))

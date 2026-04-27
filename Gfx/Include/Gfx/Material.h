@@ -21,7 +21,7 @@ class Material
 {
 public:
 
-	Material(rhi::Device* device, const char* name = nullptr, const char* filename = nullptr);
+	Material(rhi::Device* device, const std::string& name, const std::string& filename = {});
 	~Material();
 
 	void SetBaseColorTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);

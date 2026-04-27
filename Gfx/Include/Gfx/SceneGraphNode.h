@@ -7,7 +7,6 @@
 #include "Core/Math/aabox.h"
 #include "Core/Math.h"
 #include "Gfx/SceneContentFlags.h"
-#include "Gfx/SceneBounds.h"
 
 namespace alm::gfx
 {
@@ -36,10 +35,12 @@ public:
 
 public:
 
-	SceneGraphNode();
+	SceneGraphNode(const std::string& name = {});
 	~SceneGraphNode();
 
 	void SetName(const char* name) { m_Name = name; }
+
+	void AddChild(alm::unique<SceneGraphNode>&& child);
 
 	void SetLeaf(alm::unique<SceneGraphLeaf>&& leaf);
 	void OnLeafBoundsChanged();
@@ -57,10 +58,9 @@ public:
 	const float4x4& GetWorldTransform() const { return m_WorldMatrix; }
 	const float3& GetWorldPosition() const;
 
-	bool HasBounds(BoundsType type) const { return m_HasBounds[(int)type]; }
-	const alm::math::aabox3f& GetWorldBounds(BoundsType type) const { return m_WorldBounds[(int)type]; }
+	const alm::math::aabox3f& GetWorldBounds(SceneContentType type) const;
 
-	bool Test(BoundsType boundsType, std::span<const math::plane3f> planes) const;
+	bool Test(SceneContentType boundsType, std::span<const math::plane3f> planes) const;
 
 	SceneContentFlags GetContentFlags() const { return m_ContentFlags; }
 
@@ -80,8 +80,7 @@ private:
 	Transform m_LocalTransform;
 	float4x4 m_WorldMatrix;
 
-	std::array<bool, (int)BoundsType::_Size> m_HasBounds;
-	std::array<alm::math::aabox3f, (int)BoundsType::_Size> m_WorldBounds;
+	std::array<alm::math::aabox3f, (int)SceneContentType::_Size> m_WorldBounds;
 
 	SceneContentFlags m_ContentFlags; // This leaf content flags plus children content flags
 

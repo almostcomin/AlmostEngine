@@ -72,7 +72,6 @@ public:
 
 	// Overrides
 	bool				HasBounds()			const override	{ return true; }
-	BoundsType			GetBoundsType()		const override	{ return BoundsType::Light; }
 	const alm::math::aabox3f& GetBounds()	const override	{ return m_Bounds; }
 	SceneContentFlags	GetContentFlags()	const override	{ return alm::gfx::SceneContentFlags::PointLights; }
 	Type				GetType()			const override	{ return Type::PointLight; }
@@ -105,7 +104,6 @@ public:
 
 	// Overrides
 	bool				HasBounds()			const override	{ return true; }
-	BoundsType			GetBoundsType()		const override	{ return BoundsType::Light; }
 	const alm::math::aabox3f& GetBounds()	const override	{ return m_Bounds; }
 	SceneContentFlags	GetContentFlags()	const override	{ return alm::gfx::SceneContentFlags::SpotLights; }
 	Type				GetType()			const override	{ return Type::SpotLight; }

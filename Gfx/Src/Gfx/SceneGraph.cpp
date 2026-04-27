@@ -61,18 +61,22 @@ alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Walker::Up()
 {
     if (!m_Current)
         return {};
-
+/*
     if (m_Current == m_Scope)
     {
         m_Current.reset();
         return {};
     }
-
+*/
     if (!m_ChildIndices.empty())
         m_ChildIndices.pop();
 
     m_Current = m_Current->GetParent();
     return m_Current;
+}
+
+alm::gfx::SceneGraph::SceneGraph()
+{
 }
 
 alm::gfx::SceneGraph::SceneGraph(alm::unique<alm::gfx::SceneGraphNode>&& rootNode)
@@ -88,11 +92,34 @@ alm::unique<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::SetRoot(alm::unique<
         oldRoot = Detach(m_Root.get());
     }
 
-    Attach(nullptr, std::move(rootNode));
+    m_Root = std::move(rootNode);
+    OnNodeAttached(m_Root.get());
 
     return oldRoot;
 }
 
+void alm::gfx::SceneGraph::OnNodeAttached(SceneGraphNode* node)
+{
+    // If the node has a parent, that parent should be already attached to the graph
+    assert(!node->m_Parent || node->m_Parent->m_Graph.get() == this);
+    // If the node has no parent, that means it is the (new) root
+
+    // Check the parent is valid
+    for (auto walker = Walker{ node }; walker; walker.Next())
+    {
+        walker->m_Graph = weak_from_this();
+        const auto& leaf = walker->GetLeaf();
+        if (leaf)
+        {
+            RegisterLeaf(leaf.get());
+        }
+    }
+
+    node->m_DirtyFlags |= SceneGraphNode::DirtyFlags::All;
+    node->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::Subgraph);
+}
+
+#if 0
 alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Attach(SceneGraphNode* parent, alm::unique<SceneGraphNode>&& child)
 {
     auto parentGraph = parent ? parent->m_Graph : weak_from_this();
@@ -146,6 +173,7 @@ alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Attach(SceneGraphNode*
 
     return attachedChild;
 }
+#endif
 
 alm::unique<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Detach(
     const SceneGraphNode* node)
@@ -193,111 +221,10 @@ int alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::Mesh* mesh) const
 
 void alm::gfx::SceneGraph::Refresh()
 {
-    // Root dirty?
-    if (has_any_flag(m_Root->m_DirtyFlags, SceneGraphNode::DirtyFlags::Subgraph))
-    {
-        Walker walker{ m_Root.get_weak() };
-        while (walker)
-        {
-            if (has_any_flag(walker->m_DirtyFlags, (SceneGraphNode::DirtyFlags::LocalTransform | SceneGraphNode::DirtyFlags::Leaf)))
-            {
-                // --- Subgraph needs update
+    if (!m_Root)
+        return;
 
-                Walker subgraphWalker{ *walker };
-                while (subgraphWalker)
-                {
-                    auto node = *subgraphWalker;
-
-                    // Update world transform
-                    if (node->m_Parent)
-                    {
-                        node->m_WorldMatrix = node->m_Parent->m_WorldMatrix * node->m_LocalTransform.GetMatrix();
-                    }
-                    else
-                    {
-                        node->m_WorldMatrix = node->m_LocalTransform.GetMatrix();
-                    }
-                    node->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::LocalTransform;
-
-                    // Reset world bounds using leaf data
-                    node->m_HasBounds = { false };
-                    if (node->m_Leaf && node->m_Leaf->HasBounds())
-                    {
-                        BoundsType boundsType = node->m_Leaf->GetBoundsType();
-                        assert(boundsType != BoundsType::_Size);
-                        node->m_WorldBounds[(int)boundsType] = node->m_Leaf->GetBounds().transform(node->m_WorldMatrix);
-                        node->m_HasBounds[(int)boundsType] = true;
-                    }
-
-                    // Set content flags
-                    if (node->m_Leaf)
-                    {
-                        node->m_ContentFlags = node->m_Leaf->GetContentFlags();
-                    }
-                    else
-                    {
-                        node->m_ContentFlags = SceneContentFlags::None;
-                    }
-
-                    node->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::Leaf;
-
-                    // Next node
-                    int depth = subgraphWalker.Next(); 
-
-                    // Update parent bounds and content flags if next is sibling or parent
-                    for (int i = depth; i <= 0; ++i)
-                    {
-                        if (!node->m_Parent)
-                            break;
-
-                        // Update parent bounds
-                        for (int boundsIdx = 0; boundsIdx < (int)BoundsType::_Size; ++boundsIdx)
-                        {
-                            if (node->m_HasBounds[boundsIdx])
-                            {
-                                node->m_Parent->m_WorldBounds[boundsIdx].merge(node->m_WorldBounds[boundsIdx]);
-                                node->m_Parent->m_HasBounds[boundsIdx] = true;
-                            }
-                        }
-
-                        // Update content flags
-                        node->m_Parent->m_ContentFlags |= node->m_ContentFlags;
-
-                        node = node->m_Parent;
-                    }
-
-                } // Subgraph loop
-
-                // Since we have updated a sub-graph, we need to update parent bounds
-                if (alm::any(walker->m_HasBounds))
-                {
-                    auto node = *walker;
-                    while (node->m_Parent)
-                    {
-                        for (int boundsIdx = 0; boundsIdx < (int)BoundsType::_Size; ++boundsIdx)
-                        {
-                            if (node->m_HasBounds[boundsIdx])
-                            {
-                                node->m_Parent->m_WorldBounds[boundsIdx].merge(node->m_WorldBounds[boundsIdx]);
-                                node->m_Parent->m_HasBounds[boundsIdx] = true;
-                            }
-                        }
-                        node = node->m_Parent;
-                    }
-                }
-
-                // Subgraph updated, need to go to the next sibling
-                walker->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::Subgraph;
-                walker.NextSibling();
-            }
-
-            else
-            {
-                // --- Subgraph does NOT need update
-                walker.NextSibling();
-            }
-        }
-    } // Root is dirty
+    UpdateNodeRecursive(m_Root.get());
 }
 
 void alm::gfx::SceneGraph::LogGraph() const
@@ -316,20 +243,6 @@ void alm::gfx::SceneGraph::LogGraph() const
             ss << "<Unnamed>";
         else
             ss << walker->GetName();
-
-        if (walker->HasBounds(alm::gfx::BoundsType::Mesh))
-        {
-            const auto& bbox = walker->GetWorldBounds(alm::gfx::BoundsType::Mesh);
-            ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
-                << bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
-        }
-
-        if (walker->HasBounds(alm::gfx::BoundsType::Light))
-        {
-            const auto& bbox = walker->GetWorldBounds(alm::gfx::BoundsType::Light);
-            ss << " [" << bbox.min.x << ", " << bbox.min.y << ", " << bbox.min.z << " .. "
-                << bbox.max.x << ", " << bbox.max.y << ", " << bbox.max.z << "]";
-        }
 
         if (walker->GetLeaf())
         {
@@ -354,6 +267,62 @@ void alm::gfx::SceneGraph::LogGraph() const
 
         depth += walker.Next();
     }
+}
+
+void alm::gfx::SceneGraph::UpdateNodeRecursive(SceneGraphNode* node)
+{
+    if (!has_any_flag(node->m_DirtyFlags, SceneGraphNode::DirtyFlags::All))
+        return;
+
+    // 1. World transform
+    if (node->m_Parent)
+    {
+        node->m_WorldMatrix = node->m_Parent->m_WorldMatrix * node->m_LocalTransform.GetMatrix();
+    }
+    else
+    {
+        node->m_WorldMatrix = node->m_LocalTransform.GetMatrix();
+    }
+    node->m_DirtyFlags &= ~SceneGraphNode::DirtyFlags::LocalTransform;
+
+    // 2. Reset content flags & bounds
+    for (int i = 0; i < (int)SceneContentType::_Size; ++i)
+    {
+        node->m_WorldBounds[i] = math::aabox3f::get_empty();
+    }
+    node->m_ContentFlags = SceneContentFlags::None;
+
+    // 3. Leaf contribution
+    if (node->m_Leaf)
+    {
+        node->m_ContentFlags = node->m_Leaf->GetContentFlags();
+        if (node->m_Leaf->HasBounds())
+        {
+            const auto& bounds = node->m_Leaf->GetBounds();
+            assert(bounds.valid());
+            const auto worldBounds = bounds.transform(node->m_WorldMatrix);
+            for (int contentTypeIndex = 0; contentTypeIndex < (int)SceneContentType::_Size; ++contentTypeIndex)
+            {
+                node->m_WorldBounds[contentTypeIndex] = worldBounds;
+            }
+        }
+    }
+
+    // 4. Recurse and merge
+    for (auto& child : node->m_Children)
+    {
+        UpdateNodeRecursive(child.get());
+
+        node->m_ContentFlags |= child->m_ContentFlags;
+        for (int i = 0; i < (int)SceneContentType::_Size; ++i)
+        {
+            if (has_any_flag(child->m_ContentFlags, ToFlag((SceneContentType)i)))
+                node->m_WorldBounds[i].merge(child->m_WorldBounds[i]);
+        }
+    }
+
+    // Clear dirty
+    node->m_DirtyFlags = SceneGraphNode::DirtyFlags::None;
 }
 
 void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)

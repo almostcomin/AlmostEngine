@@ -72,6 +72,11 @@ public:
 		m_CameraController.SetWindow(m_Window);
 		m_CameraController.SetCamera(m_MainCamera);
 
+		// Init scene graph
+		auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
+		sceneGraph->SetRoot(alm::make_unique_with_weak<alm::gfx::SceneGraphNode>("root"));
+		m_Scene->SetSceneGraph(std::move(sceneGraph));
+
 		return true;
 	}
 
@@ -84,17 +89,26 @@ public:
 			auto importResult = alm::gfx::ImportGlTF(m_RequestLoadFile.c_str(), m_DeviceManager.get());
 			if (importResult)
 			{
-				m_Scene->SetSceneGraph(std::move(*importResult));
+				//auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
+				//sceneGraph->SetRoot(alm::make_unique_with_weak<alm::gfx::SceneGraphNode>("root"));
+				m_Scene->GetSceneGraph()->GetRoot()->AddChild(std::move(*importResult));
+				//sceneGraph->SetRoot(std::move(*importResult));
+				//m_Scene->SetSceneGraph(std::move(sceneGraph));
 
-				const alm::math::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::BoundsType::Mesh);
-				const float radius = glm::length(bounds.extents()) / 2.f;
-				m_MainCamera->SetZNear(radius * 0.05f);
+				m_Scene->RefreshSceneGraph();
 
-				m_MainCamera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
-				m_MainCamera->Fit(bounds);
+				const alm::math::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
+				if (bounds.valid())
+				{
+					const float radius = glm::length(bounds.extents()) / 2.f;
+					m_MainCamera->SetZNear(radius * 0.05f);
 
-				m_CameraController.SetSpeed(radius * 1.f);
-				m_UIRS->m_Data.CameraSpeed = radius * 1.f;
+					m_MainCamera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
+					m_MainCamera->Fit(bounds);
+
+					m_CameraController.SetSpeed(radius * 1.f);
+					m_UIRS->m_Data.CameraSpeed = radius * 1.f;
+				}
 
 				m_Scene->GetSceneGraph()->LogGraph();
 			}
@@ -122,13 +136,13 @@ public:
 			auto& data = m_UIRS->m_Data;
 			if (!data.RenderMode.empty() && data.RenderMode != renderGraph->GetCurrentRenderMode())
 			{
-				renderGraph->SetCurrentRenderMode(data.RenderMode);
+				renderGraph->SetActiveRenderMode(data.RenderMode);
 			}
 
 			m_CameraController.SetSpeed(data.CameraSpeed);
 
-			m_DebugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Mesh, data.ShowMeshBBoxes);
-			m_DebugRS->ShowRenderBBoxes(alm::gfx::BoundsType::Light, data.ShowLightBBoxes);
+			m_DebugRS->ShowRenderBBoxes(alm::gfx::SceneContentType::Meshes, data.ShowMeshBBoxes);
+			m_DebugRS->ShowRenderBBoxes(alm::gfx::SceneContentType::SpotLights, data.ShowLightBBoxes);
 
 			m_LightingRS->ShowShadowmap(data.ShowShadowmap);
 			if (data.ShadowmapDepthBias != m_ShadowmapRS->GetDepthBias())

@@ -26,7 +26,9 @@
 #include "Gfx/TextureLoader.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/TextureCache.h"
+#include "Gfx/CommonResources.h"
 #include "Gfx/LoadedTexture.h"
+#include "Gfx/MeshInstance.h"
 #include "OutdoorsUI.h"
 
 class OutdoorsApp : public alm::fw::App
@@ -38,28 +40,57 @@ public:
 
 	bool Initialize() override
 	{
-		m_MainCamera->SetPosition(float3{ 0.f, 0.f, 100.f });
+		m_MainCamera->SetPosition(float3{ 0.f, 0.f, 1.f });
 
 		m_CameraController.SetWindow(m_Window);
 		m_CameraController.SetCamera(m_MainCamera);
-		m_CameraController.SetSpeed(200.f);
+		m_CameraController.SetSpeed(1.f);
+		m_MainCamera->SetZNear(0.01f);
 
-		std::string path = GetStartupArgString("load");
-		if (!path.empty())
+		// Init scene graph
+		auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
+		sceneGraph->SetRoot(alm::make_unique_with_weak<alm::gfx::SceneGraphNode>("root"));
+		m_Scene->SetSceneGraph(std::move(sceneGraph));
+
+		// Init earth sphere
 		{
-			auto importResult = alm::gfx::ImportGlTF(path.c_str(), m_DeviceManager.get());
-			if (importResult)
+			alm::gfx::CommonResources* commonResources = m_DeviceManager->GetCommonResources();
+			auto earthMesh = commonResources->CreateUVSphere(6360000.f, 128, 128, m_DeviceManager->GetDataUploader(), "EarthMesh");
+
+			auto meshInstance = alm::make_unique_with_weak<alm::gfx::MeshInstance>(earthMesh);			
+			meshInstance->SetInstanceFlags(meshInstance->GetInstanceFlags() & ~alm::gfx::MeshInstance::Flags::CastShadows);
+
+			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
+			graphNode->SetName("EarthSphere");
+			graphNode->SetLeaf(std::move(meshInstance));
+			graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation({ 0.f, -6360000.f, 0.f }));
+
+			auto sceneGraph = m_Scene->GetSceneGraph();
+			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
+			m_Scene->RefreshSceneGraph();
+		}
+
+		// Load file
+		{
+			std::string path = GetStartupArgString("load");
+			if (!path.empty())
 			{
-				m_Scene->SetSceneGraph(std::move(*importResult));
+				auto importResult = alm::gfx::ImportGlTF(path.c_str(), m_DeviceManager.get());
+				if (importResult)
+				{
+					m_Scene->GetSceneGraph()->GetRoot()->AddChild(std::move(*importResult));
+					m_Scene->RefreshSceneGraph();
+#if 0
+					const alm::math::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::BoundsType::Mesh);
+					const float radius = glm::length(bounds.extents()) / 2.f;
+					m_MainCamera->SetZNear(radius * 0.05f);
 
-				const alm::math::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::BoundsType::Mesh);
-				const float radius = glm::length(bounds.extents()) / 2.f;
-				m_MainCamera->SetZNear(radius * 0.05f);
+					m_MainCamera->SetPosition(float3{ 0.f, 0.f, 100.f });
+					m_MainCamera->Fit(bounds);
 
-				m_MainCamera->SetPosition(float3{ 0.f, 0.f, 100.f });
-				m_MainCamera->Fit(bounds);
-
-				m_CameraController.SetSpeed(radius * 1.f);
+					m_CameraController.SetSpeed(radius * 1.f);
+#endif
+				}
 			}
 		}
 
@@ -96,6 +127,8 @@ public:
 		m_UI->m_Data.CloudsParams = m_CloudsRS->GetCloudsParams();
 
 		m_UI->AddTextureWindow("CloudShape.dds", m_CloudsRS->GetCloudsShapeTexture());
+
+		//m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("wireframe");
 
 		return true;
 	}
@@ -166,7 +199,7 @@ public:
 			wireframeRS });
 
 		// Define default render mode
-		renderGraph->SetRenderMode("Default", {
+		renderGraph->SetRenderMode("default", {
 			shadowmapRS.get(),
 			depthPrepassRS.get(),
 			linearizeDepthRS.get(),
@@ -179,6 +212,14 @@ public:
 			WBOITResolveRS.get(),
 			bloomRS.get(),
 			toneMappingRS.get(),
+			debugRS.get(),
+			ImGuiRS.get(),
+			compositeRS.get() });
+
+		// Define wireframe render mode
+		renderGraph->SetRenderMode("wireframe", {
+			depthPrepassRS.get(),
+			wireframeRS.get(),
 			debugRS.get(),
 			ImGuiRS.get(),
 			compositeRS.get() });

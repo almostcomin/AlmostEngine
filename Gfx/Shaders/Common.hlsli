@@ -144,28 +144,18 @@ float RayPlaneIntersection(float3 origin, float3 dir, float planeY)
 }
 
 // Generic ray-sphere intersection
-// Returns the distance t from origin to the first intersection point
-// Returns -1.0 if no intersection or intersection is behind the ray
-float RaySphereIntersection(float3 rayOrigin, float3 rayDirection, float3 sphereCenter, float sphereRadius)
+// Sphere centered at (0,0,0) with given radius
+// Returns (tNear, tFar). Negative values mean no intersection or behind the ray
+float2 RaySphereIntersection(float3 origin, float3 direction, float radius)
 {
-    float3 oc = rayOrigin - sphereCenter;
-    float b = dot(oc, rayDirection);
-    float c = dot(oc, oc) - square(sphereRadius);
+    float b = dot(origin, direction);
+    float c = dot(origin, origin) - radius * radius;
     float d = b * b - c;
-    
-    if (d < 0.0f)
-        return -1.0f; // no intersection
+    if (d < 0.0)  
+        return float2(-1.0, -1.0); // no intersection
     
     float sqrtD = sqrt(d);
-    float t0 = -b - sqrtD; // near intersection
-    float t1 = -b + sqrtD; // far intersection
-    
-    // Return nearest positive t
-    if (t0 >= 0.0f)
-        return t0; // ray enters the sphere
-    if (t1 >= 0.0f)
-        return t1; // rayOrigin is inside the sphere
-    return -1.0f; // sphere is entirely behind the ray
+    return float2(-b - sqrtD, -b + sqrtD); // tNear, tFar
 }
 
 #endif // __COMMON_HLSLI__

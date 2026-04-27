@@ -9,6 +9,12 @@
 #include "Gfx/RenderGraphBuilder.h"
 #include "Interop/RenderResources.h"
 
+void alm::gfx::DebugRenderStage::ShowRenderBBoxes(SceneContentType boundsType, bool b)
+{ 
+	assert(HasBoundsCategory(boundsType));
+	m_RenderBBoxes[(int)boundsType] = b; 
+}
+
 void alm::gfx::DebugRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_TonemappedTexture = builder.GetTextureHandle("ToneMapped");
@@ -41,11 +47,11 @@ void alm::gfx::DebugRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
 		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
 	
-	for (int i = 0; i < (int)BoundsType::_Size; ++i)
+	for (int i = 0; i < (int)SceneContentType::_Size; ++i)
 	{
 		if (m_RenderBBoxes[i])
 		{
-			auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene, (BoundsType)i, commandList);
+			auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene, (SceneContentType)i, commandList);
 
 			interop::DebugStage shaderConstants;
 			shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
@@ -134,7 +140,7 @@ void alm::gfx::DebugRenderStage::OnBackbufferResize()
 	}
 }
 
-std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, BoundsType boundsType, rhi::CommandListHandle commandList)
+std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, SceneContentType boundsType, rhi::CommandListHandle commandList)
 {
 	rhi::Device* device = GetDeviceManager()->GetDevice();
 
@@ -148,7 +154,7 @@ std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetA
 	while (walker)
 	{
 		auto node = *walker;
-		if (node->HasBounds(boundsType))
+		if (has_any_flag(node->GetContentFlags(), ToFlag(boundsType)))
 		{
 			aabboxes.push_back(node->GetWorldBounds(boundsType));
 			walker.Next();

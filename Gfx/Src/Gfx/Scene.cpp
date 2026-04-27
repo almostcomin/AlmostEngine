@@ -41,16 +41,21 @@ alm::gfx::Scene::~Scene()
 
 void alm::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 {
+	m_SceneGraph = std::move(graph);
+	if (!m_SceneGraph)
+		return;
+
+	RefreshSceneGraph();
+}
+
+void alm::gfx::Scene::RefreshSceneGraph()
+{
 	auto* dataUploader = m_DeviceManager->GetDataUploader();
 
 	// Release old data
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
-
-	m_SceneGraph = std::move(graph);
-	if (!m_SceneGraph)
-		return;
 
 	m_SceneGraph->Refresh(); // Make sure it is up to date
 
@@ -84,7 +89,7 @@ void alm::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 	}
 
 	// Fill meshes buffer
-	if(!m_SceneGraph->GetMeshes().empty())
+	if (!m_SceneGraph->GetMeshes().empty())
 	{
 		const auto& meshes = m_SceneGraph->GetMeshes();
 
@@ -126,7 +131,7 @@ void alm::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 	} // meshes buffer
 
 	// Materials buffer
-	if(!m_SceneGraph->GetMaterials().empty())
+	if (!m_SceneGraph->GetMaterials().empty())
 	{
 		const auto& materials = m_SceneGraph->GetMaterials();
 
@@ -138,7 +143,7 @@ void alm::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
 			.stride = sizeof(interop::MaterialData) };
 
 		m_MaterialsBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Materials Buffer");
-			
+
 		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
 		auto* matDataPtr = (interop::MaterialData*)uploadTicket->GetPtr();
 		for (const alm::gfx::Material* mat : materials)
@@ -189,11 +194,11 @@ void alm::gfx::Scene::Update()
 	}
 }
 
-const alm::math::aabox3f alm::gfx::Scene::GetWorldBounds(BoundsType boundsType) const
+const alm::math::aabox3f alm::gfx::Scene::GetWorldBounds(SceneContentType type) const
 {
-	if (m_SceneGraph && m_SceneGraph->GetRoot() && m_SceneGraph->GetRoot()->HasBounds(boundsType))
+	if (m_SceneGraph && m_SceneGraph->GetRoot() && has_any_flag(m_SceneGraph->GetRoot()->GetContentFlags(), ToFlag(type)))
 	{
-		return m_SceneGraph->GetRoot()->GetWorldBounds(boundsType);
+		return m_SceneGraph->GetRoot()->GetWorldBounds(type);
 	}
 	return math::aabox3f::get_empty();
 }

@@ -2,7 +2,7 @@
 #include "Gfx/Material.h"
 #include "RHI/Device.h"
 
-alm::gfx::Material::Material(alm::rhi::Device* device, const char* name, const char* filename) :
+alm::gfx::Material::Material(alm::rhi::Device* device, const std::string& name, const std::string& filename) :
 	m_BaseColor{ 1.f },
 	m_Opacity{ 1.f },
 	m_EmissiveColor{ 0.f },
@@ -14,8 +14,8 @@ alm::gfx::Material::Material(alm::rhi::Device* device, const char* name, const c
 	m_CullMode{ rhi::CullMode::Back },
 	m_Domain{ MaterialDomain::Opaque },
 	m_Device{ device },
-	m_Name{ name ? name : "<null>" },
-	m_SourceFileName{ filename ? filename : "<null>" }
+	m_Name{ name.empty() ? "<null>" : name },
+	m_SourceFileName{ filename.empty() ? "<null>" : filename }
 {}
 
 alm::gfx::Material::~Material()

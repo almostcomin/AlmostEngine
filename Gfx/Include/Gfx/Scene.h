@@ -4,7 +4,7 @@
 #include "Core/Common.h"
 #include "Core/Math/aabox.h"
 #include "RHI/Buffer.h"
-#include "Gfx/SceneBounds.h"
+#include "Gfx/SceneContentFlags.h"
 #include <map>
 
 namespace alm::gfx
@@ -45,8 +45,9 @@ namespace alm::gfx
 
 		void SetSceneGraph(unique<SceneGraph>&& graph);
 		weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
+		void RefreshSceneGraph();
 
-		const math::aabox3f GetWorldBounds(BoundsType boundsType) const;
+		const math::aabox3f GetWorldBounds(SceneContentType type) const;
 
 		const AmbientParams& GetAmbientParams() const { return m_AmbientParams; }
 		void SetAmbientParams(const AmbientParams& v) { m_AmbientParams = v; }

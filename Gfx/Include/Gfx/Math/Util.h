@@ -6,13 +6,13 @@ namespace alm::math
 {
 
 template<int n> 
-uint32_t VectorToSnorm8(const glm::vec<n, float, glm::defaultp>& v)
+inline uint32_t VectorToSnorm8(const glm::vec<n, float, glm::defaultp>& v)
 {
 	static_assert(false, "Not defined");
 }
 
 template<> 
-uint32_t VectorToSnorm8<2>(const glm::vec2& v)
+inline uint32_t VectorToSnorm8<2>(const glm::vec2& v)
 {
     float scale = 127.0f / glm::length(v);
     int x = int(v.x * scale);
@@ -21,7 +21,7 @@ uint32_t VectorToSnorm8<2>(const glm::vec2& v)
 }
 
 template<>
-uint32_t VectorToSnorm8<3>(const glm::vec3& v)
+inline uint32_t VectorToSnorm8<3>(const glm::vec3& v)
 {
     float scale = 127.0f / glm::length(v);
     int x = int(v.x * scale);
@@ -31,7 +31,7 @@ uint32_t VectorToSnorm8<3>(const glm::vec3& v)
 }
 
 template<>
-uint32_t VectorToSnorm8<4>(const glm::vec4& v)
+inline uint32_t VectorToSnorm8<4>(const glm::vec4& v)
 {
     float scale = 127.0f / glm::length(v);
     int x = int(v.x * scale);

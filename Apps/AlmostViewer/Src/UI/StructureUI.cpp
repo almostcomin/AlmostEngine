@@ -792,11 +792,11 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     ImGui::InputFloat3("##worldScale", (float*)&(worldTransform.GetScale()), "%.3f", ImGuiInputTextFlags_ReadOnly);
                 }
 
-                if (node->HasBounds(alm::gfx::BoundsType::Mesh))
+                if (alm::has_any_flag(node->GetContentFlags(), alm::gfx::SceneContentFlags::Meshes))
                 {
                     ImGui::SeparatorText("Mesh Bounds");
                     {
-                        const alm::math::aabox3f& bbox = node->GetWorldBounds(alm::gfx::BoundsType::Mesh);
+                        const alm::math::aabox3f& bbox = node->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
                         ImGui::Text("Min");
                         ImGui::SetNextItemWidth(-FLT_MIN);
                         ImGui::InputFloat3("##meshBboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
@@ -806,11 +806,11 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                     }
                 }
 
-                if (node->HasBounds(alm::gfx::BoundsType::Light))
+                if (alm::has_any_flag(node->GetContentFlags(), alm::gfx::SceneContentFlags::SpotLights))
                 {
-                    ImGui::SeparatorText("Light Bounds");
+                    ImGui::SeparatorText("Spot Light Bounds");
                     {
-                        const alm::math::aabox3f& bbox = node->GetWorldBounds(alm::gfx::BoundsType::Light);
+                        const alm::math::aabox3f& bbox = node->GetWorldBounds(alm::gfx::SceneContentType::SpotLights);
                         ImGui::Text("Min");
                         ImGui::SetNextItemWidth(-FLT_MIN);
                         ImGui::InputFloat3("##lightBboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
@@ -843,22 +843,21 @@ void StructureUI::BuildSceneWindow(bool* p_open)
 
                     // First row
                     ImGui::TableNextRow();
-                    flagCell("OpaqueMeshes", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::OpaqueMeshes));
+                    flagCell("Meshes", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::Meshes));
                     flagCell("DirLights", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::DirectionalLights));
 
                     // Second row
                     ImGui::TableNextRow();
-                    flagCell("AlphaTestedMeshes", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::AlphaTestedMeshes));
+                    flagCell("ShadowCasters", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::ShadowCasters));
                     flagCell("PointLights", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::PointLights));
 
                     // Third row
                     ImGui::TableNextRow();
-                    flagCell("BlendedMeshes", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::BlendedMeshes));
+                    flagCell("Animations", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::Animations));
                     flagCell("SpotLights", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::SpotLights));
 
                     // Four row
                     flagCell("Cameras", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::Cameras));
-                    flagCell("Animations", alm::has_any_flag(flags, alm::gfx::SceneContentFlags::Animations));
 
                     ImGui::EndTable();
                 }

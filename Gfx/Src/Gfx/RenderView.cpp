@@ -282,14 +282,12 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 {
 	m_CameraVisibleSet.Elements.clear();
 	m_CameraVisibleBounds.reset();
-	if (!m_Camera ||
-		!m_Scene ||
-		!m_Scene->GetSceneGraph())
+	if (!m_Camera || !m_Scene || !m_Scene->GetSceneGraph())
 	{
 		return;
 	}
 
-	GetVisibleSet(m_Camera->GetFrustum().get_planes(), m_CameraVisibleSet, &m_CameraVisibleBounds);
+	GetVisibleSet(m_Camera->GetFrustum().get_planes(), SceneContentType::Meshes, m_CameraVisibleSet, &m_CameraVisibleBounds);
 	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList);
 }
 
@@ -306,7 +304,7 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	const float3 sunDir = alm::ElevationAzimuthRadToDir(
 		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
-	const alm::math::aabox3f& worldBounds = m_Scene->GetWorldBounds(BoundsType::Mesh);
+	const alm::math::aabox3f& worldBounds = m_Scene->GetWorldBounds(SceneContentType::Meshes);
 	const alm::math::aabox3f& visibleSceneBounds = m_CameraVisibleBounds;
 	const float3 worldCenter = worldBounds.center();
 	const float3 worldExtents = worldBounds.extents();
@@ -318,15 +316,11 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 	// Transform scene (visible set) bounds to local camera axis
 	auto sceneBoundsSun = visibleSceneBounds.transform(sunViewMatrix);
-	//assert(sceneBoundsSun.min.z <= 0.f); // Note that front is -z
-	//assert(sceneBoundsSun.max.z <= 0.f);
 	assert(sceneBoundsSun.min.z <= sceneBoundsSun.max.z);
 
 	// Extends the bounds depth to the direction of the sun top cover entire scene
 	{
 		auto worldBoundsSun = worldBounds.transform(sunViewMatrix);
-		//assert(worldBoundsSun.min.z <= 0.f);
-		//assert(worldBoundsSun.max.z <= 0.f);
 		assert(worldBoundsSun.min.z <= sceneBoundsSun.max.z);
 
 		sceneBoundsSun.min.z = worldBoundsSun.min.z;
@@ -374,7 +368,7 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 			{{ 0.f, 0.f, -1.f }, aabb.max.z },	// far		
 		};
 
-		GetVisibleSet(sunClipPlanes, m_ShadowMapVisibleSet, nullptr);
+		GetVisibleSet(sunClipPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, nullptr);
 		UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList);
 	}
 }
@@ -444,7 +438,7 @@ void alm::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* com
 	{
 		auto node = *walker;
 		if (has_any_flag(node->GetContentFlags(), SceneContentFlags::PointLights) &&
-			node->HasBounds(BoundsType::Light) && node->Test(BoundsType::Light, frustum.get_planes()))
+			node->Test(SceneContentType::PointLights, frustum.get_planes()))
 		{
 			auto leaf = node->GetLeaf();
 			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::PointLight)
@@ -520,7 +514,7 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 	{
 		auto node = *walker;
 		if (has_any_flag(node->GetContentFlags(), SceneContentFlags::SpotLights) &&
-			node->HasBounds(BoundsType::Light) && node->Test(BoundsType::Light, frustum.get_planes()))
+			node->Test(SceneContentType::SpotLights, frustum.get_planes()))
 		{
 			auto leaf = node->GetLeaf();
 			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::SpotLight)
@@ -575,7 +569,8 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 }
 
-void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, RenderSet& out_renderSet, math::aabox3f* opt_outBounds) const
+void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
+	math::aabox3f* opt_outBounds) const
 {
 	out_renderSet.Elements.clear();
 
@@ -591,19 +586,24 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 	while (walker)
 	{
 		auto node = *walker;
-		if (has_any_flag(node->GetContentFlags(), SceneContentFlags::OpaqueMeshes) &&
-			node->HasBounds(BoundsType::Mesh) && node->Test(BoundsType::Mesh, planes))
+		if (has_any_flag(node->GetContentFlags(), ToFlag(primaryType)) && node->Test(primaryType, planes))
 		{
 			auto leaf = node->GetLeaf();
 			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::MeshInstance)
 			{
-				const auto* meshInstance = alm::checked_cast<const alm::gfx::MeshInstance*>(leaf.get());
-				assert(meshInstance && meshInstance->GetMesh() && meshInstance->GetMesh()->GetMaterial());
+				if (has_any_flag(leaf->GetContentFlags(), ToFlag(primaryType)))
+				{
+					const auto* meshInstance = alm::checked_cast<const alm::gfx::MeshInstance*>(leaf.get());
+					assert(meshInstance && meshInstance->GetMesh() && meshInstance->GetMesh()->GetMaterial());
 
-				instances[(int)meshInstance->GetMaterialDomain()][(int)meshInstance->GetCullMode()].push_back(meshInstance);
+					instances[(int)meshInstance->GetMaterialDomain()][(int)meshInstance->GetCullMode()].push_back(meshInstance);
 
-				if(opt_outBounds)
-					opt_outBounds->merge(node->GetWorldBounds(BoundsType::Mesh));
+					if (opt_outBounds)
+					{
+						auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
+						opt_outBounds->merge(leafWorldBounds);
+					}
+				}
 			}
 			walker.Next();
 		}

@@ -1295,7 +1295,7 @@ const cgltf_node* NextSibling(const cgltf_node* node, const cgltf_node* parent, 
 namespace alm::gfx
 {
 
-std::expected<alm::unique<alm::gfx::SceneGraph>, std::string>
+std::expected<alm::unique<alm::gfx::SceneGraphNode>, std::string>
 ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
 {
     std::string filename = std::filesystem::path(path).filename().string();
@@ -1370,7 +1370,7 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
     // Build scene
     assert(objects->scenes_count == 1); // only 1 scene allowed
 
-    auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
+    //auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
     auto rootNode = alm::make_unique_with_weak<SceneGraphNode>();
     rootNode->SetName(filename.c_str());
 
@@ -1429,7 +1429,7 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
                         auto leaf = alm::make_unique_with_weak<alm::gfx::MeshInstance>(found->second[meshIdx]);
                         meshNode->SetLeaf(std::move(leaf));
 
-                        sceneGraph->Attach(dstNode.get(), std::move(meshNode));
+                        dstNode->AddChild(std::move(meshNode));
                     }
                 }
             }
@@ -1516,7 +1516,7 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
         auto attachedNode = dstNode.get_weak();
         if (!stack.empty())
         {
-            sceneGraph->Attach(stack.back().second.get(), std::move(dstNode));
+            stack.back().second->AddChild(std::move(dstNode));
         }
         // Else, we are the root
         else
@@ -1551,8 +1551,9 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
         signal.Wait();
     }
 
-    sceneGraph->SetRoot(std::move(rootNode));
-    return sceneGraph;
+    //sceneGraph->SetRoot(std::move(rootNode));
+    //return sceneGraph;
+    return rootNode;
 }
 
 } // namespace st::gfx

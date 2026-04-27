@@ -190,7 +190,7 @@ void alm::gfx::RenderGraph::SetRenderMode(const std::string& name, const std::ve
 		m_CurrentRenderMode = name;
 }
 
-void alm::gfx::RenderGraph::SetCurrentRenderMode(const std::string& name)
+void alm::gfx::RenderGraph::SetActiveRenderMode(const std::string& name)
 {
 	if (m_RenderModes.find(name) == m_RenderModes.end())
 	{

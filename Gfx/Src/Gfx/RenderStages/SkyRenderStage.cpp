@@ -54,11 +54,14 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		skyData->HorizonFalloff = m_Params.HorizonFalloff;
 		skyData->GroundColor = m_Params.GroundColor;
 		skyData->GroundFalloff = m_Params.GroundFalloff;
+		skyData->EarthCenter = float3(0.f, -6360000, 0.f);// GetCamera()->GetPosition() + float3(0.f, -m_Params.EarthRadius, 0.f);
+		
 	}
 	m_ShaderCB.Unmap();
 
 	interop::SkyConstants shaderConstants;
 	shaderConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
+	shaderConstants.CameraPosition = GetCamera()->GetPosition();
 	shaderConstants.SkyDataDI = m_ShaderCB.GetUniformView();
 
 	commandList->PushGraphicsConstants(0, shaderConstants);

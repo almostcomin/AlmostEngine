@@ -71,7 +71,7 @@ public:
 
 	void SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages);
 	void SetRenderMode(const std::string& name, const std::vector<RenderStage*>& renderStages);
-	void SetCurrentRenderMode(const std::string& name);
+	void SetActiveRenderMode(const std::string& name);
 	const std::string& GetCurrentRenderMode() const { return m_CurrentRenderMode; }
 	std::vector<std::string> GetRenderModes() const;
 
