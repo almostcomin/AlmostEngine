@@ -79,6 +79,18 @@ struct aabox
         return result;
     }
 
+    [[nodiscard]] std::vector<plane<T, 3>> buildClipPlanes() const
+    {
+        return std::vector<plane<T, 3>>{
+            {{ 1.f, 0.f, 0.f }, -min.x },	// left
+            {{ -1.f, 0.f, 0.f }, max.x },	// right
+            {{ 0.f, -1.f, 0.f }, max.y },	// top
+            {{ 0.f, 1.f, 0.f }, -min.y },	// bottom
+            {{ 0.f, 0.f, 1.f }, -min.z },	// near
+            {{ 0.f, 0.f, -1.f }, max.z },	// far		
+        };
+    }
+
     // Returns true if inside (direction of the normal) or overlaps the plane
     template<typename T>
     bool test(const plane<T, 3>& _plane) const

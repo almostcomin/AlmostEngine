@@ -35,6 +35,8 @@ class OutdoorsApp : public alm::fw::App
 {
 public:
 
+	static constexpr float kEarthRadius = 100.f;// 6360000.f;
+
 	OutdoorsApp() : alm::fw::App{ "OutdoorsApp", alm::fw::App::RenderStageSetMode::User } {}
 	~OutdoorsApp() override = default;
 
@@ -55,7 +57,7 @@ public:
 		// Init earth sphere
 		{
 			alm::gfx::CommonResources* commonResources = m_DeviceManager->GetCommonResources();
-			auto earthMesh = commonResources->CreateUVSphere(6360000.f, 128, 128, m_DeviceManager->GetDataUploader(), "EarthMesh");
+			auto earthMesh = commonResources->CreateUVSphere(kEarthRadius, 128, 128, m_DeviceManager->GetDataUploader(), "EarthMesh");
 
 			auto meshInstance = alm::make_unique_with_weak<alm::gfx::MeshInstance>(earthMesh);			
 			meshInstance->SetInstanceFlags(meshInstance->GetInstanceFlags() & ~alm::gfx::MeshInstance::Flags::CastShadows);
@@ -63,7 +65,7 @@ public:
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
 			graphNode->SetName("EarthSphere");
 			graphNode->SetLeaf(std::move(meshInstance));
-			graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation({ 0.f, -6360000.f, 0.f }));
+			graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation({ 0.f, -kEarthRadius, 0.f }));
 
 			auto sceneGraph = m_Scene->GetSceneGraph();
 			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
@@ -80,16 +82,6 @@ public:
 				{
 					m_Scene->GetSceneGraph()->GetRoot()->AddChild(std::move(*importResult));
 					m_Scene->RefreshSceneGraph();
-#if 0
-					const alm::math::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::BoundsType::Mesh);
-					const float radius = glm::length(bounds.extents()) / 2.f;
-					m_MainCamera->SetZNear(radius * 0.05f);
-
-					m_MainCamera->SetPosition(float3{ 0.f, 0.f, 100.f });
-					m_MainCamera->Fit(bounds);
-
-					m_CameraController.SetSpeed(radius * 1.f);
-#endif
 				}
 			}
 		}
@@ -127,9 +119,11 @@ public:
 		m_UI->m_Data.CloudsParams = m_CloudsRS->GetCloudsParams();
 
 		m_UI->AddTextureWindow("CloudShape.dds", m_CloudsRS->GetCloudsShapeTexture());
-
-		//m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("wireframe");
-
+/*
+		auto renderGraph = m_MainRenderView->GetRenderGraph();
+		alm::rhi::TextureHandle depthColorTexture = renderGraph->GetTexture("ShadowmapColor");
+		m_UI->AddTextureWindow("Shadowmap", depthColorTexture);
+*/
 		return true;
 	}
 
@@ -157,6 +151,26 @@ public:
 
 	void OnSDLEvent(const SDL_Event& event) override
 	{
+		switch (event.type)
+		{
+		case SDL_EVENT_KEY_DOWN:
+		{
+			switch (event.key.key)
+			{
+			case SDLK_W:
+				if (event.key.mod & SDL_KMOD_CTRL)
+				{
+					if(!m_Wireframe)
+						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("wireframe");
+					else
+						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("default");
+					m_Wireframe = !m_Wireframe;
+				}
+				break;
+			}
+		} break;
+		}
+
 		m_CameraController.OnSDLEvent(event);
 	}
 
@@ -240,6 +254,8 @@ private:
 	std::shared_ptr<alm::gfx::SkyRenderStage> m_SkyRS;
 	std::shared_ptr<alm::gfx::CloudsRenderStage> m_CloudsRS;
 	std::shared_ptr<OutdoorsUI> m_UI;
+
+	bool m_Wireframe = false;
 };
 
 std::unique_ptr<alm::fw::App> CreateApp()

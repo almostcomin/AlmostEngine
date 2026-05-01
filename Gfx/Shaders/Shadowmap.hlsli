@@ -33,9 +33,13 @@ float SampleShadowMapPoissonDisk4(float4 viewPos, float4x4 viewToClipMatrix, Tex
 {
     float4 clipPos = mul(viewToClipMatrix, viewPos);
     float3 ndcPos = clipPos.xyz / clipPos.w;
+    ndcPos.z = saturate(ndcPos.z);
     float2 uv = ndcPos.xy * 0.5 + 0.5;
     uv.y = 1.0 - uv.y;
 
+    if (any(uv < 0.0) || any(uv > 1.0))
+        return 1.0;
+    
     // PCF
     float shadow = 0.0;
     [unroll]
@@ -53,10 +57,14 @@ float SampleShadowMapPoissonDisk4(float4 viewPos, float4x4 viewToClipMatrix, Tex
 float SampleShadowMapPoissonDisk16(float4 viewPos, float4x4 viewToClipMatrix, Texture2D shadowMap, float2 texelSize, float filterRadius)
 {
     float4 clipPos = mul(viewToClipMatrix, viewPos);
-    float3 ndcPos = clipPos.xyz / clipPos.w;
+    float3 ndcPos = clipPos.xyz / clipPos.w;    
+    ndcPos.z = saturate(ndcPos.z);
     float2 uv = ndcPos.xy * 0.5 + 0.5;
     uv.y = 1.0 - uv.y;
 
+    if (any(uv < 0.0) || any(uv > 1.0))
+        return 1.0;
+    
     // Rotate Poisson disk per pixel to break up pattern
     float angle = frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453) * 2.0 * 3.14159;
     float2 rotation = float2(cos(angle), sin(angle));
@@ -84,14 +92,16 @@ float SampleShadowMap(float4 viewPos, float4x4 viewToClipMatrix, Texture2D shado
 {
     float4 clipPos = mul(viewToClipMatrix, viewPos);
     float3 ndcPos = clipPos.xyz / clipPos.w;
-    // UV
-    float2 shadowUV = ndcPos.xy * 0.5 + 0.5;
-    shadowUV.y = 1.0 - shadowUV.y;
+    float2 uv = ndcPos.xy * 0.5 + 0.5;
+    uv.y = 1.0 - uv.y;
+
+    if (any(uv < 0.0) || any(uv > 1.0))
+        return 1.0;
         
     // Sample shadowmap
-    float shadowDepth = shadowMap.Sample(pointClampSampler, shadowUV).r;
+    float shadowDepth = shadowMap.Sample(pointClampSampler, uv).r;
     
-    float shadow = ndcPos.z < shadowDepth ? 0.0 : 1.f; // Reverse-Z compare    
+    float shadow = saturate(ndcPos.z) < shadowDepth ? 0.0 : 1.f; // Reverse-Z compare    
     return shadow;
 }
 

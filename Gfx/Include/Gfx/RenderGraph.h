@@ -119,10 +119,11 @@ public:
 	alm::rhi::CommandListHandle GetCommandList();
 
 	size_t GetNumRenderStages(const std::string& mode = {}) const;
+
+	const StageData* GetRenderStageData(RenderStageTypeID id);
 	const StageData* GetRenderStageData(uint32_t idx, const std::string& mode = {}) const;
 	
 	std::shared_ptr<RenderStage> GetRenderStage(RenderStageTypeID id);
-
 	template<class T> 
 	std::shared_ptr<T> GetRenderStage()
 	{

@@ -10,8 +10,6 @@
 #include "Gfx/Mesh.h"
 #include "Gfx/RenderGraphBuilder.h"
 
-#define DEBUG_STAGE
-
 alm::gfx::ShadowmapRenderStage::ShadowmapRenderStage() :
 	m_TextureWidth{ 4096 },
 	m_TextureHeight{ 4096 },
@@ -158,7 +156,7 @@ void alm::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
 
 	builder.AddTextureDependency(m_ShadowMapTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 #ifdef DEBUG_STAGE
-	builder.AddTextureDependency(m_ShadowMapColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	builder.AddTextureDependency(m_ShadowMapColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE);
 #endif
 }
 
@@ -195,6 +193,11 @@ void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandL
 		commandList.get());
 
 	commandList->EndRenderPass();
+
+#ifdef DEBUG_STAGE
+	commandList->PushBarrier(rhi::Barrier::Texture(m_RenderGraph->GetTexture(m_ShadowMapColorTexture).get(),
+		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE));
+#endif
 }
 
 void alm::gfx::ShadowmapRenderStage::OnAttached()

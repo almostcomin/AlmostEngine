@@ -6,6 +6,8 @@
 #include "Gfx/RenderGraphTypes.h"
 #include "Gfx/RenderStageFactory.h"
 
+#define DEBUG_STAGE
+
 namespace alm::gfx
 {
 
@@ -45,7 +47,9 @@ private:
 private:
 
 	RGTextureHandle m_ShadowMapTexture;
+#ifdef DEBUG_STAGE
 	RGTextureHandle m_ShadowMapColorTexture;
+#endif
 
 	size_t m_TextureWidth;
 	size_t m_TextureHeight;

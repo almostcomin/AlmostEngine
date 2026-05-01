@@ -282,12 +282,14 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 {
 	m_CameraVisibleSet.Elements.clear();
 	m_CameraVisibleBounds.reset();
+	m_ShadowCastersCameraVisibleBounds.reset();
 	if (!m_Camera || !m_Scene || !m_Scene->GetSceneGraph())
 	{
 		return;
 	}
 
-	GetVisibleSet(m_Camera->GetFrustum().get_planes(), SceneContentType::Meshes, m_CameraVisibleSet, &m_CameraVisibleBounds);
+	GetVisibleSet(m_Camera->GetFrustum().get_planes(), SceneContentType::Meshes, m_CameraVisibleSet, &m_CameraVisibleBounds, 
+		SceneContentType::ShadowCasters, &m_ShadowCastersCameraVisibleBounds);
 	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList);
 }
 
@@ -300,34 +302,47 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	if (!m_CameraVisibleBounds.valid())
 		return;
 
+	const alm::math::aabox3f& worldCasterBounds = m_Scene->GetWorldBounds(SceneContentType::ShadowCasters);
+	if (!worldCasterBounds.valid())
+		return;  // no shadow casters in the scene
+
 	const Scene::SunParams& sunParams = m_Scene->GetSunParams();
 	const float3 sunDir = alm::ElevationAzimuthRadToDir(
 		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
-	const alm::math::aabox3f& worldBounds = m_Scene->GetWorldBounds(SceneContentType::Meshes);
-	const alm::math::aabox3f& visibleSceneBounds = m_CameraVisibleBounds;
-	const float3 worldCenter = worldBounds.center();
-	const float3 worldExtents = worldBounds.extents();
+	// --- 1. Sun view matrix (arbitrary sunPos, it will be recalculated later)
 
-	// View matrix
-	const float3 sunPos = worldCenter - (sunDir * glm::length(worldExtents) / 2.f);
-	const float3 sunUp = fabs(glm::dot(sunDir, { 0, 1, 0 })) > 0.99f ? float3(0, 0, 1) : float3(0, 1, 0);
-	const float4x4 sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
+	float3 sunPos = m_CameraVisibleBounds.center();
+	const float3 sunUp = fabs(glm::dot(sunDir, { 0, 1, 0 })) > 0.999f ? float3(0, 0, 1) : float3(0, 1, 0);
+	float4x4 sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
 
-	// Transform scene (visible set) bounds to local camera axis
-	auto sceneBoundsSun = visibleSceneBounds.transform(sunViewMatrix);
-	assert(sceneBoundsSun.min.z <= sceneBoundsSun.max.z);
+	// --- 2. Construct shadow search volume in sun-space
 
-	// Extends the bounds depth to the direction of the sun top cover entire scene
-	{
-		auto worldBoundsSun = worldBounds.transform(sunViewMatrix);
-		assert(worldBoundsSun.min.z <= sceneBoundsSun.max.z);
+	math::aabox3f cameraBoundsSun = m_CameraVisibleBounds.transform(sunViewMatrix);
+	const math::aabox3f worldCasterBoundsSun = worldCasterBounds.transform(sunViewMatrix);
+	// Extends Z towards the sun (max.z positive is behind the sun in sun-space) 
+	// so we cover any caster that  could be betwween sun and shadow receivers
+	cameraBoundsSun.max.z = std::max(cameraBoundsSun.max.z, worldCasterBoundsSun.max.z);
+	// So cameraBoundsSun is the volume that includes all visible receivers extended towards sun direction
+	// to include world shadow casters.
 
-		sceneBoundsSun.min.z = worldBoundsSun.min.z;
-		sceneBoundsSun.max.z = worldBoundsSun.max.z;
-	}
+	// --- 3. Culling shadow casters using search volume
 
-	// Calc projection matrix
+	const math::aabox3f searchVolumeWorld = cameraBoundsSun.transform(glm::inverse(sunViewMatrix));
+	const std::vector<math::plane3f> searchPlanes = searchVolumeWorld.buildClipPlanes();
+
+	math::aabox3f casterBoundsForShadowMap;
+	GetVisibleSet(searchPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, &casterBoundsForShadowMap);
+	// So casterBoundsForShadowMap is the bbox of all the casters that cast shadow to something visible
+
+	// --- 4. Dimension shadowmap
+
+	math::aabox3f sceneBoundsSun = casterBoundsForShadowMap.transform(sunViewMatrix);
+	// Sliding sun position to guarantee zNear >= 0
+	sunPos -= sunDir * sceneBoundsSun.max.z;// *1.001f;
+	sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
+	sceneBoundsSun = casterBoundsForShadowMap.transform(sunViewMatrix);
+	sceneBoundsSun.max.z = std::min(sceneBoundsSun.max.z, 0.0f);
 
 	float zNear = -sceneBoundsSun.max.z;
 	float zFar = -sceneBoundsSun.min.z;
@@ -335,7 +350,9 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	assert(zFar >= zNear);
 
 	const float4x4 sunProjMatrix = BuildOrthoInvZ(
-		sceneBoundsSun.min.x, sceneBoundsSun.max.x, sceneBoundsSun.min.y, sceneBoundsSun.max.y, zNear, zFar);
+		sceneBoundsSun.min.x, sceneBoundsSun.max.x,
+		sceneBoundsSun.min.y, sceneBoundsSun.max.y,
+		zNear, zFar);
 
 #ifdef _DEBUG
 	//*** TEST
@@ -352,25 +369,10 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 #endif
 
 	m_ShadowMapWoldToClipMatrix = sunProjMatrix * sunViewMatrix;
-
 	// view -> world -> sun_view -> sun_clip
 	m_ViewToShadowMapClipMatrix = sunProjMatrix * sunViewMatrix * glm::inverse(m_Camera->GetViewMatrix());
 
-	// Visible set from sun
-	{
-		math::aabox3f aabb = sceneBoundsSun.transform(glm::inverse(sunViewMatrix));
-		std::vector<math::plane3f> sunClipPlanes{
-			{{ 1.f, 0.f, 0.f }, -aabb.min.x },	// left
-			{{ -1.f, 0.f, 0.f }, aabb.max.x },	// right
-			{{ 0.f, -1.f, 0.f }, aabb.max.y },	// top
-			{{ 0.f, 1.f, 0.f }, -aabb.min.y },	// bottom
-			{{ 0.f, 0.f, 1.f }, -aabb.min.z },	// near
-			{{ 0.f, 0.f, -1.f }, aabb.max.z },	// far		
-		};
-
-		GetVisibleSet(sunClipPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, nullptr);
-		UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList);
-	}
+	UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList);
 }
 
 void alm::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList)
@@ -570,7 +572,7 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 }
 
 void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
-	math::aabox3f* opt_outBounds) const
+	math::aabox3f* opt_outPrimaryBounds,  SceneContentType secondaryType, math::aabox3f* opt_outSecondaryBounds) const
 {
 	out_renderSet.Elements.clear();
 
@@ -579,8 +581,10 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 	
 	std::vector<const alm::gfx::MeshInstance*> instances[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
 
-	if (opt_outBounds)
-		opt_outBounds->reset();
+	if (opt_outPrimaryBounds)
+		opt_outPrimaryBounds->reset();
+	if (opt_outSecondaryBounds)
+		opt_outSecondaryBounds->reset();
 
 	alm::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
 	while (walker)
@@ -598,10 +602,16 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 
 					instances[(int)meshInstance->GetMaterialDomain()][(int)meshInstance->GetCullMode()].push_back(meshInstance);
 
-					if (opt_outBounds)
+					if (opt_outPrimaryBounds)
 					{
 						auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
-						opt_outBounds->merge(leafWorldBounds);
+						opt_outPrimaryBounds->merge(leafWorldBounds);
+					}
+
+					if (secondaryType != SceneContentType::_Size && opt_outSecondaryBounds && has_any_flag(leaf->GetContentFlags(), ToFlag(secondaryType)))
+					{
+						auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
+						opt_outSecondaryBounds->merge(leafWorldBounds);
 					}
 				}
 			}

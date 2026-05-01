@@ -82,8 +82,8 @@ private:
 	void UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList);
 
-	void GetVisibleSet(const std::span<const math::plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
-		math::aabox3f* opt_outBounds = nullptr) const;
+	void GetVisibleSet(const std::span<const math::plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet, math::aabox3f* opt_outPrimaryBounds = nullptr,
+		SceneContentType secondaryType = SceneContentType::_Size, math::aabox3f* opt_outSecondaryBounds = nullptr) const;
 	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer, rhi::ICommandList* commandList);
 
 private:
@@ -105,6 +105,7 @@ private:
 
 	// Bounds of the visible scene
 	math::aabox3f m_CameraVisibleBounds;
+	math::aabox3f m_ShadowCastersCameraVisibleBounds;
 
 	// Visible set for the current camera
 	gfx::MultiBuffer m_CameraVisibleBuffer;

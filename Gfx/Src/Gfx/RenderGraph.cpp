@@ -745,6 +745,19 @@ size_t alm::gfx::RenderGraph::GetNumRenderStages(const std::string& mode) const
 	return it->second.size();
 }
 
+const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageData(RenderStageTypeID id)
+{
+	auto it = std::ranges::find_if(m_RenderStages, [id](const std::unique_ptr<StageData>& stageDataPtr)
+	{
+		return stageDataPtr->renderStage->GetType() == id;
+	});
+	if (it != m_RenderStages.end())
+	{
+		return it->get();
+	}
+	return nullptr;
+}
+
 const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageData(uint32_t idx, const std::string& mode) const
 {
 	auto it = m_RenderModes.find(mode.empty() ? m_CurrentRenderMode : mode);

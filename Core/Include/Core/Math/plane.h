@@ -46,6 +46,13 @@ struct plane
 		normal = normal / len;
 		d = d / len;
 	}
+
+	[[nodiscard]] plane transform(const glm::mat<n + 1, n + 1, T, glm::defaultp>& mat) const
+	{
+		glm::vec<n + 1, T, glm::defaultp> v{ normal, d };
+		v = glm::transpose(mat) * v;
+		return plane{ vec_t(v), v[n] };
+	}
 };
 
 using plane2f = plane<float, 2>;
