@@ -4,6 +4,8 @@
 #include "Gfx/SceneGraph.h"
 
 alm::gfx::SceneGraphNode::SceneGraphNode(const std::string& name) :
+	m_Graph{ nullptr },
+	m_Parent{ nullptr },
 	m_ContentFlags{ SceneContentFlags::None },
 	m_DirtyFlags{ DirtyFlags::None },
 	m_Name{ name.empty() ? "<noname>" : name }
@@ -22,11 +24,30 @@ void alm::gfx::SceneGraphNode::AddChild(alm::unique<SceneGraphNode>&& child)
 	SceneGraphNode* pchild = child.get();
 	m_Children.push_back(std::move(child));
 
-	pchild->m_Parent = weak_from_this();
+	pchild->m_Parent = this;
 	if (m_Graph)
 	{
 		m_Graph->OnNodeAttached(pchild);
 	}
+}
+
+alm::unique<alm::gfx::SceneGraphNode> alm::gfx::SceneGraphNode::RemoveChild(const alm::weak<SceneGraphNode>& child)
+{
+	assert(child->m_Parent == this);
+	auto it = std::ranges::find_if(m_Children, [&child](auto& node)
+		{ return  node.get() == child.get(); });
+	assert(it != m_Children.end());
+
+	alm::unique<SceneGraphNode> ochild = std::move(*it);
+	child->m_Parent = nullptr;
+	fast_erase(m_Children, it);
+
+	if (child->m_Graph)
+	{
+		child->m_Graph->OnNodeDettached(ochild.get());
+	}
+
+	return ochild;
 }
 
 void alm::gfx::SceneGraphNode::SetLeaf(alm::unique<SceneGraphLeaf>&& leaf)
@@ -58,7 +79,7 @@ alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraphNode::GetChild(size_t id
 	return idx < m_Children.size() ? m_Children[idx].get_weak() : alm::weak<alm::gfx::SceneGraphNode>{};
 }
 
-alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraphNode::GetParent() const
+alm::gfx::SceneGraphNode* alm::gfx::SceneGraphNode::GetParent() const
 {
 	return m_Parent;
 }

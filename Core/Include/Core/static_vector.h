@@ -110,18 +110,18 @@ namespace alm {
             std::swap(current_size, other.current_size);
         }
 
-        void push_back(const T& value) noexcept
+        size_type push_back(const T& value) noexcept
         {
             assert(current_size < max_elements);
             *(data() + current_size) = value;
-            current_size++;
+            return current_size++;
         }
 
-        void push_back(T&& value) noexcept
+        size_type push_back(T&& value) noexcept
         {
             assert(current_size < max_elements);
             *(data() + current_size) = std::move(value);
-            current_size++;
+            return current_size++;
         }
 
         void pop_back() noexcept

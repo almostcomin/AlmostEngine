@@ -51,7 +51,6 @@ public:
 
 		// Init scene graph
 		auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
-		sceneGraph->SetRoot(alm::make_unique_with_weak<alm::gfx::SceneGraphNode>("root"));
 		m_Scene->SetSceneGraph(std::move(sceneGraph));
 
 		// Init earth sphere

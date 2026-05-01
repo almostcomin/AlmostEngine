@@ -62,12 +62,12 @@ void alm::gfx::Scene::RefreshSceneGraph()
 	// Fill instances buffer
 	if (!m_SceneGraph->GetMeshInstances().empty())
 	{
-		const std::vector<alm::gfx::MeshInstance*> meshInstances = m_SceneGraph->GetMeshInstances();
+		const auto& meshInstances = m_SceneGraph->GetMeshInstances();
 
 		rhi::BufferDesc desc{
 			.memoryAccess = rhi::MemoryAccess::Default,
 			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-			.sizeBytes = meshInstances.size() * sizeof(interop::InstanceData),
+			.sizeBytes = meshInstances.storage_size() * sizeof(interop::InstanceData),
 			.format = rhi::Format::UNKNOWN,
 			.stride = sizeof(interop::InstanceData) };
 
@@ -75,12 +75,17 @@ void alm::gfx::Scene::RefreshSceneGraph()
 
 		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
 		auto* instanceDataPtr = (interop::InstanceData*)uploadTicket->GetPtr();
-		for (const auto* meshInstance : meshInstances)
+		for(auto it = meshInstances.begin_all(); it != meshInstances.end_all(); it++)
 		{
-			instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
-			instanceDataPtr->inverseModelMatrix = glm::inverse(instanceDataPtr->modelMatrix);
-			instanceDataPtr->meshIndex = meshInstance->GetMeshSceneIndex();
+			*instanceDataPtr = {};
+			if (it.valid_index())
+			{
+				const auto* meshInstance = *it;
 
+				instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
+				instanceDataPtr->inverseModelMatrix = glm::inverse(instanceDataPtr->modelMatrix);
+				instanceDataPtr->meshIndex = meshInstance->GetMeshSceneIndex();
+			}
 			instanceDataPtr++;
 		}
 		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer.get_weak(),
@@ -97,7 +102,7 @@ void alm::gfx::Scene::RefreshSceneGraph()
 		rhi::BufferDesc desc{
 			.memoryAccess = rhi::MemoryAccess::Default,
 			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-			.sizeBytes = meshes.size() * sizeof(interop::MeshData),
+			.sizeBytes = meshes.storage_size() * sizeof(interop::MeshData),
 			.format = rhi::Format::UNKNOWN,
 			.stride = sizeof(interop::MeshData) };
 
@@ -105,23 +110,28 @@ void alm::gfx::Scene::RefreshSceneGraph()
 
 		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
 		auto* meshDataPtr = (interop::MeshData*)uploadTicket->GetPtr();
-		for (const alm::gfx::Mesh* mesh : meshes)
+		for (auto it = meshes.begin_all(); it != meshes.end_all(); it++)
 		{
-			meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetReadOnlyView();
-			meshDataPtr->indexSize = mesh->GetIndexSize();
-			meshDataPtr->indexOffsetBytes = 0;
-			meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetReadOnlyView();
-			meshDataPtr->vertexBufferOffsetBytes = 0;
-			const auto& vertexFormat = mesh->GetVertexFormat();
-			meshDataPtr->vertexStride = vertexFormat.VertexStride;
-			meshDataPtr->vertexPositionOffset = vertexFormat.PositionOffset;
-			meshDataPtr->vertexNormalOffset = vertexFormat.NormalOffset;
-			meshDataPtr->vertexTangetOffset = vertexFormat.TangentOffset;
-			meshDataPtr->vertexTexCoord0Offset = vertexFormat.TexCoord0Offset;
-			meshDataPtr->vertexTexCoord1Offset = vertexFormat.TexCoord1Offset;
-			meshDataPtr->vertexColorOffset = vertexFormat.ColorOffset;
-			meshDataPtr->materialIdx = m_SceneGraph->GetMaterialIndex(mesh);
+			*meshDataPtr = {};
+			if (it.valid_index())
+			{
+				const alm::gfx::Mesh* mesh = it->get();
 
+				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetReadOnlyView();
+				meshDataPtr->indexSize = mesh->GetIndexSize();
+				meshDataPtr->indexOffsetBytes = 0;
+				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetReadOnlyView();
+				meshDataPtr->vertexBufferOffsetBytes = 0;
+				const auto& vertexFormat = mesh->GetVertexFormat();
+				meshDataPtr->vertexStride = vertexFormat.VertexStride;
+				meshDataPtr->vertexPositionOffset = vertexFormat.PositionOffset;
+				meshDataPtr->vertexNormalOffset = vertexFormat.NormalOffset;
+				meshDataPtr->vertexTangetOffset = vertexFormat.TangentOffset;
+				meshDataPtr->vertexTexCoord0Offset = vertexFormat.TexCoord0Offset;
+				meshDataPtr->vertexTexCoord1Offset = vertexFormat.TexCoord1Offset;
+				meshDataPtr->vertexColorOffset = vertexFormat.ColorOffset;
+				meshDataPtr->materialIdx = m_SceneGraph->GetMaterialIndex(mesh);
+			}
 			meshDataPtr++;
 		}
 
@@ -138,7 +148,7 @@ void alm::gfx::Scene::RefreshSceneGraph()
 		rhi::BufferDesc desc{
 			.memoryAccess = rhi::MemoryAccess::Default,
 			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-			.sizeBytes = materials.size() * sizeof(interop::MaterialData),
+			.sizeBytes = materials.storage_size() * sizeof(interop::MaterialData),
 			.format = rhi::Format::UNKNOWN,
 			.stride = sizeof(interop::MaterialData) };
 
@@ -146,38 +156,42 @@ void alm::gfx::Scene::RefreshSceneGraph()
 
 		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
 		auto* matDataPtr = (interop::MaterialData*)uploadTicket->GetPtr();
-		for (const alm::gfx::Material* mat : materials)
+
+		for (auto it = materials.begin_all(); it != materials.end_all(); it++)
 		{
 			*matDataPtr = {};
-			if (mat->GetBaseColorTextureHandle())
+			if (it.valid_index())
 			{
-				matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle()->GetSampledView();
-			}
-			if (mat->GetEmissiveTextureHandle())
-			{
-				matDataPtr->emissiveTextureDI = mat->GetEmissiveTextureHandle()->GetSampledView();
-			}
-			if (mat->GetMetalRoughTextureHandle())
-			{
-				matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle()->GetSampledView();
-			}
-			if (mat->GetNormalTextureHandle())
-			{
-				matDataPtr->normalTextureDI = mat->GetNormalTextureHandle()->GetSampledView();
-			}
-			if (mat->GetOcclusionTextureHandle())
-			{
-				matDataPtr->occlusionTextureDI = mat->GetOcclusionTextureHandle()->GetSampledView();
-			}
+				const alm::gfx::Material* mat = it->get();
+				if (mat->GetBaseColorTextureHandle())
+				{
+					matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle()->GetSampledView();
+				}
+				if (mat->GetEmissiveTextureHandle())
+				{
+					matDataPtr->emissiveTextureDI = mat->GetEmissiveTextureHandle()->GetSampledView();
+				}
+				if (mat->GetMetalRoughTextureHandle())
+				{
+					matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle()->GetSampledView();
+				}
+				if (mat->GetNormalTextureHandle())
+				{
+					matDataPtr->normalTextureDI = mat->GetNormalTextureHandle()->GetSampledView();
+				}
+				if (mat->GetOcclusionTextureHandle())
+				{
+					matDataPtr->occlusionTextureDI = mat->GetOcclusionTextureHandle()->GetSampledView();
+				}
 
-			matDataPtr->normalScale = mat->GetNormalTextureScale();
-			matDataPtr->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
-			matDataPtr->emissiveColor = mat->GetEmissiveColor();
-			matDataPtr->occlusion = mat->GetOcclusionStrengh();
-			matDataPtr->metalness = mat->GetMetallicFactor();
-			matDataPtr->roughness = mat->GetRoughnessFactor();
-			matDataPtr->alphaCutoff = mat->GetAlphaCutoff();
-
+				matDataPtr->normalScale = mat->GetNormalTextureScale();
+				matDataPtr->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
+				matDataPtr->emissiveColor = mat->GetEmissiveColor();
+				matDataPtr->occlusion = mat->GetOcclusionStrengh();
+				matDataPtr->metalness = mat->GetMetallicFactor();
+				matDataPtr->roughness = mat->GetRoughnessFactor();
+				matDataPtr->alphaCutoff = mat->GetAlphaCutoff();
+			}
 			matDataPtr++;
 		}
 		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MaterialsBuffer.get_weak(),

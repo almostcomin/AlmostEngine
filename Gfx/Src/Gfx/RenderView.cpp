@@ -389,7 +389,7 @@ void alm::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* comma
 		return;
 
 	uint32_t reqSize = m_DirLightsVisibleCount * sizeof(interop::DirLightData);
-	m_DirLightsVisibleBuffer.Grow(reqSize * 2);
+	m_DirLightsVisibleBuffer.Grow(reqSize);  // Exact size, since directional light do not cull
 
 	rhi::BufferHandle buffer = m_DirLightsVisibleBuffer.GetCurrentBuffer();
 	commandList->PushBarrier(

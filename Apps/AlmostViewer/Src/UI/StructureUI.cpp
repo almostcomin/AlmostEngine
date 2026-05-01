@@ -239,7 +239,6 @@ StructureUI::StructureUI() :
     m_ShowSettings{ false },
     m_ShowSceneWindow{ false },
     m_SelectedNode{ nullptr },
-    m_ShowResourcesWindow{ false },
     m_ShowRenderStages{ false },
     m_ShadowmapRS{ nullptr },
     m_ShowLuminanceHistogram{ false },
@@ -284,9 +283,6 @@ void StructureUI::BuildUI()
     if (m_ShowSceneWindow)
         BuildSceneWindow(&m_ShowSceneWindow);
 
-    if (m_ShowResourcesWindow)
-        BuildResourcesWindow(&m_ShowResourcesWindow);
-
     if (m_ShowRenderStages)
         BuildRenderStagesWindow();
 
@@ -328,24 +324,12 @@ void StructureUI::BuildMainMenu()
             BuildMenuFile();
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Edit"))
-        {
-            if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
-            if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {} // Disabled item
-            ImGui::Separator();
-            if (ImGui::MenuItem("Cut", "CTRL+X")) {}
-            if (ImGui::MenuItem("Copy", "CTRL+C")) {}
-            if (ImGui::MenuItem("Paste", "CTRL+V")) {}
-            ImGui::EndMenu();
-        }
         if (ImGui::BeginMenu("View"))
         {
             if (ImGui::MenuItem("Settings", NULL, m_ShowSettings))
                 m_ShowSettings = !m_ShowSettings;
             if (ImGui::MenuItem("Scene", NULL, m_ShowSceneWindow))
                 m_ShowSceneWindow = !m_ShowSceneWindow;
-            if (ImGui::MenuItem("Resources", NULL, m_ShowResourcesWindow))
-                m_ShowResourcesWindow = !m_ShowResourcesWindow;
             if (ImGui::MenuItem("Render Stages", NULL, m_ShowRenderStages))
                 m_ShowRenderStages = !m_ShowRenderStages;
 
@@ -363,6 +347,14 @@ void StructureUI::BuildMenuFile()
         if (!filename.empty() && m_RequestLoadFile)
         {
             m_RequestLoadFile(filename.c_str());
+        }
+    }
+    if (ImGui::MenuItem("Merge"))
+    {
+        std::string filename = OpenFileNativeDialog({}, { { "GlTF", "*.gltf" } });
+        if (!filename.empty() && m_RequestMergeFile)
+        {
+            m_RequestMergeFile(filename.c_str());
         }
     }
     if (ImGui::MenuItem("Close"))
@@ -710,7 +702,7 @@ void StructureUI::BuildSceneWindow(bool* p_open)
             alm::gfx::SceneGraph::Walker walker(*scene->GetSceneGraph());
             while (walker)
             {
-                const auto* node = (*walker).get();
+                const auto* node = *walker;
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::PushID((const void*)node);
@@ -891,21 +883,6 @@ void StructureUI::BuildSceneWindow(bool* p_open)
     }
 
     ImGui::EndChild();
-    ImGui::End();
-}
-
-void StructureUI::BuildResourcesWindow(bool* p_open)
-{
-    ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
-    if (!ImGui::Begin("Resources view", p_open, ImGuiWindowFlags_None))
-    {
-        alm::rhi::Device* device = m_DeviceManager->GetDevice();
-
-
-        ImGui::End();
-        return;
-    }
-
     ImGui::End();
 }
 

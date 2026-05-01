@@ -39,7 +39,8 @@ public:
 		m_DebugRS = renderGraph->GetRenderStage<alm::gfx::DebugRenderStage>();
 		m_LightingRS = renderGraph->GetRenderStage<alm::gfx::DeferredLightingRenderStage>();
 
-		m_UIRS->m_RequestLoadFile = [this](const char* filename) { m_RequestLoadFile = filename; };
+		m_UIRS->m_RequestLoadFile = [this](const char* filename) { m_RequestLoadFile = filename; m_bMergeFile = false; };
+		m_UIRS->m_RequestMergeFile = [this](const char* filename) { m_RequestLoadFile = filename; m_bMergeFile = true; };
 		m_UIRS->m_RequestClose = [this] { m_RequestClose = true; };
 		m_UIRS->m_RequestQuit = [this] { m_RequestQuit = true; };
 
@@ -74,7 +75,6 @@ public:
 
 		// Init scene graph
 		auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
-		sceneGraph->SetRoot(alm::make_unique_with_weak<alm::gfx::SceneGraphNode>("root"));
 		m_Scene->SetSceneGraph(std::move(sceneGraph));
 
 		return true;
@@ -89,11 +89,15 @@ public:
 			auto importResult = alm::gfx::ImportGlTF(m_RequestLoadFile.c_str(), m_DeviceManager.get());
 			if (importResult)
 			{
-				//auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
-				//sceneGraph->SetRoot(alm::make_unique_with_weak<alm::gfx::SceneGraphNode>("root"));
+				auto rootNode = m_Scene->GetSceneGraph()->GetRoot();
+				if (!m_bMergeFile)
+				{
+					while (rootNode->GetChildrenCount() > 0)
+					{
+						rootNode->RemoveChild(rootNode->GetChild(0));
+					}
+				}
 				m_Scene->GetSceneGraph()->GetRoot()->AddChild(std::move(*importResult));
-				//sceneGraph->SetRoot(std::move(*importResult));
-				//m_Scene->SetSceneGraph(std::move(sceneGraph));
 
 				m_Scene->RefreshSceneGraph();
 
@@ -121,10 +125,13 @@ public:
 
 		if (m_RequestClose)
 		{
-			if (m_Scene)
+			auto rootNode = m_Scene->GetSceneGraph()->GetRoot();
+			while (rootNode->GetChildrenCount() > 0)
 			{
-				m_Scene->SetSceneGraph(nullptr);
+				rootNode->RemoveChild(rootNode->GetChild(0));
 			}
+			m_Scene->RefreshSceneGraph();
+
 			m_RequestClose = false;
 		}
 
@@ -242,6 +249,7 @@ private:
 	alm::CameraController m_CameraController;
 
 	std::string m_RequestLoadFile;
+	bool m_bMergeFile = false;
 	bool m_RequestClose = false;
 	bool m_RequestQuit = false;	
 };

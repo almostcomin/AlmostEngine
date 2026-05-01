@@ -15,7 +15,7 @@ int alm::gfx::SceneGraph::Walker::Next(IterationMode mode)
     if (m_Current->GetChildrenCount() > 0)
     {
         m_ChildIndices.push(0);
-        m_Current = m_Current->GetChild(0);
+        m_Current = m_Current->GetChild(0).get();
         return 1;
     }
 
@@ -29,7 +29,7 @@ int alm::gfx::SceneGraph::Walker::NextSibling(IterationMode mode)
     {
         if (m_Current == m_Scope)
         {
-            m_Current.reset();
+            m_Current = nullptr;
             return depth;
         }
 
@@ -41,7 +41,7 @@ int alm::gfx::SceneGraph::Walker::NextSibling(IterationMode mode)
             auto parent = m_Current->GetParent();
             if (siblingIndex < parent->GetChildrenCount())
             {
-                m_Current = parent->GetChild(siblingIndex);
+                m_Current = parent->GetChild(siblingIndex).get();
                 return depth;
             }
 
@@ -57,17 +57,11 @@ int alm::gfx::SceneGraph::Walker::NextSibling(IterationMode mode)
     return depth;
 }
 
-alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Walker::Up()
+alm::gfx::SceneGraphNode* alm::gfx::SceneGraph::Walker::Up()
 {
     if (!m_Current)
         return {};
-/*
-    if (m_Current == m_Scope)
-    {
-        m_Current.reset();
-        return {};
-    }
-*/
+
     if (!m_ChildIndices.empty())
         m_ChildIndices.pop();
 
@@ -77,37 +71,22 @@ alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Walker::Up()
 
 alm::gfx::SceneGraph::SceneGraph()
 {
-}
-
-alm::gfx::SceneGraph::SceneGraph(alm::unique<alm::gfx::SceneGraphNode>&& rootNode)
-{
-    SetRoot(std::move(rootNode));
-}
-
-alm::unique<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::SetRoot(alm::unique<alm::gfx::SceneGraphNode>&& rootNode)
-{
-    alm::unique<alm::gfx::SceneGraphNode> oldRoot;
-    if (m_Root)
-    {
-        oldRoot = Detach(m_Root.get());
-    }
-
-    m_Root = std::move(rootNode);
-    OnNodeAttached(m_Root.get());
-
-    return oldRoot;
+    m_Root = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>("root");
+    m_Root->m_Graph = this;
+    m_Root->m_DirtyFlags |= SceneGraphNode::DirtyFlags::All;
+    m_Root->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::Subgraph);
 }
 
 void alm::gfx::SceneGraph::OnNodeAttached(SceneGraphNode* node)
 {
     // If the node has a parent, that parent should be already attached to the graph
-    assert(!node->m_Parent || node->m_Parent->m_Graph.get() == this);
+    assert(!node->m_Parent || node->m_Parent->m_Graph == this);
     // If the node has no parent, that means it is the (new) root
 
     // Check the parent is valid
     for (auto walker = Walker{ node }; walker; walker.Next())
     {
-        walker->m_Graph = weak_from_this();
+        walker->m_Graph = this;
         const auto& leaf = walker->GetLeaf();
         if (leaf)
         {
@@ -119,68 +98,26 @@ void alm::gfx::SceneGraph::OnNodeAttached(SceneGraphNode* node)
     node->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::Subgraph);
 }
 
-#if 0
-alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Attach(SceneGraphNode* parent, alm::unique<SceneGraphNode>&& child)
+void alm::gfx::SceneGraph::OnNodeDettached(SceneGraphNode* node)
 {
-    auto parentGraph = parent ? parent->m_Graph : weak_from_this();
-    auto childGraph = child->m_Graph;
-    alm::weak<SceneGraphNode> attachedChild = child.get_weak();
+    assert(!node->m_Parent || node->m_Parent->m_Graph == this);
 
-    if (!parentGraph && !childGraph)
+    // Check the parent is valid
+    for (auto walker = Walker{ node }; walker; walker.Next())
     {
-        // operating on an orphaned subgraph - do not copy or register anything
-        assert(parent);
-        parent->m_Children.push_back(std::move(child));
-        attachedChild->m_Parent = parent->weak_from_this();
-        return attachedChild;
+        const auto& leaf = walker->GetLeaf();
+        if (leaf)
+        {
+            UnregisterLeaf(leaf.get());
+        }
+        walker->m_Graph = nullptr;
     }
 
-    assert(parentGraph.get() == this);
-
-    if (childGraph)
+    if (node->m_Parent)
     {
-        // TODO
-        assert(0);
+        node->m_Parent->m_DirtyFlags |= SceneGraphNode::DirtyFlags::All;
+        node->m_Parent->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::Subgraph);
     }
-    else
-    {
-        // attaching a subgraph that has been detached from another graph (or never attached)
-
-        for (auto walker = Walker{ child.get_weak() }; walker; walker.Next())
-        {
-            walker->m_Graph = weak_from_this();
-            const auto& leaf = walker->GetLeaf();
-            if (leaf)
-            {
-                RegisterLeaf(leaf.get());
-            }
-        }
-
-        if (parent)
-        {
-            child->m_Parent = parent->weak_from_this();
-            parent->m_Children.push_back(std::move(child));
-        }
-        else
-        {
-            m_Root = std::move(child);
-        }
-    }
-
-    // Force update subgraph next
-    attachedChild->m_DirtyFlags |= SceneGraphNode::DirtyFlags::All;
-    attachedChild->PropagateDirtyFlags(SceneGraphNode::DirtyFlags::Subgraph);
-
-    return attachedChild;
-}
-#endif
-
-alm::unique<alm::gfx::SceneGraphNode> alm::gfx::SceneGraph::Detach(
-    const SceneGraphNode* node)
-{
-    assert(0);
-    // TODO
-    return {};
 }
 
 int alm::gfx::SceneGraph::GetInstanceIndex(const alm::gfx::MeshInstance* pInstance) const
@@ -195,10 +132,8 @@ int alm::gfx::SceneGraph::GetMeshIndex(const alm::gfx::MeshInstance* pInstance) 
 
 int alm::gfx::SceneGraph::GetMeshIndex(int meshInstanceIndex) const
 {
-    assert(meshInstanceIndex < m_MeshInstanceLeafs.size() && "index out of bounds");
-    assert(m_MeshInstanceLeafs[meshInstanceIndex] != nullptr && "invalid index");
-
-    return m_MeshInstanceLeafs[meshInstanceIndex]->GetMeshSceneIndex();
+    assert(m_Leafs.MeshInstances.valid_index(meshInstanceIndex) && "invalid index");
+    return m_Leafs.MeshInstances[meshInstanceIndex]->GetMeshSceneIndex();
 }
 
 int alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::MeshInstance* pInstance) const
@@ -207,15 +142,12 @@ int alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::MeshInstance* pInstan
 }
 
 int alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::Mesh* mesh) const
-{
-    auto it = std::find(m_Meshes.begin(), m_Meshes.end(), mesh);
-    if (it != m_Meshes.end())
+{    
+    auto meshRefIdx = m_Meshes.find(const_cast<alm::gfx::Mesh*>(mesh)); // ugly
+    if (meshRefIdx != m_Meshes.capacity())
     {
-        int idx = it - m_Meshes.begin();
-        assert(idx < m_MeshMaterialIndices.size());
-        return m_MeshMaterialIndices[idx];
+        return m_MeshMaterialIndices[meshRefIdx];
     }
-
     return -1;
 }
 
@@ -229,7 +161,7 @@ void alm::gfx::SceneGraph::Refresh()
 
 void alm::gfx::SceneGraph::LogGraph() const
 {
-    alm::gfx::SceneGraph::Walker walker(m_Root.get_weak());
+    alm::gfx::SceneGraph::Walker walker(m_Root.get());
     int depth = 0;
     while (walker)
     {
@@ -332,8 +264,7 @@ void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
     case SceneGraphLeaf::Type::MeshInstance:
     {
         auto* meshInstance = checked_cast<MeshInstance*>(leaf);
-        m_MeshInstanceLeafs.push_back(meshInstance);
-        leaf->m_SceneIndex = m_MeshInstanceLeafs.size() - 1;
+        leaf->m_SceneIndex = m_Leafs.MeshInstances.insert(meshInstance);
 
         const auto& mesh = meshInstance->GetMesh();
         if (mesh)
@@ -342,39 +273,47 @@ void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
             const auto& mat = mesh->GetMaterial();
             if (mat)
             {
-                int materialIdx = m_Materials.insert(mat.get()).first;
+                auto materialIdx = m_Materials.find(mat.get());
+                if (materialIdx == m_Materials.capacity())
+                {
+                    materialIdx = m_Materials.insert({ mat.get(), 1 }).first;
+                }
+                else
+                {
+                    ++m_Materials[materialIdx].refCount;
+                }
                 meshInstance->SetMaterialSceneIndex(materialIdx);
             }
 
             // Mesh
-            auto [meshIdx, newMesh] = m_Meshes.insert(mesh.get());
-            meshInstance->SetMeshSceneIndex(meshIdx);
-            if (newMesh)
+            auto meshRefIdx = m_Meshes.find(mesh.get());
+            if (meshRefIdx == m_Meshes.capacity())
             {
-                m_MeshMaterialIndices.push_back(meshInstance->GetMaterialSceneIndex());
+                meshRefIdx = m_Meshes.insert({ mesh.get(), 1 }).first;
+                m_MeshMaterialIndices[meshRefIdx] = meshInstance->GetMaterialSceneIndex();
             }
-            assert(m_MeshMaterialIndices.size() == m_Meshes.size());
+            else
+            {
+                ++m_Meshes[meshRefIdx].refCount;
+            }
+            meshInstance->SetMeshSceneIndex(meshRefIdx);
         }
     } break;
         
     case SceneGraphLeaf::Type::Camera:
-        m_SceneCameraLeafs.push_back(checked_cast<SceneCamera*>(leaf));
-        leaf->m_SceneIndex = m_SceneCameraLeafs.size() - 1;
+        leaf->m_SceneIndex = m_Leafs.SceneCameras.insert(checked_cast<SceneCamera*>(leaf));
         break;
 
     case SceneGraphLeaf::Type::DirectionalLight:
-        m_SceneDirLightLeafs.push_back(checked_cast<SceneDirectionalLight*>(leaf));
-        leaf->m_SceneIndex = m_SceneDirLightLeafs.size() - 1;
+        leaf->m_SceneIndex = m_Leafs.SceneDirLights.insert(checked_cast<SceneDirectionalLight*>(leaf));
         break;
 
     case SceneGraphLeaf::Type::PointLight:
-        m_ScenePointLightLeafs.push_back(checked_cast<ScenePointLight*>(leaf));
-        leaf->m_SceneIndex = m_ScenePointLightLeafs.size() - 1;
+        leaf->m_SceneIndex = m_Leafs.ScenePointLights.insert(checked_cast<ScenePointLight*>(leaf));
         break;
 
     case SceneGraphLeaf::Type::SpotLight:
-        m_SceneSpotLightLeafs.push_back(checked_cast<SceneSpotLight*>(leaf));
-        leaf->m_SceneIndex = m_SceneSpotLightLeafs.size() - 1;
+        leaf->m_SceneIndex = m_Leafs.SceneSpotLights.insert(checked_cast<SceneSpotLight*>(leaf));
         break;
 
     default:
@@ -384,5 +323,73 @@ void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
 
 void alm::gfx::SceneGraph::UnregisterLeaf(SceneGraphLeaf* leaf)
 {
-    // TODO
+    switch (leaf->GetType())
+    {
+    case SceneGraphLeaf::Type::MeshInstance:
+    {
+        auto* meshInstance = checked_cast<MeshInstance*>(leaf);
+        // Remove material ref
+        int materialIdx = meshInstance->GetMaterialSceneIndex();
+        if (materialIdx >= 0)
+        {
+            assert(m_Materials.valid_index(materialIdx));
+            assert(m_Materials[materialIdx].refCount > 0);
+            --m_Materials[materialIdx].refCount;
+            if (m_Materials[materialIdx].refCount == 0)
+            {
+                m_Materials.erase(materialIdx);
+            }
+            meshInstance->SetMaterialSceneIndex(-1);
+        }
+
+        // Remove mesh ref
+        int meshRefIdx = meshInstance->GetMeshSceneIndex();
+        if (meshRefIdx >= 0)
+        {
+            assert(m_Meshes.valid_index(meshRefIdx));
+            assert(m_Meshes[meshRefIdx].refCount > 0);
+            --m_Meshes[meshRefIdx].refCount;
+            if (m_Meshes[meshRefIdx].refCount == 0)
+            {
+                m_MeshMaterialIndices[meshRefIdx] = -1;
+                m_Meshes.erase(meshRefIdx);
+            }
+            meshInstance->SetMeshSceneIndex(-1);
+        }
+
+        // Remove leaf ref
+        assert(leaf->m_SceneIndex >= 0);
+        assert(m_Leafs.MeshInstances.valid_index(leaf->m_SceneIndex));
+        m_Leafs.MeshInstances.erase(leaf->m_SceneIndex);
+        leaf->m_SceneIndex = -1;
+    } break;
+
+    case SceneGraphLeaf::Type::Camera:
+        assert(leaf->m_SceneIndex >= 0);
+        assert(m_Leafs.SceneCameras.valid_index(leaf->m_SceneIndex));
+        m_Leafs.SceneCameras.erase(leaf->m_SceneIndex);
+        leaf->m_SceneIndex = -1;
+        break;
+
+    case SceneGraphLeaf::Type::DirectionalLight:
+        assert(leaf->m_SceneIndex >= 0);
+        assert(m_Leafs.SceneDirLights.valid_index(leaf->m_SceneIndex));
+        m_Leafs.SceneDirLights.erase(leaf->m_SceneIndex);
+        leaf->m_SceneIndex = -1;
+        break;
+
+    case SceneGraphLeaf::Type::PointLight:
+        assert(leaf->m_SceneIndex >= 0);
+        assert(m_Leafs.ScenePointLights.valid_index(leaf->m_SceneIndex));
+        m_Leafs.ScenePointLights.erase(leaf->m_SceneIndex);
+        leaf->m_SceneIndex = -1;
+        break;
+
+    case SceneGraphLeaf::Type::SpotLight:
+        assert(leaf->m_SceneIndex >= 0);
+        assert(m_Leafs.SceneSpotLights.valid_index(leaf->m_SceneIndex));
+        m_Leafs.SceneSpotLights.erase(leaf->m_SceneIndex);
+        leaf->m_SceneIndex = -1;
+        break;
+    }
 }

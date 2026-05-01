@@ -154,4 +154,16 @@ constexpr T Remap(T v, T srcMin, T srcMax, T dstMin, T dstMax)
     return dstMin + normalized * (dstMax - dstMin);
 }
 
+template<typename Container>
+auto fast_erase(Container& container, typename Container::iterator it) -> typename Container::iterator
+{
+    auto last = std::prev(container.end());
+    if (it != last) 
+    {
+        std::swap(*it, *last);  // ADL-friendly swap
+    }
+    container.pop_back();
+    return it;
+}
+
 } // namespace st

@@ -93,6 +93,7 @@ public:
 	Data m_Data;
 
 	std::function<void(const char*)> m_RequestLoadFile;
+	std::function<void(const char*)> m_RequestMergeFile;
 	std::function<void()> m_RequestClose;
 	std::function<void()> m_RequestQuit;
 
@@ -162,8 +163,6 @@ private:
 
 	bool m_ShowSceneWindow;
 	const alm::gfx::SceneGraphNode* m_SelectedNode;
-
-	bool m_ShowResourcesWindow;
 
 	bool m_ShowRenderStages;
 	std::string m_RenderStageIOHoveredId;

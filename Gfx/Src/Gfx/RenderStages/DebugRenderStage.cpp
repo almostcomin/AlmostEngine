@@ -153,7 +153,7 @@ std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetA
 	alm::gfx::SceneGraph::Walker walker{ *scene->GetSceneGraph() };
 	while (walker)
 	{
-		auto node = *walker;
+		const auto* node = *walker;
 		if (has_any_flag(node->GetContentFlags(), ToFlag(boundsType)))
 		{
 			aabboxes.push_back(node->GetWorldBounds(boundsType));

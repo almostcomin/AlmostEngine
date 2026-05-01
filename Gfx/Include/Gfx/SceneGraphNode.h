@@ -41,6 +41,7 @@ public:
 	void SetName(const char* name) { m_Name = name; }
 
 	void AddChild(alm::unique<SceneGraphNode>&& child);
+	alm::unique<SceneGraphNode> RemoveChild(const alm::weak<SceneGraphNode>& child);
 
 	void SetLeaf(alm::unique<SceneGraphLeaf>&& leaf);
 	void OnLeafBoundsChanged();
@@ -49,7 +50,7 @@ public:
 
 	size_t GetChildrenCount() const { return m_Children.size(); }
 	alm::weak<alm::gfx::SceneGraphNode> GetChild(size_t idx) const;
-	alm::weak<alm::gfx::SceneGraphNode> GetParent() const;
+	alm::gfx::SceneGraphNode* GetParent() const;
 
 	bool HasLeaf() const { return m_Leaf; }
 	alm::weak<SceneGraphLeaf> GetLeaf() const { return m_Leaf.get_weak(); }
@@ -72,8 +73,8 @@ private:
 
 private:
 
-	alm::weak<SceneGraph> m_Graph;
-	alm::weak<SceneGraphNode> m_Parent;
+	SceneGraph* m_Graph;
+	SceneGraphNode* m_Parent;
 	std::vector<alm::unique<SceneGraphNode>> m_Children;
 	alm::unique<SceneGraphLeaf> m_Leaf;
 

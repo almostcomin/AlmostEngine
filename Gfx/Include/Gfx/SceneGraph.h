@@ -1,8 +1,11 @@
 #pragma once
 #include <stack>
 #include "Gfx/SceneGraphNode.h"
+#include "Gfx/ResourceRefCount.h"
 #include "Core/Memory.h"
 #include "Core/unique_vector.h"
+#include "Core/unique_stable_vector.h"
+#include "Core/stable_vector.h"
 
 namespace alm::gfx
 {
@@ -36,25 +39,26 @@ public:
         };
 
         explicit Walker(const SceneGraph& graph)
-            : m_Current(graph.m_Root.get_weak())
-            , m_Scope(graph.m_Root.get_weak())
+            : m_Current(graph.m_Root.get())
+            , m_Scope(graph.m_Root.get())
         {}
 
         explicit Walker(SceneGraphNode* scope)
-            : m_Current(scope->weak_from_this())
-            , m_Scope(scope->weak_from_this())
+            : m_Current(scope)
+            , m_Scope(scope)
         {}
-
+/*
         explicit Walker(alm::weak<SceneGraphNode> scope)
             : m_Current(scope)
             , m_Scope(scope)
         {}
-
+*/
+/*
         Walker(alm::weak<SceneGraphNode> current, alm::weak<SceneGraphNode> scope)
             : m_Current(current)
             , m_Scope(scope)
         {}
-
+*/
         // Moves the pointer to the first child of the current node, if it exists.
         // Otherwise, moves the pointer to the next sibling of the current node, if it exists.
         // Otherwise, goes up and tries to find the next sibiling up the hierarchy.
@@ -66,35 +70,42 @@ public:
         // Moves the pointer to the parent of the current node, up to the scope.
         // Note that using Up and Next together may result in an infinite loop.
         // Returns the depth of the new node relative to the current node.
-        alm::weak<SceneGraphNode> Up();
+        SceneGraphNode* Up();
 
-        [[nodiscard]] operator bool() const { return !m_Current.expired(); }
-        alm::weak<SceneGraphNode> Get() const { return m_Current; }
-        alm::weak<SceneGraphNode> operator*() { return m_Current; }
-        SceneGraphNode* operator->() { return m_Current.get(); }
+        [[nodiscard]] operator bool() const { return m_Current; }
+        SceneGraphNode* Get() const { return m_Current; }
+        SceneGraphNode* operator*() { return m_Current; }
+        SceneGraphNode* operator->() { return m_Current; }
 
     private:
-        alm::weak<SceneGraphNode> m_Current;
-        alm::weak<SceneGraphNode> m_Scope;
+        SceneGraphNode* m_Current;
+        SceneGraphNode* m_Scope;
         std::stack<size_t> m_ChildIndices;
     };
+
+    using MaterialRefCount = ResourceRefCount<Material>;
+    using MeshRefCount = ResourceRefCount<Mesh>;
+   
+    using MeshInstanceLeafsContainer = alm::stable_vector<MeshInstance*, 8192>;
+    using SceneCamerasContainer = alm::stable_vector<SceneCamera*, 32>;
+    using SceneDirectionalLightsContainer = alm::stable_vector<SceneDirectionalLight*, 8>;
+    using ScenePointLightsContainer = alm::stable_vector<ScenePointLight*, 1024>;
+    using SceneSpotLightsContainer = alm::stable_vector<SceneSpotLight*, 128>;
+
+    using MaterialsContainer = alm::unique_stable_vector<MaterialRefCount, 1024>;
+    using MeshesContainer = alm::unique_stable_vector<MeshRefCount, 4096>;
+    using MeshMaterialIndicesContainer = std::array<int, MeshesContainer::max_elements>;
 
 public:
 
     SceneGraph();
-    SceneGraph(alm::unique<SceneGraphNode>&& rootNode);
 
-	// Replaces the current root node of the graph with the new one. Returns the old root.
-	alm::unique<alm::gfx::SceneGraphNode> SetRoot(alm::unique<SceneGraphNode>&& rootNode);
-
-	// Attaches a node and its subgraph to the parent.
-	// If the node is already attached to this or other graph, a deep copy of the subgraph is made first.
-	//alm::weak<SceneGraphNode> Attach(SceneGraphNode* parent, alm::unique<SceneGraphNode>&& child);
+	// Attaches a node and its subgraph to the graph.
     void OnNodeAttached(SceneGraphNode* node);
+    // Detach a node and its subgraph from the graph
+    void OnNodeDettached(SceneGraphNode* node);
 
-    // Removes the node and its subgraph from the graph.
-    alm::unique<SceneGraphNode> Detach(const SceneGraphNode* node);
-
+    // Get root node. Always exists.
     alm::weak<SceneGraphNode> GetRoot() const { return m_Root.get_weak(); }
 
     int GetInstanceIndex(const alm::gfx::MeshInstance* pInstance) const;
@@ -105,15 +116,15 @@ public:
     int GetMaterialIndex(const alm::gfx::MeshInstance* pInstance) const;
     int GetMaterialIndex(const alm::gfx::Mesh* mesh) const;
 
-    const std::vector<MeshInstance*>& GetMeshInstances() const { return m_MeshInstanceLeafs; }
-    const std::vector<SceneCamera*>& GetSceneCameras() const { return m_SceneCameraLeafs; }
-    const std::vector<SceneDirectionalLight*>& GetSceneDirLights() const { return m_SceneDirLightLeafs; }
-    const std::vector<ScenePointLight*>& GetScenePointLights() const { return m_ScenePointLightLeafs; }
-    const std::vector<SceneSpotLight*>& GetSceneSpotLights() const { return m_SceneSpotLightLeafs; }
+    const MeshInstanceLeafsContainer& GetMeshInstances() const { return m_Leafs.MeshInstances; }
+    const SceneCamerasContainer& GetSceneCameras() const { return m_Leafs.SceneCameras; }
+    const SceneDirectionalLightsContainer& GetSceneDirLights() const { return m_Leafs.SceneDirLights; }
+    const ScenePointLightsContainer& GetScenePointLights() const { return m_Leafs.ScenePointLights; }
+    const SceneSpotLightsContainer& GetSceneSpotLights() const { return m_Leafs.SceneSpotLights; }
 
-    const alm::unique_vector<Mesh*>& GetMeshes() const { return m_Meshes; }
-    const std::vector<int>& GetMeshesMaterialIndices() const { return m_MeshMaterialIndices; }
-    const alm::unique_vector<Material*>& GetMaterials() const { return m_Materials; }
+    const MeshesContainer& GetMeshes() const { return m_Meshes; }
+    const MeshMaterialIndicesContainer& GetMeshesMaterialIndices() const { return m_MeshMaterialIndices; }
+    const MaterialsContainer& GetMaterials() const { return m_Materials; }
 
     // 
     void Refresh();
@@ -130,16 +141,18 @@ private:
 
 	alm::unique<SceneGraphNode> m_Root;
 
-    std::vector<MeshInstance*> m_MeshInstanceLeafs;
-    std::vector<SceneCamera*> m_SceneCameraLeafs;
-    std::vector<SceneDirectionalLight*> m_SceneDirLightLeafs;
-    std::vector<ScenePointLight*> m_ScenePointLightLeafs;
-    std::vector<SceneSpotLight*> m_SceneSpotLightLeafs;
+    struct
+    {
+        MeshInstanceLeafsContainer MeshInstances;
+        SceneCamerasContainer SceneCameras;
+        SceneDirectionalLightsContainer SceneDirLights;
+        ScenePointLightsContainer ScenePointLights;
+        SceneSpotLightsContainer SceneSpotLights;
+    }  m_Leafs;
 
-    alm::unique_vector<Mesh*> m_Meshes;
-    std::vector<int> m_MeshMaterialIndices;
-
-    alm::unique_vector<Material*> m_Materials;
+    MeshesContainer m_Meshes;
+    MaterialsContainer m_Materials;
+    MeshMaterialIndicesContainer m_MeshMaterialIndices;
 };
 
 } // namespace st::gfx
