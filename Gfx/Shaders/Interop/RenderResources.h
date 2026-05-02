@@ -373,18 +373,19 @@ namespace interop
     struct SkyData
     {
         float3 ToSunDirection;
-        uint _padding0;
+        float AtmosRadius;
         float3 SunColor;
-        float SunIrradiance;
-        float3 ZenitColor;
-        float ZenitFalloff;
-        float3 HorizonColor;
-        float HorizonFalloff;
-        float3 GroundColor;
-        float GroundFalloff;
+        float SunIntensity;
         float3 EarthCenter;
-        uint _padding1;
-        //uint numSteps;
+        float EarthRadius;
+        float3 bR;              // Rayleigh scattering coefficients at sea level (per meter)
+        float Hr;               // Rayleigh scale height
+        float3 bM;              // Mie scattering coefficients at sea level (per meter)
+        float Hm;               // Mie scale height
+        float G;                // Mie anisotropy
+        uint NumSteps;
+        uint NumLightSteps;
+        uint padding0;
     };
 
     struct SkyConstants

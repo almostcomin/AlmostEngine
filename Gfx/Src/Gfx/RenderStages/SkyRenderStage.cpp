@@ -10,6 +10,18 @@
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
+void alm::gfx::SkyRenderStage::SetEarthCenter(const float3& pos)
+{
+	m_Params.EarthCenter = pos;
+}
+
+void alm::gfx::SkyRenderStage::SetEarthRadius(float radius, float atmosRelScale)
+{
+	float scaleFactor = radius / kEarthRefRadius;
+	m_Params.EarthRadius = radius;
+	m_Params.AtmosHeight = kAtmosRefHeight * scaleFactor * atmosRelScale;
+}
+
 void alm::gfx::SkyRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
@@ -45,17 +57,21 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		const float3 sunDir = alm::ElevationAzimuthRadToDir(
 			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
+		const float atmosScale = m_Params.AtmosHeight / kAtmosRefHeight;
+
 		skyData->ToSunDirection = -sunDir;
+		skyData->AtmosRadius = m_Params.EarthRadius + m_Params.AtmosHeight;
 		skyData->SunColor = sunParams.Color;
-		skyData->SunIrradiance = sunParams.Irradiance;
-		skyData->ZenitColor = m_Params.ZenitColor;
-		skyData->ZenitFalloff = m_Params.ZenitFalloff;
-		skyData->HorizonColor = m_Params.HorizonColor;
-		skyData->HorizonFalloff = m_Params.HorizonFalloff;
-		skyData->GroundColor = m_Params.GroundColor;
-		skyData->GroundFalloff = m_Params.GroundFalloff;
-		skyData->EarthCenter = float3(0.f, -6360000, 0.f);// GetCamera()->GetPosition() + float3(0.f, -m_Params.EarthRadius, 0.f);
-		
+		skyData->SunIntensity = sunParams.Irradiance * 22.f;
+		skyData->EarthCenter = m_Params.EarthCenter;
+		skyData->EarthRadius = m_Params.EarthRadius;	
+		skyData->bR = kRefRayleighScattering / atmosScale;
+		skyData->Hr = kRefRayleighScaleHeight * atmosScale;
+		skyData->bM = kRefMieScattering / atmosScale;
+		skyData->Hm = kRefMieScaleHeight * atmosScale;
+		skyData->G = m_Params.MieAnisotropy;
+		skyData->NumSteps = m_Params.NumSteps;
+		skyData->NumLightSteps = m_Params.NumLightSteps;
 	}
 	m_ShaderCB.Unmap();
 

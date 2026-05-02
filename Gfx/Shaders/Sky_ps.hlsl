@@ -7,26 +7,8 @@
 // And in the sky shader from StillTravelling
 // https://www.shadertoy.com/view/tdSXzD
 
-#define EARTH_RADIUS 6360000
-#define ATMOS_RADIUS 6420000
-
 #define DENSITY 0.5
 #define ZENIT_OFFSET 0.48
-#define NUM_STEPS 128
-#define NUM_LIGHT_STEPS 32
-
-#define Hr 8000.0  // Rayleigh scale height: 8 km
-#define Hm 1200.0  // Mie scale height: 1.2 km
-
-// Scattering coefficients at sea level (per meter)
-#define bR float3(5.8e-6, 13.5e-6, 33.1e-6) // Rayleigh
-#define bM float3(21e-6, 21e-6, 21e-6)      // Mie
-
-// Phase function constants
-#define G 0.76 // Mie anisotropy
-
-// Sun intensity
-#define SUN_INTENSITY 22.0 // empirical
 
 ConstantBuffer<interop::SkyConstants> Constants : register(b0);
 
@@ -47,20 +29,14 @@ float3 GetAtmosphericScattering(float3 rayDir, ConstantBuffer<interop:: SkyData>
     
 }
 #endif
-float IntersectAtmosSphere(float3 rd, float r, float earthRadius)
-{
-    float b = earthRadius * rd.y;
-    float d = b * b + r * r + 2.0 * earthRadius * r;
-    return -b + sqrt(d);
-}
 
 float3 Scatter(float3 rayOriginLocal, float3 rayDir, ConstantBuffer <interop::SkyData> skyData)
 {
     // Get actual ray origin
     float3 rayOrigin = rayOriginLocal - skyData.EarthCenter;
 
-    float2 atmosHit = RaySphereIntersection(rayOrigin, rayDir, ATMOS_RADIUS);
-    float2 earthHit = RaySphereIntersection(rayOrigin, rayDir, EARTH_RADIUS);
+    float2 atmosHit = RaySphereIntersection(rayOrigin, rayDir, skyData.AtmosRadius);
+    float2 earthHit = RaySphereIntersection(rayOrigin, rayDir, skyData.EarthRadius);
 
     if(atmosHit.y < 0.0)
         return float3(0.0, 0.0, 0.0); // No atmosphere, looking at space
@@ -72,7 +48,7 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, ConstantBuffer <interop::Sk
         tEnd  = min(tEnd, earthHit.x);
 
     float L = tEnd - tStart;
-    float dL = L / NUM_STEPS;
+    float dL = L / skyData.NumSteps;
 
     float3 accumR = 0.0;
     float3 accumM = 0.0;
@@ -80,23 +56,22 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, ConstantBuffer <interop::Sk
     float depthM = 0.0;
 
     // Raymarch from rayOrigin to the exit of the atmosphere
-    for (uint i = 0; i < NUM_STEPS; ++i)
+    for (uint i = 0; i < skyData.NumSteps; ++i)
     {
         float t = tStart + dL * (i + 0.5); // sample at center of segment
-        float3 p = rayOrigin + rayDir * (dL * i);
-        float h = length(p) - EARTH_RADIUS; // Height of p from surface
+        float3 p = rayOrigin + rayDir * t;
+        float h = length(p) - skyData.EarthRadius; // Height of p from surface
         
-        float dR = exp(-h / Hr) * dL;
-        float dM = exp(-h / Hm) * dL;
+        float dR = exp(-h / skyData.Hr) * dL;
+        float dM = exp(-h / skyData.Hm) * dL;
         
         depthR += dR;
         depthM += dM;
 
         // Inner raymarch, from p towards sun
-        float2 lightAtmosHit = RaySphereIntersection(p, skyData.ToSunDirection, ATMOS_RADIUS);
-        float2 lightEarthHit = RaySphereIntersection(p, skyData.ToSunDirection, EARTH_RADIUS);
+        float2 lightAtmosHit = RaySphereIntersection(p, skyData.ToSunDirection, skyData.AtmosRadius);
+        float2 lightEarthHit = RaySphereIntersection(p, skyData.ToSunDirection, skyData.EarthRadius);
 
-        float tLightEnd = lightAtmosHit.y;
         // If sun ray hits the earth from point p -- this point is in shadow
         if (lightEarthHit.x > 0.0)
         {
@@ -104,23 +79,22 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, ConstantBuffer <interop::Sk
             continue;
         }
 
-        float2 Ls = RaySphereIntersection(p, skyData.ToSunDirection, ATMOS_RADIUS);
-        //float dLs = Ls / NUM_LIGHT_STEPS;
-
+        float dLs = lightAtmosHit.y / skyData.NumLightSteps;
         float depthRs = 0.0;
         float depthMs = 0.0;
-#if 0
-        for(uint j = 0; j < NUM_LIGHT_STEPS; ++j)
-        {            
-            float3 ps = p + skyData.ToSunDirection * (dLs * j);
-            float hs = lenght(ps) - EARTH_RADIUS; // Height of p from surface
+#if 1
+        for(uint j = 0; j < skyData.NumLightSteps; ++j)
+        {
+            float ts = dLs * (j + 0.5);
+            float3 ps = p + skyData.ToSunDirection * ts;
+            float hs = length(ps) - skyData.EarthRadius; // Height of p from surface
 
-            depthRs += exp(-hs / Hr) * dLs;
-            depthMs += exp(-hs / Hm) * dLs;
+            depthRs += exp(-hs / skyData.Hr) * dLs;
+            depthMs += exp(-hs / skyData.Hm) * dLs;
         }
 #endif
         // Total transmittance from sun to camera passing through p
-        float3 T = exp(-(bR * (depthR + depthRs) + bM * (depthM + depthMs)));
+        float3 T = exp(-(skyData.bR * (depthR + depthRs) + skyData.bM * (depthM + depthMs)));
 
         accumR += T * dR;
         accumM += T * dM;
@@ -132,14 +106,14 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, ConstantBuffer <interop::Sk
 
     float phaseR = (3.0 / (16.0 * M_PI)) * (1.0 + mu2);
 
-    float g2 = square(G);
+    float g2 = square(skyData.G);
     float phaseM = (3.0 / (8.0 * M_PI)) * 
                    ((1.0 - g2) * (1.0 + mu2)) /
-                   ((2.0 + g2) * pow(1.0 + g2 - 2.0 * G * mu, 1.5));
+                   ((2.0 + g2) * pow(1.0 + g2 - 2.0 * skyData.G * mu, 1.5));
 
-    float3 color = SUN_INTENSITY * (bR * phaseR * accumR + bM * phaseM * accumM);
+    float3 color = skyData.SunIntensity * (skyData.bR * phaseR * accumR + skyData.bM * phaseM * accumM);
 
-    color = float3(L / 100000.0, L / 100000.0, L / 100000.0);
+    //color = float3(L / 100000.0, L / 100000.0, L / 100000.0);
     return color;    
 }
 

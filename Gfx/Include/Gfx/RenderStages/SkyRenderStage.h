@@ -14,26 +14,30 @@ class SkyRenderStage : public RenderStage
 
 public:
 
+    static constexpr float kEarthRefRadius = 6360000.f;
+    static constexpr float kAtmosRefHeight = 60000.f;
+    static constexpr float3 kRefRayleighScattering = { 5.8e-6f, 13.5e-6f, 33.1e-6f };
+    static constexpr float kRefRayleighScaleHeight = 8000.f;
+    static constexpr float3 kRefMieScattering = { 21e-6f, 21e-6f, 21e-6f };
+    static constexpr float kRefMieScaleHeight = 1200.f;
+
 	struct SkyParams
 	{
-        float3 ZenitColor{ 0.22f, 0.55f,  0.935f };         // Base color at zenith
-        float ZenitFalloff{ 0.5f };                         // How fast zenith fades to horizon
-        float3 HorizonColor{ 0.595f, 0.6375f, 0.7225f };    // Color at horizon line
-        float HorizonFalloff{ 6.f };                        // Power curve for horizon blend (higher = sharper line)
-        float3 GroundColor{ 0.f, 0.1f, 0.2f };              // Darkening below horizon
-        float GroundFalloff{ 10.f };                        // How fast darkening kicks in below horizon   
-
-        // Intensities
-        float SunWideIntensity{ 0.25f };
-        float SunMediumIntensity{ 0.25f };
-        float SunTightIntensity{ 0.2f };
-        float SunSoftGlowIntensity{ 0.2f };
+        float3 EarthCenter = { 0.f, 0.f, 0.f };
+        float EarthRadius = kEarthRefRadius;
+        float AtmosHeight = kAtmosRefHeight;
+        float MieAnisotropy = 0.76f;
+        float NumSteps = 128;
+        float NumLightSteps = 32;
 	};
 
 public:
 
     const SkyParams& GetSkyParams() const { return m_Params; }
     void SetSkyParams(const SkyParams& params) { m_Params = params; }
+
+    void SetEarthCenter(const float3& pos);
+    void SetEarthRadius(float radius, float atmosRelScale = 1.f);
 
 private:
 

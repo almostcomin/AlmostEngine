@@ -189,6 +189,8 @@ void alm::gfx::CloudsRenderStage::Setup(RenderGraphBuilder& builder)
 
 void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
+	return;
+
 	if (!GetScene())
 		return;
 	if (!GetCamera())

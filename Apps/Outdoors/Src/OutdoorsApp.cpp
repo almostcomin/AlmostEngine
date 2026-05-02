@@ -35,7 +35,7 @@ class OutdoorsApp : public alm::fw::App
 {
 public:
 
-	static constexpr float kEarthRadius = 100.f;// 6360000.f;
+	static constexpr float kEarthRadius = 1000.f;//6360000.f;
 
 	OutdoorsApp() : alm::fw::App{ "OutdoorsApp", alm::fw::App::RenderStageSetMode::User } {}
 	~OutdoorsApp() override = default;
@@ -83,6 +83,12 @@ public:
 					m_Scene->RefreshSceneGraph();
 				}
 			}
+		}
+
+		// Set Sky params
+		{
+			m_SkyRS->SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
+			m_SkyRS->SetEarthRadius(kEarthRadius, 1.f);
 		}
 
 		// Set clouds texture
@@ -137,6 +143,10 @@ public:
 
 		// Camera movement
 		m_CameraController.Update(deltaTime);
+
+		// Update UI
+		m_UI->AddBottomBarText(std::format("X: {:1.3f}, Y: {:1.3f}, Z: {:1.3f}",
+			m_MainCamera->GetPosition().x, m_MainCamera->GetPosition().y, m_MainCamera->GetPosition().z));
 
 		return true;
 	}

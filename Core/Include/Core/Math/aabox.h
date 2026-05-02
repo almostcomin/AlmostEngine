@@ -27,6 +27,13 @@ struct aabox
     aabox(const vec_t& _min, const vec_t& _max) : min{ _min }, max{ _max }
     {}
 
+    template<typename U>
+    aabox(const aabox<U, n>& o)
+    {
+        min = o.min;
+        max = o.max;
+    }
+
     aabox& reset() // Set default/invalid aabox
     {
         min = vec_t{ std::numeric_limits<T>::max() };
@@ -110,8 +117,10 @@ struct aabox
     }
 };
 
-using aabox2f = aabox<float, 2>;
-using aabox3f = aabox<float, 3>;
 using aabox2i = aabox<int, 2>;
+using aabox2f = aabox<float, 2>;
+using aabox2d = aabox<double, 2>;
+using aabox3f = aabox<float, 3>;
+using aabox3d = aabox<double, 3>;
 
 } // namespace st::math

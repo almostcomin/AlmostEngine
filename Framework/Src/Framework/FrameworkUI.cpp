@@ -32,6 +32,11 @@ void alm::fw::FrameworkUI::SetRenderStats(float fps, float cpuTime, float gpuTim
     m_GPUTime = gpuTime;
 }
 
+void alm::fw::FrameworkUI::AddBottomBarText(const std::string& text)
+{
+    m_BottomBarRightAlignTexts.push_back(text);
+}
+
 bool alm::fw::FrameworkUI::ShowToggleButton(const char* label, bool* v)
 {
     bool pressed = false;
@@ -116,32 +121,46 @@ void alm::fw::FrameworkUI::BuildBottomBar()
         float textHeight = ImGui::GetTextLineHeight();
         float paddingY = ImGui::GetStyle().WindowPadding.y;
 
-        // Centro vertical real
-        float cursorY = (statusBarHeight - textHeight) * 0.5f;
+        float cursorX = 0.f;
+        const float cursorY = (statusBarHeight - textHeight) * 0.5f;
 
+        ImGui::SetCursorPosX(cursorX);
         ImGui::SetCursorPosY(cursorY);
 
         ImGui::Text(" FPS: %1.3f", m_FPS);
-        float xpos = 160.f;
+        cursorX = 160.f;
 
         ImGui::SameLine();
-        ImGui::SetCursorPosX(xpos);
+        ImGui::SetCursorPosX(cursorX);
         ImGui::Text("| Draw calls: %d", renderStats.DrawCalls);
-        xpos += 160.f;
+        cursorX += 160.f;
 
         ImGui::SameLine();
-        ImGui::SetCursorPosX(xpos);
+        ImGui::SetCursorPosX(cursorX);
         ImGui::Text("| Primitives: %d", renderStats.PrimitiveCount);
-        xpos += 200.f;
+        cursorX += 200.f;
 
         ImGui::SameLine();
-        ImGui::SetCursorPosX(xpos);
+        ImGui::SetCursorPosX(cursorX);
         ImGui::Text("| GPU: %1.2f ms", m_GPUTime);
-        xpos += 160.f;
+        cursorX += 160.f;
 
         ImGui::SameLine();
-        ImGui::SetCursorPosX(xpos);
+        ImGui::SetCursorPosX(cursorX);
         ImGui::Text("| CPU: %1.2f ms", m_CPUTime);
+
+        // Right aligned user texts
+        cursorX = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
+        for (const std::string& text : m_BottomBarRightAlignTexts)
+        {
+            std::string actualText = std::format(" | {}", text);
+            float textWidth = ImGui::CalcTextSize(actualText.c_str()).x;
+            cursorX -= textWidth;
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(cursorX);
+            ImGui::Text(actualText.c_str());
+        }
+        m_BottomBarRightAlignTexts.clear();
     }
     ImGui::End();
 

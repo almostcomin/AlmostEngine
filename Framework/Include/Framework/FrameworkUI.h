@@ -13,9 +13,11 @@ class FrameworkUI : public alm::gfx::ImGuiRenderStage
 public:
 
 	void ShowBottomBar(bool b) { m_ShowBottomBar = b; }
-	void AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture);
+	void AddBottomBarText(const std::string& text);
 
 	void SetRenderStats(float fps, float cpuTime, float gpuTime);
+
+	void AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture);
 
 protected:
 
@@ -56,6 +58,8 @@ private:
 	bool m_ShowBottomBar = true;
 
 	std::vector<UITextureWindow> m_TextureWindows;
+
+	std::vector<std::string> m_BottomBarRightAlignTexts;
 };
 
 } // namespace alm::fw
