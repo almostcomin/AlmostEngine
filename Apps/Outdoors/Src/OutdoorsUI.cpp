@@ -33,6 +33,13 @@ void OutdoorsUI::BuildUI()
             "Angular Size", &m_Data.SunParams.AngularSizeDeg, 0.0f, 20.f);
     }
 
+    if (ImGui::CollapsingHeader("Sky", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::SliderFloat("Mie Anisotropy##Sky", &m_Data.SkyParams.MieAnisotropy, 0.f, 1.f);
+        ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &m_Data.SkyParams.NumSteps);
+        ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &m_Data.SkyParams.NumLightSteps);
+    }
+
     if (ImGui::CollapsingHeader("Clouds", ImGuiTreeNodeFlags_DefaultOpen))
     {
         float2 velDir = m_Data.CloudsParams.WindVelocity;

@@ -58,6 +58,13 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
 		const float atmosScale = m_Params.AtmosHeight / kAtmosRefHeight;
+		const float sunAngularRadiusRad = glm::radians(sunParams.AngularSizeDeg / 2.f);
+		const float sunSolidAngle = 4.0f * PI * square(glm::sin(sunAngularRadiusRad));		
+		
+		float verticalFOVRad = GetCamera()->GetVerticalFOV();
+		const float screenHeightPixels = m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().height;
+		const float sunRadiusPixels = (sunAngularRadiusRad / verticalFOVRad) * screenHeightPixels;
+		const float sunEdgeAAFalloff = 1.0f / glm::max(sunRadiusPixels, 1.0f); // fade in 1 pixel
 
 		skyData->ToSunDirection = -sunDir;
 		skyData->AtmosRadius = m_Params.EarthRadius + m_Params.AtmosHeight;
@@ -69,7 +76,11 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		skyData->Hr = kRefRayleighScaleHeight * atmosScale;
 		skyData->bM = kRefMieScattering / atmosScale;
 		skyData->Hm = kRefMieScaleHeight * atmosScale;
+		skyData->SunRadiance = sunParams.Color * sunParams.Irradiance / sunSolidAngle;
 		skyData->G = m_Params.MieAnisotropy;
+		skyData->SunAngularRadius = sunAngularRadiusRad;
+		skyData->SunAngularRadiusCos = glm::cos(sunAngularRadiusRad);
+		skyData->SunEdgeAAFalloff = sunEdgeAAFalloff;
 		skyData->NumSteps = m_Params.NumSteps;
 		skyData->NumLightSteps = m_Params.NumLightSteps;
 	}

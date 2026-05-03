@@ -82,7 +82,7 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, ConstantBuffer <interop::Sk
         float dLs = lightAtmosHit.y / skyData.NumLightSteps;
         float depthRs = 0.0;
         float depthMs = 0.0;
-#if 1
+
         for(uint j = 0; j < skyData.NumLightSteps; ++j)
         {
             float ts = dLs * (j + 0.5);
@@ -92,7 +92,7 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, ConstantBuffer <interop::Sk
             depthRs += exp(-hs / skyData.Hr) * dLs;
             depthMs += exp(-hs / skyData.Hm) * dLs;
         }
-#endif
+
         // Total transmittance from sun to camera passing through p
         float3 T = exp(-(skyData.bR * (depthR + depthRs) + skyData.bM * (depthM + depthMs)));
 
@@ -113,8 +113,40 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, ConstantBuffer <interop::Sk
 
     float3 color = skyData.SunIntensity * (skyData.bR * phaseR * accumR + skyData.bM * phaseM * accumM);
 
-    //color = float3(L / 100000.0, L / 100000.0, L / 100000.0);
-    return color;    
+    // Sun disk
+    if (earthHit.x < 0.0) // no earth hit, sun visible
+    {
+        // Sun disk -- apparent size depends on elevation
+        float sunElevation = skyData.ToSunDirection.y; // 1 = zenith, 0 = horizon, <0 = below
+
+        // Optical illusion factor: sun appears larger near horizon
+        // At zenith: factor = 1 (real size)
+        // At horizon: factor up to 10
+        float horizonBoost = 1.0 + 9.0 * pow(saturate(1.0 - sunElevation), 8.0);
+
+        float effectiveAngularRadius = skyData.SunAngularRadius * horizonBoost;
+        float effectiveAngularRadiusCos = cos(effectiveAngularRadius);
+
+        if(mu > effectiveAngularRadiusCos)
+        {
+            // Angle between view direction and sun center
+            float angle = acos(mu);
+            // Radial position on the sun disk (0 = center, 1 = edge)
+            float diskPos = saturate(angle / effectiveAngularRadius);
+            // Mu for the disk point (cosine of the exit angle from the sun's surface)
+            float muSun = sqrt(1.0 - square(diskPos));
+            // Quadratic limb darkening model
+            float limbDarkening = 1.0 - 0.6 * (1.0 - muSun) - 0.4 * (1.0 - muSun) * (1.0 - muSun);
+            // Anti-aliased edge -- fades to 0 over the last 'falloff' radians
+            float edgeAA = saturate((1.0 - diskPos) / skyData.SunEdgeAAFalloff);
+            // Atmospheric transmittance from camera to edge of atmosphere along this ray
+            float3 transmittance = exp(-(skyData.bR * depthR + skyData.bM * depthM));
+
+            color += skyData.SunRadiance * transmittance * limbDarkening * edgeAA;
+        }
+    }
+
+     return color;
 }
 
 [RootSignature(BindlessRootSignature)]

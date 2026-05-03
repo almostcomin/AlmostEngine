@@ -375,17 +375,23 @@ namespace interop
         float3 ToSunDirection;
         float AtmosRadius;
         float3 SunColor;
-        float SunIntensity;
+        float SunIntensity;         // Atmospheric scattering arbitrary 
         float3 EarthCenter;
         float EarthRadius;
-        float3 bR;              // Rayleigh scattering coefficients at sea level (per meter)
-        float Hr;               // Rayleigh scale height
-        float3 bM;              // Mie scattering coefficients at sea level (per meter)
-        float Hm;               // Mie scale height
-        float G;                // Mie anisotropy
+        float3 bR;                  // Rayleigh scattering coefficients at sea level (per meter)
+        float Hr;                   // Rayleigh scale height
+        float3 bM;                  // Mie scattering coefficients at sea level (per meter)
+        float Hm;                   // Mie scale height
+        float3 SunRadiance;         // Sun bright for the sun disk
+        float G;                    // Mie anisotropy
+        float SunAngularRadius;     // Sun radius angular size
+        float SunAngularRadiusCos;  // Cosine of sun radius
+        float SunEdgeAAFalloff;
         uint NumSteps;
         uint NumLightSteps;
-        uint padding0;
+        uint _padding0;
+        uint _padding1;
+        uint _padding2;
     };
 
     struct SkyConstants

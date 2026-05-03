@@ -121,6 +121,7 @@ public:
 
 		// Init UI params
 		m_UI->m_Data.SunParams = m_Scene->GetSunParams();
+		m_UI->m_Data.SkyParams = m_SkyRS->GetSkyParams();
 		m_UI->m_Data.CloudsParams = m_CloudsRS->GetCloudsParams();
 
 		m_UI->AddTextureWindow("CloudShape.dds", m_CloudsRS->GetCloudsShapeTexture());
@@ -139,6 +140,7 @@ public:
 			m_Scene->SetSunParams(m_UI->m_Data.SunParams);
 			m_UI->m_Data.SunParamsUpdated = false;
 		}
+		m_SkyRS->SetSkyParams(m_UI->m_Data.SkyParams);
 		m_CloudsRS->SetCloudsParams(m_UI->m_Data.CloudsParams);
 
 		// Camera movement

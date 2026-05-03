@@ -27,8 +27,8 @@ public:
         float EarthRadius = kEarthRefRadius;
         float AtmosHeight = kAtmosRefHeight;
         float MieAnisotropy = 0.76f;
-        float NumSteps = 128;
-        float NumLightSteps = 32;
+        uint32_t NumSteps = 64;
+        uint32_t NumLightSteps = 8;
 	};
 
 public:
