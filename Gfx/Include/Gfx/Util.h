@@ -18,5 +18,6 @@ namespace alm::gfx
 	float4x4 BuildPersInvZInfFar(float v_fov, float aspect, float z_near);
 	// Orthographic matrix, right handed, column major, inverse z, D3D/Vulkan NDC [1..0]
 	float4x4 BuildOrthoInvZ(float left, float right, float bottom, float top, float z_near, float z_far);
+	double4x4 BuildOrthoInvZ_d(double left, double right, double bottom, double top, double z_near, double z_far);
 
 } // namespace st::gfx

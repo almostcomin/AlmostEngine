@@ -74,12 +74,12 @@ struct aabox
     {
         // fast method to apply an affine matrix transform to an AABB
         aabox<T, n> result;
-        result.min = glm::vec3(mat[3]); // translation column
+        result.min = vec_t(mat[3]); // translation column
         result.max = result.min;
         for (int i = 0; i < n; i++)
         {
-            auto a = glm::vec3(mat[i]) * min[i];
-            auto b = glm::vec3(mat[i]) * max[i];
+            auto a = vec_t(mat[i]) * min[i];
+            auto b = vec_t(mat[i]) * max[i];
             result.min += glm::min(a, b);
             result.max += glm::max(a, b);
         }

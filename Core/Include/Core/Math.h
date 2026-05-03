@@ -6,6 +6,10 @@ using float2 = glm::vec2;
 using float3 = glm::vec3;
 using float4 = glm::vec4;
 
+using double2 = glm::dvec2;
+using double3 = glm::dvec3;
+using double4 = glm::dvec4;
+
 using int2 = glm::ivec2;
 using int3 = glm::ivec3;
 using int4 = glm::ivec4;
@@ -16,6 +20,9 @@ using uint4 = glm::uvec4;
 
 using float3x3 = glm::fmat3x3;
 using float4x4 = glm::fmat4x4;
+
+using double3x3 = glm::dmat3x3;
+using double4x4 = glm::dmat4x4;
 
 constexpr float PI = glm::pi<float>();
 

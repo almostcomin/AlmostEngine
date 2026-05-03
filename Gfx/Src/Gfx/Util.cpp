@@ -149,3 +149,17 @@ float4x4 alm::gfx::BuildOrthoInvZ(float left, float right, float bottom, float t
         { -(right + left) * inv_dx, -(top + bottom) * inv_dy,   z_far * inv_dz,     1.0f }  // column 3
     };
 }
+
+double4x4 alm::gfx::BuildOrthoInvZ_d(double left, double right, double bottom, double top, double z_near, double z_far)
+{
+    double inv_dx = 1.0f / (right - left);
+    double inv_dy = 1.0f / (top - bottom);
+    double inv_dz = 1.0f / (z_far - z_near);
+
+    return double4x4{
+        { 2.0f * inv_dx,            0.0f,                       0.0f,               0.0f }, // column 0
+        { 0.0f,                     2.0f * inv_dy,              0.0f,               0.0f }, // column 1
+        { 0.0f,                     0.0f,                       inv_dz,            0.0f }, // column 2
+        { -(right + left) * inv_dx, -(top + bottom) * inv_dy,   z_far * inv_dz,     1.0f }  // column 3
+    };
+}

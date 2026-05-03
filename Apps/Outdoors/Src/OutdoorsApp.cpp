@@ -36,6 +36,7 @@ class OutdoorsApp : public alm::fw::App
 public:
 
 	static constexpr float kEarthRadius = 1000.f;//6360000.f;
+	static constexpr float3 kEarthPos = { 0.f, -kEarthRadius, 0.f };
 
 	OutdoorsApp() : alm::fw::App{ "OutdoorsApp", alm::fw::App::RenderStageSetMode::User } {}
 	~OutdoorsApp() override = default;
@@ -64,7 +65,7 @@ public:
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
 			graphNode->SetName("EarthSphere");
 			graphNode->SetLeaf(std::move(meshInstance));
-			graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation({ 0.f, -kEarthRadius, 0.f }));
+			graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation(kEarthPos));
 
 			auto sceneGraph = m_Scene->GetSceneGraph();
 			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
@@ -125,11 +126,11 @@ public:
 		m_UI->m_Data.CloudsParams = m_CloudsRS->GetCloudsParams();
 
 		m_UI->AddTextureWindow("CloudShape.dds", m_CloudsRS->GetCloudsShapeTexture());
-/*
+
 		auto renderGraph = m_MainRenderView->GetRenderGraph();
 		alm::rhi::TextureHandle depthColorTexture = renderGraph->GetTexture("ShadowmapColor");
 		m_UI->AddTextureWindow("Shadowmap", depthColorTexture);
-*/
+
 		return true;
 	}
 
@@ -149,6 +150,9 @@ public:
 		// Update UI
 		m_UI->AddBottomBarText(std::format("X: {:1.3f}, Y: {:1.3f}, Z: {:1.3f}",
 			m_MainCamera->GetPosition().x, m_MainCamera->GetPosition().y, m_MainCamera->GetPosition().z));
+		
+		float altutide = glm::distance(m_MainCamera->GetPosition(), kEarthPos) - kEarthRadius;
+		m_UI->AddBottomBarText(std::format("Altitude: {:1.3f}", altutide));
 
 		return true;
 	}

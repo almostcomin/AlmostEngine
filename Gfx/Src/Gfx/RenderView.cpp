@@ -302,24 +302,30 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	if (!m_CameraVisibleBounds.valid())
 		return;
 
-	const alm::math::aabox3f& worldCasterBounds = m_Scene->GetWorldBounds(SceneContentType::ShadowCasters);
-	if (!worldCasterBounds.valid())
+	const alm::math::aabox3f& worldCasterBoundsF = m_Scene->GetWorldBounds(SceneContentType::ShadowCasters);
+	if (!worldCasterBoundsF.valid())
 		return;  // no shadow casters in the scene
 
 	const Scene::SunParams& sunParams = m_Scene->GetSunParams();
-	const float3 sunDir = alm::ElevationAzimuthRadToDir(
+
+	// sunDir in double for precision
+	const double3 sunDir = alm::ElevationAzimuthRadToDir(
 		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
+	// Promote bounds to double for the precision-critical calculations
+	const math::aabox3d cameraVisibleBoundsD(m_CameraVisibleBounds);
+	const math::aabox3d worldCasterBoundsD(worldCasterBoundsF);
 
 	// --- 1. Sun view matrix (arbitrary sunPos, it will be recalculated later)
 
-	float3 sunPos = m_CameraVisibleBounds.center();
-	const float3 sunUp = fabs(glm::dot(sunDir, { 0, 1, 0 })) > 0.999f ? float3(0, 0, 1) : float3(0, 1, 0);
-	float4x4 sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
+	double3 sunPos = m_CameraVisibleBounds.center();
+	const double3 sunUp = fabs(glm::dot(sunDir, { 0, 1, 0 })) > 0.999f ? double3(0, 0, 1) : double3(0, 1, 0);
+	double4x4 sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
 
 	// --- 2. Construct shadow search volume in sun-space
 
-	math::aabox3f cameraBoundsSun = m_CameraVisibleBounds.transform(sunViewMatrix);
-	const math::aabox3f worldCasterBoundsSun = worldCasterBounds.transform(sunViewMatrix);
+	math::aabox3d cameraBoundsSun = m_CameraVisibleBounds.transform(sunViewMatrix);
+	const math::aabox3d worldCasterBoundsSun = worldCasterBoundsD.transform(sunViewMatrix);
+
 	// Extends Z towards the sun (max.z positive is behind the sun in sun-space) 
 	// so we cover any caster that  could be betwween sun and shadow receivers
 	cameraBoundsSun.max.z = std::max(cameraBoundsSun.max.z, worldCasterBoundsSun.max.z);
@@ -328,37 +334,52 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 	// --- 3. Culling shadow casters using search volume
 
-	const math::aabox3f searchVolumeWorld = cameraBoundsSun.transform(glm::inverse(sunViewMatrix));
+	// Note: searchPlanes go to GetVisibleSet which expects float planes (CPU culling doesn't need double precision,
+	// the bounds it tests have small magnitudes relative to camera frustum). If needed, can also be promoted to double.
+	const math::aabox3d searchVolumeWorldD = cameraBoundsSun.transform(glm::inverse(sunViewMatrix));
+	const math::aabox3f searchVolumeWorld(searchVolumeWorldD);  // back to float for the cull
 	const std::vector<math::plane3f> searchPlanes = searchVolumeWorld.buildClipPlanes();
 
-	math::aabox3f casterBoundsForShadowMap;
-	GetVisibleSet(searchPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, &casterBoundsForShadowMap);
-	// So casterBoundsForShadowMap is the bbox of all the casters that cast shadow to something visible
+	math::aabox3f casterBoundsForShadowMapF;
+	GetVisibleSet(searchPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, &casterBoundsForShadowMapF);
+	if (!casterBoundsForShadowMapF.valid())
+		return;  // no casters cast shadow on visible receivers
+	// So casterBoundsForShadowMapF is the bbox of all the casters that cast shadow to something visible
+
+	// Promote back to double for the precision-critical Z calculations
+	const math::aabox3d casterBoundsForShadowMapD(casterBoundsForShadowMapF);
 
 	// --- 4. Dimension shadowmap
 
-	math::aabox3f sceneBoundsSun = casterBoundsForShadowMap.transform(sunViewMatrix);
+	math::aabox3d sceneBoundsSun = casterBoundsForShadowMapD.transform(sunViewMatrix);
 	// Sliding sun position to guarantee zNear >= 0
-	sunPos -= sunDir * sceneBoundsSun.max.z;// *1.001f;
+	sunPos -= sunDir * sceneBoundsSun.max.z;
 	sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
-	sceneBoundsSun = casterBoundsForShadowMap.transform(sunViewMatrix);
-	sceneBoundsSun.max.z = std::min(sceneBoundsSun.max.z, 0.0f);
+	sceneBoundsSun = casterBoundsForShadowMapD.transform(sunViewMatrix);
 
-	float zNear = -sceneBoundsSun.max.z;
-	float zFar = -sceneBoundsSun.min.z;
-	assert(zNear >= 0.0f);
-	assert(zFar >= zNear);
+	// Safety net for residual numerical errors (now much smaller in double)
+	sceneBoundsSun.max.z = std::min(sceneBoundsSun.max.z, 0.0);
 
-	const float4x4 sunProjMatrix = BuildOrthoInvZ(
+	const double zNearD = -sceneBoundsSun.max.z;
+	const double zFarD = -sceneBoundsSun.min.z;
+	assert(zNearD >= 0.0f);
+	if (zFarD < zNearD)
+	{
+		puts("hola");
+	}
+	assert(zFarD >= zNearD);
+
+	// Build projection matrix in double
+	const double4x4 sunProjMatrixD = BuildOrthoInvZ_d(
 		sceneBoundsSun.min.x, sceneBoundsSun.max.x,
 		sceneBoundsSun.min.y, sceneBoundsSun.max.y,
-		zNear, zFar);
+		zNearD, zFarD);
 
 #ifdef _DEBUG
 	//*** TEST
 	{
-		float4 pNear = sunProjMatrix * float4{ 0.f, 0.f, -zNear, 1.f };
-		float4 pFar = sunProjMatrix * float4{ 0.f, 0.f, -zFar, 1.f };
+		float4 pNear = sunProjMatrixD * float4{ 0.f, 0.f, -zNearD, 1.f };
+		float4 pFar = sunProjMatrixD * float4{ 0.f, 0.f, -zFarD, 1.f };
 		float zn = pNear.z / pNear.w;
 		float zf = pFar.z / pFar.w;
 		assert(zn > zf);
@@ -368,9 +389,14 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	}
 #endif
 
-	m_ShadowMapWoldToClipMatrix = sunProjMatrix * sunViewMatrix;
-	// view -> world -> sun_view -> sun_clip
-	m_ViewToShadowMapClipMatrix = sunProjMatrix * sunViewMatrix * glm::inverse(m_Camera->GetViewMatrix());
+	// Combined matrices in double for precision, then convert to float at the end
+	const double4x4 sunWorldToClipD = sunProjMatrixD * sunViewMatrix;
+	const double4x4 cameraViewMatrixD(m_Camera->GetViewMatrix());
+	const double4x4 viewToShadowMapClipD = sunWorldToClipD * glm::inverse(cameraViewMatrixD);
+
+	// Convert final matrices to float for the GPU
+	m_ShadowMapWoldToClipMatrix = float4x4(sunWorldToClipD);
+	m_ViewToShadowMapClipMatrix = float4x4(viewToShadowMapClipD);
 
 	UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList);
 }
