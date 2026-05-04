@@ -2,10 +2,12 @@
 #include "BindlessRS.hlsli"
 #include "Common.hlsli"
 
-// Based on the wonderful ScrathPixel post
+// Based on the ScrathPixel post
 // https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/simulating-sky/simulating-colors-of-the-sky.html
 // And in the sky shader from StillTravelling
 // https://www.shadertoy.com/view/tdSXzD
+// And Sebastian Lague video
+// https://www.youtube.com/watch?v=DxfEbulyFcY
 
 #define DENSITY 0.5
 #define ZENIT_OFFSET 0.48
@@ -18,18 +20,24 @@ struct PS_INPUT
     float2 uv : TEXCOORD0;
 };
 
-float3 Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, ConstantBuffer <interop::SkyData> skyData)
+
+
+float3 Scatter(float3 rayOriginLocal, float3 rayDir, ConstantBuffer <interop::SkyData> skyData)
 {
     // Get actual ray origin
     float3 rayOrigin = rayOriginLocal - skyData.EarthCenter;
 
-    float2 atmosHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), skyData.AtmosRadius);
+    float2 atmosHit = RaySphereIntersection(rayOrigin, rayDir, skyData.AtmosRadius);
+    float2 earthHit = RaySphereIntersection(rayOrigin, rayDir, skyData.EarthRadius);
+
     if(atmosHit.y < 0.0)
         return float3(0.0, 0.0, 0.0); // No atmosphere, looking at space
 
     // Determine raymarch range
     float tStart = max(atmosHit.x, 0.0);
-    float tEnd = min(atmosHit.y, sceneDepth);
+    float tEnd = atmosHit.y;
+    if(earthHit.x > 0.0)
+        tEnd  = min(tEnd, earthHit.x);
 
     float L = tEnd - tStart;
     float dL = L / skyData.NumSteps;
@@ -53,8 +61,8 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, ConstantB
         depthM += dM;
 
         // Inner raymarch, from p towards sun
-        float2 lightAtmosHit = RaySphereIntersection(p, skyData.ToSunDirection, float3(0, 0, 0), skyData.AtmosRadius);
-        float2 lightEarthHit = RaySphereIntersection(p, skyData.ToSunDirection, float3(0, 0, 0), skyData.EarthRadius);
+        float2 lightAtmosHit = RaySphereIntersection(p, skyData.ToSunDirection, skyData.AtmosRadius);
+        float2 lightEarthHit = RaySphereIntersection(p, skyData.ToSunDirection, skyData.EarthRadius);
 
         // If sun ray hits the earth from point p -- this point is in shadow
         if (lightEarthHit.x > 0.0)
@@ -98,7 +106,6 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, ConstantB
     float3 color = skyData.SunIntensity * (skyData.bR * phaseR * accumR + skyData.bM * phaseM * accumM);
 
     // Sun disk
-    float2 earthHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), skyData.EarthRadius);
     if (earthHit.x < 0.0) // no earth hit, sun visible
     {
         // Sun disk -- apparent size depends on elevation
@@ -134,11 +141,54 @@ float3 Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, ConstantB
      return color;
 }
 
+float DensityAtPoint(float3 densitySamplePoint, float3 earthCenter, float earthRadius, float atmosRadius)
+{
+    float altitude = lenght(densitySamplePoint - earthCenter) - earthRadius;
+    float altitude01 = altitude / (atmosRadius - earthRadius);
+    float localDensity = exp(-altitude01);
+    return localDensity;
+}
+
+float AvgAtmosDensity(float3 rayOrigin, float3 rayDir, float rayLength, ConstantBuffer<interop::SkyData> skyData)
+{
+    float3 samplePoint = rayOrigin;
+    float stepSize = rayLength / (skyData.NumLightSteps - 1);
+    float avgDensity = 0;
+    
+    for(int i = 0; i < skyData.NumLightSteps; ++i)
+    {
+        float localDensity = DensityAtPoint(samplePoint);
+        avgDensity += localDensity * stepSize;
+        samplePoint += rayDir * stepSize;
+    }
+    return avgDensity;
+}
+
+float CalculateLight(float3 rayOrigin, float3 rayDir, float rayLength, ConstantBuffer<interop::SkyData> skyData)
+{
+    float3 scatterPoint = rayOrigin;
+    float stepSize = rayLength / skyData.NumSteps;
+    float scatteredLight = 0;
+    for(int i = 0; i < skyData.NumSteps; ++i)
+    {
+        float2 sunRayHit = RaySphereIntersection(scatterPoint, skyData.ToSunDirection, skyData.EarthCenter, skyData.AtmosRadius);
+        float sunRayAvgDensity = AvgAtmosDensity(scatterPoint, skyData.ToSunDirection, sunRayHit.y);
+        float viewRayAvgDensity = AvgAtmosDensity(scatterPoint, -rayDir, stepSize * i);
+
+        float transmittance = exp(-sunRayAvgDensity - viewRayAvgDensity);
+        float localDensity = DensityAtPoint(scatterPoint, skyData.EarthCenter, skyData.EarthRadius, skyData.AtmosRadius);
+        
+        scatteredLight += localDensity * transmittance * stepSize;
+        scatterPoint += rayDir * stepSize;        
+    }
+
+    return scatteredLight;
+}
+
 [RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {
     ConstantBuffer<interop::SkyData> skyData = ResourceDescriptorHeap[Constants.SkyDataDI];
-    Texture2D<float> linearDepthTex = ResourceDescriptorHeap[skyData.LinearDepthTexDI];
     
     float4 clipPos;
     clipPos.x = input.uv.x * 2.0 - 1.0;
@@ -148,12 +198,23 @@ float4 main(PS_INPUT input) : SV_Target
     
     float4 rayDirH = mul(Constants.matClipToTranslatedWorld, clipPos); // homogeneous ray direction
     float3 rayDir = normalize(rayDirH.xyz);
+    float3 rayOrigin = Constants.CameraPosition;
     
-    float viewZ = linearDepthTex.SampleLevel(pointClampSampler, input.uv, 0.0);
-    // Compute scene distance along the ray
-    float cosAngle = dot(rayDir, skyData.CameraForward);
-    float sceneDepth = viewZ / max(cosAngle, 0.0001);
+    float2 atmosHit = RaySphereIntersection(rayOrigin, rayDir, skyData.EarthCenter, skyData.AtmosRadius);
+    if (atmosHit.y < 0.0)
+    {
+        return float3(0.0, 0.0, 0.0); // No atmosphere, looking at space    
+    }
     
-    float3 color = Scatter(Constants.CameraPosition, rayDir, sceneDepth, skyData);
+    float tStart = max(atmosHit.x, 0.0);
+    float tEnd = atmosHit.y;
+    
+    
+    
+    
+
+    
+    
+    float3 color = Scatter(Constants.CameraPosition, rayDir, skyData);
     return float4(color, 1.0);
 }

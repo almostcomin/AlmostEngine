@@ -26,11 +26,13 @@ void alm::gfx::SkyRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+	m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
 
 	m_FB = builder.RequestFramebuffer({ m_SceneColorTexture }, m_SceneDepthTexture);
 
 	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	builder.AddTextureDependency(m_LinearDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 }
 
 void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
@@ -81,6 +83,8 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		skyData->SunAngularRadius = sunAngularRadiusRad;
 		skyData->SunAngularRadiusCos = glm::cos(sunAngularRadiusRad);
 		skyData->SunEdgeAAFalloff = sunEdgeAAFalloff;
+		skyData->LinearDepthTexDI = m_RenderGraph->GetTextureSampledView(m_LinearDepthTexture);
+		skyData->CameraForward = GetCamera()->GetForward();
 		skyData->NumSteps = m_Params.NumSteps;
 		skyData->NumLightSteps = m_Params.NumLightSteps;
 	}

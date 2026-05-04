@@ -387,11 +387,11 @@ namespace interop
         float SunAngularRadius;     // Sun radius angular size
         float SunAngularRadiusCos;  // Cosine of sun radius
         float SunEdgeAAFalloff;
+        TextureSampledViewIndex LinearDepthTexDI;
+        float3 CameraForward;
         uint NumSteps;
         uint NumLightSteps;
         uint _padding0;
-        uint _padding1;
-        uint _padding2;
     };
 
     struct SkyConstants

@@ -50,6 +50,7 @@ private:
 
     RGTextureHandle m_SceneColorTexture;
     RGTextureHandle m_SceneDepthTexture;
+    RGTextureHandle m_LinearDepthTexture;
     RGFramebufferHandle m_FB;
 
     rhi::ShaderOwner m_PS;

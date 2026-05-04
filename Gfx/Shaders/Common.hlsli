@@ -134,22 +134,23 @@ float remap(float v, float srcMin, float srcMax, float dstMin, float dstMax)
 }
 
 // Ray-plane intersection wuth horizontal plane
-// Return distance from origin to intersection point
+// Return distance from rayOrigin to intersection point
 // Returns -1 if no intersection (parallel ray or wrong direction)
-float RayPlaneIntersection(float3 origin, float3 dir, float planeY)
+float RayPlaneIntersection(float3 rayOrigin, float3 dir, float planeY)
 {
     if (abs(dir.y) < 0.0001f)
         return -1.0f;
-    return (planeY - origin.y) / dir.y;
+    return (planeY - rayOrigin.y) / dir.y;
 }
 
 // Generic ray-sphere intersection
 // Sphere centered at (0,0,0) with given radius
 // Returns (tNear, tFar). Negative values mean no intersection or behind the ray
-float2 RaySphereIntersection(float3 origin, float3 direction, float radius)
+float2 RaySphereIntersection(float3 rayOrigin, float3 rayDir, float3 sphereCenter, float sphereRadius)
 {
-    float b = dot(origin, direction);
-    float c = dot(origin, origin) - radius * radius;
+    float3 oc = rayOrigin - sphereCenter;
+    float b = dot(oc, rayDir);
+    float c = dot(oc, oc) - square(sphereRadius);
     float d = b * b - c;
     if (d < 0.0)  
         return float2(-1.0, -1.0); // no intersection
