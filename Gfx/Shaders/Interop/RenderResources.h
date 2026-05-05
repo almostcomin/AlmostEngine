@@ -391,7 +391,8 @@ namespace interop
         float3 CameraForward;
         uint NumSteps;
         uint NumLightSteps;
-        uint _padding0;
+        TextureStorageViewIndex SceneColorDI;
+        float2 SceneColorTexSize;
     };
 
     struct SkyConstants

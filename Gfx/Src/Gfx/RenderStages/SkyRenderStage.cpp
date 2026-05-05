@@ -25,13 +25,9 @@ void alm::gfx::SkyRenderStage::SetEarthRadius(float radius, float atmosRelScale)
 void alm::gfx::SkyRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
-	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 	m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
 
-	m_FB = builder.RequestFramebuffer({ m_SceneColorTexture }, m_SceneDepthTexture);
-
-	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 	builder.AddTextureDependency(m_LinearDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 }
 
@@ -41,11 +37,7 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	if (!scene)
 		return;
 
-	commandList->BeginRenderPass(
-		m_RenderGraph->GetFrameBuffer(m_FB).get(),
-		{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store } },
-		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::NoAccess },
-		{}, rhi::RenderPassFlags::None);
+	const auto& texDesc = m_RenderGraph->GetTexture(m_SceneColorTexture)->GetDesc();
 
 	commandList->SetPipelineState(m_PSO.get());
 
@@ -64,8 +56,7 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		const float sunSolidAngle = 4.0f * PI * square(glm::sin(sunAngularRadiusRad));		
 		
 		float verticalFOVRad = GetCamera()->GetVerticalFOV();
-		const float screenHeightPixels = m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo().height;
-		const float sunRadiusPixels = (sunAngularRadiusRad / verticalFOVRad) * screenHeightPixels;
+		const float sunRadiusPixels = (sunAngularRadiusRad / verticalFOVRad) * texDesc.height;
 		const float sunEdgeAAFalloff = 1.0f / glm::max(sunRadiusPixels, 1.0f); // fade in 1 pixel
 
 		skyData->ToSunDirection = -sunDir;
@@ -87,6 +78,8 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		skyData->CameraForward = GetCamera()->GetForward();
 		skyData->NumSteps = m_Params.NumSteps;
 		skyData->NumLightSteps = m_Params.NumLightSteps;
+		skyData->SceneColorDI = m_RenderGraph->GetTextureStorageView(m_SceneColorTexture);
+		skyData->SceneColorTexSize = float2{ texDesc.width, texDesc.height };
 	}
 	m_ShaderCB.Unmap();
 
@@ -95,11 +88,9 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	shaderConstants.CameraPosition = GetCamera()->GetPosition();
 	shaderConstants.SkyDataDI = m_ShaderCB.GetUniformView();
 
-	commandList->PushGraphicsConstants(0, shaderConstants);
+	commandList->PushComputeConstants(0, shaderConstants);
 
-	commandList->Draw(3);
-
-	commandList->EndRenderPass();
+	commandList->Dispatch(DivRoundUp(texDesc.width, 8u), DivRoundUp(texDesc.height, 8u), 1);
 }
 
 void alm::gfx::SkyRenderStage::OnAttached()
@@ -109,20 +100,8 @@ void alm::gfx::SkyRenderStage::OnAttached()
 	auto* commonResources = deviceManager->GetCommonResources();
 	auto* shaderFactory = deviceManager->GetShaderFactory();
 
-	m_PS = shaderFactory->LoadShader("Sky_ps", rhi::ShaderType::Pixel);
-
-	{
-		rhi::DepthStencilState depthStencilState{
-			.depthTestEnable = true,
-			.depthFunc = rhi::ComparisonFunc::GreaterEqual };
-
-		rhi::GraphicsPipelineStateDesc psoDesc{
-			.VS = commonResources->GetBlitVS(),
-			.PS = m_PS.get_weak(),
-			.depthStencilState = depthStencilState };
-
-		m_PSO = device->CreateGraphicsPipelineState(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(), "SkyRenderStage");
-	}
+	m_CS = shaderFactory->LoadShader("Sky_cs", rhi::ShaderType::Compute);
+	m_PSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ .CS = m_CS.get_weak() }, "SkyRenderStage");
 
 	m_ShaderCB.InitUniformBuffer(sizeof(interop::SkyData), deviceManager, "SkyData");
 }
@@ -131,5 +110,5 @@ void alm::gfx::SkyRenderStage::OnDetached()
 {
 	m_ShaderCB.Release();
 	m_PSO.reset();
-	m_PS.reset();
+	m_CS.reset();
 }

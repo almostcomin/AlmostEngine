@@ -35,6 +35,7 @@ void OutdoorsUI::BuildUI()
 
     if (ImGui::CollapsingHeader("Sky", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        ImGui::Checkbox("Enabled##Sky", &m_Data.SkyEnabled);
         ImGui::SliderFloat("Mie Anisotropy##Sky", &m_Data.SkyParams.MieAnisotropy, 0.f, 1.f);
         ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &m_Data.SkyParams.NumSteps);
         ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &m_Data.SkyParams.NumLightSteps);

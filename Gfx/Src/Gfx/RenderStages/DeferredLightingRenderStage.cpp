@@ -12,7 +12,9 @@
 
 void alm::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	m_SceneColorTexture = builder.CreateColorTarget("SceneColor", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
+	//m_SceneColorTexture = builder.CreateColorTarget("SceneColor", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
+	m_SceneColorTexture = builder.CreateTexture("SceneColor", RenderGraph::TextureResourceType::RenderTarget, RenderGraph::c_BBSize, RenderGraph::c_BBSize,
+		1, rhi::Format::RGBA16_FLOAT, true);
 
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 	m_ShadowmapTexture = builder.GetTextureHandle("Shadowmap");

@@ -49,12 +49,10 @@ private:
 private:
 
     RGTextureHandle m_SceneColorTexture;
-    RGTextureHandle m_SceneDepthTexture;
     RGTextureHandle m_LinearDepthTexture;
-    RGFramebufferHandle m_FB;
 
-    rhi::ShaderOwner m_PS;
-    rhi::GraphicsPipelineStateOwner m_PSO;
+    rhi::ShaderOwner m_CS;
+    rhi::ComputePipelineStateOwner m_PSO;
 
     gfx::MultiBuffer m_ShaderCB;
 

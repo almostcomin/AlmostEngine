@@ -16,6 +16,7 @@ public:
 		bool ShowUI = true;
 
 		alm::gfx::Scene::SunParams SunParams;
+		bool SkyEnabled = true;
 		alm::gfx::SkyRenderStage::SkyParams SkyParams;
 		alm::gfx::CloudsRenderStage::CloudsParams CloudsParams;
 		bool SunParamsUpdated = false;

@@ -141,6 +141,7 @@ public:
 			m_Scene->SetSunParams(m_UI->m_Data.SunParams);
 			m_UI->m_Data.SunParamsUpdated = false;
 		}
+		m_SkyRS->SetEnabled(m_UI->m_Data.SkyEnabled);
 		m_SkyRS->SetSkyParams(m_UI->m_Data.SkyParams);
 		m_CloudsRS->SetCloudsParams(m_UI->m_Data.CloudsParams);
 
