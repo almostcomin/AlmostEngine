@@ -10,6 +10,30 @@
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
+static constexpr double kAirN = 1.0003;						// refractive index
+static constexpr double kAirN2minus1 = kAirN * kAirN - 1.f;	// n²-1
+static constexpr double kMolecularDensity = 2.545e25f;		// molecules per m³
+static constexpr double kKingFactor = 1.06f;				// depolarization
+
+static float ComputeRayleighCoeff(float wavelengthNm)
+{
+	double lambda = double(wavelengthNm) * 1e-9; // nm to meters
+	double lambda4 = lambda * lambda * lambda * lambda;
+
+	double numerator = 8.0 * PId * PId * PId * kAirN2minus1 * kAirN2minus1 * kKingFactor;
+	double denominator = 3.f * kMolecularDensity * lambda4;
+
+	return numerator / denominator;
+}
+
+static float3 ComputeRayleighScattering(const float3& wavelengthsNm)
+{
+	return float3{
+		ComputeRayleighCoeff(wavelengthsNm.x),
+		ComputeRayleighCoeff(wavelengthsNm.y),
+		ComputeRayleighCoeff(wavelengthsNm.z) };
+}
+
 void alm::gfx::SkyRenderStage::SetEarthCenter(const float3& pos)
 {
 	m_Params.EarthCenter = pos;
@@ -58,6 +82,11 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		float verticalFOVRad = GetCamera()->GetVerticalFOV();
 		const float sunRadiusPixels = (sunAngularRadiusRad / verticalFOVRad) * texDesc.height;
 		const float sunEdgeAAFalloff = 1.0f / glm::max(sunRadiusPixels, 1.0f); // fade in 1 pixel
+
+		// The amount of scattering is inversely proportional to the 4th power of the wavelength
+		//float3 rayleighScatteringCoefficients = 
+		//	{ pow(1.f / kWaveLengths.x, 4.f), pow(1.f / kWaveLengths.y, 4.f), pow(1.f / kWaveLengths.z, 4.f) };
+		//rayleighScatteringCoefficients = ComputeRayleighScattering(kWaveLengths);
 
 		skyData->ToSunDirection = -sunDir;
 		skyData->AtmosRadius = m_Params.EarthRadius + m_Params.AtmosHeight;

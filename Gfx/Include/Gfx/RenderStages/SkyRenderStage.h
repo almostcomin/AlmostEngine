@@ -16,6 +16,9 @@ public:
 
     static constexpr float kEarthRefRadius = 6360000.f;
     static constexpr float kAtmosRefHeight = 60000.f;
+
+    // Planet Earth defaults
+    static constexpr float3 kWaveLengths = { 680, 530.f, 440.f };
     static constexpr float3 kRefRayleighScattering = { 5.8e-6f, 13.5e-6f, 33.1e-6f };
     static constexpr float kRefRayleighScaleHeight = 8000.f;
     static constexpr float3 kRefMieScattering = { 21e-6f, 21e-6f, 21e-6f };
