@@ -40,12 +40,12 @@ public:
 	void OnBoundsChanged();
 
 	alm::weak<SceneGraphNode> GetNode() const { return m_Node; }
-	int GetLeafSceneIndex() const { return m_SceneIndex; }
+	uint32_t GetLeafSceneIndex() const { return m_SceneIndex; }
 
 private:
 
 	alm::weak<SceneGraphNode> m_Node;
-	int m_SceneIndex = -1;
+	uint32_t m_SceneIndex = UINT32_MAX;
 };
 
 };

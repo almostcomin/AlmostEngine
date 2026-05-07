@@ -7,13 +7,13 @@
 #include "Core/Log.h"
 #include "Interop/RenderResources.h"
 #include "Gfx/SceneGraph.h"
-#include "Gfx/MeshInstance.h"
 #include "Gfx/SceneLights.h"
 #include "Gfx/UploadBuffer.h"
 #include "Gfx/Util.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
 #include "Gfx/RenderGraph.h"
+#include "Gfx/IRenderable.h"
 
 alm::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	RenderView{ nullptr, deviceManager, debugName }
@@ -600,12 +600,14 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
 	math::aabox3f* opt_outPrimaryBounds,  SceneContentType secondaryType, math::aabox3f* opt_outSecondaryBounds) const
 {
+	assert(HasRenderableCategory(primaryType));
+
 	out_renderSet.Elements.clear();
 
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
 	
-	std::vector<const alm::gfx::MeshInstance*> instances[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
+	std::vector<const alm::gfx::IRenderable*> instances[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
 
 	if (opt_outPrimaryBounds)
 		opt_outPrimaryBounds->reset();
@@ -618,15 +620,15 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 		auto node = *walker;
 		if (has_any_flag(node->GetContentFlags(), ToFlag(primaryType)) && node->Test(primaryType, planes))
 		{
-			auto leaf = node->GetLeaf();
+			alm::weak<SceneGraphLeaf> leaf = node->GetLeaf();
 			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::MeshInstance)
 			{
 				if (has_any_flag(leaf->GetContentFlags(), ToFlag(primaryType)))
 				{
-					const auto* meshInstance = alm::checked_cast<const alm::gfx::MeshInstance*>(leaf.get());
-					assert(meshInstance && meshInstance->GetMesh() && meshInstance->GetMesh()->GetMaterial());
+					const auto* renderable = alm::checked_cast<const IRenderable*>(leaf.get());
+					assert(renderable);
 
-					instances[(int)meshInstance->GetMaterialDomain()][(int)meshInstance->GetCullMode()].push_back(meshInstance);
+					instances[(int)renderable->GetMaterialDomain()][(int)renderable->GetCullMode()].push_back(renderable);
 
 					if (opt_outPrimaryBounds)
 					{
@@ -654,9 +656,9 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 	{
 		for(int cullMode = 0; cullMode < (int)rhi::CullMode::_Size; ++cullMode)
 		{
-			std::ranges::sort(instances[domain][cullMode], [](const alm::gfx::MeshInstance* a, const alm::gfx::MeshInstance* b)
+			std::ranges::sort(instances[domain][cullMode], [](const IRenderable* a, const alm::gfx::IRenderable* b)
 			{
-				return a->GetMesh().get() < b->GetMesh().get();
+				return a->GetBatchKey() < b->GetBatchKey();
 			});
 		}
 	}
@@ -698,9 +700,9 @@ void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderS
 	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
 
 	uint32_t* ptr = (uint32_t*)data;
-	for (const alm::gfx::MeshInstance* inst : renderSet.AllInstances())
+	for (const alm::gfx::IRenderable* inst : renderSet.AllInstances())
 	{
-		*ptr = inst->GetLeafSceneIndex();
+		*ptr = inst->GetDrawInfo().InstanceIdx;
 		ptr++;
 	}
 

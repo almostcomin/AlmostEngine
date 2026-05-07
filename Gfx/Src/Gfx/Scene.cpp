@@ -84,7 +84,6 @@ void alm::gfx::Scene::RefreshSceneGraph()
 
 				instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
 				instanceDataPtr->inverseModelMatrix = glm::inverse(instanceDataPtr->modelMatrix);
-				instanceDataPtr->meshIndex = meshInstance->GetMeshSceneIndex();
 			}
 			instanceDataPtr++;
 		}

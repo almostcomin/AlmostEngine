@@ -120,28 +120,28 @@ void alm::gfx::SceneGraph::OnNodeDettached(SceneGraphNode* node)
     }
 }
 
-int alm::gfx::SceneGraph::GetInstanceIndex(const alm::gfx::MeshInstance* pInstance) const
+uint32_t alm::gfx::SceneGraph::GetInstanceIndex(const alm::gfx::MeshInstance* pInstance) const
 {
     return pInstance->GetLeafSceneIndex();
 }
-
-int alm::gfx::SceneGraph::GetMeshIndex(const alm::gfx::MeshInstance* pInstance) const
+/*
+uint32_t alm::gfx::SceneGraph::GetMeshIndex(const alm::gfx::MeshInstance* pInstance) const
 {
     return pInstance->GetMeshSceneIndex();
 }
 
-int alm::gfx::SceneGraph::GetMeshIndex(int meshInstanceIndex) const
+uint32_t alm::gfx::SceneGraph::GetMeshIndex(int meshInstanceIndex) const
 {
     assert(m_Leafs.MeshInstances.valid_index(meshInstanceIndex) && "invalid index");
     return m_Leafs.MeshInstances[meshInstanceIndex]->GetMeshSceneIndex();
 }
 
-int alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::MeshInstance* pInstance) const
+uint32_t alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::MeshInstance* pInstance) const
 {
     return pInstance->GetMaterialSceneIndex();
 }
-
-int alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::Mesh* mesh) const
+*/
+uint32_t alm::gfx::SceneGraph::GetMaterialIndex(const alm::gfx::Mesh* mesh) const
 {    
     auto meshRefIdx = m_Meshes.find(const_cast<alm::gfx::Mesh*>(mesh)); // ugly
     if (meshRefIdx != m_Meshes.capacity())

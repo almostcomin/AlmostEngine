@@ -146,29 +146,32 @@ void alm::gfx::RenderContext::DrawRenderSetInstanced(const alm::gfx::RenderSet& 
 			commandList->SetPipelineState(PSO);
 			const auto& instances = cullBase.second;
 
-			alm::gfx::Mesh* currentMesh = instances[0]->GetMesh().get();
+			uintptr_t batchKey = instances[0]->GetBatchKey();
 			int prevIdx = 0;
 			for (int i = 1; i < instances.size(); ++i)
 			{
-				const alm::gfx::MeshInstance* meshInstance = instances[i];
-				if (currentMesh != meshInstance->GetMesh().get())
+				const alm::gfx::IRenderable* renderable = instances[i];
+				if (batchKey != renderable->GetBatchKey())
 				{
-					shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
-					shaderConstants.meshIndex = instances[prevIdx]->GetMeshSceneIndex();
-					shaderConstants.materialIndex = instances[prevIdx]->GetMaterialSceneIndex();
-					commandList->PushGraphicsConstants(1, shaderConstants);
-					commandList->DrawInstanced(currentMesh->GetIndexCount(), i - prevIdx, 0);
+					RenderableDrawInfo drawInfo = instances[prevIdx]->GetDrawInfo();
 
-					currentMesh = meshInstance->GetMesh().get();
+					shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
+					shaderConstants.meshIndex = drawInfo.MeshIndex;
+					shaderConstants.materialIndex = drawInfo.MaterialIndex;
+					commandList->PushGraphicsConstants(1, shaderConstants);
+					commandList->DrawInstanced(drawInfo.IndexCount, i - prevIdx, 0);
+
+					batchKey = renderable->GetBatchKey();
 					prevIdx = i;
 				}
 			}
 
+			RenderableDrawInfo drawInfo = instances[prevIdx]->GetDrawInfo();
 			shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
-			shaderConstants.meshIndex = instances[prevIdx]->GetMeshSceneIndex();
-			shaderConstants.materialIndex = instances[prevIdx]->GetMaterialSceneIndex();
+			shaderConstants.meshIndex = drawInfo.MeshIndex;
+			shaderConstants.materialIndex = drawInfo.MaterialIndex;
 			commandList->PushGraphicsConstants(1, shaderConstants);
-			commandList->DrawInstanced(currentMesh->GetIndexCount(), instances.size() - prevIdx, 0);
+			commandList->DrawInstanced(drawInfo.IndexCount, instances.size() - prevIdx, 0);
 
 			visibleInstanceIndex += instances.size();
 		}

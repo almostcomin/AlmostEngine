@@ -3,11 +3,11 @@
 namespace alm::gfx
 {
 
-class MeshInstance;
+class IRenderable;
 
 struct RenderSet : public alm::noncopyable_nonmovable
 {
-	using CullSet = std::pair<rhi::CullMode, std::vector<const alm::gfx::MeshInstance*>>;
+	using CullSet = std::pair<rhi::CullMode, std::vector<const alm::gfx::IRenderable*>>;
 	using MaterialDomainSet = std::pair<gfx::MaterialDomain, std::vector<CullSet>>;
 
 	std::vector<MaterialDomainSet> Elements;

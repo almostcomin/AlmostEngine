@@ -94,7 +94,7 @@ public:
 
     using MaterialsContainer = alm::unique_stable_vector<MaterialRefCount, 1024>;
     using MeshesContainer = alm::unique_stable_vector<MeshRefCount, 4096>;
-    using MeshMaterialIndicesContainer = std::array<int, MeshesContainer::max_elements>;
+    using MeshMaterialIndicesContainer = std::array<uint32_t, MeshesContainer::max_elements>;
 
 public:
 
@@ -108,13 +108,13 @@ public:
     // Get root node. Always exists.
     alm::weak<SceneGraphNode> GetRoot() const { return m_Root.get_weak(); }
 
-    int GetInstanceIndex(const alm::gfx::MeshInstance* pInstance) const;
+    uint32_t GetInstanceIndex(const alm::gfx::MeshInstance* pInstance) const;
     
-    int GetMeshIndex(const alm::gfx::MeshInstance* pInstance) const;
-    int GetMeshIndex(int meshInstanceIndex) const;
+    //uint32_t GetMeshIndex(const alm::gfx::MeshInstance* pInstance) const;
+    //uint32_t GetMeshIndex(int meshInstanceIndex) const;
     
-    int GetMaterialIndex(const alm::gfx::MeshInstance* pInstance) const;
-    int GetMaterialIndex(const alm::gfx::Mesh* mesh) const;
+    //uint32_t GetMaterialIndex(const alm::gfx::MeshInstance* pInstance) const;
+    uint32_t GetMaterialIndex(const alm::gfx::Mesh* mesh) const;
 
     const MeshInstanceLeafsContainer& GetMeshInstances() const { return m_Leafs.MeshInstances; }
     const SceneCamerasContainer& GetSceneCameras() const { return m_Leafs.SceneCameras; }
@@ -123,7 +123,6 @@ public:
     const SceneSpotLightsContainer& GetSceneSpotLights() const { return m_Leafs.SceneSpotLights; }
 
     const MeshesContainer& GetMeshes() const { return m_Meshes; }
-    const MeshMaterialIndicesContainer& GetMeshesMaterialIndices() const { return m_MeshMaterialIndices; }
     const MaterialsContainer& GetMaterials() const { return m_Materials; }
 
     // 

@@ -58,4 +58,20 @@ constexpr bool HasBoundsCategory(SceneContentType t)
     return false;
 }
 
+constexpr bool HasRenderableCategory(SceneContentType t)
+{
+    switch (t) {
+    case SceneContentType::Meshes:
+    case SceneContentType::ShadowCasters:
+        return true;
+    case SceneContentType::DirectionalLights:
+    case SceneContentType::PointLights:
+    case SceneContentType::SpotLights:
+    case SceneContentType::Cameras:
+    case SceneContentType::Animations:
+        return false;
+    }
+    return false;
+}
+
 } // namespace st::gfx

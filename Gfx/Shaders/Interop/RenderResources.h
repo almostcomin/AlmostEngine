@@ -56,8 +56,6 @@ namespace interop
     {
         float4x4 modelMatrix;
         float4x4 inverseModelMatrix;
-        uint meshIndex;
-        uint _padding[3];
     };
 
     struct MeshData
@@ -213,9 +211,9 @@ namespace interop
 
     struct MultiInstanceDrawConstants
     {
-        uint baseInstanceIdx;
-        uint meshIndex;
-        uint materialIndex;
+        uint baseInstanceIdx;               // Index into InstanceData structured buffer
+        uint meshIndex;                     // Index into MeshData structured buffer
+        uint materialIndex;                 // Index into MaterialData structured buffer
     };
 
     struct DeferredLightingConstants

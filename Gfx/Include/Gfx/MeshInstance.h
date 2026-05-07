@@ -3,6 +3,7 @@
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/SceneContentFlags.h"
 #include "Gfx/MaterialDomain.h"
+#include "Gfx/IRenderable.h"
 #include "RHI/RasterizerState.h"
 
 namespace alm::gfx
@@ -15,7 +16,7 @@ namespace alm::gfx
 namespace alm::gfx
 {
 
-class MeshInstance : public SceneGraphLeaf
+class MeshInstance : public SceneGraphLeaf, public IRenderable
 {
 public:
 
@@ -46,22 +47,25 @@ public:
 
 	const std::shared_ptr<alm::gfx::Mesh>& GetMesh() const { return m_Mesh; }
 
-	int GetMeshSceneIndex() const { return m_MeshSceneIndex; }
-	int GetMaterialSceneIndex() const { return m_MaterialSceneIndex; }
+	uint32_t GetMeshSceneIndex() const { return m_MeshSceneIndex; }
+	uint32_t GetMaterialSceneIndex() const { return m_MaterialSceneIndex; }
 
-	rhi::CullMode GetCullMode() const;
-	MaterialDomain GetMaterialDomain() const;
+	// IRenderable interface
+	MaterialDomain     GetMaterialDomain() const;
+	rhi::CullMode      GetCullMode() const;
+	uintptr_t          GetBatchKey() const;
+	RenderableDrawInfo GetDrawInfo() const;
 
 	//-- To be called by SceneGraph when registering the leaf
 
-	void SetMeshSceneIndex(int i) { m_MeshSceneIndex = i; }
-	void SetMaterialSceneIndex(int i) { m_MaterialSceneIndex = i; }
+	void SetMeshSceneIndex(uint32_t i) { m_MeshSceneIndex = i; }
+	void SetMaterialSceneIndex(uint32_t i) { m_MaterialSceneIndex = i; }
 
 private:
 
 	std::shared_ptr<alm::gfx::Mesh> m_Mesh;
-	int m_MeshSceneIndex;
-	int m_MaterialSceneIndex;
+	uint32_t m_MeshSceneIndex;
+	uint32_t m_MaterialSceneIndex;
 	Flags m_InstanceFlags;
 };
 

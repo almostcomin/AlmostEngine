@@ -5,8 +5,8 @@
 
 alm::gfx::MeshInstance::MeshInstance(std::shared_ptr<alm::gfx::Mesh> mesh) :
 	m_Mesh{ mesh },
-	m_MeshSceneIndex{ -1 },
-	m_MaterialSceneIndex{ -1 },
+	m_MeshSceneIndex{ UINT32_MAX },
+	m_MaterialSceneIndex{ UINT32_MAX },
 	m_InstanceFlags{ Flags::Default }
 {}
 
@@ -38,12 +38,27 @@ alm::gfx::SceneContentFlags alm::gfx::MeshInstance::GetContentFlags() const
 	return flags;
 }
 
+alm::gfx::MaterialDomain alm::gfx::MeshInstance::GetMaterialDomain() const
+{
+	return m_Mesh->GetMaterial()->GetDomain();
+}
+
 alm::rhi::CullMode alm::gfx::MeshInstance::GetCullMode() const
 {
 	return m_Mesh->GetMaterial()->GetCullMode();
 }
 
-alm::gfx::MaterialDomain alm::gfx::MeshInstance::GetMaterialDomain() const
+uintptr_t alm::gfx::MeshInstance::GetBatchKey() const
 {
-	return m_Mesh->GetMaterial()->GetDomain();
+	return (uintptr_t)(m_Mesh.get());
+}
+
+alm::gfx::RenderableDrawInfo alm::gfx::MeshInstance::GetDrawInfo() const
+{
+	return RenderableDrawInfo{
+		.InstanceIdx = GetLeafSceneIndex(),
+		.MeshIndex = m_MeshSceneIndex,
+		.MaterialIndex = m_MaterialSceneIndex,
+		.IndexCount = m_Mesh ? m_Mesh->GetIndexCount() : 0
+	};
 }
