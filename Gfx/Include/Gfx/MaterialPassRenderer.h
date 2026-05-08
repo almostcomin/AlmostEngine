@@ -19,11 +19,11 @@ namespace alm::gfx
 namespace alm::gfx
 {
 
-class RenderContext
+class MaterialPassRenderer
 {
 public:
 
-	RenderContext();
+	MaterialPassRenderer();
 	
 	void Init(const alm::rhi::GraphicsPipelineStateDesc& baseDesc, const alm::rhi::FramebufferInfo& fbInfo,
 		std::string baseDebugName, alm::rhi::Device* device);

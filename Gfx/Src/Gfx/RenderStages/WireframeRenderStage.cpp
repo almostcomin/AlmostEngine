@@ -56,7 +56,7 @@ void alm::gfx::WireframeRenderStage::Render(alm::rhi::CommandListHandle commandL
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_RenderContext.DrawRenderSetInstanced(
+	m_MaterialPassRenderer.DrawRenderSetInstanced(
 		GetRenderView()->GetCameraVisibleSet(),
 		commandList.get());
 
@@ -117,8 +117,8 @@ void alm::gfx::WireframeRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_RenderContext.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage", device);
-		m_RenderContext.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS.get_weak());
+		m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage", device);
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS.get_weak());
 	}
 }
 
@@ -126,7 +126,7 @@ void alm::gfx::WireframeRenderStage::OnDetached()
 {
 	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
-	m_RenderContext = {};
+	m_MaterialPassRenderer = {};
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_PS));
@@ -148,5 +148,5 @@ void alm::gfx::WireframeRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_RenderContext.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+	m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

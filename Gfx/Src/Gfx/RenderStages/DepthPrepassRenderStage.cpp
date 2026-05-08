@@ -36,7 +36,7 @@ void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle comma
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_RenderContext.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
+	m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
 
 	commandList->EndRenderPass();
 }
@@ -82,16 +82,16 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_RenderContext.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage", device);
-		m_RenderContext.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), nullptr);
-		m_RenderContext.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
+		m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage", device);
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), nullptr);
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
 	}
 }
 
 void alm::gfx::DepthPrepassRenderStage::OnDetached()
 {
 	GetDeviceManager()->GetDevice()->ReleaseQueued(std::move(m_FB));
-	m_RenderContext = {};
+	m_MaterialPassRenderer = {};
 }
 
 void alm::gfx::DepthPrepassRenderStage::OnBackbufferResize()
@@ -107,5 +107,5 @@ void alm::gfx::DepthPrepassRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_RenderContext.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+	m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

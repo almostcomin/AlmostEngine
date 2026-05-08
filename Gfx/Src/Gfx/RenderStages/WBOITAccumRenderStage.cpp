@@ -59,7 +59,7 @@ void alm::gfx::WBOITAccumRenderStage::Render(alm::rhi::CommandListHandle command
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_RenderContext.DrawRenderSetInstanced(
+	m_MaterialPassRenderer.DrawRenderSetInstanced(
 		GetRenderView()->GetCameraVisibleSet(),
 		commandList.get());
 
@@ -118,8 +118,8 @@ void alm::gfx::WBOITAccumRenderStage::OnAttached()
 			.depthFunc = rhi::ComparisonFunc::GreaterEqual
 		};
 
-		m_RenderContext.Init(psoDesc, m_FB->GetFramebufferInfo(), "WBOITAccumRenderStage", device);
-		m_RenderContext.AddDomain(MaterialDomain::AlphaBlended, m_VS.get_weak(), m_PS.get_weak());
+		m_MaterialPassRenderer.Init(psoDesc, m_FB->GetFramebufferInfo(), "WBOITAccumRenderStage", device);
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaBlended, m_VS.get_weak(), m_PS.get_weak());
 	}
 }
 
@@ -130,7 +130,7 @@ void alm::gfx::WBOITAccumRenderStage::OnDetached()
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_VS));
 	device->ReleaseQueued(std::move(m_PS));
-	m_RenderContext = {};
+	m_MaterialPassRenderer = {};
 }
 
 void alm::gfx::WBOITAccumRenderStage::OnBackbufferResize()
@@ -146,5 +146,5 @@ void alm::gfx::WBOITAccumRenderStage::OnBackbufferResize()
 		m_FB = device->CreateFramebuffer(fbDesc, "WBOITAccumRenderStage");
 	}
 
-	m_RenderContext.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+	m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

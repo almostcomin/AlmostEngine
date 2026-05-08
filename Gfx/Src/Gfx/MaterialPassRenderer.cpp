@@ -1,5 +1,5 @@
 #include "Gfx/GfxPCH.h"
-#include "Gfx/RenderContext.h"
+#include "Gfx/MaterialPassRenderer.h"
 #include "Gfx/RenderSet.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/MeshInstance.h"
@@ -7,10 +7,10 @@
 #include "RHI/PipelineState.h"
 #include "Interop/RenderResources.h"
 
-alm::gfx::RenderContext::RenderContext() : m_PSOs{}, m_ValidDomains{}, m_Device { nullptr }
+alm::gfx::MaterialPassRenderer::MaterialPassRenderer() : m_PSOs{}, m_ValidDomains{}, m_Device { nullptr }
 {}
 
-void alm::gfx::RenderContext::Init(const alm::rhi::GraphicsPipelineStateDesc& baseDesc, const alm::rhi::FramebufferInfo& fbInfo, 
+void alm::gfx::MaterialPassRenderer::Init(const alm::rhi::GraphicsPipelineStateDesc& baseDesc, const alm::rhi::FramebufferInfo& fbInfo,
 	std::string baseDebugName, alm::rhi::Device* device)
 {
 	m_BasePSODesc = baseDesc;
@@ -19,7 +19,7 @@ void alm::gfx::RenderContext::Init(const alm::rhi::GraphicsPipelineStateDesc& ba
 	m_Device = device;
 }
 
-void alm::gfx::RenderContext::Reset()
+void alm::gfx::MaterialPassRenderer::Reset()
 {
 	for (int domain = 0; domain < (int)MaterialDomain::_Size; ++domain)
 	{
@@ -36,7 +36,7 @@ void alm::gfx::RenderContext::Reset()
 	m_Device = nullptr;
 }
 
-void alm::gfx::RenderContext::OnFramebufferChanged(const alm::rhi::FramebufferInfo& fbInfo)
+void alm::gfx::MaterialPassRenderer::OnFramebufferChanged(const alm::rhi::FramebufferInfo& fbInfo)
 {
 	m_FBInfo = fbInfo;
 
@@ -66,7 +66,7 @@ void alm::gfx::RenderContext::OnFramebufferChanged(const alm::rhi::FramebufferIn
 	}
 }
 
-void alm::gfx::RenderContext::AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS)
+void alm::gfx::MaterialPassRenderer::AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS)
 {
 	// Init desc shaders
 	alm::rhi::GraphicsPipelineStateDesc desc = m_BasePSODesc;
@@ -91,7 +91,7 @@ void alm::gfx::RenderContext::AddDomain(MaterialDomain domain, rhi::ShaderHandle
 	m_ValidDomains[(int)domain] = true;
 }
 
-alm::rhi::IGraphicsPipelineState* alm::gfx::RenderContext::GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const
+alm::rhi::IGraphicsPipelineState* alm::gfx::MaterialPassRenderer::GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const
 {
 	switch (cullMode)
 	{
@@ -108,7 +108,7 @@ alm::rhi::IGraphicsPipelineState* alm::gfx::RenderContext::GetPSO(MaterialDomain
 	return nullptr;
 }
 
-void alm::gfx::RenderContext::DrawRenderSetInstanced(const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const
+void alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const
 {
 	if (renderSet.Elements.empty())
 		return;
@@ -136,7 +136,7 @@ void alm::gfx::RenderContext::DrawRenderSetInstanced(const alm::gfx::RenderSet& 
 			rhi::IGraphicsPipelineState* PSO = GetPSO(domainBase.first, cullBase.first);
 			if (!PSO)
 			{
-				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in RenderContext '{}'",
+				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
 					GetMaterialDomainString(domainBase.first),
 					cullBase.first == rhi::CullMode::Back ? "Back" : cullBase.first == rhi::CullMode::Front ? "Front" : "None",
 					m_BaseDebugName);

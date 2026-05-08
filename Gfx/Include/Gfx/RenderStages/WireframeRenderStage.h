@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
-#include "Gfx/RenderContext.h"
+#include "Gfx/MaterialPassRenderer.h"
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
 #include "Gfx/RenderStageFactory.h"
@@ -33,7 +33,7 @@ private:
 	alm::rhi::ShaderOwner m_VS;
 	alm::rhi::ShaderOwner m_PS;
 	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;
-	alm::gfx::RenderContext m_RenderContext;
+	alm::gfx::MaterialPassRenderer m_MaterialPassRenderer;
 
 	alm::rhi::FramebufferOwner m_FB;
 };

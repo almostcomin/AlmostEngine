@@ -46,7 +46,7 @@ void alm::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 		}
 
 		// Recreate PSO (psodesc keeps the same)
-		m_RenderContext.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+		m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 	}
 }
 
@@ -101,7 +101,7 @@ void alm::gfx::ShadowmapRenderStage::ReleaseResources()
 {
 	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
-	m_RenderContext = {};
+	m_MaterialPassRenderer = {};
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_PS_AlphaTest));
@@ -141,10 +141,10 @@ void alm::gfx::ShadowmapRenderStage::RecreatePSO()
 		.rasterState = rasterState
 	};
 
-	m_RenderContext.Reset();
-	m_RenderContext.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage", device);
-	m_RenderContext.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
-	m_RenderContext.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
+	m_MaterialPassRenderer.Reset();
+	m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage", device);
+	m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
+	m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
 }
 
 void alm::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
@@ -188,7 +188,7 @@ void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandL
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_RenderContext.DrawRenderSetInstanced(
+	m_MaterialPassRenderer.DrawRenderSetInstanced(
 		GetRenderView()->GetShadowMapVisibleSet(),
 		commandList.get());
 

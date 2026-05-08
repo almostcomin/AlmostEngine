@@ -72,7 +72,7 @@ void alm::gfx::GBuffersRenderStage::Render(alm::rhi::CommandListHandle commandLi
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_RenderContext.DrawRenderSetInstanced(
+	m_MaterialPassRenderer.DrawRenderSetInstanced(
 		GetRenderView()->GetCameraVisibleSet(),
 		commandList.get());
 
@@ -132,9 +132,9 @@ void alm::gfx::GBuffersRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_RenderContext.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "GBuffersRenderStage", device);
-		m_RenderContext.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS_Opaque.get_weak());
-		m_RenderContext.AddDomain(MaterialDomain::AlphaTested, m_VS.get_weak(), m_PS_AlphaTest.get_weak());
+		m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "GBuffersRenderStage", device);
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS_Opaque.get_weak());
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS.get_weak(), m_PS_AlphaTest.get_weak());
 	}
 }
 
@@ -143,7 +143,7 @@ void alm::gfx::GBuffersRenderStage::OnDetached()
 	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_FB));
-	m_RenderContext = {};
+	m_MaterialPassRenderer = {};
 }
 
 void alm::gfx::GBuffersRenderStage::OnBackbufferResize()
@@ -162,5 +162,5 @@ void alm::gfx::GBuffersRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_RenderContext.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+	m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

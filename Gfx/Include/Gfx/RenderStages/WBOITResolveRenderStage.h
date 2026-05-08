@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
-#include "Gfx/RenderContext.h"
 #include "Gfx/RenderGraphTypes.h"
 #include "Gfx/RenderStageFactory.h"
+#include "RHI/PipelineState.h"
 
 namespace alm::gfx
 {
