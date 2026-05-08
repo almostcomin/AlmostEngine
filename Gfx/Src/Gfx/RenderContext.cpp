@@ -144,36 +144,36 @@ void alm::gfx::RenderContext::DrawRenderSetInstanced(const alm::gfx::RenderSet& 
 			}
 
 			commandList->SetPipelineState(PSO);
-			const auto& instances = cullBase.second;
+			const auto& drawInfos = cullBase.second;
 
-			uintptr_t batchKey = instances[0]->GetBatchKey();
+			uintptr_t batchKey = drawInfos[0].BatchKey;
 			int prevIdx = 0;
-			for (int i = 1; i < instances.size(); ++i)
+			for (int i = 1; i < drawInfos.size(); ++i)
 			{
-				const alm::gfx::IRenderable* renderable = instances[i];
-				if (batchKey != renderable->GetBatchKey())
+				const RenderableDrawInfo& drawInfo = drawInfos[i];
+				if (batchKey != drawInfo.BatchKey)
 				{
-					RenderableDrawInfo drawInfo = instances[prevIdx]->GetDrawInfo();
+					const RenderableDrawInfo& prevDrawInfo = drawInfos[prevIdx];
 
 					shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
-					shaderConstants.meshIndex = drawInfo.MeshIndex;
-					shaderConstants.materialIndex = drawInfo.MaterialIndex;
+					shaderConstants.meshIndex = prevDrawInfo.MeshIndex;
+					shaderConstants.materialIndex = prevDrawInfo.MaterialIndex;
 					commandList->PushGraphicsConstants(1, shaderConstants);
-					commandList->DrawInstanced(drawInfo.IndexCount, i - prevIdx, 0);
+					commandList->DrawInstanced(prevDrawInfo.IndexCount, i - prevIdx, 0);
 
-					batchKey = renderable->GetBatchKey();
+					batchKey = drawInfo.BatchKey;
 					prevIdx = i;
 				}
 			}
 
-			RenderableDrawInfo drawInfo = instances[prevIdx]->GetDrawInfo();
+			const RenderableDrawInfo& drawInfo = drawInfos[prevIdx];
 			shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
 			shaderConstants.meshIndex = drawInfo.MeshIndex;
 			shaderConstants.materialIndex = drawInfo.MaterialIndex;
 			commandList->PushGraphicsConstants(1, shaderConstants);
-			commandList->DrawInstanced(drawInfo.IndexCount, instances.size() - prevIdx, 0);
+			commandList->DrawInstanced(drawInfo.IndexCount, drawInfos.size() - prevIdx, 0);
 
-			visibleInstanceIndex += instances.size();
+			visibleInstanceIndex += drawInfos.size();
 		}
 	}
 }

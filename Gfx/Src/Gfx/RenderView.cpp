@@ -607,7 +607,7 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
 	
-	std::vector<const alm::gfx::IRenderable*> instances[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
+	std::vector<RenderableDrawInfo> drawInfos[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
 
 	if (opt_outPrimaryBounds)
 		opt_outPrimaryBounds->reset();
@@ -628,7 +628,12 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 					const auto* renderable = alm::checked_cast<const IRenderable*>(leaf.get());
 					assert(renderable);
 
-					instances[(int)renderable->GetMaterialDomain()][(int)renderable->GetCullMode()].push_back(renderable);
+					std::vector<RenderableDrawInfo> reanderableDrawInfos;
+					renderable->CollectDrawInfos(reanderableDrawInfos);
+					for (const RenderableDrawInfo& drawInfo : reanderableDrawInfos)
+					{
+						drawInfos[(int)drawInfo.MaterialDomain][(int)drawInfo.CullMode].push_back(drawInfo);
+					}
 
 					if (opt_outPrimaryBounds)
 					{
@@ -636,7 +641,7 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 						opt_outPrimaryBounds->merge(leafWorldBounds);
 					}
 
-					if (secondaryType != SceneContentType::_Size && opt_outSecondaryBounds && has_any_flag(leaf->GetContentFlags(), ToFlag(secondaryType)))
+					if (opt_outSecondaryBounds && secondaryType != SceneContentType::_Size && has_any_flag(leaf->GetContentFlags(), ToFlag(secondaryType)))
 					{
 						auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
 						opt_outSecondaryBounds->merge(leafWorldBounds);
@@ -656,9 +661,9 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 	{
 		for(int cullMode = 0; cullMode < (int)rhi::CullMode::_Size; ++cullMode)
 		{
-			std::ranges::sort(instances[domain][cullMode], [](const IRenderable* a, const alm::gfx::IRenderable* b)
+			std::ranges::sort(drawInfos[domain][cullMode], [](const RenderableDrawInfo& a, const RenderableDrawInfo& b)
 			{
-				return a->GetBatchKey() < b->GetBatchKey();
+				return a.BatchKey < b.BatchKey;
 			});
 		}
 	}
@@ -669,9 +674,9 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 		RenderSet::MaterialDomainSet domainSet{ (MaterialDomain)domain, {} };
 		for (int cullMode = 0; cullMode < (int)rhi::CullMode::_Size; ++cullMode)
 		{
-			if (!instances[domain][cullMode].empty())
+			if (!drawInfos[domain][cullMode].empty())
 			{
-				domainSet.second.emplace_back((rhi::CullMode)cullMode, std::move(instances[domain][cullMode]));
+				domainSet.second.emplace_back((rhi::CullMode)cullMode, std::move(drawInfos[domain][cullMode]));
 			}
 		}
 		if (!domainSet.second.empty())
@@ -700,9 +705,9 @@ void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderS
 	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
 
 	uint32_t* ptr = (uint32_t*)data;
-	for (const alm::gfx::IRenderable* inst : renderSet.AllInstances())
+	for (const RenderableDrawInfo& drawInfo : renderSet.AllInstances())
 	{
-		*ptr = inst->GetDrawInfo().InstanceIdx;
+		*ptr = drawInfo.InstanceIdx;
 		ptr++;
 	}
 

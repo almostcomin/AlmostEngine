@@ -38,27 +38,15 @@ alm::gfx::SceneContentFlags alm::gfx::MeshInstance::GetContentFlags() const
 	return flags;
 }
 
-alm::gfx::MaterialDomain alm::gfx::MeshInstance::GetMaterialDomain() const
+void alm::gfx::MeshInstance::CollectDrawInfos(std::vector<RenderableDrawInfo>& out) const
 {
-	return m_Mesh->GetMaterial()->GetDomain();
-}
-
-alm::rhi::CullMode alm::gfx::MeshInstance::GetCullMode() const
-{
-	return m_Mesh->GetMaterial()->GetCullMode();
-}
-
-uintptr_t alm::gfx::MeshInstance::GetBatchKey() const
-{
-	return (uintptr_t)(m_Mesh.get());
-}
-
-alm::gfx::RenderableDrawInfo alm::gfx::MeshInstance::GetDrawInfo() const
-{
-	return RenderableDrawInfo{
-		.InstanceIdx = GetLeafSceneIndex(),
-		.MeshIndex = m_MeshSceneIndex,
-		.MaterialIndex = m_MaterialSceneIndex,
-		.IndexCount = m_Mesh ? m_Mesh->GetIndexCount() : 0
-	};
+	out.emplace_back(
+		m_Mesh->GetMaterial()->GetDomain(),
+		m_Mesh->GetMaterial()->GetCullMode(),
+		(uintptr_t)(m_Mesh.get()), // batch key
+		GetLeafSceneIndex(),
+		m_MeshSceneIndex,
+		m_MaterialSceneIndex,
+		m_Mesh->GetIndexCount()
+	);
 }

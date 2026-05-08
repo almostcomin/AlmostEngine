@@ -51,10 +51,7 @@ public:
 	uint32_t GetMaterialSceneIndex() const { return m_MaterialSceneIndex; }
 
 	// IRenderable interface
-	MaterialDomain     GetMaterialDomain() const;
-	rhi::CullMode      GetCullMode() const;
-	uintptr_t          GetBatchKey() const;
-	RenderableDrawInfo GetDrawInfo() const;
+	void CollectDrawInfos(std::vector<RenderableDrawInfo>& out) const override;
 
 	//-- To be called by SceneGraph when registering the leaf
 
