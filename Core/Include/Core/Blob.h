@@ -18,11 +18,11 @@ public:
 
 	Blob() = default;
 
-	Blob(char* data, size_t size) :
+	Blob(uint8_t* data, size_t size) :
 		m_data{ data }, m_size{ size }, m_real_ptr{ data }, m_deleter { nullptr }
 	{}
 
-	Blob(char* data, size_t size, char* real_ptr, std::function<void(void*)> deleter) :
+	Blob(uint8_t* data, size_t size, uint8_t* real_ptr, std::function<void(void*)> deleter) :
 		m_data{ data }, m_size{ size }, m_real_ptr{ real_ptr }, m_deleter{ std::move(deleter) }
 	{}
 
@@ -49,7 +49,7 @@ public:
 		return *this;
 	}
 
-	char* data() const { return m_data; }
+	uint8_t* data() const { return m_data; }
 	size_t size() const { return m_size; }
 	bool empty() const { return m_data == nullptr || m_size == 0; }
 
@@ -70,9 +70,9 @@ public:
 
 protected:
 
-	char* m_data = nullptr;
+	uint8_t* m_data = nullptr;
 	size_t m_size = 0;
-	char* m_real_ptr = nullptr;
+	uint8_t* m_real_ptr = nullptr;
 	std::function<void(void*)> m_deleter = nullptr;
 };
 
@@ -82,13 +82,13 @@ public:
 
 	SharedBlob() = default;
 
-	SharedBlob(char* data, size_t size) :
+	SharedBlob(uint8_t* data, size_t size) :
 		m_data{ data }, m_size{ size }, m_proxy{ std::shared_ptr<proxy_t>(new proxy_t, customDeleter) }
 	{
 		m_proxy->data = data;
 	}
 
-	SharedBlob(char* data, size_t size, char* real_ptr, std::function<void(void*)> deleter) :
+	SharedBlob(uint8_t* data, size_t size, uint8_t* real_ptr, std::function<void(void*)> deleter) :
 		m_data{ data }, m_size{ size }, m_proxy{ std::shared_ptr<proxy_t>(new proxy_t, customDeleter) }
 	{
 		m_proxy->data = real_ptr;
@@ -98,7 +98,7 @@ public:
 	SharedBlob(const SharedBlob& other) : m_data{ other.m_data }, m_size{ other.m_size }, m_proxy{ other.m_proxy }
 	{}
 
-	SharedBlob(char* data, size_t size, const SharedBlob& other) : m_data(data), m_size(size), m_proxy(other.m_proxy)
+	SharedBlob(uint8_t* data, size_t size, const SharedBlob& other) : m_data(data), m_size(size), m_proxy(other.m_proxy)
 	{}
 
 	SharedBlob(SharedBlob&& other) noexcept :
@@ -130,7 +130,7 @@ public:
 		return *this;
 	}
 
-	char* data() const { return m_data; }
+	uint8_t* data() const { return m_data; }
 	size_t size() const { return m_size; }
 	bool empty() const { return m_data == nullptr || m_size == 0; }
 
@@ -141,7 +141,7 @@ public:
 		m_proxy.reset();
 	}
 
-	void setsub(char* data, size_t size)
+	void setsub(uint8_t* data, size_t size)
 	{
 		m_data = data;
 		m_size = size;
@@ -151,7 +151,7 @@ protected:
 
 	struct proxy_t
 	{
-		char* data = 0;
+		uint8_t* data = 0;
 		std::function<void(void*)> deleter = nullptr;
 	};
 
@@ -163,7 +163,7 @@ protected:
 	}
 
 	std::shared_ptr<proxy_t> m_proxy;
-	char* m_data = nullptr;
+	uint8_t* m_data = nullptr;
 	size_t m_size = 0;
 };
 
@@ -173,12 +173,12 @@ class WeakBlob
 public:
 
 	WeakBlob() = default;
-	WeakBlob(char* data, size_t size) : m_data(data), m_size(size) {}
+	WeakBlob(uint8_t* data, size_t size) : m_data(data), m_size(size) {}
 	explicit WeakBlob(const Blob& b) : m_data{ b.data() }, m_size{ b.size() } {}
 	explicit WeakBlob(const SharedBlob& b) : m_data{ b.data() }, m_size{ b.size() } {}
 	~WeakBlob() = default;
 
-	char* data() const { return m_data; }
+	uint8_t* data() const { return m_data; }
 	size_t size() const { return m_size; }
 	bool empty() const { return m_data == nullptr || m_size == 0; }
 
@@ -186,7 +186,7 @@ public:
 
 private:
 
-	char* m_data = nullptr;
+	uint8_t* m_data = nullptr;
 	size_t m_size = 0;
 };
 

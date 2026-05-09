@@ -116,5 +116,5 @@ alm::Blob alm::rhi::ShaderCompiler::Compile(const std::string& shaderName, Shade
     void* data = std::malloc(compiledShaderBlob->GetBufferSize());
     std::memcpy(data, compiledShaderBlob->GetBufferPointer(), compiledShaderBlob->GetBufferSize());
 
-    return alm::Blob{ (char*)data, compiledShaderBlob->GetBufferSize() };
+    return alm::Blob{ (uint8_t*)data, compiledShaderBlob->GetBufferSize() };
 }

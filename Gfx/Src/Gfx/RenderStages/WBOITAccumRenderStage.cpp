@@ -52,7 +52,8 @@ void alm::gfx::WBOITAccumRenderStage::Render(alm::rhi::CommandListHandle command
 
 	interop::WBOITAccumStageConstants shaderConstants;
 	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
-	shaderConstants.shadowMapDI = m_RenderGraph->GetTextureSampledView(m_ShadowmapTexture);
+	shaderConstants.shadowMapDI = GetRenderView()->IsShadowmapValid() ? 
+		m_RenderGraph->GetTextureSampledView(m_ShadowmapTexture) : interop::TextureSampledViewIndex{};
 	shaderConstants.oneOverShadowmapResolution = 1.f / shadowMapResolution;
 	shaderConstants.SSAO_DI = m_RenderGraph->GetTextureSampledView(m_AmbientOcclusionTexture);
 	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();

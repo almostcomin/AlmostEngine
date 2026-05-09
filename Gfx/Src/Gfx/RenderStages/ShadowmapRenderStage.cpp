@@ -162,37 +162,33 @@ void alm::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
 
 void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
-	auto scene = GetScene();
-	if (!scene)
+	if (GetRenderView()->IsShadowmapValid())
 	{
-		//LOG_WARNING("No scene set. Nothing to render");
-		return;
-	}
+		rhi::Device* device = GetDeviceManager()->GetDevice();
 
-	rhi::Device* device = GetDeviceManager()->GetDevice();
-
-	commandList->BeginRenderPass(
-		m_FB.get(),
+		commandList->BeginRenderPass(
+			m_FB.get(),
 #ifdef DEBUG_STAGE
-		{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack() }},
+			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack() } },
 #else
-		{},
+			{},
 #endif
-		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
-		{},
-		rhi::RenderPassFlags::None);
+			rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
+			{},
+			rhi::RenderPassFlags::None);
 
-	interop::ShadowmapStageConstats shaderConstants;
-	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
-	shaderConstants.instancesDI = GetRenderView()->GetShadowMapVisibilityBufferROView();
+		interop::ShadowmapStageConstats shaderConstants;
+		shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
+		shaderConstants.instancesDI = GetRenderView()->GetShadowMapVisibilityBufferROView();
 
-	commandList->PushGraphicsConstants(0, shaderConstants);
+		commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_MaterialPassRenderer.DrawRenderSetInstanced(
-		GetRenderView()->GetShadowMapVisibleSet(),
-		commandList.get());
+		m_MaterialPassRenderer.DrawRenderSetInstanced(
+			GetRenderView()->GetShadowMapVisibleSet(),
+			commandList.get());
 
-	commandList->EndRenderPass();
+		commandList->EndRenderPass();
+	}
 
 #ifdef DEBUG_STAGE
 	commandList->PushBarrier(rhi::Barrier::Texture(m_RenderGraph->GetTexture(m_ShadowMapColorTexture).get(),

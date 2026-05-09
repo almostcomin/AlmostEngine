@@ -38,7 +38,8 @@ void alm::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
 void alm::gfx::DeferredLightingRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	rhi::Device* device = GetDeviceManager()->GetDevice();
-	auto shadowmapTex = m_RenderGraph->GetTexture(m_ShadowmapTexture);
+	alm::rhi::TextureHandle shadowmapTex = GetRenderView()->IsShadowmapValid() ?
+		m_RenderGraph->GetTexture(m_ShadowmapTexture) : rhi::TextureHandle{};
 	float2 shadowMapResolution = { 0.f, 0.f };
 	rhi::TextureSampledView shadowmapSampled = {};
 	if (shadowmapTex)

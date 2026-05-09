@@ -396,7 +396,7 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
         const size_t dataSize = image->buffer_view->size;
 
         // We need to have a managed pointer to the texture data for async decoding.
-        alm::Blob textureData{ (char*)malloc(dataSize), dataSize };
+        alm::Blob textureData{ (uint8_t*)malloc(dataSize), dataSize };
 
         result.data = std::make_shared<GltfInlineData>();
         result.data->name = image->name
@@ -435,7 +435,7 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
                     ? image->name
                     : loadCache.path.stem().string() + "[" + std::to_string(imageIndex) + "]";
                 result.data->mimeType = image->mime_type ? image->mime_type : "";
-                result.data->buffer = alm::Blob{ (char*)data, size };
+                result.data->buffer = alm::Blob{ (uint8_t*)data, size };
 
                 loadCache.inlineDataCache[image] = result.data;
             }
@@ -702,7 +702,7 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
     size_t indexCount = 0;
     if (prim.indices)
     {
-        out_indexData = alm::Blob{ (char*)malloc(prim.indices->count * sizeof(T)), prim.indices->count * sizeof(T) };
+        out_indexData = alm::Blob{ (uint8_t*)malloc(prim.indices->count * sizeof(T)), prim.indices->count * sizeof(T) };
 
         // copy the indices
         auto [indexSrc, indexStride] = BufferIterator(*prim.indices, 0);
@@ -747,7 +747,7 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
     {
         // generate the indices
         const uint32_t indexCount = positions.count;
-        out_indexData = alm::Blob{ (char*)malloc(indexCount * sizeof(T)), indexCount * sizeof(T) };
+        out_indexData = alm::Blob{ (uint8_t*)malloc(indexCount * sizeof(T)), indexCount * sizeof(T) };
         T* indexDst = (T*)out_indexData.data();
 
         for (size_t i_idx = 0; i_idx < indexCount; i_idx++)
@@ -1176,7 +1176,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             if (!vertexTexCoordData.empty())
                 vertexStride += texCoordElemSize;
 
-            alm::Blob vertexData{ (char*)malloc(vertexStride * vertexPosData.size()), vertexStride * vertexPosData.size() };
+            alm::Blob vertexData{ (uint8_t*)malloc(vertexStride * vertexPosData.size()), vertexStride * vertexPosData.size() };
 
             // Interleave
             uint32_t vertexOffset = 0;
@@ -1184,7 +1184,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             // Positions
             if (!vertexPosData.empty())
             {
-                char* dstData = vertexData.data() + vertexOffset;
+                uint8_t* dstData = vertexData.data() + vertexOffset;
                 for (size_t v_idx = 0; v_idx < vertexPosData.size(); v_idx++)
                 {
                     *(decltype(vertexPosData)::value_type*)dstData = vertexPosData[v_idx];
@@ -1196,7 +1196,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             // Normals
             if (!vertexNormalData.empty())
             {
-                char* dstData = vertexData.data() + vertexOffset;
+                uint8_t* dstData = vertexData.data() + vertexOffset;
                 for (size_t v_idx = 0; v_idx < vertexNormalData.size(); v_idx++)
                 {
                     *(decltype(vertexNormalData)::value_type*)dstData = vertexNormalData[v_idx];
@@ -1208,7 +1208,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             // Tangents
             if (!vertexTangentData.empty())
             {
-                char* dstData = vertexData.data() + vertexOffset;
+                uint8_t* dstData = vertexData.data() + vertexOffset;
                 for (size_t v_idx = 0; v_idx < vertexTangentData.size(); v_idx++)
                 {
                     *(decltype(vertexTangentData)::value_type*)dstData = vertexTangentData[v_idx];
@@ -1220,7 +1220,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             // TexCoords
             if (!vertexTexCoordData.empty())
             {
-                char* dstData = vertexData.data() + vertexOffset;
+                uint8_t* dstData = vertexData.data() + vertexOffset;
                 for (size_t v_idx = 0; v_idx < vertexTexCoordData.size(); v_idx++)
                 {
                     *(decltype(vertexTexCoordData)::value_type*)dstData = vertexTexCoordData[v_idx];

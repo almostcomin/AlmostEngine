@@ -63,6 +63,8 @@ public:
 	const RenderSet& GetCameraVisibleSet() const { return m_CameraVisibleSet; }
 	const RenderSet& GetShadowMapVisibleSet() const { return m_ShadowMapVisibleSet; }
 
+	bool IsShadowmapValid() const { return m_ShadowmapValid; }
+
 	void OnWindowSizeChanged();
 
 	void Render(double timeSec, float timeDeltaSec);
@@ -77,13 +79,13 @@ private:
 
 	void UpdateSceneConstantBuffer();
 	void UpdateCameraVisibleSet(rhi::ICommandList* commandList);
-	void UpdateShadowmapData(rhi::ICommandList* commandList);
+	bool UpdateShadowmapData(rhi::ICommandList* commandList);
 	void UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList);
 
-	void GetVisibleSet(const std::span<const math::plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet, math::aabox3f* opt_outPrimaryBounds = nullptr,
-		SceneContentType secondaryType = SceneContentType::_Size, math::aabox3f* opt_outSecondaryBounds = nullptr) const;
+	void GetVisibleSet(const VisibleSetContext& context, const std::span<const math::plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
+		math::aabox3f* opt_outPrimaryBounds = nullptr, SceneContentType secondaryType = SceneContentType::_Size, math::aabox3f* opt_outSecondaryBounds = nullptr) const;
 	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer, rhi::ICommandList* commandList);
 
 private:
@@ -136,6 +138,8 @@ private:
 	// Begin & End command lists
 	std::vector<rhi::CommandListOwner> m_BeginCommandLists;
 	std::vector<rhi::CommandListOwner> m_EndCommandLists;
+
+	bool m_ShadowmapValid;
 
 	double m_TimeSec;
 	float m_TimeDeltaSec;

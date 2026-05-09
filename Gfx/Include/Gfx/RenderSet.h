@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Gfx/IRenderable.h"
+#include "Gfx/Renderable.h"
 
 namespace alm::gfx
 {

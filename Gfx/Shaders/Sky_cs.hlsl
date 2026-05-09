@@ -96,7 +96,7 @@ ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, Co
         float3 p = rayOrigin + rayDir * t;
 
         // Altitude of this sample point above the Earth surface (in meters)
-        float h = length(p) - skyData.EarthRadius;
+        float h = max(length(p) - skyData.EarthRadius, 0.0);
 
         // Density of scattering particles at altitude h.
         // Both Rayleigh and Mie densities follow an exponential falloff with altitude,
@@ -134,7 +134,7 @@ ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, Co
             // Sample at center of each light ray segment
             float  ts = dLs * (j + 0.5);
             float3 ps = p + skyData.ToSunDirection * ts;
-            float  hs = length(ps) - skyData.EarthRadius;
+            float hs = max(length(ps) - skyData.EarthRadius, 0.0);
 
             depthRs += exp(-hs / skyData.Hr) * dLs;
             depthMs += exp(-hs / skyData.Hm) * dLs;

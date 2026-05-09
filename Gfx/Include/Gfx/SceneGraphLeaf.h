@@ -26,7 +26,8 @@ public:
 		Camera,
 		DirectionalLight,
 		PointLight,
-		SpotLight
+		SpotLight,
+		Heightmap
 	};
 
 	SceneGraphLeaf() = default;

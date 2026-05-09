@@ -7,6 +7,8 @@
 namespace alm::gfx
 {
 
+struct VisibleSetContext;
+
 struct RenderableDrawInfo
 {
     MaterialDomain  MaterialDomain;
@@ -22,7 +24,7 @@ class IRenderable
 {
 public:
     virtual ~IRenderable() = default;
-    virtual void CollectDrawInfos(std::vector<RenderableDrawInfo>& out) const = 0;
+    virtual void CollectDrawInfos(const VisibleSetContext& context, std::vector<RenderableDrawInfo>& out) const = 0;
 };
 
 } // namespace alm::gfx

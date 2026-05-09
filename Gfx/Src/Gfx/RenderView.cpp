@@ -13,7 +13,8 @@
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
 #include "Gfx/RenderGraph.h"
-#include "Gfx/IRenderable.h"
+#include "Gfx/Renderable.h"
+#include "Gfx/VisibleSetContext.h"
 
 alm::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	RenderView{ nullptr, deviceManager, debugName }
@@ -24,6 +25,7 @@ alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* 
 	m_PrevCameraPosition{ 0.f, 0.f, 0.f },
 	m_ResetPrevFrameCamera{ true },
 	m_ViewportSwapChainId{ viewportId },
+	m_ShadowmapValid{ false },
 	m_TimeSec{ 0.0 },
 	m_TimeDeltaSec{ 0.f },
 	m_DebugName{ debugName },
@@ -154,7 +156,7 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 	}
 
 	UpdateCameraVisibleSet(beginCommandList);
-	UpdateShadowmapData(beginCommandList);
+	m_ShadowmapValid = UpdateShadowmapData(beginCommandList);
 	UpdateDirLightsVisibleBuffer(beginCommandList);
 	UpdatePointLightsVisibleBuffer(beginCommandList);
 	UpdateSpotLightsVisibleBuffer(beginCommandList);
@@ -288,23 +290,26 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 		return;
 	}
 
-	GetVisibleSet(m_Camera->GetFrustum().get_planes(), SceneContentType::Meshes, m_CameraVisibleSet, &m_CameraVisibleBounds, 
+	VisibleSetContext context{ .View = this };
+
+	GetVisibleSet(context, m_Camera->GetFrustum().get_planes(), SceneContentType::Meshes, m_CameraVisibleSet, &m_CameraVisibleBounds, 
 		SceneContentType::ShadowCasters, &m_ShadowCastersCameraVisibleBounds);
+
 	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList);
 }
 
-void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
+bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 {
 	m_ShadowMapVisibleSet.Elements.clear();
 	m_ShadowMapWoldToClipMatrix = {};
 	m_ViewToShadowMapClipMatrix = {};
 
 	if (!m_CameraVisibleBounds.valid())
-		return;
+		return false;
 
 	const alm::math::aabox3f& worldCasterBoundsF = m_Scene->GetWorldBounds(SceneContentType::ShadowCasters);
 	if (!worldCasterBoundsF.valid())
-		return;  // no shadow casters in the scene
+		return false;  // no shadow casters in the scene
 
 	const Scene::SunParams& sunParams = m_Scene->GetSunParams();
 
@@ -340,10 +345,11 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	const math::aabox3f searchVolumeWorld(searchVolumeWorldD);  // back to float for the cull
 	const std::vector<math::plane3f> searchPlanes = searchVolumeWorld.buildClipPlanes();
 
+	VisibleSetContext context{ .View = this };
 	math::aabox3f casterBoundsForShadowMapF;
-	GetVisibleSet(searchPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, &casterBoundsForShadowMapF);
+	GetVisibleSet(context, searchPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, &casterBoundsForShadowMapF);
 	if (!casterBoundsForShadowMapF.valid())
-		return;  // no casters cast shadow on visible receivers
+		return false;  // no casters cast shadow on visible receivers
 	// So casterBoundsForShadowMapF is the bbox of all the casters that cast shadow to something visible
 
 	// Promote back to double for the precision-critical Z calculations
@@ -363,10 +369,6 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	const double zNearD = -sceneBoundsSun.max.z;
 	const double zFarD = -sceneBoundsSun.min.z;
 	assert(zNearD >= 0.0f);
-	if (zFarD < zNearD)
-	{
-		puts("hola");
-	}
 	assert(zFarD >= zNearD);
 
 	// Build projection matrix in double
@@ -399,6 +401,8 @@ void alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	m_ViewToShadowMapClipMatrix = float4x4(viewToShadowMapClipD);
 
 	UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList);
+
+	return true;
 }
 
 void alm::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList)
@@ -597,8 +601,8 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 }
 
-void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
-	math::aabox3f* opt_outPrimaryBounds,  SceneContentType secondaryType, math::aabox3f* opt_outSecondaryBounds) const
+void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const std::span<const math::plane3f>& planes, SceneContentType primaryType,
+	RenderSet& out_renderSet, math::aabox3f* opt_outPrimaryBounds,  SceneContentType secondaryType, math::aabox3f* opt_outSecondaryBounds) const
 {
 	assert(HasRenderableCategory(primaryType));
 
@@ -628,9 +632,9 @@ void alm::gfx::RenderView::GetVisibleSet(const std::span<const math::plane3f>& p
 					const auto* renderable = alm::checked_cast<const IRenderable*>(leaf.get());
 					assert(renderable);
 
-					std::vector<RenderableDrawInfo> reanderableDrawInfos;
-					renderable->CollectDrawInfos(reanderableDrawInfos);
-					for (const RenderableDrawInfo& drawInfo : reanderableDrawInfos)
+					std::vector<RenderableDrawInfo> renderableDrawInfos;
+					renderable->CollectDrawInfos(context, renderableDrawInfos);
+					for (const RenderableDrawInfo& drawInfo : renderableDrawInfos)
 					{
 						drawInfos[(int)drawInfo.MaterialDomain][(int)drawInfo.CullMode].push_back(drawInfo);
 					}

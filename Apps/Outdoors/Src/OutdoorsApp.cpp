@@ -55,6 +55,7 @@ public:
 		m_Scene->SetSceneGraph(std::move(sceneGraph));
 
 		// Init earth sphere
+#if 0
 		{
 			alm::gfx::CommonResources* commonResources = m_DeviceManager->GetCommonResources();
 			auto earthMesh = commonResources->CreateUVSphere(kEarthRadius, 128, 128, m_DeviceManager->GetDataUploader(), "EarthMesh");
@@ -71,7 +72,7 @@ public:
 			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
 			m_Scene->RefreshSceneGraph();
 		}
-
+#endif
 		// Load file
 		{
 			std::string path = GetStartupArgString("load");

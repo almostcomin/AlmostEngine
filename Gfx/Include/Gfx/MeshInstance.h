@@ -3,7 +3,7 @@
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/SceneContentFlags.h"
 #include "Gfx/MaterialDomain.h"
-#include "Gfx/IRenderable.h"
+#include "Gfx/Renderable.h"
 #include "RHI/RasterizerState.h"
 
 namespace alm::gfx
@@ -51,7 +51,7 @@ public:
 	uint32_t GetMaterialSceneIndex() const { return m_MaterialSceneIndex; }
 
 	// IRenderable interface
-	void CollectDrawInfos(std::vector<RenderableDrawInfo>& out) const override;
+	void CollectDrawInfos(const VisibleSetContext& context, std::vector<RenderableDrawInfo>& out) const override;
 
 	//-- To be called by SceneGraph when registering the leaf
 

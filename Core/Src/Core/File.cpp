@@ -73,7 +73,7 @@ std::expected<alm::Blob, std::string> alm::fs::File::Read(int size)
 	char* mem = (char*)malloc(size);
 	m_FileStream.read(mem, size);
 	
-	return alm::Blob( mem, (size_t)size );
+	return alm::Blob( (uint8_t*)mem, (size_t)size );
 }
 
 std::expected<size_t, std::string> alm::fs::File::Write(const void* data, size_t size)

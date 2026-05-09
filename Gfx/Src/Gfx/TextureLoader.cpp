@@ -179,7 +179,7 @@ alm::gfx::LoadDDSTexture(const alm::WeakBlob& fileData)
 
     DirectX::ScratchImage* image_ptr = image.release();
     alm::Blob blob
-        { (char*)image_ptr->GetPixels(), image_ptr->GetPixelsSize(), (char*)image_ptr, [](void* ptr) { delete (DirectX::ScratchImage*)ptr; } };
+        { image_ptr->GetPixels(), image_ptr->GetPixelsSize(), (uint8_t*)image_ptr, [](void* ptr) { delete (DirectX::ScratchImage*)ptr; } };
 
     return std::pair<alm::gfx::TextureInfo, alm::Blob> { texInfo, std::move(blob) };
 }
@@ -228,7 +228,7 @@ alm::gfx::LoadImageTexture(const alm::WeakBlob& fileData, bool forceSRGB)
 	texInfo.dataLayout[0][0].dataSize = static_cast<size_t>(width * height * bytesPerPixel);
 
 	alm::Blob blob{ 
-		(char*)bitmap, (size_t)(width * height * channels), (char*)bitmap, [](void* ptr) { stbi_image_free(ptr); } };
+		bitmap, (size_t)(width * height * channels), bitmap, [](void* ptr) { stbi_image_free(ptr); } };
 
 	switch (channels)
 	{

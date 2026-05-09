@@ -38,7 +38,7 @@ alm::gfx::SceneContentFlags alm::gfx::MeshInstance::GetContentFlags() const
 	return flags;
 }
 
-void alm::gfx::MeshInstance::CollectDrawInfos(std::vector<RenderableDrawInfo>& out) const
+void alm::gfx::MeshInstance::CollectDrawInfos(const VisibleSetContext&, std::vector<RenderableDrawInfo>& out) const
 {
 	out.emplace_back(
 		m_Mesh->GetMaterial()->GetDomain(),
