@@ -1,7 +1,9 @@
 #pragma once
 #include <stack>
 #include "Gfx/SceneGraphNode.h"
+#include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/ResourceRefCount.h"
+#include "Gfx/GpuSceneBuffersHandle.h"
 #include "Core/Memory.h"
 #include "Core/unique_vector.h"
 #include "Core/unique_stable_vector.h"
@@ -16,8 +18,10 @@ class SceneCamera;
 class SceneDirectionalLight;
 class ScenePointLight;
 class SceneSpotLight;
+class SceneHeightmap;
 class Mesh;
 class Material;
+class GpuSceneBuffers;
 
 class SceneGraph : public alm::enable_weak_from_this<SceneGraph>, private alm::noncopyable_nonmovable
 {
@@ -47,18 +51,7 @@ public:
             : m_Current(scope)
             , m_Scope(scope)
         {}
-/*
-        explicit Walker(alm::weak<SceneGraphNode> scope)
-            : m_Current(scope)
-            , m_Scope(scope)
-        {}
-*/
-/*
-        Walker(alm::weak<SceneGraphNode> current, alm::weak<SceneGraphNode> scope)
-            : m_Current(current)
-            , m_Scope(scope)
-        {}
-*/
+
         // Moves the pointer to the first child of the current node, if it exists.
         // Otherwise, moves the pointer to the next sibling of the current node, if it exists.
         // Otherwise, goes up and tries to find the next sibiling up the hierarchy.
@@ -83,22 +76,17 @@ public:
         std::stack<size_t> m_ChildIndices;
     };
 
-    using MaterialRefCount = ResourceRefCount<Material>;
-    using MeshRefCount = ResourceRefCount<Mesh>;
-   
-    using MeshInstanceLeafsContainer = alm::stable_vector<MeshInstance*, 8192>;
-    using SceneCamerasContainer = alm::stable_vector<SceneCamera*, 32>;
-    using SceneDirectionalLightsContainer = alm::stable_vector<SceneDirectionalLight*, 8>;
-    using ScenePointLightsContainer = alm::stable_vector<ScenePointLight*, 1024>;
-    using SceneSpotLightsContainer = alm::stable_vector<SceneSpotLight*, 128>;
-
-    using MaterialsContainer = alm::unique_stable_vector<MaterialRefCount, 1024>;
-    using MeshesContainer = alm::unique_stable_vector<MeshRefCount, 4096>;
-    using MeshMaterialIndicesContainer = std::array<uint32_t, MeshesContainer::max_elements>;
+    using MeshInstanceLeafsContainer = std::unordered_set<MeshInstance*>;
+    using SceneCamerasContainer = std::unordered_set<SceneCamera*>;
+    using SceneDirectionalLightsContainer = std::unordered_set<SceneDirectionalLight*>;
+    using ScenePointLightsContainer = std::unordered_set<ScenePointLight*>;
+    using SceneSpotLightsContainer = std::unordered_set<SceneSpotLight*>;
+    using ScenenHeightmapsContainer = std::unordered_set<SceneHeightmap*>;
 
 public:
 
-    SceneGraph();
+    SceneGraph(GpuSceneBuffersHandle buffersHandle, GpuSceneBuffers* gpuSceneBuffers);
+    ~SceneGraph();
 
 	// Attaches a node and its subgraph to the graph.
     void OnNodeAttached(SceneGraphNode* node);
@@ -108,33 +96,28 @@ public:
     // Get root node. Always exists.
     alm::weak<SceneGraphNode> GetRoot() const { return m_Root.get_weak(); }
 
-    uint32_t GetInstanceIndex(const alm::gfx::MeshInstance* pInstance) const;
-    
-    //uint32_t GetMeshIndex(const alm::gfx::MeshInstance* pInstance) const;
-    //uint32_t GetMeshIndex(int meshInstanceIndex) const;
-    
-    //uint32_t GetMaterialIndex(const alm::gfx::MeshInstance* pInstance) const;
-    uint32_t GetMaterialIndex(const alm::gfx::Mesh* mesh) const;
-
     const MeshInstanceLeafsContainer& GetMeshInstances() const { return m_Leafs.MeshInstances; }
     const SceneCamerasContainer& GetSceneCameras() const { return m_Leafs.SceneCameras; }
     const SceneDirectionalLightsContainer& GetSceneDirLights() const { return m_Leafs.SceneDirLights; }
     const ScenePointLightsContainer& GetScenePointLights() const { return m_Leafs.ScenePointLights; }
     const SceneSpotLightsContainer& GetSceneSpotLights() const { return m_Leafs.SceneSpotLights; }
+    const ScenenHeightmapsContainer& GetSceneHeightmaps() const { return m_Leafs.SceneHeightmaps; }
 
-    const MeshesContainer& GetMeshes() const { return m_Meshes; }
-    const MaterialsContainer& GetMaterials() const { return m_Materials; }
+    // Called when leaf content has changed
+    void ReportLeafDirty(const SceneGraphLeaf* leaf);
 
-    // 
-    void Refresh();
+    // Updates world transforms, bounds and content flags for dirty nodes.
+    // Updates the GpuSceneBuffers accordly.
+    void Update();
 
-    void LogGraph() const;
+    void LogGraph();
 
 private:
 
-    void UpdateNodeRecursive(SceneGraphNode* node);
+    void UpdateNodeRecursive(SceneGraphNode* node, bool parentTransformChanged);
     void RegisterLeaf(SceneGraphLeaf* leaf);
     void UnregisterLeaf(SceneGraphLeaf* leaf);
+    void ReportLeafMoved(const SceneGraphLeaf* leaf);
 
 private:
 
@@ -147,11 +130,11 @@ private:
         SceneDirectionalLightsContainer SceneDirLights;
         ScenePointLightsContainer ScenePointLights;
         SceneSpotLightsContainer SceneSpotLights;
+        ScenenHeightmapsContainer SceneHeightmaps;
     }  m_Leafs;
 
-    MeshesContainer m_Meshes;
-    MaterialsContainer m_Materials;
-    MeshMaterialIndicesContainer m_MeshMaterialIndices;
+    GpuSceneBuffersHandle m_GpuBuffersHandle;
+    GpuSceneBuffers* m_GpuSceneBuffers;
 };
 
 } // namespace st::gfx

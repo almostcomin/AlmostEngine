@@ -71,10 +71,10 @@ int SDL_main(int argc, char* argv[])
 	return 0;
 }
 
-alm::fw::App::App(const std::string& windowTitle, RenderStageSetMode renderStageSetMode) :
+alm::fw::App::App(const std::string& name, RenderStageSetMode renderStageSetMode) :
 	m_FrameworkUI{ nullptr },
 	m_Window{ nullptr },
-	m_WindowTitle{ windowTitle },
+	m_Name{ name },
 	m_RenderStageSetMode{ renderStageSetMode }
 {}
 
@@ -119,7 +119,7 @@ bool alm::fw::App::InitInternal()
 	}
 
 	// Create a window
-	m_Window = SDL_CreateWindow(m_WindowTitle.c_str(), 1920, 1080, SDL_WINDOW_RESIZABLE);
+	m_Window = SDL_CreateWindow(m_Name.c_str(), 1920, 1080, SDL_WINDOW_RESIZABLE);
 	if (!m_Window)
 	{
 		SDL_Quit();
@@ -141,7 +141,7 @@ bool alm::fw::App::InitInternal()
 	m_DeviceManager->Init(initParams);
 
 	// Reset window title
-	std::string windowTitle = m_WindowTitle + " - " + m_DeviceManager->GetBackEndHWName();
+	std::string windowTitle = m_Name + " - " + m_DeviceManager->GetBackEndHWName();
 	SDL_SetWindowTitle(m_Window, windowTitle.c_str());
 
 	// Init ImGui
@@ -169,7 +169,7 @@ bool alm::fw::App::InitInternal()
 	}
 
 	// Our scene
-	m_Scene = alm::make_unique_with_weak<alm::gfx::Scene>(m_DeviceManager.get());
+	m_Scene = alm::make_unique_with_weak<alm::gfx::Scene>("DefaultScene", m_DeviceManager.get());
 
 	// Or main camera
 	m_MainCamera = std::make_shared<alm::gfx::Camera>();
@@ -368,11 +368,7 @@ void alm::fw::App::MainLoop()
 		}
 
 		// Scene update
-		if (m_Scene)
-		{
-			// Update scene
-			m_Scene->Update();
-		}
+		m_Scene->Update();
 
 		if (m_FrameworkUI)
 		{

@@ -9,12 +9,12 @@ class HeightmapInstance
 {
 public:
 
-	HeightmapInstance(weak<Heightmap> heightmap);
+	HeightmapInstance(std::weak_ptr<Heightmap> heightmap);
 	~HeightmapInstance();
 
 private:
 
-	weak<Heightmap> m_Heightmap;
+	std::weak_ptr<Heightmap> m_Heightmap;
 };
 
 } // namespace alm::gfx

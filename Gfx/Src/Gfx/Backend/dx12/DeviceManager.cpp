@@ -8,6 +8,7 @@
 #include "Gfx/TextureCache.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/ShaderFactory.h"
+#include "Gfx/GpuSceneBuffers.h"
 #include <SDL3/SDL_video.h>
 
 using namespace Microsoft::WRL;

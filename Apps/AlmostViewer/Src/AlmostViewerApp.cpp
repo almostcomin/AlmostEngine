@@ -73,10 +73,6 @@ public:
 		m_CameraController.SetWindow(m_Window);
 		m_CameraController.SetCamera(m_MainCamera);
 
-		// Init scene graph
-		auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
-		m_Scene->SetSceneGraph(std::move(sceneGraph));
-
 		return true;
 	}
 
@@ -99,7 +95,7 @@ public:
 				}
 				m_Scene->GetSceneGraph()->GetRoot()->AddChild(std::move(*importResult));
 
-				m_Scene->RefreshSceneGraph();
+				m_Scene->Update(); // For bounds
 
 				const alm::math::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
 				if (bounds.valid())
@@ -130,7 +126,6 @@ public:
 			{
 				rootNode->RemoveChild(rootNode->GetChild(0));
 			}
-			m_Scene->RefreshSceneGraph();
 
 			m_RequestClose = false;
 		}

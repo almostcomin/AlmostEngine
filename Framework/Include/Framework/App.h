@@ -38,7 +38,7 @@ public:
     
 public:
 
-    App(const std::string& windowTitle, RenderStageSetMode renderStageSetMode);
+    App(const std::string& name, RenderStageSetMode renderStageSetMode);
     virtual ~App();
 
     void Run(const AppArgs& args);
@@ -69,7 +69,7 @@ protected:
     alm::fw::FrameworkUI* m_FrameworkUI;
 
     SDL_Window* m_Window;
-    std::string m_WindowTitle;
+    std::string m_Name;
 
     RenderStageSetMode m_RenderStageSetMode;
 

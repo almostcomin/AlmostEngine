@@ -20,6 +20,7 @@ namespace alm::gfx
 class SceneGraphNode : public alm::enable_weak_from_this<SceneGraphNode>, private alm::noncopyable_nonmovable
 {
 	friend class SceneGraph;
+	friend class SceneGraphLeaf;
 
 public:
 
@@ -44,7 +45,7 @@ public:
 	alm::unique<SceneGraphNode> RemoveChild(const alm::weak<SceneGraphNode>& child);
 
 	void SetLeaf(alm::unique<SceneGraphLeaf>&& leaf);
-	void OnLeafBoundsChanged();
+	void RemoveLeaf();
 
 	void SetLocalTransform(const Transform& t);
 

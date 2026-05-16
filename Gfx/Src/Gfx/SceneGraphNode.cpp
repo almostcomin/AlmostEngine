@@ -68,10 +68,17 @@ void alm::gfx::SceneGraphNode::SetLeaf(alm::unique<SceneGraphLeaf>&& leaf)
 	PropagateDirtyFlags(DirtyFlags::Subgraph);
 }
 
-void alm::gfx::SceneGraphNode::OnLeafBoundsChanged()
+void alm::gfx::SceneGraphNode::RemoveLeaf()
 {
-	m_DirtyFlags |= DirtyFlags::Leaf;
-	PropagateDirtyFlags(DirtyFlags::Subgraph);
+	if (m_Leaf)
+	{
+		m_Leaf->m_Node.reset();
+		if (m_Graph)
+			m_Graph->UnregisterLeaf(m_Leaf.get());
+
+		m_DirtyFlags |= DirtyFlags::Leaf;
+		PropagateDirtyFlags(DirtyFlags::Subgraph);
+	}
 }
 
 alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraphNode::GetChild(size_t idx) const

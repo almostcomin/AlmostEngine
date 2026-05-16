@@ -8,6 +8,7 @@
 #include "Gfx/TextureCache.h"
 #include "Gfx/CommonResources.h"
 #include "Gfx/UploadBuffer.h"
+#include "Gfx/GpuSceneBuffers.h"
 #include "RHI/Device.h"
 #include "RHI/TimerQuery.h"
 #include <imgui/imgui.h>
@@ -37,7 +38,8 @@ bool alm::gfx::DeviceManager::Init(const DeviceParams& params)
 		m_DataUploader = std::make_unique<alm::gfx::DataUploader>(m_ShaderFactory.get(), m_Device.get());
 		m_TextureCache = std::make_unique<alm::gfx::TextureCache>(m_DataUploader.get(), m_Device.get());
 		m_CommonResources = std::make_unique<alm::gfx::CommonResources>(m_ShaderFactory.get(), m_Device.get());
-		m_UploadBuffer = std::make_unique<alm::gfx::UploadBuffer>(m_FrameIndex, MiB(8), m_Device.get());
+		m_UploadBuffer = std::make_unique<alm::gfx::UploadBuffer>(m_FrameIndex, MiB(8), m_Device.get());		
+		m_GpuSceneBuffers = std::make_unique<alm::gfx::GpuSceneBuffers>(4096, 1024, m_Device.get());
 
 		for (uint32_t i = 0; i < QueuedFramesCount; ++i)
 		{
@@ -82,6 +84,7 @@ void alm::gfx::DeviceManager::Shutdown()
 		m_Device->ReleaseImmediately(std::move(timerQuery));
 	}
 
+	m_GpuSceneBuffers.reset();
 	m_UploadBuffer.reset();
 	m_CommonResources.reset();
 	m_TextureCache.reset();
@@ -155,16 +158,20 @@ void alm::gfx::DeviceManager::Render(std::function<void(void)> cb)
 			m_UploadBuffer->OnFrameCompleted(completedFrameIdx);
 		}
 
-		// Begin time query
+		// Begin actions
 		{
-			m_FrameTimers[m_NextTimerToUse]->Reset();
-
 			auto& commandList = m_BeginCommandLists[GetFrameModuleIndex()];
-			
 			commandList->Open();
-			commandList->BeginTimerQuery(m_FrameTimers[m_NextTimerToUse].get());
-			commandList->Close();
 
+			// Timer query
+			m_FrameTimers[m_NextTimerToUse]->Reset();
+			commandList->BeginTimerQuery(m_FrameTimers[m_NextTimerToUse].get());
+			
+			// Update gpu buffers. TODO: Use a dedicated upload commandlist?
+			m_GpuSceneBuffers->UpdateGpuBuffers(commandList.get());
+
+			// Done
+			commandList->Close();
 			GetDevice()->ExecuteCommandList(commandList.get(), alm::rhi::QueueType::Graphics);
 		}
 
@@ -179,17 +186,18 @@ void alm::gfx::DeviceManager::Render(std::function<void(void)> cb)
 			ImGui::RenderPlatformWindowsDefault();
 		}
 
-		// End time query
+		// End actions
 		{
 			auto& commandList = m_EndCommandLists[GetFrameModuleIndex()];
-
 			commandList->Open();
-			commandList->EndTimerQuery(m_FrameTimers[m_NextTimerToUse].get());
-			commandList->Close();
 
-			GetDevice()->ExecuteCommandList(commandList.get(), alm::rhi::QueueType::Graphics);
-			
+			// End time query
+			commandList->EndTimerQuery(m_FrameTimers[m_NextTimerToUse].get());
 			m_NextTimerToUse = (m_NextTimerToUse + 1) % QueuedFramesCount;
+
+			// Done
+			commandList->Close();
+			GetDevice()->ExecuteCommandList(commandList.get(), alm::rhi::QueueType::Graphics);
 		}
 
 		bool presentOk = Present();

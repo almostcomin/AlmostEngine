@@ -8,6 +8,7 @@ namespace alm::gfx
 {
 
 struct VisibleSetContext;
+class GpuSceneBuffers;
 
 struct RenderableDrawInfo
 {
@@ -24,7 +25,7 @@ class IRenderable
 {
 public:
     virtual ~IRenderable() = default;
-    virtual void CollectDrawInfos(const VisibleSetContext& context, std::vector<RenderableDrawInfo>& out) const = 0;
+    virtual void CollectDrawInfos(const VisibleSetContext& context, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const = 0;
 };
 
 } // namespace alm::gfx

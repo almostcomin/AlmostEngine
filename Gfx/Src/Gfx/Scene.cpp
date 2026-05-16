@@ -8,12 +8,15 @@
 #include "Gfx/DataUploader.h"
 #include "Gfx/Material.h"
 #include "Gfx/SceneLights.h"
+#include "Gfx/RenderView.h"
+#include "Gfx/GpuSceneBuffers.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 #include "Core/unique_vector.h"
 #include <cassert>
 
-alm::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceManager }
+alm::gfx::Scene::Scene(const std::string& name, DeviceManager* deviceManager) : 
+	m_Name{ name }, m_ResetGpuBuffers{ false }, m_DeviceManager{ deviceManager }
 {
 	m_AmbientParams = AmbientParams{
 		.SkyColor = float3{ 0.17f, 0.37f, 0.65f },
@@ -28,182 +31,33 @@ alm::gfx::Scene::Scene(DeviceManager* deviceManager) : m_DeviceManager{ deviceMa
 		.AngularSizeDeg = 0.53f,
 		.Color = float3{ 1.f, 1.f, 1.f },
 	};
+
+	m_GpuBuffersHandle = m_DeviceManager->GetGpuSceneBuffers()->RequestSceneHandle(m_Name);
+	m_SceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>(m_GpuBuffersHandle, m_DeviceManager->GetGpuSceneBuffers());
 }
 
 alm::gfx::Scene::~Scene()
 {
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
-
 	m_SceneGraph.reset();
+	m_DeviceManager->GetGpuSceneBuffers()->ReleaseSceneHandle(m_GpuBuffersHandle);
 }
 
-void alm::gfx::Scene::SetSceneGraph(unique<SceneGraph>&& graph)
+void alm::gfx::Scene::AttachRenderView(alm::weak<RenderView> renderView)
 {
-	m_SceneGraph = std::move(graph);
-	if (!m_SceneGraph)
-		return;
-
-	RefreshSceneGraph();
+	assert(std::ranges::find(m_RenderViews, renderView) == m_RenderViews.end());
+	m_RenderViews.push_back(renderView);
 }
 
-void alm::gfx::Scene::RefreshSceneGraph()
+void alm::gfx::Scene::DetachRenderView(alm::weak<RenderView> renderView)
 {
-	auto* dataUploader = m_DeviceManager->GetDataUploader();
-
-	// Release old data
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MaterialsBuffer));
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_MeshesBuffer));
-	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(m_InstancesBuffer));
-
-	m_SceneGraph->Refresh(); // Make sure it is up to date
-
-	// Fill instances buffer
-	if (!m_SceneGraph->GetMeshInstances().empty())
+	auto it = std::ranges::find(m_RenderViews, renderView);
+	if (it != m_RenderViews.end())
 	{
-		const auto& meshInstances = m_SceneGraph->GetMeshInstances();
-
-		rhi::BufferDesc desc{
-			.memoryAccess = rhi::MemoryAccess::Default,
-			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-			.sizeBytes = meshInstances.storage_size() * sizeof(interop::InstanceData),
-			.format = rhi::Format::UNKNOWN,
-			.stride = sizeof(interop::InstanceData) };
-
-		m_InstancesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Instances Buffer");
-
-		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
-		auto* instanceDataPtr = (interop::InstanceData*)uploadTicket->GetPtr();
-		for(auto it = meshInstances.begin_all(); it != meshInstances.end_all(); it++)
-		{
-			*instanceDataPtr = {};
-			if (it.valid_index())
-			{
-				const auto* meshInstance = *it;
-
-				instanceDataPtr->modelMatrix = meshInstance->GetNode()->GetWorldTransform();
-				instanceDataPtr->inverseModelMatrix = glm::inverse(instanceDataPtr->modelMatrix);
-			}
-			instanceDataPtr++;
-		}
-		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_InstancesBuffer.get_weak(),
-			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
-		uploadResult->Wait();
+		fast_erase(m_RenderViews, it);
 	}
-
-	// Fill meshes buffer
-	if (!m_SceneGraph->GetMeshes().empty())
+	else
 	{
-		const auto& meshes = m_SceneGraph->GetMeshes();
-
-		assert(!meshes.empty());
-		rhi::BufferDesc desc{
-			.memoryAccess = rhi::MemoryAccess::Default,
-			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-			.sizeBytes = meshes.storage_size() * sizeof(interop::MeshData),
-			.format = rhi::Format::UNKNOWN,
-			.stride = sizeof(interop::MeshData) };
-
-		m_MeshesBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Meshes Buffer");
-
-		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
-		auto* meshDataPtr = (interop::MeshData*)uploadTicket->GetPtr();
-		for (auto it = meshes.begin_all(); it != meshes.end_all(); it++)
-		{
-			*meshDataPtr = {};
-			if (it.valid_index())
-			{
-				const alm::gfx::Mesh* mesh = it->get();
-
-				meshDataPtr->indexBufferDI = mesh->GetIndexBuffer()->GetReadOnlyView();
-				meshDataPtr->indexSize = mesh->GetIndexSize();
-				meshDataPtr->indexOffsetBytes = 0;
-				meshDataPtr->vertexBufferDI = mesh->GetVertexBuffer()->GetReadOnlyView();
-				meshDataPtr->vertexBufferOffsetBytes = 0;
-				const auto& vertexFormat = mesh->GetVertexFormat();
-				meshDataPtr->vertexStride = vertexFormat.VertexStride;
-				meshDataPtr->vertexPositionOffset = vertexFormat.PositionOffset;
-				meshDataPtr->vertexNormalOffset = vertexFormat.NormalOffset;
-				meshDataPtr->vertexTangetOffset = vertexFormat.TangentOffset;
-				meshDataPtr->vertexTexCoord0Offset = vertexFormat.TexCoord0Offset;
-				meshDataPtr->vertexTexCoord1Offset = vertexFormat.TexCoord1Offset;
-				meshDataPtr->vertexColorOffset = vertexFormat.ColorOffset;
-				meshDataPtr->materialIdx = m_SceneGraph->GetMaterialIndex(mesh);
-			}
-			meshDataPtr++;
-		}
-
-		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MeshesBuffer.get_weak(),
-			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
-		uploadResult->Wait();
-	} // meshes buffer
-
-	// Materials buffer
-	if (!m_SceneGraph->GetMaterials().empty())
-	{
-		const auto& materials = m_SceneGraph->GetMaterials();
-
-		rhi::BufferDesc desc{
-			.memoryAccess = rhi::MemoryAccess::Default,
-			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-			.sizeBytes = materials.storage_size() * sizeof(interop::MaterialData),
-			.format = rhi::Format::UNKNOWN,
-			.stride = sizeof(interop::MaterialData) };
-
-		m_MaterialsBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COPY_DST, "Scene Materials Buffer");
-
-		auto uploadTicket = dataUploader->RequestUploadTicket(desc);
-		auto* matDataPtr = (interop::MaterialData*)uploadTicket->GetPtr();
-
-		for (auto it = materials.begin_all(); it != materials.end_all(); it++)
-		{
-			*matDataPtr = {};
-			if (it.valid_index())
-			{
-				const alm::gfx::Material* mat = it->get();
-				if (mat->GetBaseColorTextureHandle())
-				{
-					matDataPtr->baseColorTextureDI = mat->GetBaseColorTextureHandle()->GetSampledView();
-				}
-				if (mat->GetEmissiveTextureHandle())
-				{
-					matDataPtr->emissiveTextureDI = mat->GetEmissiveTextureHandle()->GetSampledView();
-				}
-				if (mat->GetMetalRoughTextureHandle())
-				{
-					matDataPtr->metalRoughTextureDI = mat->GetMetalRoughTextureHandle()->GetSampledView();
-				}
-				if (mat->GetNormalTextureHandle())
-				{
-					matDataPtr->normalTextureDI = mat->GetNormalTextureHandle()->GetSampledView();
-				}
-				if (mat->GetOcclusionTextureHandle())
-				{
-					matDataPtr->occlusionTextureDI = mat->GetOcclusionTextureHandle()->GetSampledView();
-				}
-
-				matDataPtr->normalScale = mat->GetNormalTextureScale();
-				matDataPtr->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
-				matDataPtr->emissiveColor = mat->GetEmissiveColor();
-				matDataPtr->occlusion = mat->GetOcclusionStrengh();
-				matDataPtr->metalness = mat->GetMetallicFactor();
-				matDataPtr->roughness = mat->GetRoughnessFactor();
-				matDataPtr->alphaCutoff = mat->GetAlphaCutoff();
-			}
-			matDataPtr++;
-		}
-		auto uploadResult = dataUploader->CommitUploadBufferTicket(std::move(*uploadTicket), m_MaterialsBuffer.get_weak(),
-			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
-		uploadResult->Wait();
-	} // material buffer
-}
-
-void alm::gfx::Scene::Update()
-{
-	if (m_SceneGraph)
-	{
-		m_SceneGraph->Refresh();
+		LOG_WARNING("Trying to detach non attached render view '{}'", renderView->GetName());
 	}
 }
 
@@ -218,15 +72,14 @@ const alm::math::aabox3f alm::gfx::Scene::GetWorldBounds(SceneContentType type) 
 
 alm::rhi::BufferReadOnlyView alm::gfx::Scene::GetInstancesBufferView() const
 {
-	return m_InstancesBuffer ? m_InstancesBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
+	return m_DeviceManager->GetGpuSceneBuffers()->GetInstancesBufferView(m_GpuBuffersHandle);
 }
 
-alm::rhi::BufferReadOnlyView alm::gfx::Scene::GetMeshesBufferView() const
+void alm::gfx::Scene::Update()
 {
-	return m_MeshesBuffer ? m_MeshesBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
-}
-
-alm::rhi::BufferReadOnlyView alm::gfx::Scene::GetMaterialsBufferView() const
-{
-	return m_MaterialsBuffer ? m_MaterialsBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
+	if (m_SceneGraph)
+	{
+		// TODO: Maybe we should merge results to allow multiple updated on single draw.
+		m_SceneGraph->Update();
+	}
 }

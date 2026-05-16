@@ -19,7 +19,8 @@ public:
 	~UploadBuffer();
 
 	template<typename T>
-	std::pair<T*, uint64_t> RequestSpaceForBufferDataUpload() {
+	std::pair<T*, uint64_t> RequestSpaceForBufferDataUpload() 
+	{
 		auto result = RequestSpaceForBufferDataUpload(sizeof(T));
 		return std::make_pair(static_cast<T*>(result.first), result.second);
 	}

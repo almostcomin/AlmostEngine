@@ -42,8 +42,6 @@ public:
 
 	std::shared_ptr<LoadedTexture> Get(const std::string& id);
 
-	//ls::TextureOwner Release(
-
 	LoadResult Load(const std::string& path, Flags flags);
 	LoadResult Load(const alm::WeakBlob& blob, Flags flags = Flags::None, bool isDDS = false, const std::string& id = MakeUniqueStringId());
 

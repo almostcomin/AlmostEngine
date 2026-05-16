@@ -2,11 +2,11 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
+#include "Gfx/GpuSceneBuffers.h"
 
 alm::gfx::MeshInstance::MeshInstance(std::shared_ptr<alm::gfx::Mesh> mesh) :
 	m_Mesh{ mesh },
 	m_MeshSceneIndex{ UINT32_MAX },
-	m_MaterialSceneIndex{ UINT32_MAX },
 	m_InstanceFlags{ Flags::Default }
 {}
 
@@ -38,7 +38,7 @@ alm::gfx::SceneContentFlags alm::gfx::MeshInstance::GetContentFlags() const
 	return flags;
 }
 
-void alm::gfx::MeshInstance::CollectDrawInfos(const VisibleSetContext&, std::vector<RenderableDrawInfo>& out) const
+void alm::gfx::MeshInstance::CollectDrawInfos(const VisibleSetContext&, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const
 {
 	out.emplace_back(
 		m_Mesh->GetMaterial()->GetDomain(),
@@ -46,7 +46,7 @@ void alm::gfx::MeshInstance::CollectDrawInfos(const VisibleSetContext&, std::vec
 		(uintptr_t)(m_Mesh.get()), // batch key
 		GetLeafSceneIndex(),
 		m_MeshSceneIndex,
-		m_MaterialSceneIndex,
+		gpuSceneBuffers->GetMaterialIndexFromMeshIdx(m_MeshSceneIndex),
 		m_Mesh->GetIndexCount()
 	);
 }

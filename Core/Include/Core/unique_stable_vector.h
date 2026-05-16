@@ -2,13 +2,17 @@
 
 #include <array>
 
+// TODO:
+// m_lookup keeps a copy of the key. Fine for small T (pointers, handles). If T becomes large,
+// switch to a pointer-keyed map with transparent hashing over m_storage.
+// https://trello.com/c/yFfs4ElR/4-usat-t-en-lugar-de-t-como-key-en-el-lookup-del-uniquestablevector
+
 namespace alm
 {
 	template <typename T, size_t MaxElements, typename Hash = std::hash<T>>
 	struct unique_stable_vector
 	{
 		static constexpr size_t max_elements = MaxElements;
-		using index_type = size_t;
 
 		template<bool Const>
 		struct Iterator
@@ -18,21 +22,26 @@ namespace alm
 			using value_type = std::conditional_t<Const, const T, T>;
 			using pointer = value_type*;
 			using reference = value_type&;
+			using storage_pointer = std::conditional_t<Const, const std::byte*, std::byte*>;
 
-			Iterator(pointer slots, const uint8_t* occupied, size_t pos, size_t end)
-				: m_slots(slots), m_occupied(occupied), m_pos(pos), m_end(end)
+			Iterator(storage_pointer storage, const uint8_t* occupied, size_t pos, size_t end)
+				: m_storage(storage), m_occupied(occupied), m_pos(pos), m_end(end)
 			{
 				skipToNextValid();
 			}
 
 			reference operator*() const
 			{
-				return m_slots[m_pos];
+				assert(valid());
+				return *std::launder(
+					reinterpret_cast<pointer>(&m_storage[m_pos * sizeof(T)]));
 			}
 
 			pointer operator->() const
 			{
-				return &m_slots[m_pos];
+				assert(valid());
+				return std::launder(
+					reinterpret_cast<pointer>(&m_storage[m_pos * sizeof(T)]));
 			}
 
 			Iterator& operator++()
@@ -51,12 +60,22 @@ namespace alm
 
 			friend bool operator==(const Iterator& a, const Iterator& b)
 			{
-				return a.m_pos == b.m_pos;
+				return a.m_pos == b.m_pos && a.m_storage == b.m_storage;
 			}
 
 			friend bool operator!=(const Iterator& a, const Iterator& b)
 			{
-				return a.m_pos != b.m_pos;
+				return a.m_pos != b.m_pos || a.m_storage != b.m_storage;
+			}
+
+			bool valid() const noexcept
+			{
+				return m_occupied[m_pos];
+			}
+
+			size_t get_index() const noexcept
+			{
+				return m_pos;
 			}
 
 		private:
@@ -66,7 +85,7 @@ namespace alm
 					++m_pos;
 			}
 
-			pointer m_slots;
+			storage_pointer m_storage;
 			const uint8_t* m_occupied;
 			size_t m_pos;
 			size_t m_end;
@@ -80,21 +99,38 @@ namespace alm
 			using value_type = std::conditional_t<Const, const T, T>;
 			using pointer = value_type*;
 			using reference = value_type&;
+			using storage_pointer = std::conditional_t<Const, const std::byte*, std::byte*>;
 
-			AllIterator(pointer slots, const uint8_t* occupied, size_t pos, size_t end)
-				: m_slots(slots), m_occupied(occupied), m_pos(pos), m_end(end) {
+			AllIterator(storage_pointer storage, const uint8_t* occupied, size_t pos, size_t end)
+				: m_storage(storage), m_occupied(occupied), m_pos(pos), m_end(end) {
 			}
 
-			reference operator*() const { return m_slots[m_pos]; }
-			pointer operator->() const { return &m_slots[m_pos]; }
+			reference operator*() const
+			{
+				assert(valid());
+				return *std::launder(
+					reinterpret_cast<pointer>(&m_storage[m_pos * sizeof(T)]));
+			}
+
+			pointer operator->() const
+			{
+				return std::launder(
+					reinterpret_cast<pointer>(&m_storage[m_pos * sizeof(T)]));
+			}
 
 			AllIterator& operator++() { ++m_pos; return *this; }
 			AllIterator operator++(int) { AllIterator tmp = *this; ++(*this); return tmp; }
 
-			friend bool operator==(const AllIterator& a, const AllIterator& b) { return a.m_pos == b.m_pos; }
-			friend bool operator!=(const AllIterator& a, const AllIterator& b) { return a.m_pos != b.m_pos; }
+			friend bool operator==(const AllIterator& a, const AllIterator& b)
+			{
+				return a.m_pos == b.m_pos && a.m_storage == b.m_storage;
+			}
+			friend bool operator!=(const AllIterator& a, const AllIterator& b)
+			{
+				return a.m_pos != b.m_pos || a.m_storage != b.m_storage;
+			}
 
-			bool valid_index() const noexcept
+			bool valid() const noexcept
 			{
 				return m_occupied[m_pos];
 			}
@@ -105,7 +141,7 @@ namespace alm
 			}
 
 		private:
-			pointer m_slots;
+			storage_pointer m_storage;
 			const uint8_t* m_occupied;
 			size_t m_pos;
 			size_t m_end;
@@ -116,24 +152,109 @@ namespace alm
 		using all_iterator = AllIterator<false>;
 		using const_all_iterator = AllIterator<true>;
 
+		unique_stable_vector() = default;
+
+		unique_stable_vector(const unique_stable_vector& other)
+		{
+			for (size_t i = 0; i < other.m_end; ++i)
+			{
+				if (other.m_occupied[i])
+				{
+					construct_at(i, *other.ptr(i));
+					m_lookup.emplace(*ptr(i), i);
+				}
+			}
+			m_firstFree = other.m_firstFree;
+			m_end = other.m_end;
+			m_size = other.m_size;
+		}
+
+		unique_stable_vector(unique_stable_vector&& other)
+		{
+			for (size_t i = 0; i < other.m_end; ++i)
+			{
+				if (other.m_occupied[i])
+				{
+					construct_at(i, std::move(*other.ptr(i)));
+					m_lookup.emplace(*ptr(i), i);
+				}
+			}
+			m_firstFree = other.m_firstFree;
+			m_end = other.m_end;
+			m_size = other.m_size;
+
+			other.clear();
+		}
+
+		~unique_stable_vector()
+		{
+			clear();
+		}
+
+		unique_stable_vector& operator=(const unique_stable_vector& other)
+		{
+			if (this == &other)
+				return *this;
+
+			clear();
+
+			for (size_t i = 0; i < other.m_end; ++i)
+			{
+				if (other.m_occupied[i])
+				{
+					construct_at(i, *other.ptr(i));
+					m_lookup.emplace(*ptr(i), i);
+				}
+			}
+			m_firstFree = other.m_firstFree;
+			m_end = other.m_end;
+			m_size = other.m_size;
+
+			return *this;
+		}
+
+		unique_stable_vector& operator=(unique_stable_vector&& other)
+		{
+			if (this == &other)
+				return *this;
+
+			clear();
+
+			for (size_t i = 0; i < other.m_end; ++i)
+			{
+				if (other.m_occupied[i])
+				{
+					construct_at(i, std::move(*other.ptr(i)));
+					m_lookup.emplace(*ptr(i), i);
+				}
+			}
+			m_firstFree = other.m_firstFree;
+			m_end = other.m_end;
+			m_size = other.m_size;
+
+			other.clear();
+
+			return *this;
+		}
+
 		iterator begin() 
 		{
-			return iterator(m_slots.data(), m_occupied.data(), 0, m_end);
+			return iterator(m_storage, m_occupied.data(), 0, m_end);
 		}
 
 		iterator end()
 		{
-			return iterator(m_slots.data(), m_occupied.data(), m_end, m_end);
+			return iterator(m_storage, m_occupied.data(), m_end, m_end);
 		}
 
 		const_iterator begin() const
 		{
-			return const_iterator(m_slots.data(), m_occupied.data(), 0, m_end);
+			return const_iterator(m_storage, m_occupied.data(), 0, m_end);
 		}
 
 		const_iterator end() const
 		{
-			return const_iterator(m_slots.data(), m_occupied.data(), m_end, m_end);
+			return const_iterator(m_storage, m_occupied.data(), m_end, m_end);
 		}
 
 		const_iterator cbegin() const { return begin(); }
@@ -141,36 +262,29 @@ namespace alm
 
 		all_iterator begin_all()
 		{
-			return all_iterator(m_slots.data(), m_occupied.data(), 0, m_end);
+			return all_iterator(m_storage, m_occupied.data(), 0, m_end);
 		}
 
 		all_iterator end_all()
 		{
-			return all_iterator(m_slots.data(), m_occupied.data(), m_end, m_end);
+			return all_iterator(m_storage, m_occupied.data(), m_end, m_end);
 		}
 
 		const_all_iterator begin_all() const
 		{
-			return const_all_iterator(m_slots.data(), m_occupied.data(), 0, m_end);
+			return const_all_iterator(m_storage, m_occupied.data(), 0, m_end);
 		}
 
 		const_all_iterator end_all() const
 		{
-			return const_all_iterator(m_slots.data(), m_occupied.data(), m_end, m_end);
+			return const_all_iterator(m_storage, m_occupied.data(), m_end, m_end);
 		}
 
 		const_all_iterator cbegin_all() const { return begin_all(); }
 		const_all_iterator cend_all() const { return end_all(); }
 
-		unique_stable_vector() = default;
-
-		~unique_stable_vector()
-		{
-			clear();
-		}
-
 		// Insert value, returns [index, blue=inserted, false=not_inserted]
-		std::pair<index_type, bool> insert(const T& value) noexcept
+		std::pair<size_t, bool> insert(const T& value)
 		{
 			assert(m_size < max_elements);
 
@@ -178,20 +292,18 @@ namespace alm
 			if (it != m_lookup.end())
 				return { it->second, false };
 
-			const index_type slot = m_firstFree;
-
-			new (&m_slots[slot]) T(value);
-			m_occupied[slot] = true;
+			const size_t slot = m_firstFree;
+			construct_at(slot, value);
 			m_end = std::max(m_end, slot + 1);
 			++m_size;
 
-			m_lookup.emplace(value, slot);
+			m_lookup.emplace(*ptr(slot), slot);
 			findNextFree();
 
 			return { slot, true };
 		}
 
-		std::pair<index_type, bool> insert(T&& value) noexcept
+		std::pair<size_t, bool> insert(T&& value)
 		{
 			assert(m_size < max_elements);
 
@@ -199,52 +311,53 @@ namespace alm
 			if (it != m_lookup.end())
 				return { it->second, false };
 
-			const index_type slot = m_firstFree;
-			new (&m_slots[slot]) T(std::move(value));
+			const size_t slot = m_firstFree;
+			construct_at(slot, std::move(value));
 			m_end = std::max(m_end, slot + 1);
-			m_occupied[slot] = true;
 			++m_size;
 
-			m_lookup.emplace(m_slots[slot], slot);
+			m_lookup.emplace(*ptr(slot), slot);
 			findNextFree();
 
 			return { slot, true };
 		}
 
-		// Borrar por índice
-		void erase(index_type index) noexcept
+		void erase(size_t index)
 		{
 			assert(index < max_elements);
 			assert(m_occupied[index]);
 
-			if constexpr (!std::is_trivially_destructible_v<T>)
-				m_slots[index].~T();
-
-			m_lookup.erase(m_slots[index]);
-			m_occupied[index] = false;
-			m_firstFree = std::min(m_firstFree, index);
+			m_lookup.erase(*ptr(index));
+			destroy_at(index);
 			--m_size;
+			m_firstFree = std::min(m_firstFree, index);
 			findNewEnd();
 		}
 
-		bool erase(const T& value) noexcept
+		bool erase(const T& value)
 		{
 			auto it = m_lookup.find(value);
 			if (it == m_lookup.end())
 				return false;
 
-			erase(it->second);
+			destroy_at(it->second);
+			--m_size;
+			m_firstFree = std::min(m_firstFree, it->second);
+
+			m_lookup.erase(it);
+			findNewEnd();
+
 			return true;
 		}
 
-		void clear() noexcept 
+		void clear() 
 		{
-			for (size_t i = 0; i < max_elements; ++i) 
+			if constexpr (!std::is_trivially_destructible_v<T>)
 			{
-				if (m_occupied[i]) 
+				for (size_t i = 0; i < m_end; ++i)
 				{
-					if constexpr (!std::is_trivially_destructible_v<T>)
-						m_slots[i].~T();
+					if (m_occupied[i])
+						std::destroy_at(ptr(i));
 				}
 			}
 			m_lookup.clear();
@@ -254,29 +367,31 @@ namespace alm
 			m_size = 0;
 		}
 
-		T* get(index_type index) noexcept
+		T* get(size_t index) noexcept
 		{
-			return (index < max_elements && m_occupied[index]) ? &m_slots[index] : nullptr;
+			return (index < max_elements && m_occupied[index]) ?
+				ptr(index) : nullptr;
 		}
 
-		const T* get(index_type index) const noexcept 
+		const T* get(size_t index) const noexcept
 		{
-			return (index < max_elements && m_occupied[index]) ? &m_slots[index] : nullptr;
+			return (index < max_elements && m_occupied[index]) ?
+				ptr(index) : nullptr;
 		}
 
-		T& operator[](index_type index) 
-		{
-			assert(m_occupied[index]);
-			return m_slots[index];
-		}
-
-		const T& operator[](index_type index) const 
+		T& operator[](size_t index) noexcept
 		{
 			assert(m_occupied[index]);
-			return m_slots[index];
+			return *ptr(index);
 		}
 
-		index_type find(const T& value) const noexcept 
+		const T& operator[](size_t index) const noexcept
+		{
+			assert(m_occupied[index]);
+			return *ptr(index);
+		}
+
+		size_t find(const T& value) const noexcept
 		{
 			auto it = m_lookup.find(value);
 			return (it != m_lookup.end()) ? it->second : max_elements;
@@ -287,7 +402,7 @@ namespace alm
 			return m_lookup.find(value) != m_lookup.end();
 		}
 
-		bool valid_index(index_type index) const noexcept
+		bool valid_index(size_t index) const noexcept
 		{
 			return (index < max_elements && m_occupied[index]);
 		}
@@ -299,6 +414,35 @@ namespace alm
 		bool full() const noexcept { return m_size >= max_elements; }
 
 	private:
+
+		T* ptr(size_t i)
+		{
+			return std::launder(
+				reinterpret_cast<T*>(&m_storage[i * sizeof(T)])
+			);
+		}
+
+		const T* ptr(size_t i) const
+		{
+			return std::launder(
+				reinterpret_cast<const T*>(&m_storage[i * sizeof(T)])
+			);
+		}
+
+		template<typename U>
+		void construct_at(size_t i, U&& value)
+		{
+			assert(!m_occupied[i]);
+			new (&m_storage[i * sizeof(T)]) T(std::forward<U>(value));
+			m_occupied[i] = true;
+		}
+
+		void destroy_at(size_t i)
+		{
+			assert(m_occupied[i]);
+			std::destroy_at(ptr(i));
+			m_occupied[i] = false;
+		}
 
 		void findNextFree()
 		{
@@ -326,9 +470,9 @@ namespace alm
 				--m_end;
 		}
 
-		std::array<T, max_elements> m_slots;
+		alignas(T) std::byte m_storage[max_elements * sizeof(T)];
 		std::array<uint8_t, max_elements> m_occupied = {};
-		std::unordered_map<T, index_type, Hash> m_lookup;
+		std::unordered_map<T, size_t, Hash> m_lookup;
 		size_t m_firstFree = 0;
 		size_t m_end = 0;
 		size_t m_size = 0;

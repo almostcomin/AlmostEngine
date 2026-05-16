@@ -12,6 +12,8 @@ class SceneHeightmap : public SceneGraphLeaf, public IRenderable
 {
 public:
 
+	void SetHeightmap(std::shared_ptr<Heightmap> heightmap) { m_Heightmap = heightmap; }
+
 	// SceneGraphLeaf interface
 	bool HasBounds() const override { return m_Heightmap ? true : false; }
 	const alm::math::aabox3f& GetBounds() const override;
@@ -19,7 +21,7 @@ public:
 	Type GetType() const override { return SceneGraphLeaf::Type::Heightmap; }
 
 	// IRenderable interface
-	void CollectDrawInfos(const VisibleSetContext& context, std::vector<RenderableDrawInfo>& out) const override;
+	void CollectDrawInfos(const VisibleSetContext& context, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const override;
 
 private:
 

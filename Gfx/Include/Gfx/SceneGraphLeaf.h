@@ -27,7 +27,9 @@ public:
 		DirectionalLight,
 		PointLight,
 		SpotLight,
-		Heightmap
+		Heightmap,
+
+		_Size
 	};
 
 	SceneGraphLeaf() = default;
@@ -39,8 +41,13 @@ public:
 	virtual Type GetType() const = 0;
 
 	void OnBoundsChanged();
+	void OnContentChanged();
+
+	void SetLeafSceneIndex(uint32_t idx) { m_SceneIndex = idx; }
 
 	alm::weak<SceneGraphNode> GetNode() const { return m_Node; }
+	const float4x4& GetWorldTransform() const;
+
 	uint32_t GetLeafSceneIndex() const { return m_SceneIndex; }
 
 private:

@@ -5,18 +5,25 @@
 #include "Core/Math/aabox.h"
 #include "RHI/Buffer.h"
 #include "Gfx/SceneContentFlags.h"
+#include "Gfx/GpuSceneBuffersHandle.h"
 #include <map>
 
-namespace alm::gfx
+namespace alm::rhi
 {
-	class DeviceManager;
+	class ICommandList;
 }
 
 namespace alm::gfx
 {
+	class DeviceManager;
 	class SceneGraph;
 	class MeshInstance;
 	class Mesh;
+	class RenderView;
+}
+
+namespace alm::gfx
+{
 
 	class Scene : private alm::noncopyable_nonmovable
 	{
@@ -40,12 +47,13 @@ namespace alm::gfx
 
 	public:
 
-		Scene(DeviceManager* deviceManager);
+		Scene(const std::string& name, DeviceManager* deviceManager);
 		~Scene();
 
-		void SetSceneGraph(unique<SceneGraph>&& graph);
-		weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
-		void RefreshSceneGraph();
+		alm::weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
+		
+		void AttachRenderView(alm::weak<RenderView> renderView);
+		void DetachRenderView(alm::weak<RenderView> renderView);
 
 		const math::aabox3f GetWorldBounds(SceneContentType type) const;
 
@@ -56,23 +64,24 @@ namespace alm::gfx
 		void SetSunParams(const SunParams& v) { m_SunParams = v; }
 
 		rhi::BufferReadOnlyView GetInstancesBufferView() const;
-		rhi::BufferReadOnlyView GetMeshesBufferView() const;
-		rhi::BufferReadOnlyView GetMaterialsBufferView() const;
 
 		// Updates scene graph
 		void Update();
 
+		void ResetGpuBuffers() { m_ResetGpuBuffers = true; }
+
 	private:
 
-		unique<SceneGraph> m_SceneGraph;
-		
+		alm::unique<SceneGraph> m_SceneGraph;		
+		std::vector<alm::weak<RenderView>> m_RenderViews;
+
 		AmbientParams m_AmbientParams;
 		SunParams m_SunParams;
 
-		rhi::BufferOwner m_InstancesBuffer;		// interop::InstanceData
-		rhi::BufferOwner m_MeshesBuffer;		// interop::MeshData
-		rhi::BufferOwner m_MaterialsBuffer;		// interop::MaterialData
+		GpuSceneBuffersHandle m_GpuBuffersHandle;
+		bool m_ResetGpuBuffers;
 
+		std::string m_Name;
 		DeviceManager* m_DeviceManager;
 	};
 

@@ -15,6 +15,7 @@
 #include "Gfx/RenderGraph.h"
 #include "Gfx/Renderable.h"
 #include "Gfx/VisibleSetContext.h"
+#include "Gfx/GpuSceneBuffers.h"
 
 alm::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	RenderView{ nullptr, deviceManager, debugName }
@@ -73,7 +74,15 @@ void alm::gfx::RenderView::SetScene(alm::weak<Scene> scene)
 	m_PointLightsVisibleBuffer.Reset();
 	m_SpotLightsVisibleBuffer.Reset();
 
+	if (m_Scene)
+	{
+		m_Scene->DetachRenderView(weak_from_this());
+	}
 	m_Scene = scene;
+	if (m_Scene)
+	{
+		m_Scene->AttachRenderView(weak_from_this());
+	}
 
 	m_RenderGraph->OnSceneChanged();
 }
@@ -272,9 +281,11 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		}
 
 		// Data buffers
-		sceneShaderConstant->instanceBufferDI = m_Scene->GetInstancesBufferView();
-		sceneShaderConstant->meshesBufferDI = m_Scene->GetMeshesBufferView();
-		sceneShaderConstant->materialsBufferDI = m_Scene->GetMaterialsBufferView();
+		const alm::gfx::GpuSceneBuffers* gpuSceneBuffers = m_DeviceManager->GetGpuSceneBuffers();
+
+		sceneShaderConstant->instanceBufferDI = m_Scene->GetInstancesBufferView();		
+		sceneShaderConstant->meshesBufferDI = gpuSceneBuffers->GetMeshesBufferView();
+		sceneShaderConstant->materialsBufferDI = gpuSceneBuffers->GetMaterialsBufferView();
 	}
 
 	m_SceneConstants.Unmap();
@@ -605,6 +616,7 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 	RenderSet& out_renderSet, math::aabox3f* opt_outPrimaryBounds,  SceneContentType secondaryType, math::aabox3f* opt_outSecondaryBounds) const
 {
 	assert(HasRenderableCategory(primaryType));
+	const auto* gpuSceneBuffers = m_DeviceManager->GetGpuSceneBuffers();
 
 	out_renderSet.Elements.clear();
 
@@ -633,7 +645,7 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 					assert(renderable);
 
 					std::vector<RenderableDrawInfo> renderableDrawInfos;
-					renderable->CollectDrawInfos(context, renderableDrawInfos);
+					renderable->CollectDrawInfos(context, gpuSceneBuffers, renderableDrawInfos);
 					for (const RenderableDrawInfo& drawInfo : renderableDrawInfos)
 					{
 						drawInfos[(int)drawInfo.MaterialDomain][(int)drawInfo.CullMode].push_back(drawInfo);

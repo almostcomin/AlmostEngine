@@ -17,6 +17,7 @@ namespace alm::gfx
     class TextureCache;
     class CommonResources;
     class UploadBuffer;
+    class GpuSceneBuffers;
 }
 
 namespace alm::rhi
@@ -127,11 +128,12 @@ public:
 
     void Render(std::function<void(void)> cb);
 
-    alm::gfx::ShaderFactory* GetShaderFactory() { return m_ShaderFactory.get(); }
-    alm::gfx::DataUploader* GetDataUploader() { return m_DataUploader.get(); }
-    alm::gfx::TextureCache* GetTextureCache() { return m_TextureCache.get(); }
-    alm::gfx::CommonResources* GetCommonResources() { return m_CommonResources.get(); }
-    alm::gfx::UploadBuffer* GetUploadBuffer() { return m_UploadBuffer.get(); }
+    alm::gfx::ShaderFactory*        GetShaderFactory()          { return m_ShaderFactory.get(); }
+    alm::gfx::DataUploader*         GetDataUploader()           { return m_DataUploader.get(); }
+    alm::gfx::TextureCache*         GetTextureCache()           { return m_TextureCache.get(); }
+    alm::gfx::CommonResources*      GetCommonResources()        { return m_CommonResources.get(); }
+    alm::gfx::UploadBuffer*         GetUploadBuffer()           { return m_UploadBuffer.get(); }
+    alm::gfx::GpuSceneBuffers*      GetGpuSceneBuffers()        { return m_GpuSceneBuffers.get(); }
 
     uint64_t GetFrameIndex() const { return m_FrameIndex; }
     uint32_t GetSwapchainBufferCount() const { return m_SwapChainFramebuffers.size(); }
@@ -174,6 +176,7 @@ private:
     std::unique_ptr<alm::gfx::TextureCache> m_TextureCache;
     std::unique_ptr<alm::gfx::CommonResources> m_CommonResources;
     std::unique_ptr<alm::gfx::UploadBuffer> m_UploadBuffer;
+    std::unique_ptr<alm::gfx::GpuSceneBuffers> m_GpuSceneBuffers;
 
     static const uint32_t QueuedFramesCount = 6;
     rhi::TimerQueryOwner m_FrameTimers[QueuedFramesCount];

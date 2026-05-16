@@ -29,6 +29,9 @@
 #include "Gfx/CommonResources.h"
 #include "Gfx/LoadedTexture.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/SceneHeigthmap.h"
+#include "Gfx/ImageHeightmapSource.h"
+#include "Gfx/Heightmap.h"
 #include "OutdoorsUI.h"
 
 class OutdoorsApp : public alm::fw::App
@@ -50,10 +53,6 @@ public:
 		m_CameraController.SetSpeed(1.f);
 		m_MainCamera->SetZNear(0.01f);
 
-		// Init scene graph
-		auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
-		m_Scene->SetSceneGraph(std::move(sceneGraph));
-
 		// Init earth sphere
 #if 0
 		{
@@ -73,6 +72,32 @@ public:
 			m_Scene->RefreshSceneGraph();
 		}
 #endif
+		// Init heightmap
+		{
+			// Data source
+			auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
+				alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
+			bool sourceOk = imageSource->Load("SpainHeightmap.png");
+			assert(sourceOk);
+
+			// Heightmap
+			auto heightmap = std::make_shared<alm::gfx::Heightmap>(imageSource);
+
+			// Leaf
+			auto sceneHeightmap = alm::make_unique_with_weak<alm::gfx::SceneHeightmap>();
+			sceneHeightmap->SetHeightmap(heightmap);
+
+			// Node
+			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
+			graphNode->SetName("Heightmap");
+			graphNode->SetLeaf(std::move(sceneHeightmap));
+			//graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation(kEarthPos));
+
+			// Attach to scene
+			auto sceneGraph = m_Scene->GetSceneGraph();
+			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
+		}
+
 		// Load file
 		{
 			std::string path = GetStartupArgString("load");
@@ -82,7 +107,6 @@ public:
 				if (importResult)
 				{
 					m_Scene->GetSceneGraph()->GetRoot()->AddChild(std::move(*importResult));
-					m_Scene->RefreshSceneGraph();
 				}
 			}
 		}

@@ -27,6 +27,8 @@ using double4x4 = glm::dmat4x4;
 constexpr float PI = glm::pi<float>();
 constexpr float PId = glm::pi<double>();
 
+inline const float4x4 float4x4_I{ 1.0f };
+
 namespace alm
 {
 

@@ -40,6 +40,8 @@
 #include "Core/Math/glm_config.h"
 #include "Core/static_vector.h"
 #include "Core/unique_vector.h"
+#include "Core/stable_vector.h"
+#include "Core/unique_stable_vector.h"
 #include "Core/Log.h"
 #include "Core/Math.h"
 #include "Core/Math/aabox.h"
