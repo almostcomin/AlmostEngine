@@ -16,6 +16,7 @@
 #include "Gfx/Renderable.h"
 #include "Gfx/VisibleSetContext.h"
 #include "Gfx/GpuSceneBuffers.h"
+#include "Gfx/HeightmapInstance.h"
 
 alm::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	RenderView{ nullptr, deviceManager, debugName }
@@ -63,6 +64,10 @@ alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* 
 
 alm::gfx::RenderView::~RenderView()
 {
+	if (m_Scene)
+	{
+		m_Scene->DetachRenderView(weak_from_this());
+	}
 	m_RenderGraph.reset();
 }
 
@@ -95,6 +100,20 @@ void alm::gfx::RenderView::SetCamera(std::shared_ptr<alm::gfx::Camera> camera)
 void alm::gfx::RenderView::SetOffscreenFrameBuffer(alm::rhi::FramebufferHandle frameBuffer)
 {
 	m_OffscreenFramebuffer = frameBuffer;
+}
+
+void alm::gfx::RenderView::RegisterHeightmap(const SceneHeightmap* sceneHeightmap)
+{
+	assert(m_HeightmapInstances.find(sceneHeightmap) == m_HeightmapInstances.end() &&
+		"Heightmap already registered");
+	m_HeightmapInstances.emplace(sceneHeightmap, std::make_unique<HeightmapInstance>(sceneHeightmap));
+}
+
+void alm::gfx::RenderView::UnregisterHeightmap(const SceneHeightmap* sceneHeightmap)
+{
+	assert(m_HeightmapInstances.find(sceneHeightmap) != m_HeightmapInstances.end() &&
+		"Heightmap not registered");
+	m_HeightmapInstances.erase(sceneHeightmap);
 }
 
 alm::rhi::FramebufferHandle alm::gfx::RenderView::GetFramebuffer()
@@ -166,9 +185,12 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 
 	UpdateCameraVisibleSet(beginCommandList);
 	m_ShadowmapValid = UpdateShadowmapData(beginCommandList);
+
 	UpdateDirLightsVisibleBuffer(beginCommandList);
 	UpdatePointLightsVisibleBuffer(beginCommandList);
 	UpdateSpotLightsVisibleBuffer(beginCommandList);
+
+	UpdateHeightmaps(beginCommandList);
 
 	UpdateSceneConstantBuffer();
 
@@ -306,7 +328,7 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 	GetVisibleSet(context, m_Camera->GetFrustum().get_planes(), SceneContentType::Meshes, m_CameraVisibleSet, &m_CameraVisibleBounds, 
 		SceneContentType::ShadowCasters, &m_ShadowCastersCameraVisibleBounds);
 
-	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList);
+	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList, "Camera Visible Buffer");
 }
 
 bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
@@ -318,7 +340,7 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	if (!m_CameraVisibleBounds.valid())
 		return false;
 
-	const alm::math::aabox3f& worldCasterBoundsF = m_Scene->GetWorldBounds(SceneContentType::ShadowCasters);
+	const alm::aabox3f& worldCasterBoundsF = m_Scene->GetWorldBounds(SceneContentType::ShadowCasters);
 	if (!worldCasterBoundsF.valid())
 		return false;  // no shadow casters in the scene
 
@@ -328,8 +350,8 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	const double3 sunDir = alm::ElevationAzimuthRadToDir(
 		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 	// Promote bounds to double for the precision-critical calculations
-	const math::aabox3d cameraVisibleBoundsD(m_CameraVisibleBounds);
-	const math::aabox3d worldCasterBoundsD(worldCasterBoundsF);
+	const aabox3d cameraVisibleBoundsD(m_CameraVisibleBounds);
+	const aabox3d worldCasterBoundsD(worldCasterBoundsF);
 
 	// --- 1. Sun view matrix (arbitrary sunPos, it will be recalculated later)
 
@@ -339,8 +361,8 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 	// --- 2. Construct shadow search volume in sun-space
 
-	math::aabox3d cameraBoundsSun = m_CameraVisibleBounds.transform(sunViewMatrix);
-	const math::aabox3d worldCasterBoundsSun = worldCasterBoundsD.transform(sunViewMatrix);
+	aabox3d cameraBoundsSun = m_CameraVisibleBounds.transform(sunViewMatrix);
+	const aabox3d worldCasterBoundsSun = worldCasterBoundsD.transform(sunViewMatrix);
 
 	// Extends Z towards the sun (max.z positive is behind the sun in sun-space) 
 	// so we cover any caster that  could be betwween sun and shadow receivers
@@ -352,23 +374,23 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 	// Note: searchPlanes go to GetVisibleSet which expects float planes (CPU culling doesn't need double precision,
 	// the bounds it tests have small magnitudes relative to camera frustum). If needed, can also be promoted to double.
-	const math::aabox3d searchVolumeWorldD = cameraBoundsSun.transform(glm::inverse(sunViewMatrix));
-	const math::aabox3f searchVolumeWorld(searchVolumeWorldD);  // back to float for the cull
-	const std::vector<math::plane3f> searchPlanes = searchVolumeWorld.buildClipPlanes();
+	const aabox3d searchVolumeWorldD = cameraBoundsSun.transform(glm::inverse(sunViewMatrix));
+	const aabox3f searchVolumeWorld(searchVolumeWorldD);  // back to float for the cull
+	const std::vector<plane3f> searchPlanes = searchVolumeWorld.buildClipPlanes();
 
 	VisibleSetContext context{ .View = this };
-	math::aabox3f casterBoundsForShadowMapF;
+	aabox3f casterBoundsForShadowMapF;
 	GetVisibleSet(context, searchPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, &casterBoundsForShadowMapF);
 	if (!casterBoundsForShadowMapF.valid())
 		return false;  // no casters cast shadow on visible receivers
 	// So casterBoundsForShadowMapF is the bbox of all the casters that cast shadow to something visible
 
 	// Promote back to double for the precision-critical Z calculations
-	const math::aabox3d casterBoundsForShadowMapD(casterBoundsForShadowMapF);
+	const aabox3d casterBoundsForShadowMapD(casterBoundsForShadowMapF);
 
 	// --- 4. Dimension shadowmap
 
-	math::aabox3d sceneBoundsSun = casterBoundsForShadowMapD.transform(sunViewMatrix);
+	aabox3d sceneBoundsSun = casterBoundsForShadowMapD.transform(sunViewMatrix);
 	// Sliding sun position to guarantee zNear >= 0
 	sunPos -= sunDir * sceneBoundsSun.max.z;
 	sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
@@ -411,7 +433,7 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	m_ShadowMapWoldToClipMatrix = float4x4(sunWorldToClipD);
 	m_ViewToShadowMapClipMatrix = float4x4(viewToShadowMapClipD);
 
-	UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList);
+	UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList, "Shadowmap Visible Buffer");
 
 	return true;
 }
@@ -431,6 +453,8 @@ void alm::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* comma
 
 	uint32_t reqSize = m_DirLightsVisibleCount * sizeof(interop::DirLightData);
 	m_DirLightsVisibleBuffer.Grow(reqSize);  // Exact size, since directional light do not cull
+
+	commandList->BeginMarker("DirLights Visible Buffer");
 
 	rhi::BufferHandle buffer = m_DirLightsVisibleBuffer.GetCurrentBuffer();
 	commandList->PushBarrier(
@@ -455,6 +479,8 @@ void alm::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* comma
 
 	commandList->PushBarrier(
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+
+	commandList->EndMarker();
 }
 
 void alm::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList)
@@ -507,6 +533,8 @@ void alm::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* com
 	uint32_t reqSize = m_PointLightsVisibleCount * sizeof(interop::PointLightData);
 	m_PointLightsVisibleBuffer.Grow(reqSize * 2);
 
+	commandList->BeginMarker("PointLights Visible Buffer");
+
 	rhi::BufferHandle buffer = m_PointLightsVisibleBuffer.GetCurrentBuffer();
 	commandList->PushBarrier(
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
@@ -531,6 +559,8 @@ void alm::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* com
 
 	commandList->PushBarrier(
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+
+	commandList->EndMarker();
 }
 
 void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList)
@@ -583,6 +613,8 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 	uint32_t reqSize = m_SpotLightsVisibleCount * sizeof(interop::SpotLightData);
 	m_SpotLightsVisibleBuffer.Grow(reqSize * 2);
 
+	commandList->BeginMarker("SpotLights Visible Buffer");
+
 	rhi::BufferHandle buffer = m_SpotLightsVisibleBuffer.GetCurrentBuffer();
 	commandList->PushBarrier(
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
@@ -610,10 +642,23 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 
 	commandList->PushBarrier(
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+
+	commandList->EndMarker();
 }
 
-void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const std::span<const math::plane3f>& planes, SceneContentType primaryType,
-	RenderSet& out_renderSet, math::aabox3f* opt_outPrimaryBounds,  SceneContentType secondaryType, math::aabox3f* opt_outSecondaryBounds) const
+void alm::gfx::RenderView::UpdateHeightmaps(rhi::ICommandList* commandList)
+{
+	if (m_Camera)
+	{
+		for (auto& [_, instance] : m_HeightmapInstances)
+		{
+			instance->Update(m_Camera.get(), commandList);
+		}
+	}
+}
+
+void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType primaryType,
+	RenderSet& out_renderSet, aabox3f* opt_outPrimaryBounds,  SceneContentType secondaryType, aabox3f* opt_outSecondaryBounds) const
 {
 	assert(HasRenderableCategory(primaryType));
 	const auto* gpuSceneBuffers = m_DeviceManager->GetGpuSceneBuffers();
@@ -637,30 +682,34 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 		if (has_any_flag(node->GetContentFlags(), ToFlag(primaryType)) && node->Test(primaryType, planes))
 		{
 			alm::weak<SceneGraphLeaf> leaf = node->GetLeaf();
-			if (leaf && leaf->GetType() == SceneGraphLeaf::Type::MeshInstance)
+			if (leaf /*&& leaf->GetType() == SceneGraphLeaf::Type::MeshInstance*/)
 			{
 				if (has_any_flag(leaf->GetContentFlags(), ToFlag(primaryType)))
 				{
-					const auto* renderable = alm::checked_cast<const IRenderable*>(leaf.get());
-					assert(renderable);
-
-					std::vector<RenderableDrawInfo> renderableDrawInfos;
-					renderable->CollectDrawInfos(context, gpuSceneBuffers, renderableDrawInfos);
-					for (const RenderableDrawInfo& drawInfo : renderableDrawInfos)
+					const auto* renderable = leaf->AsRenderable();
+					if(renderable)
 					{
-						drawInfos[(int)drawInfo.MaterialDomain][(int)drawInfo.CullMode].push_back(drawInfo);
-					}
+						std::vector<RenderableDrawInfo> renderableDrawInfos;
+						renderable->CollectDrawInfos(context, gpuSceneBuffers, renderableDrawInfos);
+						if (!renderableDrawInfos.empty())
+						{
+							for (const RenderableDrawInfo& drawInfo : renderableDrawInfos)
+							{
+								drawInfos[(int)drawInfo.MaterialDomain][(int)drawInfo.CullMode].push_back(drawInfo);
+							}
 
-					if (opt_outPrimaryBounds)
-					{
-						auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
-						opt_outPrimaryBounds->merge(leafWorldBounds);
-					}
+							if (opt_outPrimaryBounds)
+							{
+								auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
+								opt_outPrimaryBounds->merge(leafWorldBounds);
+							}
 
-					if (opt_outSecondaryBounds && secondaryType != SceneContentType::_Size && has_any_flag(leaf->GetContentFlags(), ToFlag(secondaryType)))
-					{
-						auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
-						opt_outSecondaryBounds->merge(leafWorldBounds);
+							if (opt_outSecondaryBounds && secondaryType != SceneContentType::_Size && has_any_flag(leaf->GetContentFlags(), ToFlag(secondaryType)))
+							{
+								auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
+								opt_outSecondaryBounds->merge(leafWorldBounds);
+							}
+						}
 					}
 				}
 			}
@@ -703,7 +752,7 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 }
 
 void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer,
-	rhi::ICommandList* commandList)
+	rhi::ICommandList* commandList, const char* marker)
 {
 	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
 
@@ -712,6 +761,9 @@ void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderS
 		return;
 
 	multiBuffer.Grow(reqSize * 2);
+
+	if(marker)
+		commandList->BeginMarker(marker);
 
 	rhi::BufferHandle buffer = multiBuffer.GetCurrentBuffer();
 	commandList->PushBarrier(
@@ -732,4 +784,7 @@ void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderS
 
 	commandList->PushBarrier(
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+
+	if (marker)
+		commandList->EndMarker();
 }

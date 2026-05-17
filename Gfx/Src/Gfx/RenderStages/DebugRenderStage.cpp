@@ -149,7 +149,7 @@ std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetA
 		return { rhi::c_InvalidDescriptorIndex, 0 };
 	 
 	// Collect all bboxes
-	std::vector<alm::math::aabox3f> aabboxes;
+	std::vector<alm::aabox3f> aabboxes;
 	alm::gfx::SceneGraph::Walker walker{ *scene->GetSceneGraph() };
 	while (walker)
 	{

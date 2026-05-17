@@ -8,6 +8,7 @@
 namespace alm::gfx
 {
 	class SceneGraphNode;
+	class IRenderable;
 }
 
 namespace alm::gfx
@@ -36,9 +37,12 @@ public:
 	virtual ~SceneGraphLeaf() {}
 
 	virtual bool HasBounds() const { return false; }
-	virtual const alm::math::aabox3f& GetBounds() const { return alm::math::aabox3f::get_empty(); }
+	virtual const alm::aabox3f& GetBounds() const { return alm::aabox3f::get_empty(); }
 	virtual SceneContentFlags GetContentFlags() const { return alm::gfx::SceneContentFlags::None; }
 	virtual Type GetType() const = 0;
+
+	virtual IRenderable* AsRenderable() { return nullptr; }
+	virtual const IRenderable* AsRenderable() const { return nullptr; }
 
 	void OnBoundsChanged();
 	void OnContentChanged();

@@ -83,10 +83,16 @@ public:
     using SceneSpotLightsContainer = std::unordered_set<SceneSpotLight*>;
     using ScenenHeightmapsContainer = std::unordered_set<SceneHeightmap*>;
 
+    using RegisterLeafCB = std::function<void(SceneGraphLeaf*)>;
+    using UnregisterLeafCB = std::function<void(SceneGraphLeaf*)>;
+
 public:
 
     SceneGraph(GpuSceneBuffersHandle buffersHandle, GpuSceneBuffers* gpuSceneBuffers);
     ~SceneGraph();
+
+    void SetRegisterLeafCallback(RegisterLeafCB fn) { m_RegisterLeafCB = fn; }
+    void SetUnregisterLeafCallback(UnregisterLeafCB fn) { m_UnregisterLeafCB = fn; }
 
 	// Attaches a node and its subgraph to the graph.
     void OnNodeAttached(SceneGraphNode* node);
@@ -132,6 +138,9 @@ private:
         SceneSpotLightsContainer SceneSpotLights;
         ScenenHeightmapsContainer SceneHeightmaps;
     }  m_Leafs;
+
+    RegisterLeafCB m_RegisterLeafCB;
+    UnregisterLeafCB m_UnregisterLeafCB;
 
     GpuSceneBuffersHandle m_GpuBuffersHandle;
     GpuSceneBuffers* m_GpuSceneBuffers;

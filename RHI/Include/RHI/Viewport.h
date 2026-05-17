@@ -42,12 +42,12 @@ struct Viewport
 struct ViewportState
 {
     static_vector<Viewport, c_MaxViewports> viewports;
-    static_vector<alm::math::aabox2i, c_MaxViewports> scissorRects;
+    static_vector<aabox2i, c_MaxViewports> scissorRects;
 
     ViewportState& AddViewport(const Viewport& v) { viewports.push_back(v); return *this; }
-    ViewportState& AddScissorRect(const alm::math::aabox2i& r) { scissorRects.push_back(r); return *this; }
+    ViewportState& AddScissorRect(const aabox2i& r) { scissorRects.push_back(r); return *this; }
     ViewportState& AddViewportAndScissorRect(const Viewport& v) {
-        return AddViewport(v).AddScissorRect(alm::math::aabox2i{ int2{v.minX, v.minY}, int2{v.maxX, v.maxY} });
+        return AddViewport(v).AddScissorRect(aabox2i{ int2{v.minX, v.minY}, int2{v.maxX, v.maxY} });
     }
 };
 

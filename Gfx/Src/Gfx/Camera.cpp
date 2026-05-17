@@ -78,10 +78,10 @@ void alm::gfx::Camera::SetProjectionModel(alm::gfx::Camera::ProjectionModel mode
 	m_IsDirty = true;
 }
 
-void alm::gfx::Camera::Fit(const alm::math::aabox3f& bounds)
+void alm::gfx::Camera::Fit(const alm::aabox3f& bounds)
 {
 	const float3 targetPos = bounds.center();
-	const float radius = glm::length(bounds.extents()) / 2.f;
+	const float radius = glm::length(bounds.diagonal()) / 2.f;
 	const float distance = radius / sinf(m_VerticalFov / 2.f);
 
 	const float3 newFwd = glm::normalize(targetPos - m_Position);
@@ -120,7 +120,7 @@ float4x4 alm::gfx::Camera::GetClipToTranslatedWorldMatrix()
 	return invView * invProj;
 }
 
-const alm::math::frustum3f& alm::gfx::Camera::GetFrustum()
+const alm::math::frustum3f& alm::gfx::Camera::GetFrustum() const
 {
 	UpdateMatrices();
 	return m_Frustum;
@@ -183,7 +183,7 @@ void alm::gfx::Camera::SetRoll(float roll)
 	SetUpRef(newUp);
 }
 
-void alm::gfx::Camera::UpdateMatrices()
+void alm::gfx::Camera::UpdateMatrices() const
 {
 	if (m_IsDirty)
 	{
@@ -202,24 +202,24 @@ void alm::gfx::Camera::UpdateMatrices()
 	}
 }
 
-void alm::gfx::Camera::UpdateWorldViewMatrix()
+void alm::gfx::Camera::UpdateWorldViewMatrix() const
 {
 	m_ViewMatrix = glm::lookAtRH(m_Position, m_Position + m_Forward, m_Up);
 }
 
 // D3D / Vulkan style, z clip space [0, 1]
-void alm::gfx::Camera::UpdateProjectionMatrix()
+void alm::gfx::Camera::UpdateProjectionMatrix() const
 {
 	m_ProjectionMatrix = glm::perspectiveRH_ZO(m_VerticalFov, m_Aspect, m_zNear, m_zFar);
 }
 
 // Column major, right handed, reverse Z [1, 0]
-void alm::gfx::Camera::UpdateProjectionMatrixReverse()
+void alm::gfx::Camera::UpdateProjectionMatrixReverse() const
 {
 	m_ProjectionMatrix = BuildPersInvZInfFar(m_VerticalFov, m_Aspect, m_zNear);
 }
 
-void alm::gfx::Camera::UpdateFrustum()
+void alm::gfx::Camera::UpdateFrustum() const
 {
 	m_Frustum = alm::math::frustum3f{ m_ProjectionMatrix * m_ViewMatrix };
 }

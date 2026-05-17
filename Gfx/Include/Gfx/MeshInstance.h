@@ -37,13 +37,16 @@ public:
 	virtual ~MeshInstance();
 
 	bool HasBounds() const override;
-	const alm::math::aabox3f& GetBounds() const override;
-
-	Flags GetInstanceFlags() const { return m_InstanceFlags; }
-	void SetInstanceFlags(Flags flags);
+	const alm::aabox3f& GetBounds() const override;
 
 	SceneContentFlags GetContentFlags() const override;
 	Type GetType() const override { return Type::MeshInstance; }
+
+	IRenderable* AsRenderable() { return this; }
+	const IRenderable* AsRenderable() const { return this; }
+
+	Flags GetInstanceFlags() const { return m_InstanceFlags; }
+	void SetInstanceFlags(Flags flags);
 
 	const std::shared_ptr<alm::gfx::Mesh>& GetMesh() const { return m_Mesh; }
 
@@ -52,8 +55,7 @@ public:
 	// IRenderable interface
 	void CollectDrawInfos(const VisibleSetContext& context, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const override;
 
-	//-- To be called by SceneGraph when registering the leaf
-
+	//-- To be called by GpuSceneBuffers when registering the leaf
 	void SetMeshSceneIndex(uint32_t i) { m_MeshSceneIndex = i; }
 
 private:

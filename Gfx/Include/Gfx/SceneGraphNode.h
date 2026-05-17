@@ -60,9 +60,9 @@ public:
 	const float4x4& GetWorldTransform() const { return m_WorldMatrix; }
 	const float3& GetWorldPosition() const;
 
-	const alm::math::aabox3f& GetWorldBounds(SceneContentType type) const;
+	const alm::aabox3f& GetWorldBounds(SceneContentType type) const;
 
-	bool Test(SceneContentType boundsType, std::span<const math::plane3f> planes) const;
+	bool Test(SceneContentType boundsType, std::span<const plane3f> planes) const;
 
 	SceneContentFlags GetContentFlags() const { return m_ContentFlags; }
 
@@ -82,7 +82,7 @@ private:
 	Transform m_LocalTransform;
 	float4x4 m_WorldMatrix;
 
-	std::array<alm::math::aabox3f, (int)SceneContentType::_Size> m_WorldBounds;
+	std::array<alm::aabox3f, (int)SceneContentType::_Size> m_WorldBounds;
 
 	SceneContentFlags m_ContentFlags; // This leaf content flags plus children content flags
 

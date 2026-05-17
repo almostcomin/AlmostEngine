@@ -758,7 +758,7 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
     }
 }
 
-void CollectPrimitivePositions(const cgltf_accessor& positions, std::vector<glm::vec3>& out_vertexPosData, alm::math::aabox3f& out_bounds)
+void CollectPrimitivePositions(const cgltf_accessor& positions, std::vector<glm::vec3>& out_vertexPosData, alm::aabox3f& out_bounds)
 {
     out_bounds.reset();
     out_vertexPosData.resize(positions.count);
@@ -1086,7 +1086,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
 
             // Positions and bounds
             std::vector<glm::vec3> vertexPosData;
-            alm::math::aabox3f bounds;
+            alm::aabox3f bounds;
             CollectPrimitivePositions(*positions, vertexPosData, bounds);
 
             std::vector<uint32_t> vertexNormalData;

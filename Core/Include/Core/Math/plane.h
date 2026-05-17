@@ -2,7 +2,7 @@
 
 #include "Core/Math/glm_config.h"
 
-namespace alm::math
+namespace alm
 {
 
 template<typename T, int n>
@@ -58,4 +58,4 @@ struct plane
 using plane2f = plane<float, 2>;
 using plane3f = plane<float, 3>;
 
-} // namespace st::math
+} // namespace alm

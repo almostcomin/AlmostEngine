@@ -18,9 +18,9 @@ bool alm::gfx::MeshInstance::HasBounds() const
 	return m_Mesh ? true : false;
 }
 
-const alm::math::aabox3f& alm::gfx::MeshInstance::GetBounds() const
+const alm::aabox3f& alm::gfx::MeshInstance::GetBounds() const
 {
-	return m_Mesh ? m_Mesh->GetBounds() : alm::math::aabox3f::get_empty();
+	return m_Mesh ? m_Mesh->GetBounds() : alm::aabox3f::get_empty();
 }
 
 void alm::gfx::MeshInstance::SetInstanceFlags(Flags flags)

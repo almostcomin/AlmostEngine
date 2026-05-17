@@ -33,7 +33,7 @@ public:
 
 	void SetProjectionModel(ProjectionModel model);
 
-	void Fit(const alm::math::aabox3f& bounds);
+	void Fit(const alm::aabox3f& bounds);
 
 	const float3& GetPosition() const { return m_Position; }
 	const float3& GetForward() const { return m_Forward; }
@@ -50,7 +50,7 @@ public:
 	// Inverse view-projection matrix but removing view translation
 	float4x4 GetClipToTranslatedWorldMatrix();
 
-	const alm::math::frustum3f& GetFrustum();
+	const alm::math::frustum3f& GetFrustum() const;
 
 	float GetYaw() const;
 	float GetPitch() const;
@@ -62,11 +62,11 @@ public:
 
 private:
 
-	void UpdateMatrices();
-	void UpdateWorldViewMatrix();
-	void UpdateProjectionMatrix();
-	void UpdateProjectionMatrixReverse();
-	void UpdateFrustum();
+	void UpdateMatrices() const;
+	void UpdateWorldViewMatrix() const;
+	void UpdateProjectionMatrix() const;
+	void UpdateProjectionMatrixReverse() const;
+	void UpdateFrustum() const;
 
 private:
 
@@ -84,12 +84,12 @@ private:
 	float m_zFar;
 	float m_Aspect;
 
-	float4x4 m_ViewMatrix;
-	float4x4 m_ProjectionMatrix;
+	mutable float4x4 m_ViewMatrix;
+	mutable float4x4 m_ProjectionMatrix;
 
-	alm::math::frustum3f m_Frustum;
+	mutable alm::math::frustum3f m_Frustum;
 
-	bool m_IsDirty;
+	mutable bool m_IsDirty;
 };
 
 } // namespace st::gfx

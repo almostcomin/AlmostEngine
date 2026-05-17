@@ -10,7 +10,7 @@ alm::gfx::SceneGraphNode::SceneGraphNode(const std::string& name) :
 	m_DirtyFlags{ DirtyFlags::None },
 	m_Name{ name.empty() ? "<noname>" : name }
 {
-	m_WorldBounds.fill(alm::math::aabox3f::InitEmpty);
+	m_WorldBounds.fill(alm::aabox3f::InitEmpty);
 }
 
 alm::gfx::SceneGraphNode::~SceneGraphNode()
@@ -104,13 +104,13 @@ const float3& alm::gfx::SceneGraphNode::GetWorldPosition() const
 	return *(float3*)&m_WorldMatrix[3];
 }
 
-const alm::math::aabox3f& alm::gfx::SceneGraphNode::GetWorldBounds(SceneContentType type) const
+const alm::aabox3f& alm::gfx::SceneGraphNode::GetWorldBounds(SceneContentType type) const
 { 
 	assert(HasBoundsCategory(type));
 	return m_WorldBounds[(int)type]; 
 }
 
-bool alm::gfx::SceneGraphNode::Test(SceneContentType boundsType, std::span<const math::plane3f> planes) const
+bool alm::gfx::SceneGraphNode::Test(SceneContentType boundsType, std::span<const plane3f> planes) const
 {
 	assert(HasBoundsCategory(boundsType));
 	assert(m_WorldBounds[(int)boundsType].valid());

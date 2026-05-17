@@ -196,9 +196,9 @@ bool alm::fw::App::InitInternal()
 
 void alm::fw::App::ShutdownInternal()
 {
+	m_MainCamera.reset();
 	m_MainRenderView.reset();
 	m_Scene.reset();
-	m_MainCamera.reset();
 
 	ImGui::DestroyPlatformWindows();
 	alm::gfx::ReleaseImGuiViewportsRenderer();

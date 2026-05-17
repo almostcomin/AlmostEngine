@@ -5,8 +5,6 @@
 namespace alm::gfx
 {
 
-class IRenderable;
-
 struct RenderSet : public alm::noncopyable_nonmovable
 {
 	using CullSet = std::pair<rhi::CullMode, std::vector<RenderableDrawInfo>>;

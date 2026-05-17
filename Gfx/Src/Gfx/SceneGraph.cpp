@@ -92,7 +92,6 @@ void alm::gfx::SceneGraph::OnNodeAttached(SceneGraphNode* node)
     assert(!node->m_Parent || node->m_Parent->m_Graph == this);
     // If the node has no parent, that means it is the (new) root
 
-    // Check the parent is valid
     for (auto walker = Walker{ node }; walker; walker.Next())
     {
         walker->m_Graph = this;
@@ -225,7 +224,7 @@ void alm::gfx::SceneGraph::UpdateNodeRecursive(SceneGraphNode* node, bool parent
     // 2. Reset content flags & bounds
     for (int i = 0; i < (int)SceneContentType::_Size; ++i)
     {
-        node->m_WorldBounds[i] = math::aabox3f::get_empty();
+        node->m_WorldBounds[i] = aabox3f::get_empty();
     }
     node->m_ContentFlags = SceneContentFlags::None;
 
@@ -308,6 +307,9 @@ void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
     default:
         assert(false && "Type not supported");
     }
+
+    if (m_RegisterLeafCB)
+        m_RegisterLeafCB(leaf);
 }
 
 void alm::gfx::SceneGraph::UnregisterLeaf(SceneGraphLeaf* leaf)
@@ -344,6 +346,9 @@ void alm::gfx::SceneGraph::UnregisterLeaf(SceneGraphLeaf* leaf)
     default:
         assert(false && "Type not supported");
     }
+
+    if (m_UnregisterLeafCB)
+        m_UnregisterLeafCB(leaf);
 }
 
 void alm::gfx::SceneGraph::ReportLeafMoved(const SceneGraphLeaf* leaf)

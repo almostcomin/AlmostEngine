@@ -788,7 +788,7 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                 {
                     ImGui::SeparatorText("Mesh Bounds");
                     {
-                        const alm::math::aabox3f& bbox = node->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
+                        const alm::aabox3f& bbox = node->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
                         ImGui::Text("Min");
                         ImGui::SetNextItemWidth(-FLT_MIN);
                         ImGui::InputFloat3("##meshBboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);
@@ -802,7 +802,7 @@ void StructureUI::BuildSceneWindow(bool* p_open)
                 {
                     ImGui::SeparatorText("Spot Light Bounds");
                     {
-                        const alm::math::aabox3f& bbox = node->GetWorldBounds(alm::gfx::SceneContentType::SpotLights);
+                        const alm::aabox3f& bbox = node->GetWorldBounds(alm::gfx::SceneContentType::SpotLights);
                         ImGui::Text("Min");
                         ImGui::SetNextItemWidth(-FLT_MIN);
                         ImGui::InputFloat3("##lightBboxMin", (float*)&(bbox.min), "%.3f", ImGuiInputTextFlags_ReadOnly);

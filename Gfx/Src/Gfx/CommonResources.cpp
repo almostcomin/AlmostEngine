@@ -238,7 +238,7 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 	material->SetBaseColor(float3{ 0.5f, 1.f, 1.f });
 	mesh->SetMaterial(std::shared_ptr<Material>{ material });
 
-	mesh->SetBounds(math::aabox3f{ float3{-radius}, float3{radius} });
+	mesh->SetBounds(aabox3f{ float3{-radius}, float3{radius} });
 
 	// Lets wait until eveything is submitted.
 	// We could also just return array of signals al let the called wait

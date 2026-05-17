@@ -27,6 +27,8 @@ namespace alm::gfx
 	class RenderGraph;
 	class RenderStage;
 	class DeviceManager;
+	class SceneHeightmap;
+	class HeightmapInstance;
 }
 
 namespace alm::gfx
@@ -46,6 +48,9 @@ public:
 	// Sets render to an offscreen framebuffer. If not initialized or set to null, will render to 
 	// main onscreen framebuffer aka main framebuffer
 	void SetOffscreenFrameBuffer(alm::rhi::FramebufferHandle frameBuffer);
+
+	void RegisterHeightmap(const SceneHeightmap* sceneHeightmap);
+	void UnregisterHeightmap(const SceneHeightmap* sceneHeightmap);
 
 	alm::weak<Scene> GetScene() { return m_Scene; }
 	std::shared_ptr<Camera> GetCamera() { return m_Camera; }
@@ -83,10 +88,11 @@ private:
 	void UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList);
+	void UpdateHeightmaps(rhi::ICommandList* commandList);
 
-	void GetVisibleSet(const VisibleSetContext& context, const std::span<const math::plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
-		math::aabox3f* opt_outPrimaryBounds = nullptr, SceneContentType secondaryType = SceneContentType::_Size, math::aabox3f* opt_outSecondaryBounds = nullptr) const;
-	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer, rhi::ICommandList* commandList);
+	void GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
+		aabox3f* opt_outPrimaryBounds = nullptr, SceneContentType secondaryType = SceneContentType::_Size, aabox3f* opt_outSecondaryBounds = nullptr) const;
+	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer, rhi::ICommandList* commandList, const char* marker);
 
 private:
 
@@ -106,8 +112,8 @@ private:
 	alm::rhi::FramebufferHandle m_OffscreenFramebuffer;
 
 	// Bounds of the visible scene
-	math::aabox3f m_CameraVisibleBounds;
-	math::aabox3f m_ShadowCastersCameraVisibleBounds;
+	aabox3f m_CameraVisibleBounds;
+	aabox3f m_ShadowCastersCameraVisibleBounds;
 
 	// Visible set for the current camera
 	gfx::MultiBuffer m_CameraVisibleBuffer;
@@ -131,6 +137,8 @@ private:
 	// Visible set for spot lights
 	gfx::MultiBuffer m_SpotLightsVisibleBuffer;
 	uint32_t m_SpotLightsVisibleCount;
+
+	std::unordered_map<const SceneHeightmap*, std::unique_ptr<HeightmapInstance>> m_HeightmapInstances;
 
 	// Scene constant buffer, set at begin frame, no change during frame render
 	gfx::MultiBuffer m_SceneConstants;

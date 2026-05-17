@@ -20,6 +20,7 @@ namespace alm::gfx
 	class MeshInstance;
 	class Mesh;
 	class RenderView;
+	class SceneGraphLeaf;
 }
 
 namespace alm::gfx
@@ -55,7 +56,7 @@ namespace alm::gfx
 		void AttachRenderView(alm::weak<RenderView> renderView);
 		void DetachRenderView(alm::weak<RenderView> renderView);
 
-		const math::aabox3f GetWorldBounds(SceneContentType type) const;
+		const aabox3f GetWorldBounds(SceneContentType type) const;
 
 		const AmbientParams& GetAmbientParams() const { return m_AmbientParams; }
 		void SetAmbientParams(const AmbientParams& v) { m_AmbientParams = v; }
@@ -69,6 +70,11 @@ namespace alm::gfx
 		void Update();
 
 		void ResetGpuBuffers() { m_ResetGpuBuffers = true; }
+
+	private:
+
+		void OnLeafAdded(SceneGraphLeaf* leaf);
+		void OnLeafRemoved(SceneGraphLeaf* leaf);
 
 	private:
 

@@ -23,10 +23,13 @@ public:
     bool Load(const std::string& path);
 
     // IHeightmapSource interface
+    float GetHeight(const uint2& p) const override;
     float Sample(const float2& uv) const override;
     bool IsTileable() const override { return m_EdgeMode == EdgeMode::Wrap; }
+    uint2 GetDataSize() const override;
     float2 GetNormalizedSize() const override;
     float2 GetHeightRange() const override;
+    const std::string& GetName() const override { return m_Name; }
 
 private:
 
@@ -39,6 +42,7 @@ private:
 
     std::vector<float> m_Data;
 
+    std::string m_Name = "<uninitialized>";
 };
 
 } // namespace alm::gfx

@@ -97,10 +97,10 @@ public:
 
 				m_Scene->Update(); // For bounds
 
-				const alm::math::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
+				const alm::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
 				if (bounds.valid())
 				{
-					const float radius = glm::length(bounds.extents()) / 2.f;
+					const float radius = glm::length(bounds.diagonal()) / 2.f;
 					m_MainCamera->SetZNear(radius * 0.05f);
 
 					m_MainCamera->SetPosition(float3{ -1000.f, 500.f, 1000.f });

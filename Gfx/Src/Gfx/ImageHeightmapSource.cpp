@@ -73,7 +73,19 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
 
     ComputeHeightRange();
 
+    m_Name = GetFilenameFromPath(path);
     return true;
+}
+
+float alm::gfx::ImageHeightmapSource::GetHeight(const uint2& p) const
+{
+    if (m_Data.empty())
+    {
+        LOG_ERROR("ImageHeightmapSource: Data not initialized");
+        return 0.f;
+    }
+
+    return m_Data[std::clamp(p.y, 0u, m_Height - 1) * m_Width + std::clamp(p.x, 0u, m_Width - 1)];
 }
 
 float alm::gfx::ImageHeightmapSource::Sample(const float2& uv) const
@@ -111,8 +123,19 @@ float alm::gfx::ImageHeightmapSource::Sample(const float2& uv) const
          + fetch(i2.x + 1, i2.y + 1) *      f2.x  *      f2.y;
 }
 
+uint2 alm::gfx::ImageHeightmapSource::GetDataSize() const
+{
+    return uint2{ m_Width, m_Height };
+}
+
 float2 alm::gfx::ImageHeightmapSource::GetNormalizedSize() const
 {
+    if (m_Data.empty())
+    {
+        LOG_ERROR("ImageHeightmapSource: Data not initialized");
+        return float2{ 0.f, 0.f };
+    }
+
     if (m_Width >= m_Height)
     {
         return float2{ 1.f, (float)m_Height / m_Width };

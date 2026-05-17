@@ -73,6 +73,7 @@ public:
 		}
 #endif
 		// Init heightmap
+		std::shared_ptr<alm::gfx::Heightmap> heightmap;
 		{
 			// Data source
 			auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
@@ -81,7 +82,7 @@ public:
 			assert(sourceOk);
 
 			// Heightmap
-			auto heightmap = std::make_shared<alm::gfx::Heightmap>(imageSource);
+			heightmap = std::make_shared<alm::gfx::Heightmap>(m_DeviceManager.get(), imageSource);
 
 			// Leaf
 			auto sceneHeightmap = alm::make_unique_with_weak<alm::gfx::SceneHeightmap>();
@@ -155,6 +156,8 @@ public:
 		auto renderGraph = m_MainRenderView->GetRenderGraph();
 		alm::rhi::TextureHandle depthColorTexture = renderGraph->GetTexture("ShadowmapColor");
 		m_UI->AddTextureWindow("Shadowmap", depthColorTexture);
+
+		m_UI->AddTextureWindow(heightmap->GetSource()->GetName(), heightmap->GetHeightsTexture());
 
 		return true;
 	}

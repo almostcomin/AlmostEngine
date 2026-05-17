@@ -3,7 +3,7 @@
 #include "Core/Math/glm_config.h"
 #include "Core/Math/plane.h"
 
-namespace alm::math
+namespace alm
 {
 
 template<typename T, int n>
@@ -51,7 +51,7 @@ struct aabox
         return (min + max) / T(2);
     }
 
-    vec_t extents() const
+    vec_t diagonal() const
     {
         return max - min;
     }
@@ -123,4 +123,4 @@ using aabox2d = aabox<double, 2>;
 using aabox3f = aabox<float, 3>;
 using aabox3d = aabox<double, 3>;
 
-} // namespace st::math
+} // namespace alm
