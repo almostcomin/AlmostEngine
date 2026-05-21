@@ -7,7 +7,7 @@ namespace alm::gfx
 	class Camera;
 }
 
-namespace alm
+namespace alm::fw
 {
 
 class CameraController
@@ -21,6 +21,7 @@ public:
 	void SetCamera(std::shared_ptr<alm::gfx::Camera> camera) { m_Camera = camera; }
 
 	void SetSpeed(float v) { m_Speed = v; }
+	float GetSpeed() const { return m_Speed; }
 
 	void Update(float deltaTime);
 
@@ -37,4 +38,4 @@ private:
 	std::shared_ptr<alm::gfx::Camera> m_Camera;
 };
 
-} // namespace alm
+} // namespace alm::fw

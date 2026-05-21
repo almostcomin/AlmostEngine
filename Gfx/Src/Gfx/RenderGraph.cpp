@@ -64,6 +64,7 @@ namespace
 alm::gfx::RenderGraph::RenderGraph(RenderView* renderView, const char* debugName) :
 	m_DebugName{ debugName },
 	m_RenderView{ renderView },
+	m_IsRendering{ false },
 	m_DeviceManager{ renderView->GetDeviceManager() }
 {
 	rhi::Device* device = m_DeviceManager->GetDevice();
@@ -217,6 +218,7 @@ void alm::gfx::RenderGraph::Compile()
 
 bool alm::gfx::RenderGraph::BeginRender(rhi::ICommandList* /*commandList*/)
 {
+	m_IsRendering = true;
 	return false; // no-operation needed
 }
 
@@ -249,9 +251,10 @@ bool alm::gfx::RenderGraph::EndRender(rhi::ICommandList* commandList)
 	if (!barriers.empty())
 	{
 		commandList->PushBarriers(barriers);
-		return true;
 	}
-	return false;
+
+	m_IsRendering = false;
+	return !barriers.empty();
 }
 
 void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
@@ -472,7 +475,9 @@ void alm::gfx::RenderGraph::OnRenderTargetChanged(const int2& newSize)
 
 alm::gfx::RGTextureHandle alm::gfx::RenderGraph::CreateTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type,
 																	   int width, int height, int arraySize, alm::rhi::Format format, bool needsUAV)
-{	
+{
+	assert(!m_IsRendering);
+
 	// Check if that texture is already created
 	auto it = m_Textures.find(id);
 	if (it != m_Textures.end())
@@ -517,6 +522,8 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraph::CreateTexture(RenderStage* rend
 
 alm::gfx::RGBufferHandle alm::gfx::RenderGraph::CreateBuffer(RenderStage* renderStage, const std::string& id, const alm::rhi::BufferDesc& desc)
 {
+	assert(!m_IsRendering);
+
 	// Check that texture has not been already created
 	auto it = m_Buffers.find(id);
 	if (it != m_Buffers.end())
@@ -533,6 +540,8 @@ alm::gfx::RGBufferHandle alm::gfx::RenderGraph::CreateBuffer(RenderStage* render
 
 bool alm::gfx::RenderGraph::RecreateTexture(RGTextureHandle handle, int width, int height, int arraySize, rhi::Format format)
 {
+	assert(!m_IsRendering);
+
 	// Check that texture has been already created
 	auto* declTex = GetDeclTex(handle);
 
@@ -566,6 +575,8 @@ bool alm::gfx::RenderGraph::RecreateTexture(RGTextureHandle handle, int width, i
 
 bool alm::gfx::RenderGraph::RecreateBuffer(RGBufferHandle handle, const rhi::BufferDesc& desc)
 {
+	assert(!m_IsRendering);
+
 	// Check that texture has not been already created
 	auto* declBuffer = GetDeclBuffer(handle);
 
@@ -745,7 +756,7 @@ size_t alm::gfx::RenderGraph::GetNumRenderStages(const std::string& mode) const
 	return it->second.size();
 }
 
-const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageData(RenderStageTypeID id)
+const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageDataFromType(RenderStageTypeID id)
 {
 	auto it = std::ranges::find_if(m_RenderStages, [id](const std::unique_ptr<StageData>& stageDataPtr)
 	{
@@ -758,7 +769,7 @@ const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageDat
 	return nullptr;
 }
 
-const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageData(uint32_t idx, const std::string& mode) const
+const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageDataFromIndex(uint32_t idx, const std::string& mode) const
 {
 	auto it = m_RenderModes.find(mode.empty() ? m_CurrentRenderMode : mode);
 	if (it == m_RenderModes.end())
@@ -783,34 +794,34 @@ std::shared_ptr<alm::gfx::RenderStage> alm::gfx::RenderGraph::GetRenderStage(Ren
 	return nullptr;
 }
 
-alm::gfx::RGTextureViewTicket alm::gfx::RenderGraph::RequestTextureView(RenderStage* rs, AccessMode accessMode, RGTextureHandle handle)
+alm::gfx::RGTextureViewTicket alm::gfx::RenderGraph::RequestTextureView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle)
 {
 	for (auto& entry : m_TexViewRequests)
 	{
-		if (entry->rs == rs && entry->accessMode == accessMode && entry->handle == handle)
+		if (entry->rsId == rsId && entry->accessMode == accessMode && entry->handle == handle)
 		{
 			++entry->refCount;
 			return RGTextureViewTicket{ entry };
 		}
 	}
 
-	auto* ticket = new TextureViewRequest{ rs, accessMode, handle, 1, rhi::TextureOwner{} };
+	auto* ticket = new TextureViewRequest{ rsId, accessMode, handle, 1, rhi::TextureOwner{} };
 	m_TexViewRequests.push_back(ticket);
 	return RGTextureViewTicket{ ticket };
 }
 
-alm::gfx::RGBufferViewTicket alm::gfx::RenderGraph::RequestBufferView(RenderStage* rs, AccessMode accessMode, RGBufferHandle handle)
+alm::gfx::RGBufferViewTicket alm::gfx::RenderGraph::RequestBufferView(RenderStageTypeID rsId, AccessMode accessMode, RGBufferHandle handle)
 {
 	for (auto& entry : m_BufferViewRequests)
 	{
-		if (entry->rs == rs && entry->accessMode == accessMode && entry->handle == handle)
+		if (entry->rsId == rsId && entry->accessMode == accessMode && entry->handle == handle)
 		{
 			++entry->refCount;
 			return RGBufferViewTicket{ entry };
 		}
 	}
 
-	auto* ticket = new BufferViewRequest{ rs, accessMode, handle, 1, rhi::BufferOwner{} };
+	auto* ticket = new BufferViewRequest{ rsId, accessMode, handle, 1, rhi::BufferOwner{} };
 	m_BufferViewRequests.push_back(ticket);
 	return RGBufferViewTicket{ ticket };
 }
@@ -894,7 +905,7 @@ std::vector<alm::gfx::RenderGraph::TextureViewRequest*> alm::gfx::RenderGraph::G
 	std::vector<alm::gfx::RenderGraph::TextureViewRequest*> ret;
 	for (auto& entry : m_TexViewRequests)
 	{
-		if (entry->rs == rs && entry->accessMode == accessMode)
+		if (entry->rsId == rs->GetType() && entry->accessMode == accessMode)
 		{
 			ret.push_back(entry);
 		}
@@ -961,7 +972,7 @@ std::vector<alm::gfx::RenderGraph::BufferViewRequest*> alm::gfx::RenderGraph::Ge
 	std::vector<alm::gfx::RenderGraph::BufferViewRequest*> ret;
 	for (auto& entry : m_BufferViewRequests)
 	{
-		if (entry->rs == rs && entry->accessMode == accessMode)
+		if (entry->rsId == rs->GetType() && entry->accessMode == accessMode)
 		{
 			ret.push_back(entry);
 		}

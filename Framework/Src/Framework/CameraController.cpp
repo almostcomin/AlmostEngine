@@ -2,9 +2,9 @@
 #include "Framework/CameraController.h"
 #include "Gfx/Camera.h"
 
-alm::CameraController::~CameraController() = default;
+alm::fw::CameraController::~CameraController() = default;
 
-void alm::CameraController::Update(float deltaTime)
+void alm::fw::CameraController::Update(float deltaTime)
 {
 	const float3& camFwd = m_Camera->GetForward();
 	const float3& camRight = m_Camera->GetRight();
@@ -20,7 +20,7 @@ void alm::CameraController::Update(float deltaTime)
 	m_Camera->SetPosition(newPos);
 }
 
-bool alm::CameraController::OnSDLEvent(const SDL_Event& event)
+bool alm::fw::CameraController::OnSDLEvent(const SDL_Event& event)
 {
 	if (!m_Camera)
 		return false;

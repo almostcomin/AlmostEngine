@@ -1,6 +1,6 @@
 #include "Framework/FrameworkPCH.h"
 #include "Framework/App.h"
-#include "Framework/FrameworkUI.h"
+#include "Framework/UI/FrameworkUI.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/Scene.h"
 #include "Gfx/Camera.h"
@@ -104,6 +104,61 @@ std::string alm::fw::App::GetStartupArgString(const std::string& key, const std:
 	return GetStringArg(m_StartupArgs, key, defaultValue);
 }
 
+void alm::fw::App::RefreshUIData()
+{
+	alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
+	auto shadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
+	auto simpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
+	auto skyRS = renderGraph->GetRenderStage<alm::gfx::SkyRenderStage>();
+	auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
+	auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
+	auto bloomRS = renderGraph->GetRenderStage<alm::gfx::BloomRenderStage>();
+	auto tonemappingRS = renderGraph->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
+	auto compositeRS = renderGraph->GetRenderStage<alm::gfx::CompositeRenderStage>();
+	auto& data = m_FrameworkUI->FrameworkData;
+
+	if (shadowmapRS)
+	{
+		data.ShadowmapSize = shadowmapRS->GetSize();
+	}
+	data.SunParams = m_Scene->GetSunParams();
+	data.AmbientParams = m_Scene->GetAmbientParams();
+
+	if (simpleSkyRS)
+		data.SimpleSkyParams = simpleSkyRS->GetSkyParams();
+
+	if (skyRS)
+		data.SkyParams = skyRS->GetSkyParams();
+
+	if (cloudsRS)
+		data.CloudsParams = cloudsRS->GetCloudsParams();
+
+	if (SSAORS)
+	{
+		data.SSAO.Radius = SSAORS->GetRadius();
+		data.SSAO.Power = SSAORS->GetPower();
+		data.SSAO.Bias = SSAORS->GetBias();
+	}
+
+	if (bloomRS)
+	{
+		data.Bloom.Radius = bloomRS->GetFilterRadius();
+		data.Bloom.Strength = bloomRS->GetStrength();
+		data.Bloom.MaxMip = bloomRS->GetMaxMipChainLenght();
+	}
+
+	if (tonemappingRS && compositeRS)
+	{
+		data.Tonemapping.MiddleGrayNits = tonemappingRS->GetSceneMiddleGray() * compositeRS->GetPaperWhiteNits();
+		data.Tonemapping.PaperWhiteNits = compositeRS->GetPaperWhiteNits();
+		data.Tonemapping.SdrExposureBias = tonemappingRS->GetSDRExposureBias();
+		data.Tonemapping.MinLogLuminance = tonemappingRS->GetMinLogLuminance();
+		data.Tonemapping.LogLuminanceRange = tonemappingRS->GetLogLuminanceRange();
+		data.Tonemapping.AdaptationUpSpeed = tonemappingRS->GetAdaptationUpSpeed();
+		data.Tonemapping.AdaptationDownSpeed = tonemappingRS->GetAdaptationDownSpeed();
+	}
+}
+
 alm::gfx::RenderStageTypeID alm::fw::App::GetUIRenderStageType() const
 { 
 	return alm::fw::FrameworkUI::StaticType(); 
@@ -189,6 +244,12 @@ bool alm::fw::App::InitInternal()
 	{
 		alm::gfx::InitImGuiViewportsRenderer(m_ImGuiRS, m_DeviceManager.get());
 		m_FrameworkUI = dynamic_cast<alm::fw::FrameworkUI*>(m_ImGuiRS.get());
+
+		// UI initial values
+		if(m_FrameworkUI)
+		{
+			RefreshUIData();
+		}
 	}
 
 	return true;
@@ -370,6 +431,7 @@ void alm::fw::App::MainLoop()
 		// Scene update
 		m_Scene->Update();
 
+		// Update UI
 		if (m_FrameworkUI)
 		{
 			m_FrameworkUI->SetRenderStats(m_FPS, m_CPUTime, m_GPUTime);
@@ -387,6 +449,85 @@ void alm::fw::App::MainLoop()
 		{
 			m_MainRenderView->Render(totalSec, elapsedSec);
 		});
+
+		// Apply UI settings
+		{
+			alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
+			auto debugRS = renderGraph->GetRenderStage<gfx::DebugRenderStage>();
+			auto shadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
+			auto simpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
+			auto skyRS = renderGraph->GetRenderStage<alm::gfx::SkyRenderStage>();
+			auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
+			auto lightingRS = renderGraph->GetRenderStage<alm::gfx::DeferredLightingRenderStage>();
+			auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
+			auto bloomRS = renderGraph->GetRenderStage<alm::gfx::BloomRenderStage>();
+			auto tonemappingRS = renderGraph->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
+			auto compositeRS = renderGraph->GetRenderStage<alm::gfx::CompositeRenderStage>();
+			auto& data = m_FrameworkUI->FrameworkData;
+
+			if (!data.RenderMode.empty() && data.RenderMode != renderGraph->GetCurrentRenderMode())
+			{
+				renderGraph->SetActiveRenderMode(data.RenderMode);
+			}
+
+			debugRS->ShowRenderBBoxes(alm::gfx::SceneContentType::Meshes, data.Debug.ShowMeshBBoxes);
+			debugRS->ShowRenderBBoxes(alm::gfx::SceneContentType::SpotLights, data.Debug.ShowLightBBoxes);
+
+			if (shadowmapRS->GetSize() != data.ShadowmapSize)
+				shadowmapRS->SetSize(data.ShadowmapSize);
+
+			if (data.SunParamsUpdated)
+			{
+				m_Scene->SetSunParams(data.SunParams);
+				data.SunParamsUpdated = false;
+			}
+			if (data.AmbientParamsUpdated)
+			{
+				m_Scene->SetAmbientParams(data.AmbientParams);
+				data.AmbientParamsUpdated = false;
+			}
+
+			if (simpleSkyRS)
+				simpleSkyRS->SetSkyParams(data.SimpleSkyParams);
+
+			if (skyRS)
+				skyRS->SetSkyParams(data.SkyParams);
+
+			if (cloudsRS)
+				cloudsRS->SetCloudsParams(data.CloudsParams);
+
+			lightingRS->SetMaterialChannel(data.MatChannel);
+
+			if (SSAORS)
+			{
+				if(SSAORS->IsSSAOEnabled() != data.SSAO.Enabled)
+					SSAORS->SetSSAOEnabled(data.SSAO.Enabled);
+				lightingRS->ShowSSAO(data.SSAO.View);
+				SSAORS->SetRadius(data.SSAO.Radius);
+				SSAORS->SetPower(data.SSAO.Power);
+				SSAORS->SetBias(data.SSAO.Bias);
+			}
+
+			if (bloomRS)
+			{
+				bloomRS->SetBloomEnabled(data.Bloom.Enabled);
+				bloomRS->SetFilterRadius(data.Bloom.Radius);
+				bloomRS->SetStrength(data.Bloom.Strength);
+				bloomRS->SetMaxMipChainLenght(data.Bloom.MaxMip);
+			}
+
+			if (tonemappingRS && compositeRS)
+			{
+				tonemappingRS->SetTonemappingEnabled(data.Tonemapping.Enabled);
+				// Scene middlegray is middle_gray_nits / paper_white_nits
+				tonemappingRS->SetSceneMiddleGray(data.Tonemapping.MiddleGrayNits / data.Tonemapping.PaperWhiteNits);
+				tonemappingRS->SetMinLogLuminance(data.Tonemapping.MinLogLuminance);
+				tonemappingRS->SetLogLuminanceRange(data.Tonemapping.LogLuminanceRange);
+				tonemappingRS->SetSDRExposureBias(data.Tonemapping.SdrExposureBias);
+				tonemappingRS->SetAdaptationUpSpeed(data.Tonemapping.AdaptationUpSpeed);
+				tonemappingRS->SetAdaptationDownSpeed(data.Tonemapping.AdaptationDownSpeed);
+			}
+		}
 
 		fpsFrameCount++;
 		std::this_thread::yield();

@@ -46,6 +46,8 @@ public:
     bool GetStartupArgBool(const std::string& key, bool defaultValue = false);
     std::string GetStartupArgString(const std::string& key, const std::string& defaultValue = {});
 
+    void RefreshUIData();
+
 protected:
 
     virtual bool Initialize() { return true; }

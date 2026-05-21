@@ -43,32 +43,7 @@ public:
 		m_UIRS->m_RequestMergeFile = [this](const char* filename) { m_RequestLoadFile = filename; m_bMergeFile = true; };
 		m_UIRS->m_RequestClose = [this] { m_RequestClose = true; };
 		m_UIRS->m_RequestQuit = [this] { m_RequestQuit = true; };
-
-		// Update UI data with initial render stages values
-		m_UIRS->m_Data.ShadowmapSize = m_ShadowmapRS->GetSize();
-		m_UIRS->m_Data.ShadowmapDepthBias = m_ShadowmapRS->GetDepthBias();
-		m_UIRS->m_Data.ShadowmapSlopeScaledDepthBias = m_ShadowmapRS->GetSlopeScaledDepthBias();
-
-		m_UIRS->m_Data.AmbientParams = m_Scene->GetAmbientParams();
-		m_UIRS->m_Data.SunParams = m_Scene->GetSunParams();
-
-		m_UIRS->m_Data.SkyParams = m_SimpleSkyRS->GetSkyParams();
-
-		m_UIRS->m_Data.SSAO_Radius = m_SSAORS->GetRadius();
-		m_UIRS->m_Data.SSAO_Power = m_SSAORS->GetPower();
-		m_UIRS->m_Data.SSAO_Bias = m_SSAORS->GetBias();
-
-		m_UIRS->m_Data.bloomRadius = m_BloomRS->GetFilterRadius();
-		m_UIRS->m_Data.bloomStrength = m_BloomRS->GetStrength();
-		m_UIRS->m_Data.bloomMaxMip = m_BloomRS->GetMaxMipChainLenght();
-
-		m_UIRS->m_Data.middleGrayNits = m_TonemappingRS->GetSceneMiddleGray() * m_CompositeRS->GetPaperWhiteNits();
-		m_UIRS->m_Data.paperWhiteNits = m_CompositeRS->GetPaperWhiteNits();
-		m_UIRS->m_Data.sdrExposureBias = m_TonemappingRS->GetSDRExposureBias();
-		m_UIRS->m_Data.minLogLuminance = m_TonemappingRS->GetMinLogLuminance();
-		m_UIRS->m_Data.logLuminanceRange = m_TonemappingRS->GetLogLuminanceRange();
-		m_UIRS->m_Data.adaptationUpSpeed = m_TonemappingRS->GetAdaptationUpSpeed();
-		m_UIRS->m_Data.adaptationDownSpeed = m_TonemappingRS->GetAdaptationDownSpeed();
+		m_UIRS->Init(m_Window, m_Scene.get_weak(), m_MainRenderView.get_weak(), &m_CameraController);
 
 		m_CameraController.SetWindow(m_Window);
 		m_CameraController.SetCamera(m_MainCamera);
@@ -107,7 +82,6 @@ public:
 					m_MainCamera->Fit(bounds);
 
 					m_CameraController.SetSpeed(radius * 1.f);
-					m_UIRS->m_Data.CameraSpeed = radius * 1.f;
 				}
 
 				m_Scene->GetSceneGraph()->LogGraph();
@@ -132,78 +106,6 @@ public:
 
 		// Camera movement
 		m_CameraController.Update(deltaTime);
-
-		// Update UI values
-		{
-			auto& data = m_UIRS->m_Data;
-			if (!data.RenderMode.empty() && data.RenderMode != renderGraph->GetCurrentRenderMode())
-			{
-				renderGraph->SetActiveRenderMode(data.RenderMode);
-			}
-
-			m_CameraController.SetSpeed(data.CameraSpeed);
-
-			m_DebugRS->ShowRenderBBoxes(alm::gfx::SceneContentType::Meshes, data.ShowMeshBBoxes);
-			m_DebugRS->ShowRenderBBoxes(alm::gfx::SceneContentType::SpotLights, data.ShowLightBBoxes);
-
-			m_LightingRS->ShowShadowmap(data.ShowShadowmap);
-			if (data.ShadowmapDepthBias != m_ShadowmapRS->GetDepthBias())
-			{
-				m_ShadowmapRS->SetDepthBias(data.ShadowmapDepthBias);
-			}
-			if (data.ShadowmapSlopeScaledDepthBias != m_ShadowmapRS->GetSlopeScaledDepthBias())
-			{
-				m_ShadowmapRS->SetSlopeScaledDepthBias(data.ShadowmapSlopeScaledDepthBias);
-			}
-			if (data.ShadowmapSize != m_ShadowmapRS->GetSize())
-			{
-				m_ShadowmapRS->SetSize(data.ShadowmapSize);
-			}
-			if (data.ShadowmapEnabled != m_ShadowmapRS->IsEnabled())
-			{
-				m_ShadowmapRS->SetEnabled(data.ShadowmapEnabled);
-			}
-
-			if (data.AmbientParamsUpdated)
-			{
-				m_Scene->SetAmbientParams(data.AmbientParams);
-				data.AmbientParamsUpdated = false;
-			}
-
-			if (data.SunParamsUpdated)
-			{
-				m_Scene->SetSunParams(data.SunParams);
-				data.SunParamsUpdated = false;
-			}
-
-			m_SimpleSkyRS->SetEnabled(data.SkyEnabled);
-			m_SimpleSkyRS->SetSkyParams(data.SkyParams);
-
-			m_LightingRS->SetMaterialChannel(data.MatChannel);
-
-			if (data.SSAOEnabled != m_SSAORS->IsSSAOEnabled())
-			{
-				m_SSAORS->SetSSAOEnabled(data.SSAOEnabled);
-			}
-			m_LightingRS->ShowSSAO(data.ShowSSAO);
-			m_SSAORS->SetRadius(data.SSAO_Radius);
-			m_SSAORS->SetPower(data.SSAO_Power);
-			m_SSAORS->SetBias(data.SSAO_Bias);
-
-			m_BloomRS->SetBloomEnabled(data.bloomEnabled);
-			m_BloomRS->SetFilterRadius(data.bloomRadius);
-			m_BloomRS->SetStrength(data.bloomStrength);
-			m_BloomRS->SetMaxMipChainLenght(data.bloomMaxMip);
-
-			m_TonemappingRS->SetTonemappingEnabled(data.tonemappingEnabled);
-			// Scene middlegray is middle_gray_nits / paper_white_nits
-			m_TonemappingRS->SetSceneMiddleGray(data.middleGrayNits / data.paperWhiteNits);
-			m_TonemappingRS->SetMinLogLuminance(data.minLogLuminance);
-			m_TonemappingRS->SetLogLuminanceRange(data.logLuminanceRange);
-			m_TonemappingRS->SetSDRExposureBias(data.sdrExposureBias);
-			m_TonemappingRS->SetAdaptationUpSpeed(data.adaptationUpSpeed);
-			m_TonemappingRS->SetAdaptationDownSpeed(data.adaptationDownSpeed);
-		}
 
 		if (m_RequestQuit)
 			return false;
@@ -241,7 +143,7 @@ private:
 	std::shared_ptr<alm::gfx::DebugRenderStage> m_DebugRS;
 	std::shared_ptr<alm::gfx::DeferredLightingRenderStage> m_LightingRS;
 
-	alm::CameraController m_CameraController;
+	alm::fw::CameraController m_CameraController;
 
 	std::string m_RequestLoadFile;
 	bool m_bMergeFile = false;

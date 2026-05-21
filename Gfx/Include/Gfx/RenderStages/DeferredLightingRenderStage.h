@@ -36,6 +36,8 @@ public:
 	void SetMaterialChannel(MaterialChannel v) { m_MaterialChannel = v; }
 	void ShowSSAO(bool b) { m_ShowSSAO = b; }
 	void ShowShadowmap(bool b) { m_ShowShadowmap = b; }
+	
+	bool GetShowShadowmap() const { return m_ShowShadowmap; }
 
 private:
 

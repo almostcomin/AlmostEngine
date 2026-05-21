@@ -120,8 +120,8 @@ public:
 
 	size_t GetNumRenderStages(const std::string& mode = {}) const;
 
-	const StageData* GetRenderStageData(RenderStageTypeID id);
-	const StageData* GetRenderStageData(uint32_t idx, const std::string& mode = {}) const;
+	const StageData* GetRenderStageDataFromType(RenderStageTypeID id);
+	const StageData* GetRenderStageDataFromIndex(uint32_t idx, const std::string& mode = {}) const;
 	
 	std::shared_ptr<RenderStage> GetRenderStage(RenderStageTypeID id);
 	template<class T> 
@@ -131,8 +131,9 @@ public:
 		return ptr ? std::dynamic_pointer_cast<T>(ptr) : nullptr;
 	}
 
-	RGTextureViewTicket RequestTextureView(RenderStage* rs, AccessMode accessMode, RGTextureHandle handle);
-	RGBufferViewTicket RequestBufferView(RenderStage* rs, AccessMode accessMode, RGBufferHandle handle);
+	RGTextureViewTicket RequestTextureView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle);
+	RGBufferViewTicket RequestBufferView(RenderStageTypeID rsId, AccessMode accessMode, RGBufferHandle handle);
+
 	void ReleaseTextureView(RGTextureViewTicket ticket);
 	void ReleaseBufferView(RGBufferViewTicket ticket);
 	rhi::TextureHandle GetTextureView(RGTextureViewTicket ticket);
@@ -175,7 +176,7 @@ private:
 
 	struct TextureViewRequest
 	{
-		RenderStage* rs;
+		RenderStageTypeID rsId;
 		AccessMode accessMode;
 		RGTextureHandle handle;
 		int refCount;
@@ -184,7 +185,7 @@ private:
 
 	struct BufferViewRequest
 	{
-		RenderStage* rs;
+		RenderStageTypeID rsId;
 		AccessMode accessMode;
 		RGBufferHandle handle;
 		int refCount;
@@ -227,6 +228,8 @@ private:
 	std::vector<BufferViewRequest*> m_BufferViewRequests;
 
 	std::vector<alm::rhi::CommandListOwner> m_CommandLists;
+
+	bool m_IsRendering;
 
 	std::string m_DebugName;
 	RenderView* m_RenderView;

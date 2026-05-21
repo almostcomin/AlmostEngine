@@ -6,7 +6,7 @@
 #include "Gfx/RenderGraphTypes.h"
 #include "Gfx/RenderStageFactory.h"
 
-#define DEBUG_STAGE
+//#define DEBUG_STAGE
 
 namespace alm::gfx
 {

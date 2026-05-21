@@ -46,6 +46,9 @@ void alm::gfx::RenderStage::Detach()
 
 void alm::gfx::RenderStage::SetEnabled(bool b) 
 { 
+	if (m_Enabled == b)
+		return;
+
 	m_Enabled = b; 
 	if (m_Enabled)
 	{

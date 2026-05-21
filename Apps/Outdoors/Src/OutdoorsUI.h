@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Framework/FrameworkUI.h"
+#include "Framework/UI/FrameworkUI.h"
 #include "Gfx/Scene.h"
 #include "Gfx/RenderStages/CloudsRenderStage.h"
 #include "Gfx/RenderStages/SkyRenderStage.h"
@@ -8,21 +8,6 @@
 class OutdoorsUI : public alm::fw::FrameworkUI
 {
 	REGISTER_RENDER_STAGE(OutdoorsUI)
-
-public:
-
-	struct Data
-	{
-		bool ShowUI = true;
-
-		alm::gfx::Scene::SunParams SunParams;
-		bool SkyEnabled = true;
-		alm::gfx::SkyRenderStage::SkyParams SkyParams;
-		alm::gfx::CloudsRenderStage::CloudsParams CloudsParams;
-		bool SunParamsUpdated = false;
-	};
-
-	Data m_Data;
 
 private:
 

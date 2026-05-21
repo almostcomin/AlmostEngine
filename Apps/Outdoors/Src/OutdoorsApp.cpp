@@ -146,33 +146,19 @@ public:
 			m_CloudsRS->SetCloudsShapeTexture(std::move(cloudsTexture));
 		}
 
-		// Init UI params
-		m_UI->m_Data.SunParams = m_Scene->GetSunParams();
-		m_UI->m_Data.SkyParams = m_SkyRS->GetSkyParams();
-		m_UI->m_Data.CloudsParams = m_CloudsRS->GetCloudsParams();
+		// Init UI
+		{
+			m_UI->Init(m_Window, m_Scene.get_weak(), m_MainRenderView.get_weak(), &m_CameraController);
+			RefreshUIData();
 
-		m_UI->AddTextureWindow("CloudShape.dds", m_CloudsRS->GetCloudsShapeTexture());
-
-		auto renderGraph = m_MainRenderView->GetRenderGraph();
-		alm::rhi::TextureHandle depthColorTexture = renderGraph->GetTexture("ShadowmapColor");
-		m_UI->AddTextureWindow("Shadowmap", depthColorTexture);
-
-		m_UI->AddTextureWindow(heightmap->GetSource()->GetName(), heightmap->GetHeightsTexture());
+			m_UI->AddTextureWindow(heightmap->GetSource()->GetName(), heightmap->GetHeightsTexture());
+		}
 
 		return true;
 	}
 
 	bool Update(float deltaTime) override
 	{
-		if (m_UI->m_Data.SunParamsUpdated)
-		{
-			m_Scene->SetSunParams(m_UI->m_Data.SunParams);
-			m_UI->m_Data.SunParamsUpdated = false;
-		}
-		m_SkyRS->SetEnabled(m_UI->m_Data.SkyEnabled);
-		m_SkyRS->SetSkyParams(m_UI->m_Data.SkyParams);
-		m_CloudsRS->SetCloudsParams(m_UI->m_Data.CloudsParams);
-
 		// Camera movement
 		m_CameraController.Update(deltaTime);
 
@@ -293,7 +279,7 @@ public:
 
 private:
 
-	alm::CameraController m_CameraController;
+	alm::fw::CameraController m_CameraController;
 
 	std::shared_ptr<alm::gfx::SkyRenderStage> m_SkyRS;
 	std::shared_ptr<alm::gfx::CloudsRenderStage> m_CloudsRS;
