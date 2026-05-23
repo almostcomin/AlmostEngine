@@ -106,7 +106,7 @@ void alm::gfx::RenderView::RegisterHeightmap(const SceneHeightmap* sceneHeightma
 {
 	assert(m_HeightmapInstances.find(sceneHeightmap) == m_HeightmapInstances.end() &&
 		"Heightmap already registered");
-	m_HeightmapInstances.emplace(sceneHeightmap, std::make_unique<HeightmapInstance>(sceneHeightmap));
+	m_HeightmapInstances.emplace(sceneHeightmap, std::make_unique<HeightmapInstance>(sceneHeightmap, m_DeviceManager));
 }
 
 void alm::gfx::RenderView::UnregisterHeightmap(const SceneHeightmap* sceneHeightmap)
@@ -167,6 +167,7 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 		LOG_ERROR("No frame buffer specified. Nothing to render");
 		return;
 	}
+	alm::gfx::GpuSceneBuffers* gpuSceneBuffers = m_DeviceManager->GetGpuSceneBuffers();
 
 	rhi::ICommandList* beginCommandList = m_BeginCommandLists[m_DeviceManager->GetFrameModuleIndex()].get();
 	beginCommandList->Open();
@@ -183,15 +184,22 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 		m_ResetPrevFrameCamera = false;
 	}
 
+	// Update heightmaps
+	UpdateHeightmaps(beginCommandList);
+	// Upload transients (for heightmap only atm)
+	gpuSceneBuffers->FlushTransients(m_Scene->GetGpuSceneBuffersHandle(), beginCommandList);
+
+	// Collects draw infos for camera view
 	UpdateCameraVisibleSet(beginCommandList);
+	// Collects draw infos for shadowmap
 	m_ShadowmapValid = UpdateShadowmapData(beginCommandList);
 
+	// Updates visible lights buffers
 	UpdateDirLightsVisibleBuffer(beginCommandList);
 	UpdatePointLightsVisibleBuffer(beginCommandList);
 	UpdateSpotLightsVisibleBuffer(beginCommandList);
 
-	UpdateHeightmaps(beginCommandList);
-
+	// Update the Scene constant buffer
 	UpdateSceneConstantBuffer();
 
 	// Back buffer is in COMMON state and need to be transitioned to RT
@@ -323,7 +331,9 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 		return;
 	}
 
-	VisibleSetContext context{ .View = this };
+	VisibleSetContext context{ 
+		.HeightmapInstances = &m_HeightmapInstances,
+		.View = this };
 
 	GetVisibleSet(context, m_Camera->GetFrustum().get_planes(), SceneContentType::Meshes, m_CameraVisibleSet, &m_CameraVisibleBounds, 
 		SceneContentType::ShadowCasters, &m_ShadowCastersCameraVisibleBounds);
@@ -378,7 +388,9 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	const aabox3f searchVolumeWorld(searchVolumeWorldD);  // back to float for the cull
 	const std::vector<plane3f> searchPlanes = searchVolumeWorld.buildClipPlanes();
 
-	VisibleSetContext context{ .View = this };
+	VisibleSetContext context{
+		.HeightmapInstances = &m_HeightmapInstances,
+		.View = this };
 	aabox3f casterBoundsForShadowMapF;
 	GetVisibleSet(context, searchPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, &casterBoundsForShadowMapF);
 	if (!casterBoundsForShadowMapF.valid())
@@ -648,13 +660,17 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 
 void alm::gfx::RenderView::UpdateHeightmaps(rhi::ICommandList* commandList)
 {
+	commandList->BeginMarker("Heightmaps");
+
 	if (m_Camera)
 	{
 		for (auto& [_, instance] : m_HeightmapInstances)
 		{
-			instance->Update(m_Camera.get(), commandList);
+			instance->Update(m_Camera.get(), m_DeviceManager->GetGpuSceneBuffers(), m_Scene->GetGpuSceneBuffersHandle(), commandList);
 		}
 	}
+
+	commandList->EndMarker();
 }
 
 void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType primaryType,

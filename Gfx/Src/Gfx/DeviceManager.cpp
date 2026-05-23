@@ -39,7 +39,7 @@ bool alm::gfx::DeviceManager::Init(const DeviceParams& params)
 		m_TextureCache = std::make_unique<alm::gfx::TextureCache>(m_DataUploader.get(), m_Device.get());
 		m_CommonResources = std::make_unique<alm::gfx::CommonResources>(m_ShaderFactory.get(), m_Device.get());
 		m_UploadBuffer = std::make_unique<alm::gfx::UploadBuffer>(m_FrameIndex, MiB(8), m_Device.get());		
-		m_GpuSceneBuffers = std::make_unique<alm::gfx::GpuSceneBuffers>(4096, 1024, m_Device.get());
+		m_GpuSceneBuffers = std::make_unique<alm::gfx::GpuSceneBuffers>(m_Device.get());
 
 		for (uint32_t i = 0; i < QueuedFramesCount; ++i)
 		{

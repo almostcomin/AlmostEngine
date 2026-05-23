@@ -7,6 +7,7 @@ namespace alm::gfx
 		Opaque,
 		AlphaTested,
 		AlphaBlended,
+		Terrain,
 
 		_Size
 	};

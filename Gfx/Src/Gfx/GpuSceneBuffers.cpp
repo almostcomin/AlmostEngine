@@ -5,7 +5,6 @@
 #include "Gfx/MeshInstance.h"
 #include "RHI/Buffer.h"
 #include "RHI/Device.h"
-#include "Interop/RenderResources.h"
 
 static void SerializeMaterial(const alm::gfx::Material* mat, interop::MaterialData* dest)
 {
@@ -68,16 +67,10 @@ static void SerializeMeshInstance(const alm::gfx::MeshInstance* mi, interop::Ins
 	dest->inverseModelMatrix = glm::inverse(worldMtx);
 }
 
-alm::gfx::GpuSceneBuffers::GpuSceneBuffers(size_t meshesCount, size_t materialsCount, rhi::Device* device) : m_Device{ device }
+alm::gfx::GpuSceneBuffers::GpuSceneBuffers(rhi::Device* device) : m_Device{ device }
 {
-	if (materialsCount > 0)
-	{
-		m_MaterialsBuffer = CreateBuffer<interop::MaterialData>(materialsCount, rhi::ResourceState::SHADER_RESOURCE, "Materials GPU Buffer");
-	}
-	if (meshesCount > 0)
-	{
-		m_MeshesBuffer = CreateBuffer<interop::MeshData>(meshesCount, rhi::ResourceState::SHADER_RESOURCE, "Meshes GPU Buffer");
-	}
+	m_MaterialsBuffer = CreateBuffer<interop::MaterialData>(kMaterialCount, rhi::ResourceState::SHADER_RESOURCE, "Materials GPU Buffer");
+	m_MeshesBuffer = CreateBuffer<interop::MeshData>(kMeshRefCount, rhi::ResourceState::SHADER_RESOURCE, "Meshes GPU Buffer");
 
 	m_MeshMaterialIndices.fill(UINT32_MAX);
 }
@@ -90,6 +83,9 @@ alm::gfx::GpuSceneBuffersHandle alm::gfx::GpuSceneBuffers::RequestSceneHandle(co
 	GpuSceneBuffersHandle handle;
 	handle.idx = m_SceneStates.insert({});
 	m_SceneStates[handle.idx].DebugName = debugName;
+	m_SceneStates[handle.idx].MeshInstancesBuffer = CreateBuffer<interop::InstanceData>(kStaticInstanceCount + kTransientInstanceCount,
+		rhi::ResourceState::SHADER_RESOURCE, debugName.c_str());
+
 	return handle;
 }
 
@@ -311,6 +307,40 @@ void alm::gfx::GpuSceneBuffers::RebindMeshMaterial(const Mesh* mesh)
 	SetDirtyMesh(meshIdx);
 }
 
+alm::gfx::GpuSceneBuffers::TransientAllocation alm::gfx::GpuSceneBuffers::AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count)
+{
+	assert(count > 0);
+	assert(m_SceneStates.valid_index(handle.idx));
+
+	auto& ss = m_SceneStates[handle.idx];
+
+	if (ss.TransientAllocated + count > kTransientInstanceCount)
+	{
+		LOG_ERROR("Not enough space in the transient buffer.");
+		return {};
+	}
+
+	if (!ss.TransientInstacesStagingBuffer)
+	{
+		rhi::BufferDesc desc{
+			.memoryAccess = rhi::MemoryAccess::Upload,
+			.sizeBytes = kTransientInstanceCount * sizeof(interop::InstanceData) };
+
+		ss.TransientInstacesStagingBuffer = m_Device->CreateBuffer(desc, rhi::ResourceState::COPY_SRC, std::format("{}|Transient staging", ss.DebugName));
+
+		ss.TransientDataPtr = (interop::InstanceData*)ss.TransientInstacesStagingBuffer->Map();
+	}
+
+	TransientAllocation alloc;
+	alloc.BaseIndex = kTransientInstanceCount + ss.TransientAllocated;
+	alloc.Count = count;
+	alloc.DataPtr = ss.TransientDataPtr + ss.TransientAllocated;
+
+	ss.TransientAllocated += count;
+
+	return alloc;
+}
+
 uint32_t alm::gfx::GpuSceneBuffers::GetMaterialIndexFromMesh(const alm::gfx::Mesh* mesh) const
 {
 	return GetMaterialIndexFromMeshIdx(m_Meshes.find(mesh));
@@ -366,6 +396,28 @@ void alm::gfx::GpuSceneBuffers::UpdateGpuBuffers(rhi::ICommandList* commandList)
 	}
 }
 
+void alm::gfx::GpuSceneBuffers::FlushTransients(GpuSceneBuffersHandle handle, rhi::ICommandList* commandList)
+{
+	assert(m_SceneStates.valid_index(handle.idx));
+	auto& ss = m_SceneStates[handle.idx];
+
+	if (ss.TransientAllocated > 0)
+	{
+		assert(ss.TransientInstacesStagingBuffer);
+			
+		ss.TransientInstacesStagingBuffer->Unmap();
+
+		commandList->CopyBufferToBuffer(
+			ss.MeshInstancesBuffer.get(), kStaticInstanceCount * sizeof(interop::InstanceData),
+			ss.TransientInstacesStagingBuffer.get(), 0,
+			ss.TransientAllocated * sizeof(interop::InstanceData));
+
+		m_Device->ReleaseQueued(std::move(ss.TransientInstacesStagingBuffer));
+		ss.TransientAllocated = 0;
+		ss.TransientDataPtr = nullptr;
+	}
+}
+
 template<typename ElemT>
 alm::rhi::BufferOwner alm::gfx::GpuSceneBuffers::CreateBuffer(uint32_t requiredElementCount, rhi::ResourceState initialState, const char* debugName)
 {
@@ -390,6 +442,12 @@ alm::rhi::ResourceState alm::gfx::GpuSceneBuffers::GrowBufferIfNeeded(
 
 	if (requiredSize <= prevSize)
 		return rhi::ResourceState::SHADER_RESOURCE;  // no grow
+
+	// No buffer grown is supported for the moment.
+	// Buffers needs to be initialized at its default/max size
+	// Kepping below code here because can be used as reference if we allow buffer grown again
+	assert(0);
+	std::abort();
 
 	rhi::BufferOwner oldBuffer = std::move(buffer);
 	buffer = CreateBuffer<ElemT>(requiredSize * 2, rhi::ResourceState::COPY_DST, debugName);

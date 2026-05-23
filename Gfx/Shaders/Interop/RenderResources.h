@@ -125,6 +125,13 @@ namespace interop
         uint _padding[2];
     };
 
+    struct HeightmapPatchData
+    {
+        float2 MinUV;
+        float CellSize;
+        uint _padding0;
+    };
+
     // Warning! can't use _padding[2] since in a constant buffer each array element consumes 4 bytes:
     // https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules#more-aggressive-packing
     struct SceneConstants

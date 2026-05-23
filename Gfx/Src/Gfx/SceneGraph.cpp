@@ -6,6 +6,7 @@
 #include "Gfx/SceneCamera.h"
 #include "Gfx/SceneLights.h"
 #include "Gfx/SceneHeigthmap.h"
+#include "Gfx/Heightmap.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Mesh.h"
 
@@ -301,8 +302,15 @@ void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
         break;
 
     case SceneGraphLeaf::Type::Heightmap:
-        m_Leafs.SceneHeightmaps.insert(checked_cast<SceneHeightmap*>(leaf));
-        break;
+    {
+        auto* sh = checked_cast<SceneHeightmap*>(leaf);
+        auto mesh = sh->GetHeightmap()->GetPatchMesh();
+        uint32_t meshIdx = m_GpuSceneBuffers->RegisterMesh(mesh.get());
+
+        sh->SetPatchMeshGpuIndex(meshIdx);
+
+        m_Leafs.SceneHeightmaps.insert(sh);
+    } break;
         
     default:
         assert(false && "Type not supported");
@@ -340,8 +348,13 @@ void alm::gfx::SceneGraph::UnregisterLeaf(SceneGraphLeaf* leaf)
         break;
 
     case SceneGraphLeaf::Type::Heightmap:
+    {
+        auto* sh = checked_cast<SceneHeightmap*>(leaf);
+        m_GpuSceneBuffers->UnregisterMesh(sh->GetPatchMeshGpuIndex());
+        sh->SetPatchMeshGpuIndex(UINT32_MAX);
+
         m_Leafs.SceneHeightmaps.erase(checked_cast<SceneHeightmap*>(leaf));
-        break;
+    } break;
 
     default:
         assert(false && "Type not supported");

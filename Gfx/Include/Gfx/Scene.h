@@ -53,6 +53,8 @@ namespace alm::gfx
 
 		alm::weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
 		
+		GpuSceneBuffersHandle GetGpuSceneBuffersHandle() const { return m_GpuBuffersHandle; }
+		
 		void AttachRenderView(alm::weak<RenderView> renderView);
 		void DetachRenderView(alm::weak<RenderView> renderView);
 

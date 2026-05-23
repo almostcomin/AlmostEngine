@@ -18,7 +18,7 @@ public:
 	// SceneGraphLeaf interface
 	bool HasBounds() const override { return m_Heightmap ? true : false; }
 	const aabox3f& GetBounds() const override;
-	SceneContentFlags GetContentFlags() const override { return alm::gfx::SceneContentFlags::Meshes; }
+	SceneContentFlags GetContentFlags() const override { return alm::gfx::SceneContentFlags::Meshes | alm::gfx::SceneContentFlags::ShadowCasters; }
 	Type GetType() const override { return SceneGraphLeaf::Type::Heightmap; }
 
 	IRenderable* AsRenderable() { return this; }
@@ -27,9 +27,13 @@ public:
 	// IRenderable interface
 	void CollectDrawInfos(const VisibleSetContext& context, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const override;
 
+	void SetPatchMeshGpuIndex(uint32_t idx) { m_PatchMeshGpuIndex = idx; }
+	uint32_t GetPatchMeshGpuIndex() const { return m_PatchMeshGpuIndex; }
+
 private:
 
 	std::shared_ptr<Heightmap> m_Heightmap;
+	uint32_t m_PatchMeshGpuIndex = UINT32_MAX;
 };
 
 } // namespace alm::gfx

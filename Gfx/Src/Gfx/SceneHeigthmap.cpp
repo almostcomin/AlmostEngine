@@ -1,6 +1,8 @@
 #include "Gfx/GfxPCH.h"
 #include "Gfx/SceneHeigthmap.h"
 #include "Gfx/Heightmap.h"
+#include "Gfx/VisibleSetContext.h"
+#include "Gfx/HeightmapInstance.h"
 
 const alm::aabox3f& alm::gfx::SceneHeightmap::GetBounds() const
 {
@@ -10,4 +12,10 @@ const alm::aabox3f& alm::gfx::SceneHeightmap::GetBounds() const
 void alm::gfx::SceneHeightmap::CollectDrawInfos(const VisibleSetContext& context, const GpuSceneBuffers* gpuSceneBuffers,
 	std::vector<RenderableDrawInfo>& out) const
 {
+	assert(context.HeightmapInstances);
+
+	auto it = context.HeightmapInstances->find(this);
+	assert(it != context.HeightmapInstances->end());
+
+	it->second->CollectDrawInfos(gpuSceneBuffers, out);
 }

@@ -1,19 +1,25 @@
 #pragma once
 
+#include "Gfx/GpuSceneBuffersHandle.h"
+#include "Gfx/Renderable.h"
+
 namespace alm::gfx
 {
 
 class SceneHeightmap;
 class Camera;
+class DeviceManager;
 
 class HeightmapInstance
 {
 public:
 
-	HeightmapInstance(const SceneHeightmap* sceneHeightmap);
+	HeightmapInstance(const SceneHeightmap* sceneHeightmap, DeviceManager* deviceManager);
 	~HeightmapInstance();
 
-	void Update(const Camera* camera, rhi::ICommandList* commandList);
+	void Update(const Camera* camera, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle, rhi::ICommandList* commandList);
+
+	void CollectDrawInfos(const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const;
 
 private:
 
@@ -35,7 +41,7 @@ private:
 private:
 
 	bool ShouldSubdivide(const QuadNodeCoord& coord, const aabox3f& worldBounds, const Camera* camera);
-	void SelectLODNodes(const QuadNodeCoord& coord, const Camera* camera, std::vector<QuadNodeCoord>& out_leafNodes);
+	void SelectLODNodes(const QuadNodeCoord& coord, const Camera* camera);
 
 private:
 
@@ -45,6 +51,11 @@ private:
 	float m_LODDistanceFactor = 1.f;
 
 	const SceneHeightmap* m_SceneHeightmap;
+
+	rhi::BufferOwner m_PatchDataBuffer;
+	uint32_t m_TransientAllocBaseIdx;
+
+	DeviceManager* m_DeviceManager;
 };
 
 } // namespace alm::gfx

@@ -4,6 +4,7 @@
 #include "Gfx/GpuSceneBuffersHandle.h"
 #include "RHI/ResourceState.h"
 #include "RHI/ShaderViews.h"
+#include "Interop/RenderResources.h"
 
 namespace alm::rhi
 {
@@ -25,17 +26,29 @@ class GpuSceneBuffers
 {
 public:
 
+	static constexpr size_t kStaticInstanceCount	= 8192;
+	static constexpr size_t kTransientInstanceCount	= 4096;
+	static constexpr size_t kMaterialCount			= 1024;
+	static constexpr size_t kMeshRefCount			= 4096;
+
 	using MaterialRefCount = ResourceRefCount<const Material>;
 	using MeshRefCount = ResourceRefCount<const Mesh>;
 
-	using MeshInstanceLeafsContainer = alm::stable_vector<MeshInstance*, 8192>;
-	using MaterialsContainer = alm::unique_stable_vector<MaterialRefCount, 1024>;
-	using MeshesContainer = alm::unique_stable_vector<MeshRefCount, 4096>;
+	using MeshInstanceLeafsContainer = alm::stable_vector<MeshInstance*, kStaticInstanceCount>;
+	using MaterialsContainer = alm::unique_stable_vector<MaterialRefCount, kMaterialCount>;
+	using MeshesContainer = alm::unique_stable_vector<MeshRefCount, kMeshRefCount>;
 	using MeshMaterialIndicesContainer = std::array<uint32_t, MeshesContainer::max_elements>;
+
+	struct TransientAllocation
+	{
+		uint32_t BaseIndex;
+		uint32_t Count;
+		interop::InstanceData* DataPtr;
+	};
 
 public:
 
-	GpuSceneBuffers(size_t meshesCount, size_t materialsCount, rhi::Device* device);
+	GpuSceneBuffers(rhi::Device* device);
 	~GpuSceneBuffers();
 
 	GpuSceneBuffersHandle RequestSceneHandle(const std::string& debugName);
@@ -61,6 +74,8 @@ public:
 
 	void RebindMeshMaterial(const Mesh* mesh);
 
+	TransientAllocation AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count);
+
 	const MaterialsContainer& GetMaterials() const { return m_Materials; }
 	// Registering a Mesh also register its material
 	const MeshesContainer& GetMeshes() const { return m_Meshes; }
@@ -73,6 +88,7 @@ public:
 	rhi::BufferReadOnlyView GetInstancesBufferView(GpuSceneBuffersHandle handle) const;
 
 	void UpdateGpuBuffers(rhi::ICommandList* commandList);
+	void FlushTransients(GpuSceneBuffersHandle handle, rhi::ICommandList* commandList);
 
 private:
 
@@ -88,6 +104,9 @@ private:
 		MeshInstanceLeafsContainer MeshInstances;
 		RefreshState MeshInstancesState;
 		rhi::BufferOwner MeshInstancesBuffer;
+		rhi::BufferOwner TransientInstacesStagingBuffer;
+		uint32_t TransientAllocated = 0;
+		interop::InstanceData* TransientDataPtr = nullptr;
 		std::string DebugName;
 	};
 
