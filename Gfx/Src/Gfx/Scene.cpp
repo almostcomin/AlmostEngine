@@ -92,11 +92,6 @@ const alm::aabox3f alm::gfx::Scene::GetWorldBounds(SceneContentType type) const
 	return aabox3f::get_empty();
 }
 
-alm::rhi::BufferReadOnlyView alm::gfx::Scene::GetInstancesBufferView() const
-{
-	return m_DeviceManager->GetGpuSceneBuffers()->GetInstancesBufferView(m_GpuBuffersHandle);
-}
-
 void alm::gfx::Scene::Update()
 {
 	if (m_SceneGraph)

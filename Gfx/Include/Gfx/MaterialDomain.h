@@ -14,12 +14,15 @@ namespace alm::gfx
 
 	inline const char* GetMaterialDomainString(MaterialDomain domain)
 	{
-		static const char* debugStrings[(int)MaterialDomain::_Size] =
+		static const char* debugStrings[] =
 		{
 			"Opaque",
 			"AlphaTested",
-			"AlphaBlended"
+			"AlphaBlended",
+			"Terrain"
 		};
+
+		static_assert(std::size(debugStrings) == (int)MaterialDomain::_Size);
 
 		return debugStrings[(int)domain];
 	};

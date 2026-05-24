@@ -35,7 +35,26 @@ alm::rhi::Barrier alm::rhi::Barrier::Texture(ITexture* texture, ResourceState be
 alm::rhi::Barrier alm::rhi::Barrier::Aliasing(IResource* before, IResource* after)
 {
 	Barrier barrier;
+	barrier.type = Type::ALIASING;
 	barrier.aliasing.resource_before = before;
 	barrier.aliasing.resource_after = after;
 	return barrier;
+}
+
+void alm::rhi::Barrier::Inverse()
+{
+	switch (type)
+	{
+	case Type::BUFFER:
+		std::swap(buffer.state_before, buffer.state_after);
+		break;
+	case Type::TEXTURE:
+		std::swap(texture.layout_before, texture.layout_after);
+		break;
+	case Type::MEMORY:
+	case Type::ALIASING:
+	default:
+		// no-op
+		break;
+	};
 }

@@ -59,6 +59,7 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 		m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_vs", rhi::ShaderType::Vertex);
 		m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_vs", rhi::ShaderType::Vertex);
 		m_PS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_ps", rhi::ShaderType::Pixel);
+		m_VS_Terrain = shaderFactory->LoadShader("DepthPrepass_Terrain_vs", rhi::ShaderType::Vertex);
 	}
 
 	// Create PSO
@@ -85,6 +86,7 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 		m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage", device);
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), nullptr);
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), nullptr);
 	}
 }
 

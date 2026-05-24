@@ -41,12 +41,13 @@ alm::gfx::SceneContentFlags alm::gfx::MeshInstance::GetContentFlags() const
 void alm::gfx::MeshInstance::CollectDrawInfos(const VisibleSetContext&, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const
 {
 	out.emplace_back(
-		m_Mesh->GetMaterial()->GetDomain(),
-		m_Mesh->GetMaterial()->GetCullMode(),
-		(uintptr_t)(m_Mesh.get()), // batch key
-		GetLeafSceneIndex(),
-		m_MeshSceneIndex,
-		gpuSceneBuffers->GetMaterialIndexFromMeshIdx(m_MeshSceneIndex),
-		m_Mesh->GetIndexCount()
+		m_Mesh->GetMaterial()->GetDomain(),		// MaterialDomain
+		m_Mesh->GetMaterial()->GetCullMode(),	// CullMode
+		(uintptr_t)(m_Mesh.get()),				// BatchKey
+		GetLeafSceneIndex(),					// InstanceIdx
+		m_MeshSceneIndex,						// MeshIndex
+		gpuSceneBuffers->GetMaterialIndexFromMeshIdx(m_MeshSceneIndex), // MaterialIndex
+		UINT32_MAX,								// TransientBaseIndex (not used)
+		m_Mesh->GetIndexCount()					// IndexCount
 	);
 }

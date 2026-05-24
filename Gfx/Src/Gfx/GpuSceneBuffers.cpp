@@ -84,7 +84,7 @@ alm::gfx::GpuSceneBuffersHandle alm::gfx::GpuSceneBuffers::RequestSceneHandle(co
 	handle.idx = m_SceneStates.insert({});
 	m_SceneStates[handle.idx].DebugName = debugName;
 	m_SceneStates[handle.idx].MeshInstancesBuffer = CreateBuffer<interop::InstanceData>(kStaticInstanceCount + kTransientInstanceCount,
-		rhi::ResourceState::SHADER_RESOURCE, debugName.c_str());
+		rhi::ResourceState::SHADER_RESOURCE, std::format("{}|Instances Buffer", debugName));
 
 	return handle;
 }
@@ -136,7 +136,7 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMesh(const gfx::Mesh* mesh)
 {
 	if (mesh == nullptr)
 	{
-		LOG_ERROR("Trying to register a null material");
+		LOG_ERROR("Trying to register a null mesh");
 		return UINT32_MAX;
 	}
 
@@ -307,36 +307,55 @@ void alm::gfx::GpuSceneBuffers::RebindMeshMaterial(const Mesh* mesh)
 	SetDirtyMesh(meshIdx);
 }
 
-alm::gfx::GpuSceneBuffers::TransientAllocation alm::gfx::GpuSceneBuffers::AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count)
+alm::gfx::GpuSceneBuffers::HeightmapPatchesAllocation alm::gfx::GpuSceneBuffers::AllocateTransientHeightmapPatches(
+	GpuSceneBuffersHandle handle, uint32_t count)
 {
 	assert(count > 0);
 	assert(m_SceneStates.valid_index(handle.idx));
 
 	auto& ss = m_SceneStates[handle.idx];
 
-	if (ss.TransientAllocated + count > kTransientInstanceCount)
+	auto [instancesBaseIdx, instanceDataPtr] = AllocateTransientInstances(handle, count);
+	if (instanceDataPtr == nullptr)
 	{
-		LOG_ERROR("Not enough space in the transient buffer.");
+		LOG_ERROR("Failed allocating '{}' transient instances", count);
 		return {};
 	}
 
-	if (!ss.TransientInstacesStagingBuffer)
+	// Actually if AllocateTransientInstances succeeded, this should also always succeed.
+	// But lets do check anyway, in case we decouple the buffers capacity in the future.
+	if (ss.HeighmapPatchesAllocated + count > kTransientInstanceCount)
+	{
+		LOG_ERROR("Not enough space in the HeightmapPatches buffer.");
+		return {};
+	}
+
+	if (!ss.HeightmapPatchDataBuffer)
+	{
+		ss.HeightmapPatchDataBuffer = CreateBuffer<interop::HeightmapPatchData>(
+			kTransientInstanceCount, rhi::ResourceState::SHADER_RESOURCE, "HeightmapData");
+	}
+
+	if (!ss.HeightmapPatchDataStagingBuffer)
 	{
 		rhi::BufferDesc desc{
 			.memoryAccess = rhi::MemoryAccess::Upload,
-			.sizeBytes = kTransientInstanceCount * sizeof(interop::InstanceData) };
+			.sizeBytes = kTransientInstanceCount * sizeof(interop::HeightmapPatchData) };
 
-		ss.TransientInstacesStagingBuffer = m_Device->CreateBuffer(desc, rhi::ResourceState::COPY_SRC, std::format("{}|Transient staging", ss.DebugName));
+		ss.HeightmapPatchDataStagingBuffer =
+			m_Device->CreateBuffer(desc, rhi::ResourceState::COPY_SRC, std::format("{}|HeightmapPatchData staging", ss.DebugName));
 
-		ss.TransientDataPtr = (interop::InstanceData*)ss.TransientInstacesStagingBuffer->Map();
+		ss.HeightmapPatchDataPtr = (interop::HeightmapPatchData*)ss.HeightmapPatchDataStagingBuffer->Map();
 	}
 
-	TransientAllocation alloc;
-	alloc.BaseIndex = kTransientInstanceCount + ss.TransientAllocated;
-	alloc.Count = count;
-	alloc.DataPtr = ss.TransientDataPtr + ss.TransientAllocated;
+	HeightmapPatchesAllocation alloc{
+		.InstancesBaseIndex = instancesBaseIdx,
+		.PatchesBaseIndex = ss.HeighmapPatchesAllocated,
+		.Count = count,
+		.InstancesDataPtr = instanceDataPtr,
+		.HeightmapPatchesPtr = ss.HeightmapPatchDataPtr + ss.HeighmapPatchesAllocated };
 
-	ss.TransientAllocated += count;
+	ss.HeighmapPatchesAllocated += count;
 
 	return alloc;
 }
@@ -372,6 +391,13 @@ alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetInstancesBufferView(G
 		m_SceneStates[handle.idx].MeshInstancesBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
 
+alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetHeightmapPatchDataBufferView(GpuSceneBuffersHandle handle) const
+{
+	assert(m_SceneStates.valid_index(handle.idx));
+	return m_SceneStates[handle.idx].HeightmapPatchDataBuffer ?
+		m_SceneStates[handle.idx].HeightmapPatchDataBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
+}
+
 void alm::gfx::GpuSceneBuffers::UpdateGpuBuffers(rhi::ICommandList* commandList)
 {
 	UpdateGpuBufferGeneric<interop::MaterialData>(commandList, m_MaterialsBuffer, m_MaterialsState, "Materials GPU Buffer",
@@ -388,7 +414,8 @@ void alm::gfx::GpuSceneBuffers::UpdateGpuBuffers(rhi::ICommandList* commandList)
 
 	for (auto& sceneState : m_SceneStates)
 	{
-		UpdateGpuBufferGeneric<interop::InstanceData>(commandList, sceneState.MeshInstancesBuffer, sceneState.MeshInstancesState, sceneState.DebugName.c_str(),
+		UpdateGpuBufferGeneric<interop::InstanceData>(commandList, sceneState.MeshInstancesBuffer, sceneState.MeshInstancesState,
+			std::format("{}|Instances Buffer", sceneState.DebugName),
 		[&](uint32_t miIdx, interop::InstanceData* dst)
 		{
 			SerializeMeshInstance(sceneState.MeshInstances[miIdx], dst);
@@ -401,25 +428,59 @@ void alm::gfx::GpuSceneBuffers::FlushTransients(GpuSceneBuffersHandle handle, rh
 	assert(m_SceneStates.valid_index(handle.idx));
 	auto& ss = m_SceneStates[handle.idx];
 
-	if (ss.TransientAllocated > 0)
+	if (ss.TransientsAllocated > 0)
 	{
-		assert(ss.TransientInstacesStagingBuffer);
-			
+		assert(ss.TransientInstacesStagingBuffer);			
 		ss.TransientInstacesStagingBuffer->Unmap();
+
+		commandList->BeginMarker("Flush Transient Instances");
+
+		commandList->PushBarrier(rhi::Barrier::Buffer(ss.MeshInstancesBuffer.get(),
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
 
 		commandList->CopyBufferToBuffer(
 			ss.MeshInstancesBuffer.get(), kStaticInstanceCount * sizeof(interop::InstanceData),
 			ss.TransientInstacesStagingBuffer.get(), 0,
-			ss.TransientAllocated * sizeof(interop::InstanceData));
+			ss.TransientsAllocated * sizeof(interop::InstanceData));
+
+		commandList->PushBarrier(rhi::Barrier::Buffer(ss.MeshInstancesBuffer.get(),
+			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+
+		commandList->EndMarker();
 
 		m_Device->ReleaseQueued(std::move(ss.TransientInstacesStagingBuffer));
-		ss.TransientAllocated = 0;
-		ss.TransientDataPtr = nullptr;
+		ss.TransientsAllocated = 0;
+		ss.TransientInstancesDataPtr = nullptr;
+	}
+
+	if (ss.HeighmapPatchesAllocated > 0)
+	{
+		assert(ss.HeightmapPatchDataStagingBuffer && ss.HeightmapPatchDataBuffer);
+		ss.HeightmapPatchDataStagingBuffer->Unmap();
+
+		commandList->BeginMarker("Flush Heightmap Patches");
+
+		commandList->PushBarrier(rhi::Barrier::Buffer(ss.HeightmapPatchDataBuffer.get(),
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
+
+		commandList->CopyBufferToBuffer(
+			ss.HeightmapPatchDataBuffer.get(), 0,
+			ss.HeightmapPatchDataStagingBuffer.get(), 0,
+			ss.HeighmapPatchesAllocated * sizeof(interop::HeightmapPatchData));
+
+		commandList->PushBarrier(rhi::Barrier::Buffer(ss.HeightmapPatchDataBuffer.get(),
+			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+
+		commandList->EndMarker();
+
+		m_Device->ReleaseQueued(std::move(ss.HeightmapPatchDataStagingBuffer));
+		ss.HeighmapPatchesAllocated = 0;
+		ss.HeightmapPatchDataPtr = nullptr;
 	}
 }
 
 template<typename ElemT>
-alm::rhi::BufferOwner alm::gfx::GpuSceneBuffers::CreateBuffer(uint32_t requiredElementCount, rhi::ResourceState initialState, const char* debugName)
+alm::rhi::BufferOwner alm::gfx::GpuSceneBuffers::CreateBuffer(uint32_t requiredElementCount, rhi::ResourceState initialState, const std::string& debugName)
 {
 	rhi::BufferDesc desc{
 		.memoryAccess = rhi::MemoryAccess::Default,
@@ -436,7 +497,7 @@ alm::rhi::ResourceState alm::gfx::GpuSceneBuffers::GrowBufferIfNeeded(
 	alm::rhi::ICommandList* commandList,
 	alm::rhi::BufferOwner& buffer,
 	uint32_t requiredSize,
-	const char* debugName)
+	const std::string& debugName)
 {
 	const uint32_t prevSize = buffer ? buffer->GetDesc().sizeBytes / sizeof(ElemT) : 0u;
 
@@ -446,9 +507,11 @@ alm::rhi::ResourceState alm::gfx::GpuSceneBuffers::GrowBufferIfNeeded(
 	// No buffer grown is supported for the moment.
 	// Buffers needs to be initialized at its default/max size
 	// Kepping below code here because can be used as reference if we allow buffer grown again
-	assert(0);
+	LOG_ERROR("Buffer '{}' overflow. Required: {}, capacity: {}. Resize statics in code.", debugName, requiredSize, prevSize);
+	assert(0 && "Buffer overflow");
 	std::abort();
 
+#if 0
 	rhi::BufferOwner oldBuffer = std::move(buffer);
 	buffer = CreateBuffer<ElemT>(requiredSize * 2, rhi::ResourceState::COPY_DST, debugName);
 
@@ -456,6 +519,7 @@ alm::rhi::ResourceState alm::gfx::GpuSceneBuffers::GrowBufferIfNeeded(
 		commandList->CopyBufferToBuffer(buffer.get(), 0, oldBuffer.get(), 0, prevSize * sizeof(ElemT));
 
 	return rhi::ResourceState::COPY_DST;
+#endif
 }
 
 template<typename ElemT, typename Indices, typename SerializeFn>
@@ -478,7 +542,7 @@ void alm::gfx::GpuSceneBuffers::UploadIndices(rhi::ICommandList* commandList, rh
 
 template<typename ElemT, typename SerializeFn>
 void alm::gfx::GpuSceneBuffers::UpdateGpuBufferGeneric(rhi::ICommandList* commandList, rhi::BufferOwner& buffer, RefreshState& state,
-	const char* debugName, SerializeFn&& serializeFn)
+	const std::string& debugName, SerializeFn&& serializeFn)
 {
 	// 1. Grow Gpu buffer if needed
 	rhi::ResourceState bufferState = rhi::ResourceState::SHADER_RESOURCE;
@@ -521,4 +585,38 @@ void alm::gfx::GpuSceneBuffers::UpdateGpuBufferGeneric(rhi::ICommandList* comman
 	}
 
 	state = {};
+
+	// Note that state.RemovedIndices is not used for anything. Because removed indices require no action in terms of data modification.
+	// We could surely remove it, but we are going to keep it on case we need it for something in the future.
+}
+
+std::pair<uint32_t, interop::InstanceData*> alm::gfx::GpuSceneBuffers::AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count)
+{
+	assert(count > 0);
+	assert(m_SceneStates.valid_index(handle.idx));
+
+	auto& ss = m_SceneStates[handle.idx];
+
+	if (ss.TransientsAllocated + count > kTransientInstanceCount)
+	{
+		LOG_ERROR("Not enough space in the transient buffer.");
+		return { UINT32_MAX, nullptr };
+	}
+
+	if (!ss.TransientInstacesStagingBuffer)
+	{
+		rhi::BufferDesc desc{
+			.memoryAccess = rhi::MemoryAccess::Upload,
+			.sizeBytes = kTransientInstanceCount * sizeof(interop::InstanceData) };
+
+		ss.TransientInstacesStagingBuffer = m_Device->CreateBuffer(desc, rhi::ResourceState::COPY_SRC, std::format("{}|Transient staging", ss.DebugName));
+		ss.TransientInstancesDataPtr = (interop::InstanceData*)ss.TransientInstacesStagingBuffer->Map();
+	}
+
+	interop::InstanceData* ptr = ss.TransientInstancesDataPtr + ss.TransientsAllocated;
+	uint32_t baseIdx = ss.TransientsAllocated + kStaticInstanceCount; // Adds kStaticInstanceCount because transients starts where statics end
+
+	ss.TransientsAllocated += count;
+
+	return { baseIdx, ptr };
 }

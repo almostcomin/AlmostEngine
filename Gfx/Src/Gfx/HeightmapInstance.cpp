@@ -85,36 +85,30 @@ alm::aabox3f alm::gfx::HeightmapInstance::QuadNodeCoord::Bounds(float minY, floa
 
 alm::gfx::HeightmapInstance::HeightmapInstance(const SceneHeightmap* sceneHeightmap, DeviceManager* deviceManager) :
 	m_MaxLevel{ 4 }, m_SceneHeightmap{ sceneHeightmap }, m_DeviceManager{ deviceManager }
-{
-	rhi::BufferDesc desc = {
-		.memoryAccess = rhi::MemoryAccess::Default,
-		.shaderUsage = rhi::BufferShaderUsage::Uniform,
-		.sizeBytes = GpuSceneBuffers::kTransientInstanceCount * sizeof(interop::HeightmapPatchData),
-		.format = rhi::Format::UNKNOWN,
-		.stride = sizeof(interop::HeightmapPatchData) };
-	
-	m_PatchDataBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, "HeightmapPatchData");
-}
+{}
 
 alm::gfx::HeightmapInstance::~HeightmapInstance()
 {}
 
-void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle,
-	rhi::ICommandList* commandList)
+void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
 	auto* uploadBuffer = m_DeviceManager->GetUploadBuffer();
+	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+	rhi::TextureSampledView textureView = heightmap->GetHeightsTexture()->GetSampledView();
 
 	m_LeafNodes.clear();
 	QuadNodeCoord root{
 		.Level = 0, .CellIndex{0, 0} };
 
 	SelectLODNodes(root, camera);
+	if (m_LeafNodes.empty())
+		return;
 
 	auto [patchDataRawPtr, patchDataBufferOffset] = 
 		uploadBuffer->RequestSpaceForBufferDataUpload(m_LeafNodes.size() * sizeof(interop::HeightmapPatchData));
 	auto* patchDataPtr = (interop::HeightmapPatchData*)patchDataRawPtr;
 
-	GpuSceneBuffers::TransientAllocation alloc = gpuSceneBuffers->AllocateTransientInstances(gpuBuffersHandle, m_LeafNodes.size());
+	GpuSceneBuffers::HeightmapPatchesAllocation alloc = gpuSceneBuffers->AllocateTransientHeightmapPatches(gpuBuffersHandle, m_LeafNodes.size());
 	for (size_t i = 0; i < m_LeafNodes.size(); ++i)
 	{
 		const QuadNodeCoord& node = m_LeafNodes[i];
@@ -126,21 +120,16 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 		localTransform.SetScale({ cellSize, 1.f, cellSize });
 
 		float4x4 worldMatrix = m_SceneHeightmap->GetWorldTransform() * localTransform.GetMatrix();
-
-		alloc.DataPtr[i].modelMatrix = worldMatrix;
-		alloc.DataPtr[i].inverseModelMatrix = glm::inverse(worldMatrix);
-
-		patchDataPtr[i].MinUV = minUV;
-		patchDataPtr[i].CellSize = cellSize;
+		
+		alloc.InstancesDataPtr[i].modelMatrix = worldMatrix;
+		alloc.InstancesDataPtr[i].inverseModelMatrix = glm::inverse(worldMatrix);
+		
+		alloc.HeightmapPatchesPtr[i].MinUV = minUV;
+		alloc.HeightmapPatchesPtr[i].CellSize = cellSize;
+		alloc.HeightmapPatchesPtr[i].HeightmapTextureDI = textureView;
 	}
-	m_TransientAllocBaseIdx = alloc.BaseIndex;
-
-	commandList->PushBarrier(rhi::Barrier::Buffer(m_PatchDataBuffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
-
-	commandList->CopyBufferToBuffer(m_PatchDataBuffer.get(), 0, uploadBuffer->GetBuffer().get(), patchDataBufferOffset,
-		m_LeafNodes.size() * sizeof(interop::HeightmapPatchData));
-
-	commandList->PushBarrier(rhi::Barrier::Buffer(m_PatchDataBuffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+	m_InstancesAllocBaseIdx = alloc.InstancesBaseIndex;
+	m_PatchesAllocBaseIndex = alloc.PatchesBaseIndex;
 }
 
 void alm::gfx::HeightmapInstance::CollectDrawInfos(const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const
@@ -150,10 +139,11 @@ void alm::gfx::HeightmapInstance::CollectDrawInfos(const GpuSceneBuffers* gpuSce
 		out.push_back(RenderableDrawInfo{
 			.MaterialDomain = MaterialDomain::Terrain,
 			.CullMode = rhi::CullMode::Back,
-			.BatchKey = 0,
-			.InstanceIdx = m_TransientAllocBaseIdx + i,
+			.BatchKey = reinterpret_cast<uintptr_t>(this),
+			.InstanceIdx = m_InstancesAllocBaseIdx + i,
 			.MeshIndex = m_SceneHeightmap->GetPatchMeshGpuIndex(),
 			.MaterialIndex = gpuSceneBuffers->GetMaterialIndexFromMeshIdx(m_SceneHeightmap->GetPatchMeshGpuIndex()),
+			.TransientBaseIndex = m_PatchesAllocBaseIndex,
 			.IndexCount = m_SceneHeightmap->GetHeightmap()->GetPatchIndicesCount() });
 	}
 }
@@ -185,9 +175,7 @@ void alm::gfx::HeightmapInstance::SelectLODNodes(const QuadNodeCoord& coord, con
 
 	// Check frustum
 	const float2 heightRange = dataSource->GetHeightRange();
-	const float minH = heightRange.x * heightmap->GetHeightScale() + heightmap->GetHeightOffset();
-	const float maxH = heightRange.y * heightmap->GetHeightScale() + heightmap->GetHeightOffset();
-	aabox3f localBounds = coord.Bounds(minH, maxH);
+	aabox3f localBounds = coord.Bounds(heightRange.x, heightRange.y);
 
 	aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 	if (!camera->GetFrustum().test(worldBounds))

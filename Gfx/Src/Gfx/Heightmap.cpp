@@ -13,15 +13,11 @@ alm::gfx::Heightmap::Heightmap(
 	std::shared_ptr<IHeightmapSource> source,
 	const float2& uvScale,
 	const float2& uvOffset,
-	float heightScale,
-	float heightOffset,
 	uint32_t patchResolution) :
 	m_DeviceManager{ deviceManager },
 	m_Source{ source },
 	m_uvScale{ uvScale },
 	m_uvOffset{ uvOffset },
-	m_HeightScale{ heightScale },
-	m_HeightOffset{ heightOffset },
 	m_PatchResolution{ patchResolution }
 {
 	BuildTexture();
@@ -35,7 +31,7 @@ alm::gfx::Heightmap::~Heightmap()
 float alm::gfx::Heightmap::Sample(const float2& uv) const
 {
 	const float2 sourceUV = uv * m_uvScale + m_uvOffset;
-	return m_Source->Sample(sourceUV) * m_HeightScale + m_HeightOffset;
+	return m_Source->Sample(sourceUV);
 }
 
 void alm::gfx::Heightmap::ComputeBounds()
@@ -44,8 +40,8 @@ void alm::gfx::Heightmap::ComputeBounds()
 	const float2 normSize = m_Source->GetNormalizedSize();
 
 	// Actually if m_Source->IsTileable bounds in x/y are infinite?
-	m_Bounds.min = float3{ 0.f, heightRange.x * m_HeightScale + m_HeightOffset, 0.f };
-	m_Bounds.max = float3{ normSize.x, heightRange.y * m_HeightScale + m_HeightOffset, normSize.y };
+	m_Bounds.min = float3{ 0.f, heightRange.x, 0.f };
+	m_Bounds.max = float3{ normSize.x, heightRange.y, normSize.y };
 }
 
 void alm::gfx::Heightmap::BuildTexture()
@@ -164,9 +160,10 @@ void alm::gfx::Heightmap::BuildPatch()
 				uint32_t v10 = v00 + 1;							// bottom-right
 				uint32_t v01 = v00 + m_PatchResolution + 1;		// top-left
 				uint32_t v11 = v01 + 1;							// top-right
-				
-				pushIndex(v00); pushIndex(v10); pushIndex(v01);
-				pushIndex(v10); pushIndex(v11); pushIndex(v01);
+			
+				// Front face CCW
+				pushIndex(v00); pushIndex(v01); pushIndex(v10);
+				pushIndex(v10); pushIndex(v01); pushIndex(v11);
 			}
 		}
 

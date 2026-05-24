@@ -156,8 +156,10 @@ void alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(const alm::gfx::Rend
 					const RenderableDrawInfo& prevDrawInfo = drawInfos[prevIdx];
 
 					shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
+					shaderConstants.rawInstanceBaseIdx = prevDrawInfo.InstanceIdx;
 					shaderConstants.meshIndex = prevDrawInfo.MeshIndex;
 					shaderConstants.materialIndex = prevDrawInfo.MaterialIndex;
+					shaderConstants.extraDataBaseIdx = prevDrawInfo.TransientBaseIndex;
 					commandList->PushGraphicsConstants(1, shaderConstants);
 					commandList->DrawInstanced(prevDrawInfo.IndexCount, i - prevIdx, 0);
 
@@ -168,8 +170,10 @@ void alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(const alm::gfx::Rend
 
 			const RenderableDrawInfo& drawInfo = drawInfos[prevIdx];
 			shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
+			shaderConstants.rawInstanceBaseIdx = drawInfo.InstanceIdx;
 			shaderConstants.meshIndex = drawInfo.MeshIndex;
 			shaderConstants.materialIndex = drawInfo.MaterialIndex;
+			shaderConstants.extraDataBaseIdx = drawInfo.TransientBaseIndex;
 			commandList->PushGraphicsConstants(1, shaderConstants);
 			commandList->DrawInstanced(drawInfo.IndexCount, drawInfos.size() - prevIdx, 0);
 

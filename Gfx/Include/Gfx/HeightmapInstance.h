@@ -17,7 +17,7 @@ public:
 	HeightmapInstance(const SceneHeightmap* sceneHeightmap, DeviceManager* deviceManager);
 	~HeightmapInstance();
 
-	void Update(const Camera* camera, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle, rhi::ICommandList* commandList);
+	void Update(const Camera* camera, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle);
 
 	void CollectDrawInfos(const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const;
 
@@ -52,8 +52,8 @@ private:
 
 	const SceneHeightmap* m_SceneHeightmap;
 
-	rhi::BufferOwner m_PatchDataBuffer;
-	uint32_t m_TransientAllocBaseIdx;
+	uint32_t m_InstancesAllocBaseIdx;
+	uint32_t m_PatchesAllocBaseIndex;
 
 	DeviceManager* m_DeviceManager;
 };

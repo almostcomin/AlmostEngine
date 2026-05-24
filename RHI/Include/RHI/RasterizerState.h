@@ -24,7 +24,7 @@ struct RasterizerState
 {
 	FillMode fillMode = FillMode::Solid;
 	CullMode cullMode = CullMode::None;
-	bool frontCounterClockwise = true;
+	bool frontCounterClockwise = true; // Front face CCW (vulkan/opengl convention)
 	bool depthClipEnable = false;
 	bool scissorEnable = false;
 	bool multisampleEnable = false;

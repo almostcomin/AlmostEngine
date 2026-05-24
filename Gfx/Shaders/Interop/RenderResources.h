@@ -129,11 +129,12 @@ namespace interop
     {
         float2 MinUV;
         float CellSize;
-        uint _padding0;
+        TextureSampledViewIndex HeightmapTextureDI;
     };
 
     // Warning! can't use _padding[2] since in a constant buffer each array element consumes 4 bytes:
     // https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules#more-aggressive-packing
+    // TODO: Split this in two buffers: Per scene & per render-view
     struct SceneConstants
     {
         float2 invScreenResolution;
@@ -175,6 +176,7 @@ namespace interop
         BufferReadOnlyIndex instanceBufferDI;   // InstanceData
         BufferReadOnlyIndex meshesBufferDI;     // MeshData
         BufferReadOnlyIndex materialsBufferDI;  // MaterialData
+        BufferReadOnlyIndex patchDataBufferDI;  // HeightmapPatchData
     };
 
     struct DepthPrepassStageConstants
@@ -218,9 +220,11 @@ namespace interop
 
     struct MultiInstanceDrawConstants
     {
-        uint baseInstanceIdx;               // Index into InstanceData structured buffer
-        uint meshIndex;                     // Index into MeshData structured buffer
-        uint materialIndex;                 // Index into MaterialData structured buffer
+        uint baseInstanceIdx;               // Base index into Visibily Buffer
+        uint rawInstanceBaseIdx;            // Base index into InstanceData
+        uint meshIndex;                     // Index into MeshData Buffer
+        uint materialIndex;                 // Index into MaterialData Buffer
+        uint extraDataBaseIdx;              // Base offset for shader-specific extra data buffers. Heightmap PatchData base for instance.
     };
 
     struct DeferredLightingConstants

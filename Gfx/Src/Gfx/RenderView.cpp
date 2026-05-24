@@ -313,9 +313,10 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		// Data buffers
 		const alm::gfx::GpuSceneBuffers* gpuSceneBuffers = m_DeviceManager->GetGpuSceneBuffers();
 
-		sceneShaderConstant->instanceBufferDI = m_Scene->GetInstancesBufferView();		
+		sceneShaderConstant->instanceBufferDI = gpuSceneBuffers->GetInstancesBufferView(m_Scene->GetGpuSceneBuffersHandle());
 		sceneShaderConstant->meshesBufferDI = gpuSceneBuffers->GetMeshesBufferView();
 		sceneShaderConstant->materialsBufferDI = gpuSceneBuffers->GetMaterialsBufferView();
+		sceneShaderConstant->patchDataBufferDI = gpuSceneBuffers->GetHeightmapPatchDataBufferView(m_Scene->GetGpuSceneBuffersHandle());
 	}
 
 	m_SceneConstants.Unmap();
@@ -666,7 +667,7 @@ void alm::gfx::RenderView::UpdateHeightmaps(rhi::ICommandList* commandList)
 	{
 		for (auto& [_, instance] : m_HeightmapInstances)
 		{
-			instance->Update(m_Camera.get(), m_DeviceManager->GetGpuSceneBuffers(), m_Scene->GetGpuSceneBuffersHandle(), commandList);
+			instance->Update(m_Camera.get(), m_DeviceManager->GetGpuSceneBuffers(), m_Scene->GetGpuSceneBuffersHandle());
 		}
 	}
 

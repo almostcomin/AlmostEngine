@@ -64,6 +64,7 @@ namespace alm::rhi
 		static Barrier Texture(ITexture* texture, ResourceState before, ResourceState after, int mip = -1, int slice = -1, ImageAspect aspect = ImageAspect::Undef);
 		static Barrier Aliasing(IResource* before, IResource* after);
 
+		void Inverse();
 	};
 
 } // namespace st::rhi

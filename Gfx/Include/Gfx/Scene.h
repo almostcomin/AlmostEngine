@@ -66,8 +66,6 @@ namespace alm::gfx
 		const SunParams& GetSunParams() const { return m_SunParams; }
 		void SetSunParams(const SunParams& v) { m_SunParams = v; }
 
-		rhi::BufferReadOnlyView GetInstancesBufferView() const;
-
 		// Updates scene graph
 		void Update();
 
