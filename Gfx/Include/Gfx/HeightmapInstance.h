@@ -21,6 +21,12 @@ public:
 
 	void CollectDrawInfos(const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const;
 
+	float GetLODDistanceFactor() const { return m_LODDistanceFactor; }
+	void SetLODDistanceFactor(float f) { m_LODDistanceFactor = f; }
+
+	uint32_t GetMaxDepthLevel() const { return m_MaxLevel; }
+	void SetMaxDepthLevel(uint32_t l) { m_MaxLevel = l; }
+
 private:
 
 	struct QuadNodeCoord
@@ -46,9 +52,9 @@ private:
 private:
 
 	std::vector<QuadNodeCoord> m_LeafNodes;
-	uint32_t m_MaxLevel;
+	uint32_t m_MaxLevel = 6;
 
-	float m_LODDistanceFactor = 1.f;
+	float m_LODDistanceFactor = 1.0f;
 
 	const SceneHeightmap* m_SceneHeightmap;
 

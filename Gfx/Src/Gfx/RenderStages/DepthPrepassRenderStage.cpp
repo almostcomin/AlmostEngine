@@ -59,7 +59,7 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 		m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_vs", rhi::ShaderType::Vertex);
 		m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_vs", rhi::ShaderType::Vertex);
 		m_PS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_ps", rhi::ShaderType::Pixel);
-		m_VS_Terrain = shaderFactory->LoadShader("DepthPrepass_Terrain_vs", rhi::ShaderType::Vertex);
+		m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 	}
 
 	// Create PSO

@@ -25,6 +25,9 @@ public:
 	const std::shared_ptr<IHeightmapSource>& GetSource() const { return m_Source; }
 	const aabox3f& GetBounds() const { return m_Bounds; }
 
+	bool InfiniteDepthLevel() const;
+	uint32_t GetMaxDepthLevel() const;
+
 	rhi::TextureHandle GetHeightsTexture() const { return m_HeightsTexture.get_weak(); }
 	alm::weak<Mesh> GetPatchMesh() { return m_PatchMesh.get_weak(); }
 

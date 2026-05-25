@@ -84,8 +84,14 @@ alm::aabox3f alm::gfx::HeightmapInstance::QuadNodeCoord::Bounds(float minY, floa
 }
 
 alm::gfx::HeightmapInstance::HeightmapInstance(const SceneHeightmap* sceneHeightmap, DeviceManager* deviceManager) :
-	m_MaxLevel{ 4 }, m_SceneHeightmap{ sceneHeightmap }, m_DeviceManager{ deviceManager }
-{}
+	m_SceneHeightmap{ sceneHeightmap }, m_DeviceManager{ deviceManager }
+{
+	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+	if (!heightmap->InfiniteDepthLevel())
+	{
+		m_MaxLevel = heightmap->GetMaxDepthLevel();
+	}
+}
 
 alm::gfx::HeightmapInstance::~HeightmapInstance()
 {}
@@ -94,6 +100,7 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 {
 	auto* uploadBuffer = m_DeviceManager->GetUploadBuffer();
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+	auto dataSource = heightmap->GetSource();
 	rhi::TextureSampledView textureView = heightmap->GetHeightsTexture()->GetSampledView();
 
 	m_LeafNodes.clear();
@@ -125,6 +132,7 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 		alloc.InstancesDataPtr[i].inverseModelMatrix = glm::inverse(worldMatrix);
 		
 		alloc.HeightmapPatchesPtr[i].MinUV = minUV;
+		alloc.HeightmapPatchesPtr[i].DataNormSize = dataSource->GetNormalizedSize();
 		alloc.HeightmapPatchesPtr[i].CellSize = cellSize;
 		alloc.HeightmapPatchesPtr[i].HeightmapTextureDI = textureView;
 	}

@@ -77,6 +77,8 @@ public:
 	double GetTime() const { return m_TimeSec; }
 	float GetTimeDelta() const { return m_TimeDeltaSec; }
 
+	HeightmapInstance* GetHeightmapInstance(const SceneHeightmap* sceneHeightmap) const;
+
 	std::string GetName() const { return m_DebugName; }
 	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }
 

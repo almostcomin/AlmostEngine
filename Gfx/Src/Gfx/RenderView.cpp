@@ -185,9 +185,12 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 	}
 
 	// Update heightmaps
-	UpdateHeightmaps(beginCommandList);
-	// Upload transients (for heightmap only atm)
-	gpuSceneBuffers->FlushTransients(m_Scene->GetGpuSceneBuffersHandle(), beginCommandList);
+	if (m_Scene)
+	{
+		UpdateHeightmaps(beginCommandList);
+		// Upload transients (for heightmap only atm)
+		gpuSceneBuffers->FlushTransients(m_Scene->GetGpuSceneBuffersHandle(), beginCommandList);
+	}
 
 	// Collects draw infos for camera view
 	UpdateCameraVisibleSet(beginCommandList);
@@ -241,6 +244,14 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 		m_PrevViewProjectionMatrix = m_Camera->GetViewProjectionMatrix();
 		m_PrevCameraPosition = m_Camera->GetPosition();
 	}
+}
+
+alm::gfx::HeightmapInstance* alm::gfx::RenderView::GetHeightmapInstance(const SceneHeightmap* sceneHeightmap) const
+{
+	auto it = m_HeightmapInstances.find(sceneHeightmap);
+	if (it != m_HeightmapInstances.end())
+		return it->second.get();
+	return nullptr;
 }
 
 void alm::gfx::RenderView::UpdateSceneConstantBuffer()

@@ -23,6 +23,9 @@ public:
 
     float Sample(const float2& uv) const override;
 
+    virtual bool InfiniteDataResolution() const { return true; }
+    virtual uint2 GetDataResolution() const { return { UINT32_MAX, UINT32_MAX }; }
+
 private:
 
     Params m_Params;

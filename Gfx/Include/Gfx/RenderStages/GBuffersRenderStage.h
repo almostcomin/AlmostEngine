@@ -33,8 +33,10 @@ private:
 	RGTextureHandle m_SceneDepthTexture;
 
 	alm::rhi::ShaderOwner m_VS;
+	alm::rhi::ShaderOwner m_VS_Terrain;
 	alm::rhi::ShaderOwner m_PS_Opaque;
 	alm::rhi::ShaderOwner m_PS_AlphaTest;
+
 	alm::rhi::FramebufferOwner m_FB;
 	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	alm::gfx::MaterialPassRenderer m_MaterialPassRenderer;

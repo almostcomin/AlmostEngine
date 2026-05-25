@@ -99,6 +99,7 @@ void alm::gfx::GBuffersRenderStage::OnAttached()
 	{
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_VS = shaderFactory->LoadShader("GBuffers_vs", rhi::ShaderType::Vertex);
+		m_VS_Terrain = shaderFactory->LoadShader("GBuffers_Terrain_vs", rhi::ShaderType::Vertex);
 		m_PS_Opaque = shaderFactory->LoadShader("GBuffers_OP_ps", rhi::ShaderType::Pixel);
 		m_PS_AlphaTest = shaderFactory->LoadShader("GBuffers_AT_ps", rhi::ShaderType::Pixel);
 	}
@@ -135,6 +136,7 @@ void alm::gfx::GBuffersRenderStage::OnAttached()
 		m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "GBuffersRenderStage", device);
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS_Opaque.get_weak());
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS.get_weak(), m_PS_AlphaTest.get_weak());
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), m_PS_Opaque.get_weak());
 	}
 }
 

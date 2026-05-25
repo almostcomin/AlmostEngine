@@ -128,8 +128,10 @@ namespace interop
     struct HeightmapPatchData
     {
         float2 MinUV;
+        float2 DataNormSize;
         float CellSize;
         TextureSampledViewIndex HeightmapTextureDI;
+        uint2 _padding;
     };
 
     // Warning! can't use _padding[2] since in a constant buffer each array element consumes 4 bytes:

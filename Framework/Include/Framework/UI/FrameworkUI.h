@@ -90,7 +90,7 @@ public:
 	FrameworkUI();
 	~FrameworkUI();
 
-	void Init(SDL_Window* window, weak<alm::gfx::Scene> scene, weak<alm::gfx::RenderView> renderView, CameraController* cameraController = nullptr);
+	virtual void Init(SDL_Window* window, weak<alm::gfx::Scene> scene, weak<alm::gfx::RenderView> renderView, CameraController* cameraController = nullptr);
 
 	weak<alm::gfx::Scene> GetScene() const { return m_Scene; }
 
@@ -103,6 +103,8 @@ public:
 
 	void AddRenderStageTextureWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& textureId);
 	void AddRenderStageBufferWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& bufferId);
+
+	void RegisterMainMenuItem(const std::string& name, std::function<void()> item);
 
 	std::function<void(const char*)> m_RequestLoadFile;
 	std::function<void(const char*)> m_RequestMergeFile;
@@ -192,12 +194,14 @@ private:
 	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
 	std::string SaveFileNativeDialog(const std::string& filename);
 
-private:
+protected:
 
 	SDL_Window* m_Window;
 	alm::weak<alm::gfx::Scene> m_Scene;
 	alm::weak<alm::gfx::RenderView> m_RenderViewUI;
 	CameraController* m_CameraController;
+
+private:
 
 	float m_FPS = 0.f;
 	float m_CPUTime = 0.f;
@@ -226,6 +230,8 @@ private:
 	bool m_ShowLuminanceHistogram = false;
 	alm::gfx::RGBufferViewTicket m_LumHistogramBufferTicket;
 	int m_LumHistogramMode = 0;
+
+	std::vector<std::pair<std::string, const std::function<void()>>> m_MainMenuAdditionalItems;
 };
 
 } // namespace alm::fw

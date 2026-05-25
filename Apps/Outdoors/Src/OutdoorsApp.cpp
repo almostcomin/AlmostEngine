@@ -74,6 +74,7 @@ public:
 #endif
 		// Init heightmap
 		std::shared_ptr<alm::gfx::Heightmap> heightmap;
+		alm::weak<alm::gfx::SceneHeightmap> sceneHeightmap;
 		{
 			// Data source
 			auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
@@ -85,14 +86,15 @@ public:
 			heightmap = std::make_shared<alm::gfx::Heightmap>(m_DeviceManager.get(), imageSource);
 
 			// Leaf
-			auto sceneHeightmap = alm::make_unique_with_weak<alm::gfx::SceneHeightmap>();
-			sceneHeightmap->SetHeightmap(heightmap);
+			auto sceneHeightmapUnique = alm::make_unique_with_weak<alm::gfx::SceneHeightmap>();
+			sceneHeightmapUnique->SetHeightmap(heightmap);
+			sceneHeightmap = sceneHeightmapUnique.get_weak();
 
 			// Node
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
 			graphNode->SetName("Heightmap");
-			graphNode->SetLeaf(std::move(sceneHeightmap));
-			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 1.f, 0.1f, 1.f }));
+			graphNode->SetLeaf(std::move(sceneHeightmapUnique));
+			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 2.f, 0.1f, 2.f }));
 			//graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation(kEarthPos));
 
 			// Attach to scene
@@ -150,9 +152,8 @@ public:
 		// Init UI
 		{
 			m_UI->Init(m_Window, m_Scene.get_weak(), m_MainRenderView.get_weak(), &m_CameraController);
+			m_UI->SetHeightmap(sceneHeightmap);
 			RefreshUIData();
-
-			m_UI->AddTextureWindow(heightmap->GetSource()->GetName(), heightmap->GetHeightsTexture());
 		}
 
 		return true;

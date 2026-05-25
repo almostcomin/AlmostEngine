@@ -82,6 +82,7 @@ void alm::gfx::WireframeRenderStage::OnAttached()
 	{
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_VS = shaderFactory->LoadShader("WireframeStage_vs", rhi::ShaderType::Vertex);
+		m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 		m_PS = shaderFactory->LoadShader("WireframeStage_ps", rhi::ShaderType::Pixel);
 	}
 
@@ -119,6 +120,7 @@ void alm::gfx::WireframeRenderStage::OnAttached()
 
 		m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage", device);
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS.get_weak());
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), m_PS.get_weak());
 	}
 }
 

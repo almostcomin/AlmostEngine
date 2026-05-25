@@ -57,8 +57,9 @@ private:
 	rhi::Format m_PixelFormat;
 
 	alm::rhi::ShaderOwner m_VS_Opaque;
-	alm::rhi::ShaderOwner m_PS_Opaque;
 	alm::rhi::ShaderOwner m_VS_AlphaTest;
+	alm::rhi::ShaderOwner m_VS_Terrain;
+	alm::rhi::ShaderOwner m_PS_Opaque;
 	alm::rhi::ShaderOwner m_PS_AlphaTest;
 
 	alm::rhi::FramebufferOwner m_FB;

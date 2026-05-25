@@ -31,16 +31,10 @@ void alm::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 	{
 		// Create render target
 		m_RenderGraph->RecreateTexture(m_ShadowMapTexture, m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
-#ifdef DEBUG_STAGE
-		m_RenderGraph->RecreateTexture(m_ShadowMapColorTexture, m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, rhi::Format::RGBA8_UNORM);
-#endif
 
 		// Recreate Framebuffer
 		{
 			auto fbDesc = rhi::FramebufferDesc()
-#ifdef DEBUG_STAGE
-				.AddColorAttachment(m_RenderGraph->GetTexture(m_ShadowMapColorTexture))
-#endif
 				.SetDepthAttachment(m_RenderGraph->GetTexture(m_ShadowMapTexture));
 			m_FB = device->CreateFramebuffer(fbDesc, "ShadowmapRenderStage");
 		}
@@ -70,9 +64,6 @@ void alm::gfx::ShadowmapRenderStage::InitResources()
 	// Create Framebuffer
 	{
 		auto fbDesc = rhi::FramebufferDesc()
-#ifdef DEBUG_STAGE
-			.AddColorAttachment(m_RenderGraph->GetTexture(m_ShadowMapColorTexture))
-#endif
 			.SetDepthAttachment(m_RenderGraph->GetTexture(m_ShadowMapTexture));
 		m_FB = device->CreateFramebuffer(fbDesc, "ShadowmapRenderStage");
 	}
@@ -80,17 +71,12 @@ void alm::gfx::ShadowmapRenderStage::InitResources()
 	// Load shaders
 	{
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-#ifdef DEBUG_STAGE
-		m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_CO_vs", rhi::ShaderType::Vertex);
-		m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_CO_vs", rhi::ShaderType::Vertex);
-		m_PS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_CO_ps", rhi::ShaderType::Pixel);
-		m_PS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_CO_ps", rhi::ShaderType::Pixel);
-#else
 		m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_vs", rhi::ShaderType::Vertex);
 		m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_vs", rhi::ShaderType::Vertex);
+		m_VS_Terrain = shaderFactory->LoadShader("CascadeShadowmap_Terrain_vs", rhi::ShaderType::Vertex);
+
 		//m_PS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_ps", rhi::ShaderType::Pixel);
 		m_PS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_ps", rhi::ShaderType::Pixel);
-#endif
 	}
 
 	// Create PSO
@@ -105,8 +91,9 @@ void alm::gfx::ShadowmapRenderStage::ReleaseResources()
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_PS_AlphaTest));
-	device->ReleaseQueued(std::move(m_VS_AlphaTest));
 	device->ReleaseQueued(std::move(m_PS_Opaque));
+	device->ReleaseQueued(std::move(m_VS_Terrain));
+	device->ReleaseQueued(std::move(m_VS_AlphaTest));
 	device->ReleaseQueued(std::move(m_VS_Opaque));
 }
 
@@ -145,19 +132,14 @@ void alm::gfx::ShadowmapRenderStage::RecreatePSO()
 	m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage", device);
 	m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
 	m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
+	m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), m_PS_Opaque.get_weak());
 }
 
 void alm::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_ShadowMapTexture = builder.CreateDepthTarget("Shadowmap", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
-#ifdef DEBUG_STAGE
-	m_ShadowMapColorTexture = builder.CreateColorTarget("ShadowmapColor", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, rhi::Format::RGBA8_UNORM);
-#endif
 
 	builder.AddTextureDependency(m_ShadowMapTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
-#ifdef DEBUG_STAGE
-	builder.AddTextureDependency(m_ShadowMapColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE);
-#endif
 }
 
 void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandList)
@@ -168,11 +150,7 @@ void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandL
 
 		commandList->BeginRenderPass(
 			m_FB.get(),
-#ifdef DEBUG_STAGE
-			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack() } },
-#else
 			{},
-#endif
 			rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
 			{},
 			rhi::RenderPassFlags::None);
@@ -189,11 +167,6 @@ void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandL
 
 		commandList->EndRenderPass();
 	}
-
-#ifdef DEBUG_STAGE
-	commandList->PushBarrier(rhi::Barrier::Texture(m_RenderGraph->GetTexture(m_ShadowMapColorTexture).get(),
-		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE));
-#endif
 }
 
 void alm::gfx::ShadowmapRenderStage::OnAttached()
@@ -218,10 +191,6 @@ void alm::gfx::ShadowmapRenderStage::OnEnabled()
 	if (IsAttached())
 	{
 		m_RenderGraph->EnableTexture(m_ShadowMapTexture);
-#ifdef DEBUG_STAGE
-		m_RenderGraph->EnableTexture(m_ShadowMapColorTexture);
-#endif
-
 		InitResources();
 	}
 }
@@ -229,9 +198,5 @@ void alm::gfx::ShadowmapRenderStage::OnEnabled()
 void alm::gfx::ShadowmapRenderStage::OnDisabled()
 {
 	m_RenderGraph->DisableTexture(m_ShadowMapTexture);
-#ifdef DEBUG_STAGE
-	m_RenderGraph->DisableTexture(m_ShadowMapColorTexture);
-#endif
-
 	ReleaseResources();
 }

@@ -562,6 +562,11 @@ void alm::fw::FrameworkUI::AddRenderStageBufferWindow(alm::gfx::RenderStageTypeI
     m_RSBufferViews.emplace_back(rsId, accessMode, bufferId, ticket, std::unique_ptr<MemoryEditor>{ memEditor });
 }
 
+void alm::fw::FrameworkUI::RegisterMainMenuItem(const std::string& name, std::function<void()> item)
+{
+    m_MainMenuAdditionalItems.emplace_back(name, item);
+}
+
 void alm::fw::FrameworkUI::SetRenderStats(float fps, float cpuTime, float gpuTime)
 {
     m_FPS = fps;
@@ -675,7 +680,6 @@ void alm::fw::FrameworkUI::BuildMainMenu()
         }
         if (ImGui::BeginMenu("View"))
         {
-
             if (ImGui::MenuItem("Settings", NULL, m_ShowSettings))
                 m_ShowSettings = !m_ShowSettings;
             if (ImGui::MenuItem("Scene Graph", NULL, m_ShowSceneGraphWindow))
@@ -685,6 +689,16 @@ void alm::fw::FrameworkUI::BuildMainMenu()
 
             ImGui::EndMenu();
         }
+
+        for (const auto& item : m_MainMenuAdditionalItems)
+        {
+            if (ImGui::BeginMenu(item.first.c_str()))
+            {
+                item.second();
+                ImGui::EndMenu();
+            }
+        }
+
         ImGui::EndMainMenuBar();
     }
 }
@@ -1709,8 +1723,8 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
             {
                 tw.redChannel = false;
                 tw.greenChannel = false;
-                tw.blueChannel = false;
-                tw.alphaChannel = true;
+                tw.blueChannel = true;
+                tw.alphaChannel = false;
             }
             else
             {

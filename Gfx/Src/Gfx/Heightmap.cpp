@@ -195,6 +195,25 @@ void alm::gfx::Heightmap::BuildPatch()
 	m_PatchMesh->SetBounds(aabox3f{ float3(0.f, 0.f, 0.f), float3(1.f, 0.f, 1.f) });
 }
 
+bool alm::gfx::Heightmap::InfiniteDepthLevel() const
+{
+	return m_Source && m_Source->InfiniteDataResolution();
+}
+
+uint32_t alm::gfx::Heightmap::GetMaxDepthLevel() const
+{
+	if (!m_Source)
+		return 0;
+	if (m_Source->InfiniteDataResolution())
+		return UINT32_MAX;
+
+	uint2 dataResolution = m_Source->GetDataResolution();
+	uint32_t maxRes = std::max(dataResolution.x, dataResolution.y);
+	uint32_t maxLevel = static_cast<uint32_t>(std::floor(std::log2(maxRes / m_PatchResolution)));
+
+	return maxLevel;
+}
+
 uint32_t alm::gfx::Heightmap::GetPatchIndicesCount() const
 {
 	return 6 * m_PatchResolution * m_PatchResolution;

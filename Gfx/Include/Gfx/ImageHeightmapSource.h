@@ -25,10 +25,15 @@ public:
     // IHeightmapSource interface
     float GetHeight(const uint2& p) const override;
     float Sample(const float2& uv) const override;
+
     bool IsTileable() const override { return m_EdgeMode == EdgeMode::Wrap; }
     uint2 GetDataSize() const override;
     float2 GetNormalizedSize() const override;
     float2 GetHeightRange() const override;
+
+    virtual bool InfiniteDataResolution() const { return false; }
+    virtual uint2 GetDataResolution() const { return { m_Width, m_Height }; }
+
     const std::string& GetName() const override { return m_Name; }
 
 private:
