@@ -9,6 +9,7 @@
 namespace alm::gfx
 {
 	class Material;
+	struct TerrainMaterial;
 };
 
 namespace alm::gfx
@@ -38,6 +39,7 @@ public:
 	void SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexFormat& fmt);
 
 	void SetMaterial(std::shared_ptr<Material> mat);
+	void SetTerrainMaterial(std::shared_ptr<TerrainMaterial> mat);
 
 	void SetBounds(const alm::aabox3f& bounds) { m_Bounds = bounds; }
 
@@ -50,6 +52,7 @@ public:
 	const VertexFormat& GetVertexFormat() const { return m_VertexFormat; }
 
 	std::shared_ptr<Material> GetMaterial() const { return m_Material; }
+	std::shared_ptr<TerrainMaterial> GetTerrainMaterial() const { return m_TerrainMaterial; }
 
 	const std::string& GetName() const { return m_Name; }
 
@@ -68,6 +71,7 @@ private:
 	VertexFormat m_VertexFormat;
 
 	std::shared_ptr<Material> m_Material;
+	std::shared_ptr<TerrainMaterial> m_TerrainMaterial;
 
 	rhi::Device* m_Device;
 };

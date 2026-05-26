@@ -575,7 +575,7 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         const cgltf_material& srcMat = objects->materials[mat_idx];
         std::string path = loadCache.path.generic_string();
         std::shared_ptr<alm::gfx::Material> mat =
-            std::make_shared<alm::gfx::Material>(device, (const char*)srcMat.name, path.c_str());
+            std::make_shared<alm::gfx::Material>((const char*)srcMat.name, path.c_str());
 
         if (srcMat.has_pbr_specular_glossiness)
         {
@@ -1148,7 +1148,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                 static std::shared_ptr<alm::gfx::Material> emptyMaterial;
                 if (!emptyMaterial)
                 {
-                    emptyMaterial = std::make_shared<alm::gfx::Material>(device, "(empty)", filename);
+                    emptyMaterial = std::make_shared<alm::gfx::Material>("(empty)", filename);
                 }
                 mesh->SetMaterial(emptyMaterial);
             }

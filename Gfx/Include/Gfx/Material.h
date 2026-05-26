@@ -4,11 +4,6 @@
 #include "Gfx/MaterialDomain.h"
 #include "RHI/RasterizerState.h"
 
-namespace alm::rhi
-{
-	class Device;
-}
-
 namespace alm::gfx
 {
 	class LoadedTexture;
@@ -21,7 +16,7 @@ class Material
 {
 public:
 
-	Material(rhi::Device* device, const std::string& name, const std::string& filename = {});
+	Material(const std::string& name, const std::string& filename = {});
 	~Material();
 
 	void SetBaseColorTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
@@ -93,8 +88,6 @@ private:
 
 	std::string m_Name;
 	std::string m_SourceFileName; // where this material originated from, e.g. GLTF file name
-
-	rhi::Device* m_Device;
 };
 
 }

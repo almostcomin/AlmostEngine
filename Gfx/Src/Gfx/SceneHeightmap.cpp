@@ -1,5 +1,5 @@
 #include "Gfx/GfxPCH.h"
-#include "Gfx/SceneHeigthmap.h"
+#include "Gfx/SceneHeightmap.h"
 #include "Gfx/Heightmap.h"
 #include "Gfx/VisibleSetContext.h"
 #include "Gfx/HeightmapInstance.h"

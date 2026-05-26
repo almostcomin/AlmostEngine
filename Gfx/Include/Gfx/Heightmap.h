@@ -6,6 +6,7 @@ namespace alm::gfx
 class IHeightmapSource;
 class DeviceManager;
 class Mesh;
+struct TerrainMaterial;
 
 class Heightmap
 {
@@ -14,6 +15,7 @@ public:
 	Heightmap(
 		DeviceManager* deviceManager,
 		std::shared_ptr<IHeightmapSource> source,
+		std::shared_ptr<TerrainMaterial> material,
 		const float2& uvScale = { 1.f, 1.f },
 		const float2& uvOffset = { 0.f, 0.f },
 		uint32_t patchResolution = 64);
@@ -37,7 +39,7 @@ private:
 
 	void ComputeBounds();
 	void BuildTexture();
-	void BuildPatch();
+	void BuildPatch(std::shared_ptr<TerrainMaterial> mat);
 
 	std::shared_ptr<IHeightmapSource> m_Source;
 

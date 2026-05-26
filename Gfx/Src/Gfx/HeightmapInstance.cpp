@@ -1,6 +1,6 @@
 #include "Gfx/GfxPCH.h"
 #include "Gfx/HeightmapInstance.h"
-#include "Gfx/SceneHeigthmap.h"
+#include "Gfx/SceneHeightmap.h"
 #include "Gfx/Heightmap.h"
 #include "Gfx/HeightmapSource.h"
 #include "Gfx/Camera.h"
@@ -150,7 +150,7 @@ void alm::gfx::HeightmapInstance::CollectDrawInfos(const GpuSceneBuffers* gpuSce
 			.BatchKey = reinterpret_cast<uintptr_t>(this),
 			.InstanceIdx = m_InstancesAllocBaseIdx + i,
 			.MeshIndex = m_SceneHeightmap->GetPatchMeshGpuIndex(),
-			.MaterialIndex = gpuSceneBuffers->GetMaterialIndexFromMeshIdx(m_SceneHeightmap->GetPatchMeshGpuIndex()),
+			.MaterialIndex = gpuSceneBuffers->GetMaterialIndexFromMeshIdx(m_SceneHeightmap->GetPatchMeshGpuIndex()).Index,
 			.TransientBaseIndex = m_PatchesAllocBaseIndex,
 			.IndexCount = m_SceneHeightmap->GetHeightmap()->GetPatchIndicesCount() });
 	}

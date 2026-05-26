@@ -2,6 +2,7 @@
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
+#include "Gfx/TerrainMaterial.h"
 #include "Gfx/MeshInstance.h"
 #include "RHI/Buffer.h"
 #include "RHI/Device.h"
@@ -40,6 +41,40 @@ static void SerializeMaterial(const alm::gfx::Material* mat, interop::MaterialDa
 	dest->alphaCutoff = mat->GetAlphaCutoff();
 }
 
+static void SerializeTerrainMaterialLayer(const alm::gfx::TerrainMaterialLayer* layer, interop::TerrainMaterialLayer* dest)
+{
+	*dest = {};
+
+	if (layer->BaseColorTexture && layer->BaseColorTexture->texture)
+	{
+		dest->BaseColorTextureDI = layer->BaseColorTexture->texture->GetSampledView();
+	}
+	if (layer->NormalTexture && layer->NormalTexture->texture)
+	{
+		dest->NormalTextureDI = layer->NormalTexture->texture->GetSampledView();
+	}
+	if (layer->MetalRoughTexture && layer->MetalRoughTexture->texture)
+	{
+		dest->MetalRoughTextureDI = layer->MetalRoughTexture->texture->GetSampledView();
+	}
+	dest->BaseColorTint = layer->BaseColorTint;
+	dest->Roughness = layer->Roughness;
+	dest->Metalness = layer->Metallic;
+	dest->UVScale = layer->UVScale;
+}
+
+static void SerializeTerrainMaterial(const alm::gfx::TerrainMaterial* mat, interop::TerrainMaterialData* dest)
+{
+	SerializeTerrainMaterialLayer(&mat->Ground, &dest->GroundLayer);
+	SerializeTerrainMaterialLayer(&mat->Slope, &dest->SlopeLayer);
+	SerializeTerrainMaterialLayer(&mat->Peak, &dest->PeakLayer);
+	dest->SlopeAngleStartSin = glm::sin(glm::radians(mat->SlopeAngleStartDeg));
+	dest->SlopeAngleEndSin = glm::sin(glm::radians(mat->SlopeAngleEndDeg));
+	dest->PeakHeightStart = mat->PeakHeightStart;
+	dest->PeakHeightEnd = mat->PeakHeightEnd;
+	dest->BlendSharpness = mat->BlendSharpness;
+}
+
 static void SerializeMesh(const alm::gfx::Mesh* mesh, uint32_t materialIdx, interop::MeshData* dest)
 {
 	const auto& vertexFormat = mesh->GetVertexFormat();
@@ -70,13 +105,22 @@ static void SerializeMeshInstance(const alm::gfx::MeshInstance* mi, interop::Ins
 alm::gfx::GpuSceneBuffers::GpuSceneBuffers(rhi::Device* device) : m_Device{ device }
 {
 	m_MaterialsBuffer = CreateBuffer<interop::MaterialData>(kMaterialCount, rhi::ResourceState::SHADER_RESOURCE, "Materials GPU Buffer");
+
+	m_TerrainMaterialsBuffer = CreateBuffer<interop::TerrainMaterialData>(kTerrainMaterialCount, rhi::ResourceState::SHADER_RESOURCE,
+		"TerrainMaterials GPU Buffer");
+
 	m_MeshesBuffer = CreateBuffer<interop::MeshData>(kMeshRefCount, rhi::ResourceState::SHADER_RESOURCE, "Meshes GPU Buffer");
 
-	m_MeshMaterialIndices.fill(UINT32_MAX);
+	m_MeshMaterialIndices.fill({ UINT32_MAX, MaterialType::Undef });
 }
 
 alm::gfx::GpuSceneBuffers::~GpuSceneBuffers()
-{}
+{
+	assert(m_SceneStates.empty());
+	assert(m_Materials.empty());
+	assert(m_Meshes.empty());
+	assert(m_TerrainMaterials.empty());
+}
 
 alm::gfx::GpuSceneBuffersHandle alm::gfx::GpuSceneBuffers::RequestSceneHandle(const std::string& debugName)
 {
@@ -132,7 +176,30 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMaterial(const gfx::Material* mat)
 	return materialIdx;
 }
 
-uint32_t alm::gfx::GpuSceneBuffers::RegisterMesh(const gfx::Mesh* mesh)
+uint32_t alm::gfx::GpuSceneBuffers::RegisterTerrainMaterial(const gfx::TerrainMaterial* mat)
+{
+	if (mat == nullptr)
+	{
+		LOG_ERROR("Trying to register a null TerrainMaterial");
+		return UINT32_MAX;
+	}
+
+	auto materialIdx = m_TerrainMaterials.find(mat);
+	if (materialIdx == m_TerrainMaterials.capacity())
+	{
+		materialIdx = m_TerrainMaterials.insert({ mat, 1 }).first;
+		m_TerrainMaterialsState.NewIndices.insert(materialIdx);
+		m_TerrainMaterialsState.RemovedIndices.fast_erase(materialIdx);  // <-- in case slot was reused
+	}
+	else
+	{
+		++m_Materials[materialIdx].refCount;
+	}
+
+	return materialIdx;
+}
+
+uint32_t alm::gfx::GpuSceneBuffers::RegisterMesh(const gfx::Mesh* mesh, MaterialType materialType)
 {
 	if (mesh == nullptr)
 	{
@@ -147,8 +214,24 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMesh(const gfx::Mesh* mesh)
 		m_MeshesState.NewIndices.insert(meshRefIdx);
 		m_MeshesState.RemovedIndices.fast_erase(meshRefIdx);  // <-- in case slot was reused
 
-		// Add material also so we can keep a list of materials used by meshes
-		m_MeshMaterialIndices[meshRefIdx] = RegisterMaterial(mesh->GetMaterial().get());
+		if (materialType != MaterialType::Undef)
+		{
+			uint32_t materialIdx = UINT32_MAX;
+			switch (materialType)
+			{
+			case MaterialType::Regular:
+				m_MeshMaterialIndices[meshRefIdx].Index = RegisterMaterial(mesh->GetMaterial().get());
+				break;
+			case MaterialType::Heightmap:
+				m_MeshMaterialIndices[meshRefIdx].Index = RegisterTerrainMaterial(mesh->GetTerrainMaterial().get());
+				break;
+			}
+			m_MeshMaterialIndices[meshRefIdx].Type = materialType;
+		}
+		else
+		{
+			LOG_ERROR("Invalid materialType");
+		}
 	}
 	else
 	{
@@ -169,7 +252,7 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMeshInstance(GpuSceneBuffersHandle h
 	m_SceneStates[handle.idx].MeshInstancesState.RemovedIndices.fast_erase(idx);
 
 	// Add mesh
-	mi->SetMeshSceneIndex(RegisterMesh(mi->GetMesh().get()));
+	mi->SetMeshSceneIndex(RegisterMesh(mi->GetMesh().get(), MaterialType::Regular));
 
 	mi->SetLeafSceneIndex(idx);
 	return idx;
@@ -178,6 +261,11 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMeshInstance(GpuSceneBuffersHandle h
 void alm::gfx::GpuSceneBuffers::UnregisterMaterial(const gfx::Material* mat)
 {
 	UnregisterMaterial(m_Materials.find(mat));
+}
+
+void alm::gfx::GpuSceneBuffers::UnregisterTerrainMaterial(const gfx::TerrainMaterial* mat)
+{
+	UnregisterTerrainMaterial(m_TerrainMaterials.find(mat));
 }
 
 void alm::gfx::GpuSceneBuffers::UnregisterMesh(const gfx::Mesh* mesh)
@@ -205,6 +293,26 @@ void alm::gfx::GpuSceneBuffers::UnregisterMaterial(uint32_t idx)
 	}
 }
 
+void alm::gfx::GpuSceneBuffers::UnregisterTerrainMaterial(uint32_t idx)
+{
+	if (m_TerrainMaterials.valid_index(idx))
+	{
+		--m_TerrainMaterials[idx].refCount;
+		if (m_TerrainMaterials[idx].refCount == 0)
+		{
+			m_TerrainMaterials.erase(idx);
+			m_TerrainMaterialsState.RemovedIndices.insert(idx);
+
+			m_TerrainMaterialsState.DirtyIndices.fast_erase(idx);
+			m_TerrainMaterialsState.NewIndices.fast_erase(idx);
+		}
+	}
+	else
+	{
+		LOG_WARNING("Trying to unregister a never registered TerrainMaterial with index [{}]", idx);
+	}
+}
+
 void alm::gfx::GpuSceneBuffers::UnregisterMesh(uint32_t idx)
 {
 	if (m_Meshes.valid_index(idx))
@@ -213,11 +321,21 @@ void alm::gfx::GpuSceneBuffers::UnregisterMesh(uint32_t idx)
 		if (m_Meshes[idx].refCount == 0)
 		{
 			// Remove material ref
-			if (m_MeshMaterialIndices[idx] != UINT32_MAX)
+			if (m_MeshMaterialIndices[idx].Index != UINT32_MAX)
 			{
-				UnregisterMaterial(m_MeshMaterialIndices[idx]);
+				switch (m_MeshMaterialIndices[idx].Type)
+				{
+				case MaterialType::Regular:
+					UnregisterMaterial(m_MeshMaterialIndices[idx].Index);
+					break;
+				case MaterialType::Heightmap:
+					UnregisterTerrainMaterial(m_MeshMaterialIndices[idx].Index);
+					break;
+				}
+				
 				// Remove material binding
-				m_MeshMaterialIndices[idx] = UINT32_MAX;
+				m_MeshMaterialIndices[idx].Index = UINT32_MAX;
+				m_MeshMaterialIndices[idx].Type = MaterialType::Undef;
 			}
 
 			m_Meshes.erase(idx);
@@ -260,6 +378,19 @@ void alm::gfx::GpuSceneBuffers::SetDirtyMaterial(const gfx::Material* mat)
 	SetDirtyMaterial(m_Materials.find(mat));
 }
 
+void alm::gfx::GpuSceneBuffers::SetDirtyTerrainMaterial(const gfx::TerrainMaterial* mat)
+{
+	SetDirtyTerrainMaterial(m_TerrainMaterials.find(mat));
+}
+
+void alm::gfx::GpuSceneBuffers::SetDirtyTerrainMaterial(uint32_t idx)
+{
+	if (m_TerrainMaterials.valid_index(idx))
+	{
+		m_TerrainMaterialsState.DirtyIndices.insert(idx);
+	}
+}
+
 void alm::gfx::GpuSceneBuffers::SetDirtyMesh(const gfx::Mesh* mesh)
 {
 	SetDirtyMesh(m_Meshes.find(mesh));
@@ -290,19 +421,37 @@ void alm::gfx::GpuSceneBuffers::SetDirtyMeshInstance(GpuSceneBuffersHandle handl
 	m_SceneStates[handle.idx].MeshInstancesState.DirtyIndices.insert(mi->GetLeafSceneIndex());
 }
 
-void alm::gfx::GpuSceneBuffers::RebindMeshMaterial(const Mesh* mesh)
+void alm::gfx::GpuSceneBuffers::RebindMeshMaterial(const Mesh* mesh, MaterialType materialType)
 {
 	auto meshIdx = m_Meshes.find(mesh);
 	if (!m_Meshes.valid_index(meshIdx))
 		return;
 
-	if (m_MeshMaterialIndices[meshIdx] != UINT32_MAX)
+	if (m_MeshMaterialIndices[meshIdx].Index != UINT32_MAX)
 	{
-		UnregisterMaterial(m_MeshMaterialIndices[meshIdx]);
+		UnregisterMaterial(m_MeshMaterialIndices[meshIdx].Index);
 	}
 	
-	const auto& newMat = mesh->GetMaterial();
-	m_MeshMaterialIndices[meshIdx] = newMat ? RegisterMaterial(mesh->GetMaterial().get()) : UINT32_MAX;
+	switch (materialType)
+	{
+	case MaterialType::Regular:
+	{
+		const auto& newMat = mesh->GetMaterial();
+		if (newMat)
+		{
+			m_MeshMaterialIndices[meshIdx].Index = RegisterMaterial(newMat.get());
+		}
+	} break;
+	case MaterialType::Heightmap:
+	{
+		const auto& newMat = mesh->GetTerrainMaterial();
+		if (newMat)
+		{
+			m_MeshMaterialIndices[meshIdx].Index = RegisterTerrainMaterial(newMat.get());
+		}
+	} break;
+	}
+	m_MeshMaterialIndices[meshIdx].Type = materialType;
 
 	SetDirtyMesh(meshIdx);
 }
@@ -360,18 +509,18 @@ alm::gfx::GpuSceneBuffers::HeightmapPatchesAllocation alm::gfx::GpuSceneBuffers:
 	return alloc;
 }
 
-uint32_t alm::gfx::GpuSceneBuffers::GetMaterialIndexFromMesh(const alm::gfx::Mesh* mesh) const
+alm::gfx::GpuSceneBuffers::MaterialIndexEntry alm::gfx::GpuSceneBuffers::GetMaterialIndexFromMesh(const alm::gfx::Mesh* mesh) const
 {
 	return GetMaterialIndexFromMeshIdx(m_Meshes.find(mesh));
 }
 
-uint32_t alm::gfx::GpuSceneBuffers::GetMaterialIndexFromMeshIdx(uint32_t meshIdx) const
+alm::gfx::GpuSceneBuffers::MaterialIndexEntry alm::gfx::GpuSceneBuffers::GetMaterialIndexFromMeshIdx(uint32_t meshIdx) const
 {
 	if (m_Meshes.valid_index(meshIdx))
 	{
 		return m_MeshMaterialIndices[meshIdx];
 	}
-	return UINT32_MAX;
+	return { UINT32_MAX, MaterialType::Undef };
 }
 
 alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetMeshesBufferView() const
@@ -382,6 +531,11 @@ alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetMeshesBufferView() co
 alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetMaterialsBufferView() const
 {
 	return m_MaterialsBuffer ? m_MaterialsBuffer->GetReadOnlyView() : alm::rhi::BufferReadOnlyView{};
+}
+
+alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetTerrainMaterialsBufferView() const
+{
+	return m_TerrainMaterialsBuffer ? m_TerrainMaterialsBuffer->GetReadOnlyView() : alm::rhi::BufferReadOnlyView{};
 }
 
 alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetInstancesBufferView(GpuSceneBuffersHandle handle) const
@@ -406,10 +560,16 @@ void alm::gfx::GpuSceneBuffers::UpdateGpuBuffers(rhi::ICommandList* commandList)
 			SerializeMaterial(m_Materials[matIdx].get(), dst);
 		});
 
+	UpdateGpuBufferGeneric<interop::TerrainMaterialData>(commandList, m_TerrainMaterialsBuffer, m_TerrainMaterialsState, "TerrainMaterials GPU Buffer",
+		[this](uint32_t matIdx, interop::TerrainMaterialData* dst)
+		{
+			SerializeTerrainMaterial(m_TerrainMaterials[matIdx].get(), dst);
+		});
+
 	UpdateGpuBufferGeneric<interop::MeshData>(commandList, m_MeshesBuffer, m_MeshesState, "Meshes GPU Buffer",
 		[this](uint32_t meshIdx, interop::MeshData* dst)
 		{
-			SerializeMesh(m_Meshes[meshIdx].get(), m_MeshMaterialIndices[meshIdx], dst);
+			SerializeMesh(m_Meshes[meshIdx].get(), m_MeshMaterialIndices[meshIdx].Index, dst);
 		});
 
 	for (auto& sceneState : m_SceneStates)

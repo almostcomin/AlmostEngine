@@ -94,6 +94,30 @@ namespace interop
         uint _padding1;                                 // offset 76
     };                                                  // size 80
 
+    struct TerrainMaterialLayer
+    {
+        TextureSampledViewIndex BaseColorTextureDI;
+        TextureSampledViewIndex NormalTextureDI;
+        TextureSampledViewIndex MetalRoughTextureDI;
+        float UVScale;
+        float3 BaseColorTint;
+        float Roughness;
+        float Metalness;
+        uint3 _padding0;
+    };
+
+    struct TerrainMaterialData
+    {
+        TerrainMaterialLayer GroundLayer;
+        TerrainMaterialLayer SlopeLayer;
+        TerrainMaterialLayer PeakLayer;
+        float SlopeAngleStartSin;
+        float SlopeAngleEndSin;
+        float PeakHeightStart;
+        float PeakHeightEnd;
+        float BlendSharpness;
+    };
+
     struct DirLightData
     {
         float3 viewSpaceDirection;
@@ -149,24 +173,24 @@ namespace interop
         uint _padding2;
 
         // Camera
-        float4x4 camViewProjMatrix;             // offset 32
-        float4x4 invCamViewProjMatrix;
-        float4x4 camViewMatrix;
-        float4x4 invCamViewMatrix;
-        float4x4 camProjMatrix;
-        float4x4 invCamProjMatrix;
-        float4 camWorldPos; // xyz
+        float4x4 camViewProjMatrix;             // offset 8
+        float4x4 invCamViewProjMatrix;          // offset 24
+        float4x4 camViewMatrix;                 // offset 40
+        float4x4 invCamViewMatrix;              // offset 56
+        float4x4 camProjMatrix;                 // offset 72
+        float4x4 invCamProjMatrix;              // offset 88
+        float4 camWorldPos; // xyz              // offset 104
 
         // Shadomap matrices
-        float4x4 shadowMapWorldToClipMatrix;
-        float4x4 shadowMapViewToClipMatrix;
+        float4x4 shadowMapWorldToClipMatrix;    // offset 108
+        float4x4 shadowMapViewToClipMatrix;     // offset 124
 
         // Sky/ambient light
-        float4 ambientTop;      // rgb
-        float4 ambientBottom;   // rgb
+        float4 ambientTop;      // rgb          // offset 130
+        float4 ambientBottom;   // rgb          // offset 134
 
         // Lights
-        DirLightData mainDirLight;
+        DirLightData mainDirLight;              // offset 138
         uint dirLightCount;
         BufferReadOnlyIndex dirLightsDataDI;    // DirLightData
         uint pointLightCount;
@@ -178,6 +202,7 @@ namespace interop
         BufferReadOnlyIndex instanceBufferDI;   // InstanceData
         BufferReadOnlyIndex meshesBufferDI;     // MeshData
         BufferReadOnlyIndex materialsBufferDI;  // MaterialData
+        BufferReadOnlyIndex terrainMaterialsBufferDI; // TerrainMaterialData
         BufferReadOnlyIndex patchDataBufferDI;  // HeightmapPatchData
     };
 

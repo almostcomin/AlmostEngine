@@ -10,7 +10,7 @@
 #include "Gfx/SceneLights.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/GpuSceneBuffers.h"
-#include "Gfx/SceneHeigthmap.h"
+#include "Gfx/SceneHeightmap.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 #include "Core/unique_vector.h"

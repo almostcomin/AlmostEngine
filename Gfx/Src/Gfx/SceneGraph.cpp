@@ -5,7 +5,7 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/SceneCamera.h"
 #include "Gfx/SceneLights.h"
-#include "Gfx/SceneHeigthmap.h"
+#include "Gfx/SceneHeightmap.h"
 #include "Gfx/Heightmap.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Mesh.h"
@@ -305,7 +305,7 @@ void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
     {
         auto* sh = checked_cast<SceneHeightmap*>(leaf);
         auto mesh = sh->GetHeightmap()->GetPatchMesh();
-        uint32_t meshIdx = m_GpuSceneBuffers->RegisterMesh(mesh.get());
+        uint32_t meshIdx = m_GpuSceneBuffers->RegisterMesh(mesh.get(), GpuSceneBuffers::MaterialType::Heightmap);
 
         sh->SetPatchMeshGpuIndex(meshIdx);
 

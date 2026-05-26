@@ -29,9 +29,10 @@
 #include "Gfx/CommonResources.h"
 #include "Gfx/LoadedTexture.h"
 #include "Gfx/MeshInstance.h"
-#include "Gfx/SceneHeigthmap.h"
+#include "Gfx/SceneHeightmap.h"
 #include "Gfx/ImageHeightmapSource.h"
 #include "Gfx/Heightmap.h"
+#include "Gfx/TerrainMaterial.h"
 #include "OutdoorsUI.h"
 
 class OutdoorsApp : public alm::fw::App
@@ -82,8 +83,14 @@ public:
 			bool sourceOk = imageSource->Load("SpainHeightmap.png");
 			assert(sourceOk);
 
+			// Material
+			auto mat = std::make_shared<alm::gfx::TerrainMaterial>("Heightmap");
+			mat->Ground.BaseColorTint = { 0.f, 1.f, 0.f };
+			mat->Slope.BaseColorTint = { 0.2, 0.2f, 0.35f };
+			mat->Peak.BaseColorTint = { 1.f, 1.f, 1.f };
+
 			// Heightmap
-			heightmap = std::make_shared<alm::gfx::Heightmap>(m_DeviceManager.get(), imageSource);
+			heightmap = std::make_shared<alm::gfx::Heightmap>(m_DeviceManager.get(), imageSource, mat);
 
 			// Leaf
 			auto sceneHeightmapUnique = alm::make_unique_with_weak<alm::gfx::SceneHeightmap>();
@@ -94,7 +101,7 @@ public:
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
 			graphNode->SetName("Heightmap");
 			graphNode->SetLeaf(std::move(sceneHeightmapUnique));
-			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 2.f, 0.1f, 2.f }));
+			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 0.1f, 12.f }));
 			//graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation(kEarthPos));
 
 			// Attach to scene

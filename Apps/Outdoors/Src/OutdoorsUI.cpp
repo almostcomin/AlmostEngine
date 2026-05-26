@@ -1,6 +1,6 @@
 #include "Framework/FrameworkPCH.h"
 #include "OutdoorsUI.h"
-#include "Gfx/SceneHeigthmap.h"
+#include "Gfx/SceneHeightmap.h"
 #include "Gfx/Heightmap.h"
 #include "Gfx/HeightmapInstance.h"
 #include "Gfx/SceneGraphNode.h"

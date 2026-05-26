@@ -34,8 +34,10 @@ private:
 
 	alm::rhi::ShaderOwner m_VS;
 	alm::rhi::ShaderOwner m_VS_Terrain;
+
 	alm::rhi::ShaderOwner m_PS_Opaque;
 	alm::rhi::ShaderOwner m_PS_AlphaTest;
+	alm::rhi::ShaderOwner m_PS_Terrain;
 
 	alm::rhi::FramebufferOwner m_FB;
 	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;

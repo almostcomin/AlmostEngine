@@ -35,6 +35,11 @@ void alm::gfx::Mesh::SetMaterial(std::shared_ptr<Material> mat)
 	m_Material = mat;
 }
 
+void alm::gfx::Mesh::SetTerrainMaterial(std::shared_ptr<TerrainMaterial> mat)
+{
+	m_TerrainMaterial = mat;
+}
+
 size_t alm::gfx::Mesh::GetIndexCount() const
 {
 	return m_IndexBuffer ? m_IndexBuffer->GetDesc().sizeBytes / m_IndexBuffer->GetDesc().stride : 0u;

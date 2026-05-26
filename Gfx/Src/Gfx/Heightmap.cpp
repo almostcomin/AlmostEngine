@@ -11,6 +11,7 @@
 alm::gfx::Heightmap::Heightmap(
 	DeviceManager* deviceManager,
 	std::shared_ptr<IHeightmapSource> source,
+	std::shared_ptr<TerrainMaterial> material,
 	const float2& uvScale,
 	const float2& uvOffset,
 	uint32_t patchResolution) :
@@ -21,7 +22,7 @@ alm::gfx::Heightmap::Heightmap(
 	m_PatchResolution{ patchResolution }
 {
 	BuildTexture();
-	BuildPatch();
+	BuildPatch(material);
 	ComputeBounds();
 }
 
@@ -81,7 +82,7 @@ void alm::gfx::Heightmap::BuildTexture()
 	uploadResult->Wait();
 }
 
-void alm::gfx::Heightmap::BuildPatch()
+void alm::gfx::Heightmap::BuildPatch(std::shared_ptr<TerrainMaterial> mat)
 {
 	auto* dataUploader = m_DeviceManager->GetDataUploader();
 	auto* device = m_DeviceManager->GetDevice();
@@ -186,10 +187,14 @@ void alm::gfx::Heightmap::BuildPatch()
 	m_PatchMesh->SetVertexBuffer(std::move(vertexBuffer), vertexFormat);
 	m_PatchMesh->SetIndexBuffer(std::move(indexBuffer), rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
 
+#if 0
 	// TODO: Lets create a simple material for me moment, so we see something
-	auto material = std::make_shared<Material>(device, "HeightmapPatch", "[generated]");
+	auto material = std::make_shared<Material>("HeightmapPatch");
 	material->SetBaseColor(float3{ 0.5f, 1.f, 1.f });
 	m_PatchMesh->SetMaterial(std::shared_ptr<Material>{ material });
+#else
+	m_PatchMesh->SetTerrainMaterial(mat);
+#endif
 
 	// Actually, this is irrelevant
 	m_PatchMesh->SetBounds(aabox3f{ float3(0.f, 0.f, 0.f), float3(1.f, 0.f, 1.f) });

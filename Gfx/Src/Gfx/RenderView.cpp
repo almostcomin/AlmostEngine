@@ -328,6 +328,7 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->meshesBufferDI = gpuSceneBuffers->GetMeshesBufferView();
 		sceneShaderConstant->materialsBufferDI = gpuSceneBuffers->GetMaterialsBufferView();
 		sceneShaderConstant->patchDataBufferDI = gpuSceneBuffers->GetHeightmapPatchDataBufferView(m_Scene->GetGpuSceneBuffersHandle());
+		sceneShaderConstant->terrainMaterialsBufferDI = gpuSceneBuffers->GetTerrainMaterialsBufferView();
 	}
 
 	m_SceneConstants.Unmap();

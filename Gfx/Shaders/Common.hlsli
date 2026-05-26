@@ -117,14 +117,22 @@ float square(float x)
     return x * x;
 }
 
-float3 slerp(float3 a, float3 b, float angle, float t)
+float3 slerp(float3 va, float3 vb, float t)
 {
-    t = saturate(t);
-    float sin1 = sin(angle * t);
-    float sin2 = sin(angle * (1 - t));
-    float ta = sin1 / (sin1 + sin2);
-    float3 result = lerp(a, b, ta);
-    return normalize(result);
+    float dotAB = clamp(dot(va, vb), -1.0, 1.0);
+    
+    // Use lerp for small angles (more efficient)
+    if (dotAB > 0.9995)
+    {
+        return normalize(lerp(va, vb, t));
+    }
+    
+    float theta = acos(dotAB);
+    float sinTheta = sin(theta);
+    float coeffA = sin((1.0 - t) * theta) / sinTheta;
+    float coeffB = sin(t * theta) / sinTheta;
+    
+    return coeffA * va + coeffB * vb;
 }
 
 // Given v in the range [srcMin,  srcMax] returns it remapes in the range [dstMin, dstMax]

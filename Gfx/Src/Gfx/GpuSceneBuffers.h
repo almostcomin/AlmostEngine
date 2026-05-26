@@ -17,6 +17,7 @@ namespace alm::gfx
 	class Material;
 	class Mesh;
 	class MeshInstance;
+	class TerrainMaterial;
 }
 
 namespace alm::gfx
@@ -28,16 +29,32 @@ public:
 
 	static constexpr size_t kStaticInstanceCount	= 8192;
 	static constexpr size_t kTransientInstanceCount	= 4096;
-	static constexpr size_t kMaterialCount			= 1024;
+	static constexpr size_t kMaterialCount			= 256;
+	static constexpr size_t kTerrainMaterialCount	= 8;
 	static constexpr size_t kMeshRefCount			= 4096;
 
+	enum class MaterialType
+	{
+		Undef,
+		Regular,
+		Heightmap
+	};
+
+	struct MaterialIndexEntry
+	{
+		uint32_t Index;
+		MaterialType Type;
+	};
+
 	using MaterialRefCount = ResourceRefCount<const Material>;
+	using TerrainMaterialRefCount = ResourceRefCount<const TerrainMaterial>;
 	using MeshRefCount = ResourceRefCount<const Mesh>;
 
 	using MeshInstanceLeafsContainer = alm::stable_vector<MeshInstance*, kStaticInstanceCount>;
 	using MaterialsContainer = alm::unique_stable_vector<MaterialRefCount, kMaterialCount>;
+	using TerrainMaterialsContainer = alm::unique_stable_vector<TerrainMaterialRefCount, kMaterialCount>;
 	using MeshesContainer = alm::unique_stable_vector<MeshRefCount, kMeshRefCount>;
-	using MeshMaterialIndicesContainer = std::array<uint32_t, MeshesContainer::max_elements>;
+	using MeshMaterialIndicesContainer = std::array<MaterialIndexEntry, MeshesContainer::max_elements>;
 
 	struct HeightmapPatchesAllocation
 	{
@@ -57,24 +74,34 @@ public:
 	void ReleaseSceneHandle(GpuSceneBuffersHandle handle);
 
 	uint32_t RegisterMaterial(const gfx::Material* mat);
-	uint32_t RegisterMesh(const gfx::Mesh* mesh);
+	uint32_t RegisterTerrainMaterial(const gfx::TerrainMaterial* mat);
+
+	uint32_t RegisterMesh(const gfx::Mesh* mesh, MaterialType materialType);
+
 	uint32_t RegisterMeshInstance(GpuSceneBuffersHandle handle, gfx::MeshInstance* mi);
 
 	void UnregisterMaterial(const gfx::Material* mat);
+	void UnregisterTerrainMaterial(const gfx::TerrainMaterial* mat);
 	void UnregisterMesh(const gfx::Mesh* mesh);
+
 	void UnregisterMaterial(uint32_t idx);
+	void UnregisterTerrainMaterial(uint32_t idx);
 	void UnregisterMesh(uint32_t idx);
 
 	void UnregisterMeshInstance(GpuSceneBuffersHandle handle, gfx::MeshInstance* mi);
 
 	void SetDirtyMaterial(const gfx::Material* mat);
-	void SetDirtyMesh(const gfx::Mesh* mesh);
 	void SetDirtyMaterial(uint32_t idx);
+
+	void SetDirtyTerrainMaterial(const gfx::TerrainMaterial* mat);
+	void SetDirtyTerrainMaterial(uint32_t idx);
+
+	void SetDirtyMesh(const gfx::Mesh* mesh);
 	void SetDirtyMesh(uint32_t idx);
 
 	void SetDirtyMeshInstance(GpuSceneBuffersHandle handle, const gfx::MeshInstance* mi);
 
-	void RebindMeshMaterial(const Mesh* mesh);
+	void RebindMeshMaterial(const Mesh* mesh, MaterialType materialType);
 
 	HeightmapPatchesAllocation AllocateTransientHeightmapPatches(GpuSceneBuffersHandle handle, uint32_t count);
 
@@ -82,11 +109,12 @@ public:
 	// Registering a Mesh also register its material
 	const MeshesContainer& GetMeshes() const { return m_Meshes; }
 
-	uint32_t GetMaterialIndexFromMesh(const gfx::Mesh* mesh) const;
-	uint32_t GetMaterialIndexFromMeshIdx(uint32_t meshIdx) const;
+	MaterialIndexEntry GetMaterialIndexFromMesh(const gfx::Mesh* mesh) const;
+	MaterialIndexEntry GetMaterialIndexFromMeshIdx(uint32_t meshIdx) const;
 
 	rhi::BufferReadOnlyView GetMeshesBufferView() const;
 	rhi::BufferReadOnlyView GetMaterialsBufferView() const;
+	rhi::BufferReadOnlyView GetTerrainMaterialsBufferView() const;
 	rhi::BufferReadOnlyView GetInstancesBufferView(GpuSceneBuffersHandle handle) const;
 	rhi::BufferReadOnlyView GetHeightmapPatchDataBufferView(GpuSceneBuffersHandle handle) const;
 
@@ -146,16 +174,19 @@ private:
 private:
 
 	MaterialsContainer m_Materials;
+	TerrainMaterialsContainer m_TerrainMaterials;
 	MeshesContainer m_Meshes;
 	MeshMaterialIndicesContainer m_MeshMaterialIndices;
 
 	alm::stable_vector<SceneState, 32> m_SceneStates;
 
 	RefreshState m_MaterialsState;
+	RefreshState m_TerrainMaterialsState;
 	RefreshState m_MeshesState;
 
-	rhi::BufferOwner m_MaterialsBuffer;		// interop::MaterialData
-	rhi::BufferOwner m_MeshesBuffer;		// interop::MeshData
+	rhi::BufferOwner m_MaterialsBuffer;				// interop::MaterialData
+	rhi::BufferOwner m_TerrainMaterialsBuffer;		// interop::TerrainMaterialData
+	rhi::BufferOwner m_MeshesBuffer;				// interop::MeshData
 
 	rhi::Device* m_Device;
 };

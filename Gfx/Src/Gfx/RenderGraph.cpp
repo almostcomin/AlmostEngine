@@ -229,6 +229,9 @@ bool alm::gfx::RenderGraph::EndRender(rhi::ICommandList* commandList)
 	for (auto& texState : m_TexturesState)
 	{
 		DeclaredTexture* declTex = GetDeclTex(texState.first);
+		if (!declTex->texture)
+			continue;
+
 		rhi::ResourceState initialState = GetInitialState(declTex->type);
 		rhi::ResourceState currentState = texState.second;
 		if (initialState != currentState)

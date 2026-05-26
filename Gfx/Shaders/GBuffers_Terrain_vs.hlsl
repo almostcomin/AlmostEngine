@@ -7,10 +7,12 @@ ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1)
 
 struct VS_OUTPUT
 {
-    float4 pos : SV_POSITION;
-    float3 normal : NORMAL;
-    float4 tangent : TANGENT; // xyz = tangent, w = handedness (-1 or +1)    
-    float2 uv : TEXCOORD0;
+    float4 pos          : SV_POSITION;
+    float3 normal       : NORMAL;           // view space
+    float4 tangent      : TANGENT;          // xyz = tangent, w = handedness (-1 or +1)    
+    float3 normalWorld  : NORMAL1;
+    float2 uv           : TEXCOORD0;
+    float  normHeight   : TEXCOORD1;
 };
 
 void GetLocalSpaceNormalTangent(Texture2D<float> heightsTexture, float2 uv, out float3 normal, out float4 tangent)
@@ -25,8 +27,8 @@ void GetLocalSpaceNormalTangent(Texture2D<float> heightsTexture, float2 uv, out 
     float hU = heightsTexture.SampleLevel(linearClampSampler, uv + float2(0, texelSize.y), 0).r;
     
     // Gradient in UV space
-    float dHdU = (hR - hL) * 0.5;
-    float dHdV = (hU - hD) * 0.5;
+    float dHdU = (hR - hL) * 0.5 / texelSize.x;
+    float dHdV = (hU - hD) * 0.5 / texelSize.y;
 
     normal = normalize(float3(-dHdU, 1.0, -dHdV));
     
@@ -66,7 +68,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     float H = heightsTexture.SampleLevel(linearClampSampler, uv, 0).r;
     float3 pos = float3(pos2.x, H, pos2.y);
     
-    // Other components
+    // Normal & Tangent
     float3 normal;
     float4 tangent;
     GetLocalSpaceNormalTangent(heightsTexture, uv, normal, tangent);
@@ -89,6 +91,9 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     output.pos = posClip;
     output.normal = normalView;
     output.tangent = float4(tangentView, tangent.w);
+    output.normalWorld = normalWorld;
     output.uv = uv;
+    output.normHeight = H;
+    
     return output;
 }

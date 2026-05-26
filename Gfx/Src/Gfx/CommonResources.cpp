@@ -234,7 +234,7 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 	
 	mesh->SetIndexBuffer(std::move(indexBuffer), rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
 
-	Material* material = new Material(m_Device, std::format("{} - Material", name), "[generated]");
+	Material* material = new Material(std::format("{} - Material", name), "[generated]");
 	material->SetBaseColor(float3{ 0.5f, 1.f, 1.f });
 	mesh->SetMaterial(std::shared_ptr<Material>{ material });
 
