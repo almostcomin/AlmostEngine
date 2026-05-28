@@ -113,9 +113,9 @@ namespace interop
         TerrainMaterialLayer PeakLayer;
         float SlopeAngleStartSin;
         float SlopeAngleEndSin;
-        float PeakHeightStart;
-        float GroundHeightEnd;
-        float BlendSharpness;
+        float HeightTransitionStart;
+        float HeightTransitionEnd;
+        float SlopeBlendSharpness;
     };
 
     struct DirLightData

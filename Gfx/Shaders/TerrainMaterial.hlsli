@@ -68,33 +68,36 @@ MaterialSample EvaluateTerrainMaterial(float normHeight, float3 normalWorld, flo
     interop::TerrainMaterialData mat)
 {
     TerrainLayerSample layerSample;
-    if (normHeight < mat.PeakHeightStart)
+    const float slopeS = 1.0 - normalWorld.y; // Sin of slope angle
+    
+    if (slopeS >= mat.SlopeAngleEndSin)
     {
-        layerSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.GroundLayer);
-    }
-    else if (normHeight > mat.GroundHeightEnd)
-    {
-        layerSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.PeakLayer);
+        layerSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.SlopeLayer);
     }
     else
     {
-        TerrainLayerSample groundSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.GroundLayer);
-        TerrainLayerSample peakSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.PeakLayer);
-        float w = smoothstep(mat.PeakHeightStart, mat.GroundHeightEnd, normHeight);
-        layerSample = MergeTerrainLayers(groundSample, peakSample, w);
-    }
-    
-    float slopeS = 1.0 - normalWorld.y; // Sin of slope angle
-    if (slopeS >= mat.SlopeAngleStartSin && slopeS <= mat.SlopeAngleEndSin)
-    {
-        TerrainLayerSample slopeSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.SlopeLayer);
-        
-        float midP = (mat.SlopeAngleStartSin + mat.SlopeAngleEndSin) * 0.5;
-        float range = mat.SlopeAngleEndSin - mat.SlopeAngleStartSin;
-        float dCenter = abs(slopeS - midP) / (range * 0.5);
-        float sw = smoothstep(0.0, 1.0, 1.0 - saturate(dCenter));
-        
-        layerSample = MergeTerrainLayers(layerSample, slopeSample, sw);
+        if (normHeight < mat.HeightTransitionStart)
+        {
+            layerSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.GroundLayer);
+        }
+        else if (normHeight > mat.HeightTransitionEnd)
+        {
+            layerSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.PeakLayer);
+        }
+        else
+        {
+            TerrainLayerSample groundSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.GroundLayer);
+            TerrainLayerSample peakSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.PeakLayer);
+            float w = smoothstep(mat.HeightTransitionStart, mat.HeightTransitionEnd, normHeight);
+            layerSample = MergeTerrainLayers(groundSample, peakSample, w);
+        }
+        if (slopeS >= mat.SlopeAngleStartSin)
+        {
+            TerrainLayerSample slopeSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.SlopeLayer);
+            float sw = smoothstep(mat.SlopeAngleStartSin, mat.SlopeAngleEndSin, slopeS);
+            sw = pow(sw, mat.SlopeBlendSharpness);
+            layerSample = MergeTerrainLayers(layerSample, slopeSample, sw);
+        }
     }
         
     MaterialSample result = DefaultMaterialSample();

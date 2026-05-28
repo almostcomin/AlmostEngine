@@ -22,14 +22,18 @@ struct TerrainMaterialLayer
 struct TerrainMaterial
 {
     TerrainMaterialLayer Ground;
-    TerrainMaterialLayer Slope;      // pendientes
+    TerrainMaterialLayer Slope;
     TerrainMaterialLayer Peak;
 
-    float SlopeAngleStartDeg = 45.0f;
-    float SlopeAngleEndDeg = 90.0f;
-    float PeakHeightStart = 0.7f;
-    float GroundHeightEnd = 0.85f;
-    float BlendSharpness = 0.5f;
+    // Groound -> Peak transition
+    float HeightTransitionStart = 0.7f;
+    float HeightTransitionEnd = 0.85f;
+
+    // Ground/Peak -> Slope transition
+    float SlopeAngleStartDeg = 45.f;
+    float SlopeAngleEndDeg = 60.f;
+
+    float SlopeBlendSharpness = 1.f;
 
     TerrainMaterial(const std::string& name) : m_Name{ name }
     {}

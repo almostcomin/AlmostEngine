@@ -210,14 +210,14 @@ void OutdoorsUI::BuildUI()
 			ImGui::Separator();
 			ImGui::Spacing();
 
-			if (ImGui::SliderFloat("Peak Start", &mat->PeakHeightStart, 0.f, 1.f, "%.2f"))
+			if (ImGui::SliderFloat("Peak Start", &mat->HeightTransitionStart, 0.f, 1.f, "%.2f"))
 			{
-				mat->GroundHeightEnd = std::max(mat->GroundHeightEnd, mat->PeakHeightStart);
+				mat->HeightTransitionEnd = std::max(mat->HeightTransitionEnd, mat->HeightTransitionStart);
 				matDirty = true;
 			}
-			if (ImGui::SliderFloat("Ground End", &mat->GroundHeightEnd, 0.f, 1.f, "%.2f"))
+			if (ImGui::SliderFloat("Ground End", &mat->HeightTransitionEnd, 0.f, 1.f, "%.2f"))
 			{
-				mat->PeakHeightStart = std::min(mat->PeakHeightStart, mat->GroundHeightEnd);
+				mat->HeightTransitionStart = std::min(mat->HeightTransitionStart, mat->HeightTransitionEnd);
 				matDirty = true;
 			}
 
