@@ -47,6 +47,8 @@ public:
 
 	bool Initialize() override
 	{
+		alm::gfx::TextureCache* textureCache = m_DeviceManager->GetTextureCache();
+
 		m_MainCamera->SetPosition(float3{ 0.f, 0.f, 1.f });
 
 		m_CameraController.SetWindow(m_Window);
@@ -85,10 +87,87 @@ public:
 
 			// Material
 			auto mat = std::make_shared<alm::gfx::TerrainMaterial>("Heightmap");
-			mat->Ground.BaseColorTint = { 0.f, 1.f, 0.f };
-			//mat->Slope.BaseColorTint = { 0.2, 0.2f, 0.35f };
-			mat->Slope.BaseColorTint = { 1.f, 1.f, 0.f };
-			mat->Peak.BaseColorTint = { 1.f, 1.f, 1.f };
+			{
+				alm::gfx::TextureCache::LoadResult loadResult;
+
+				// Ground Color
+				loadResult = textureCache->Load(
+					"Textures/Ground037/Ground037_1K-PNG_Color.png",
+					alm::gfx::TextureCache::Flags::ForceSRGB | alm::gfx::TextureCache::Flags::GenerateMips);
+				if (loadResult)
+				{
+					mat->Ground.BaseColorTexture = loadResult->first;
+				}
+				// Ground Normal
+				loadResult = textureCache->Load(
+					"Textures/Ground037/Ground037_1K-PNG_NormalGL.png",
+					alm::gfx::TextureCache::Flags::IsNormalMap | alm::gfx::TextureCache::Flags::GenerateMips);
+				if (loadResult)
+				{
+					mat->Ground.NormalTexture = loadResult->first;
+				}
+				// Ground ORM
+				loadResult = textureCache->Load(
+					"Textures/Ground037/Ground037_1K-PNG_ORM.png",
+					alm::gfx::TextureCache::Flags::GenerateMips);
+				if (loadResult)
+				{
+					mat->Ground.MetalRoughTexture = loadResult->first;
+				}
+				mat->Ground.UVScale = 60.f;
+
+				// Peak Color
+				loadResult = textureCache->Load(
+					"Textures/Snow010A/Snow010A_1K-PNG_Color.png",
+					alm::gfx::TextureCache::Flags::ForceSRGB | alm::gfx::TextureCache::Flags::GenerateMips);
+				if (loadResult)
+				{
+					mat->Peak.BaseColorTexture = loadResult->first;
+				}
+				// Peak Normal
+				loadResult = textureCache->Load(
+					"Textures/Snow010A/Snow010A_1K-PNG_NormalGL.png",
+					alm::gfx::TextureCache::Flags::IsNormalMap | alm::gfx::TextureCache::Flags::GenerateMips);
+				if (loadResult)
+				{
+					mat->Peak.NormalTexture = loadResult->first;
+				}
+				// Peak ORM
+				loadResult = textureCache->Load(
+					"Textures/Snow010A/Snow010A_1K-PNG_ORM.png",
+					alm::gfx::TextureCache::Flags::GenerateMips);
+				if (loadResult)
+				{
+					mat->Peak.MetalRoughTexture = loadResult->first;
+				}
+				mat->Peak.UVScale = 60.f;
+
+				// Slope Color
+				loadResult = textureCache->Load(
+					"Textures/Rock050/Rock050_1K-PNG_Color.png",
+					alm::gfx::TextureCache::Flags::ForceSRGB | alm::gfx::TextureCache::Flags::GenerateMips);
+				if (loadResult)
+				{
+					mat->Slope.BaseColorTexture = loadResult->first;
+				}
+				// Slope Normal
+				loadResult = textureCache->Load(
+					"Textures/Rock050/Rock050_1K-PNG_NormalGL.png",
+					alm::gfx::TextureCache::Flags::IsNormalMap | alm::gfx::TextureCache::Flags::GenerateMips);
+				if (loadResult)
+				{
+					mat->Slope.NormalTexture = loadResult->first;
+				}
+				// Slope ORM
+				loadResult = textureCache->Load(
+					"Textures/Rock050/Rock050_1K-PNG_ORM.png",
+					alm::gfx::TextureCache::Flags::GenerateMips);
+				if (loadResult)
+				{
+					mat->Slope.MetalRoughTexture = loadResult->first;
+				}
+				mat->Slope.UVScale = 60.f;
+			}
 
 			// Heightmap
 			heightmap = std::make_shared<alm::gfx::Heightmap>(m_DeviceManager.get(), imageSource, mat);
@@ -102,7 +181,7 @@ public:
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
 			graphNode->SetName("Heightmap");
 			graphNode->SetLeaf(std::move(sceneHeightmapUnique));
-			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 0.1f, 12.f }));
+			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 0.2f, 12.f }));
 			//graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation(kEarthPos));
 
 			// Attach to scene

@@ -41,7 +41,7 @@ TerrainLayerSample SampleTerrainLayerColor(float2 uv, float3 normal, float4 tang
     result.roughness = matLayer.Roughness;
     if (matLayer.MetalRoughTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
-        // Typically OCR texture (r=Occlusion, g=Roughness, b=Metalness)
+        // Typically OCM texture (r=Occlusion, g=Roughness, b=Metalness)
         Texture2D metalRoughTexture = ResourceDescriptorHeap[matLayer.MetalRoughTextureDI];
         float3 metalRough = metalRoughTexture.Sample(linearWrapSampler, uv).xyz;
                 

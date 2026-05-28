@@ -25,7 +25,7 @@ void OutdoorsUI::BuildUI()
 
 	if (m_ShowHeightmapSettings)
 	{
-		ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(500, 900), ImGuiCond_FirstUseEver);
 		if (!ImGui::Begin("Heightmap Settings", &m_ShowHeightmapSettings, ImGuiWindowFlags_None))
 		{
 			ImGui::End();
