@@ -465,9 +465,10 @@ void alm::fw::App::MainLoop()
 			auto compositeRS = renderGraph->GetRenderStage<alm::gfx::CompositeRenderStage>();
 			auto& data = m_FrameworkUI->FrameworkData;
 
-			if (!data.RenderMode.empty() && data.RenderMode != renderGraph->GetCurrentRenderMode())
+			if (!data.RequestedRenderMode.empty())
 			{
-				renderGraph->SetActiveRenderMode(data.RenderMode);
+				renderGraph->SetActiveRenderMode(data.RequestedRenderMode);
+				data.RequestedRenderMode.clear();
 			}
 
 			debugRS->ShowRenderBBoxes(alm::gfx::SceneContentType::Meshes, data.Debug.ShowMeshBBoxes);

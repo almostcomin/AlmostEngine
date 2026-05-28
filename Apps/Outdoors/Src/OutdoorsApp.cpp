@@ -34,6 +34,7 @@
 #include "Gfx/Heightmap.h"
 #include "Gfx/TerrainMaterial.h"
 #include "OutdoorsUI.h"
+#include <SDL3/SDL_keyboard.h>
 
 class OutdoorsApp : public alm::fw::App
 {
@@ -290,7 +291,16 @@ public:
 		} break;
 		}
 
-		m_CameraController.OnSDLEvent(event);
+		const bool* keyboardState = SDL_GetKeyboardState(NULL);
+		const bool ctrlPressed = keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL];
+		if (!ctrlPressed)
+		{
+			m_CameraController.OnSDLEvent(event);
+		}
+		else
+		{
+			m_CameraController.Stop();
+		}
 	}
 
 	std::shared_ptr<alm::gfx::ImGuiRenderStage> UserInitRenderStages() override

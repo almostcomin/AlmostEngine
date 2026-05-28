@@ -29,7 +29,8 @@ public:
 
 	struct
 	{
-		std::string RenderMode = "default";
+		//std::string RenderMode = "default";
+		std::string RequestedRenderMode;
 
 		struct
 		{

@@ -166,30 +166,6 @@ void OutdoorsUI::BuildUI()
 				matDirty |= buildTex("NormalTexture", layer.NormalTexture, false, true);
 				matDirty |= buildTex("MetalRoughTexture", layer.MetalRoughTexture, false, false);
 
-				ImGui::SetCursorPosX(style.ItemSpacing.x);
-				ImGui::BeginDisabled(!layer.BaseColorTexture);
-				if (ImGui::Button("BaseColorTexture", ImVec2(itemWidth, 0.f)))
-				{
-					AddTextureWindow(layer.BaseColorTexture->id, layer.BaseColorTexture->texture.get_weak());
-				}
-				ImGui::EndDisabled();
-
-				ImGui::SameLine();
-				ImGui::BeginDisabled(!layer.NormalTexture);
-				if (ImGui::Button("NormalTexture", ImVec2(itemWidth, 0.f)))
-				{
-					AddTextureWindow(layer.NormalTexture->id, layer.NormalTexture->texture.get_weak());
-				}
-				ImGui::EndDisabled();
-
-				ImGui::SameLine();
-				ImGui::BeginDisabled(!layer.MetalRoughTexture);
-				if (ImGui::Button("MetalRoughTexture", ImVec2(itemWidth, 0.f)))
-				{
-					AddTextureWindow(layer.MetalRoughTexture->id, layer.MetalRoughTexture->texture.get_weak());
-				}
-				ImGui::EndDisabled();
-
 				matDirty |= ImGui::ColorEdit3("BaseColorTint", &layer.BaseColorTint.x, ImGuiColorEditFlags_Float);
 				matDirty |= ImGui::SliderFloat("Roughness", &layer.Roughness, 0.f, 1.f, "%.2f");
 				matDirty |= ImGui::SliderFloat("Metallic", &layer.Metallic, 0.f, 1.f, "%.2f");
@@ -210,12 +186,12 @@ void OutdoorsUI::BuildUI()
 			ImGui::Separator();
 			ImGui::Spacing();
 
-			if (ImGui::SliderFloat("Peak Start", &mat->HeightTransitionStart, 0.f, 1.f, "%.2f"))
+			if (ImGui::SliderFloat("Height Transition Start", &mat->HeightTransitionStart, 0.f, 1.f, "%.2f"))
 			{
 				mat->HeightTransitionEnd = std::max(mat->HeightTransitionEnd, mat->HeightTransitionStart);
 				matDirty = true;
 			}
-			if (ImGui::SliderFloat("Ground End", &mat->HeightTransitionEnd, 0.f, 1.f, "%.2f"))
+			if (ImGui::SliderFloat("Height Transition End", &mat->HeightTransitionEnd, 0.f, 1.f, "%.2f"))
 			{
 				mat->HeightTransitionStart = std::min(mat->HeightTransitionStart, mat->HeightTransitionEnd);
 				matDirty = true;
@@ -223,14 +199,14 @@ void OutdoorsUI::BuildUI()
 
 			float slopeAngleStart = glm::radians(mat->SlopeAngleStartDeg);
 			float slopeAngleEnd = glm::radians(mat->SlopeAngleEndDeg);
-			if (ImGui::SliderAngle("Slope Start", &slopeAngleStart, 0.f, 90.f))
+			if (ImGui::SliderAngle("Slope Transition Start", &slopeAngleStart, 0.f, 90.f))
 			{
 				slopeAngleEnd = std::max(slopeAngleEnd, slopeAngleStart);
 				mat->SlopeAngleStartDeg = glm::degrees(slopeAngleStart);
 				mat->SlopeAngleEndDeg = glm::degrees(slopeAngleEnd);
 				matDirty = true;
 			}
-			if (ImGui::SliderAngle("Slope End", &slopeAngleEnd, 0.f, 90.f))
+			if (ImGui::SliderAngle("Slope Transition End", &slopeAngleEnd, 0.f, 90.f))
 			{
 				slopeAngleStart = std::min(slopeAngleStart, slopeAngleEnd);
 				mat->SlopeAngleStartDeg = glm::degrees(slopeAngleStart);

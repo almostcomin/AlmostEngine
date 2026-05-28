@@ -23,6 +23,8 @@ public:
 	void SetSpeed(float v) { m_Speed = v; }
 	float GetSpeed() const { return m_Speed; }
 
+	void Stop() { m_CurrentSpeed = float2{ 0.f, 0.f }; }
+
 	void Update(float deltaTime);
 
 	// Returns true if the event has been processed

@@ -1059,7 +1059,8 @@ void alm::fw::FrameworkUI::BuildRenderModesSettings()
             ImGui::EndListBox();
         }
 
-        FrameworkData.RenderMode = renderModes[selectedIdx];
+        if (renderModes[selectedIdx] != m_RenderViewUI->GetRenderGraph()->GetCurrentRenderMode())
+            FrameworkData.RequestedRenderMode = renderModes[selectedIdx];
     }
 }
 
