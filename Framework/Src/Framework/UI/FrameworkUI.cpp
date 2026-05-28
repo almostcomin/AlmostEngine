@@ -638,6 +638,20 @@ void alm::fw::FrameworkUI::ShowPropertyText(const char* label, float labelWidth,
     ImGui::PopID();
 }
 
+void alm::fw::FrameworkUI::TextRightAlignedPosX(float xpos, const char* fmt, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    float textWidth = ImGui::CalcTextSize(buffer).x;
+    xpos -= textWidth;
+    ImGui::SetCursorPosX(xpos);
+    ImGui::TextUnformatted(buffer);
+}
+
 void alm::fw::FrameworkUI::BuildMainMenu()
 {
     if (!m_ShowMainMenu)

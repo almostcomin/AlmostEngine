@@ -31,7 +31,8 @@ public:
 	uint32_t GetMaxDepthLevel() const;
 
 	rhi::TextureHandle GetHeightsTexture() const { return m_HeightsTexture.get_weak(); }
-	alm::weak<Mesh> GetPatchMesh() { return m_PatchMesh.get_weak(); }
+	alm::weak<Mesh> GetPatchMesh() const { return m_PatchMesh.get_weak(); }
+	std::shared_ptr<TerrainMaterial> GetMaterial() const { return m_Material; }
 
 	uint32_t GetPatchIndicesCount() const;
 
@@ -39,7 +40,7 @@ private:
 
 	void ComputeBounds();
 	void BuildTexture();
-	void BuildPatch(std::shared_ptr<TerrainMaterial> mat);
+	void BuildPatch();
 
 	std::shared_ptr<IHeightmapSource> m_Source;
 
@@ -51,6 +52,7 @@ private:
 
 	alm::unique<Mesh> m_PatchMesh;
 	rhi::TextureOwner m_HeightsTexture;
+	std::shared_ptr<TerrainMaterial> m_Material;
 
 	DeviceManager* m_DeviceManager;
 };

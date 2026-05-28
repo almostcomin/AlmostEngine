@@ -5,6 +5,11 @@
 #include "Gfx/HeightmapInstance.h"
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/RenderView.h"
+#include "Gfx/TerrainMaterial.h"
+#include "Gfx/LoadedTexture.h"
+#include "Gfx/DeviceManager.h"
+#include "Gfx/GpuSceneBuffers.h"
+#include "Gfx/TextureCache.h"
 
 void OutdoorsUI::Init(SDL_Window* window, alm::weak<alm::gfx::Scene> scene, alm::weak<alm::gfx::RenderView> renderView,
 	alm::fw::CameraController* cameraController)
@@ -93,6 +98,151 @@ void OutdoorsUI::BuildUI()
 		}
 
 		ImGui::Spacing();
+
+		if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto buildTex = [&](const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex, bool sRGB, bool isNormalTex) -> bool
+			{
+				bool matDirty = false;
+
+				ImGui::PushID(id);
+				TextRightAlignedPosX(availWidth / 3, id);
+
+				ImGui::SameLine();
+				ImGui::SetCursorPosX(availWidth / 3 + style.ItemSpacing.x);
+				ImGui::BeginDisabled(!loadedTex);
+				if (ImGui::Button("Show"))
+				{
+					AddTextureWindow(loadedTex->id, loadedTex->texture.get_weak());
+				}
+				ImGui::EndDisabled();
+
+				ImGui::SameLine();
+				if (ImGui::Button("Open"))
+				{
+					std::string path = OpenFileNativeDialog(loadedTex ? loadedTex->id : std::string{}, {
+						{ "Image files", "*.png;*.tga;*.dds" },
+						{ "TGA", "*.tga" },
+						{ "PNG", "*.png" },
+						{ "DDS", "*.dds" } });
+					if (!path.empty())
+					{
+						alm::gfx::TextureCache::Flags flags = alm::gfx::TextureCache::Flags::GenerateMips;
+						if (isNormalTex)
+							flags |= alm::gfx::TextureCache::Flags::IsNormalMap;
+
+						auto loadResult = GetDeviceManager()->GetTextureCache()->Load(path, flags);
+						if (loadResult)
+						{
+							loadResult->second.Wait();
+							loadedTex = loadResult->first;
+							matDirty = true;
+						}
+					}
+				}
+
+				ImGui::SameLine();
+				ImGui::BeginDisabled(!loadedTex);
+				if (ImGui::Button("Clear"))
+				{
+					loadedTex.reset();
+					matDirty = true;
+				}
+				ImGui::EndDisabled();
+
+				ImGui::PopID();
+				return matDirty;
+			};
+
+			auto buildMatLayer = [&](const char* id, alm::gfx::TerrainMaterialLayer& layer) -> bool
+			{
+				ImGui::PushID(id);
+				ImGui::SeparatorText(id);
+
+				bool matDirty = false;
+				const float itemWidth = (availWidth - style.ItemSpacing.x * 4) / 3;
+
+				matDirty |= buildTex("BaseColorTexture", layer.BaseColorTexture, true, false);
+				matDirty |= buildTex("NormalTexture", layer.NormalTexture, false, true);
+				matDirty |= buildTex("MetalRoughTexture", layer.MetalRoughTexture, false, false);
+
+				ImGui::SetCursorPosX(style.ItemSpacing.x);
+				ImGui::BeginDisabled(!layer.BaseColorTexture);
+				if (ImGui::Button("BaseColorTexture", ImVec2(itemWidth, 0.f)))
+				{
+					AddTextureWindow(layer.BaseColorTexture->id, layer.BaseColorTexture->texture.get_weak());
+				}
+				ImGui::EndDisabled();
+
+				ImGui::SameLine();
+				ImGui::BeginDisabled(!layer.NormalTexture);
+				if (ImGui::Button("NormalTexture", ImVec2(itemWidth, 0.f)))
+				{
+					AddTextureWindow(layer.NormalTexture->id, layer.NormalTexture->texture.get_weak());
+				}
+				ImGui::EndDisabled();
+
+				ImGui::SameLine();
+				ImGui::BeginDisabled(!layer.MetalRoughTexture);
+				if (ImGui::Button("MetalRoughTexture", ImVec2(itemWidth, 0.f)))
+				{
+					AddTextureWindow(layer.MetalRoughTexture->id, layer.MetalRoughTexture->texture.get_weak());
+				}
+				ImGui::EndDisabled();
+
+				matDirty |= ImGui::ColorEdit3("BaseColorTint", &layer.BaseColorTint.x, ImGuiColorEditFlags_Float);
+				matDirty |= ImGui::SliderFloat("Roughness", &layer.Roughness, 0.f, 1.f, "%.2f");
+				matDirty |= ImGui::SliderFloat("Metallic", &layer.Metallic, 0.f, 1.f, "%.2f");
+				matDirty |= ImGui::InputFloat("UVScale", &layer.UVScale, 0.0, 0.0, "%.2f", ImGuiInputTextFlags_None);
+
+				ImGui::PopID();
+				return matDirty;
+			};
+
+			auto mat = heightmap->GetMaterial();
+			bool matDirty = false;
+			
+			matDirty |= buildMatLayer("Ground", mat->Ground);
+			matDirty |= buildMatLayer("Peak", mat->Peak);
+			matDirty |= buildMatLayer("Slope", mat->Slope);
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			if (ImGui::SliderFloat("Peak Start", &mat->PeakHeightStart, 0.f, 1.f, "%.2f"))
+			{
+				mat->GroundHeightEnd = std::max(mat->GroundHeightEnd, mat->PeakHeightStart);
+				matDirty = true;
+			}
+			if (ImGui::SliderFloat("Ground End", &mat->GroundHeightEnd, 0.f, 1.f, "%.2f"))
+			{
+				mat->PeakHeightStart = std::min(mat->PeakHeightStart, mat->GroundHeightEnd);
+				matDirty = true;
+			}
+
+			float slopeAngleStart = glm::radians(mat->SlopeAngleStartDeg);
+			float slopeAngleEnd = glm::radians(mat->SlopeAngleEndDeg);
+			if (ImGui::SliderAngle("Slope Start", &slopeAngleStart, 0.f, 90.f))
+			{
+				slopeAngleEnd = std::max(slopeAngleEnd, slopeAngleStart);
+				mat->SlopeAngleStartDeg = glm::degrees(slopeAngleStart);
+				mat->SlopeAngleEndDeg = glm::degrees(slopeAngleEnd);
+				matDirty = true;
+			}
+			if (ImGui::SliderAngle("Slope End", &slopeAngleEnd, 0.f, 90.f))
+			{
+				slopeAngleStart = std::min(slopeAngleStart, slopeAngleEnd);
+				mat->SlopeAngleStartDeg = glm::degrees(slopeAngleStart);
+				mat->SlopeAngleEndDeg = glm::degrees(slopeAngleEnd);
+				matDirty = true;
+			}
+
+			if (matDirty)
+			{
+				GetDeviceManager()->GetGpuSceneBuffers()->SetDirtyTerrainMaterial(mat.get());
+			}
+		}
 
 		ImGui::End();
 	}

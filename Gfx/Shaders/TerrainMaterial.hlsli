@@ -27,12 +27,13 @@ TerrainLayerSample MergeTerrainLayers(TerrainLayerSample sampleA, TerrainLayerSa
 TerrainLayerSample SampleTerrainLayerColor(float2 uv, float3 normal, float4 tangent, interop::TerrainMaterialLayer matLayer)
 {
     TerrainLayerSample result;
+    uv = uv * matLayer.UVScale;
     
     result.baseColor = matLayer.BaseColorTint;
     if (matLayer.BaseColorTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
         Texture2D baseColorTexture = ResourceDescriptorHeap[matLayer.BaseColorTextureDI];
-        result.baseColor *= baseColorTexture.Sample(linearWrapSampler, uv * matLayer.UVScale).xyz;
+        result.baseColor *= baseColorTexture.Sample(linearWrapSampler, uv).xyz;
     }
     
     // Roughness & Metalness
@@ -71,7 +72,7 @@ MaterialSample EvaluateTerrainMaterial(float normHeight, float3 normalWorld, flo
     {
         layerSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.GroundLayer);
     }
-    else if (normHeight > mat.PeakHeightEnd)
+    else if (normHeight > mat.GroundHeightEnd)
     {
         layerSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.PeakLayer);
     }
@@ -79,7 +80,7 @@ MaterialSample EvaluateTerrainMaterial(float normHeight, float3 normalWorld, flo
     {
         TerrainLayerSample groundSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.GroundLayer);
         TerrainLayerSample peakSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.PeakLayer);
-        float w = smoothstep(mat.PeakHeightStart, mat.PeakHeightEnd, normHeight);
+        float w = smoothstep(mat.PeakHeightStart, mat.GroundHeightEnd, normHeight);
         layerSample = MergeTerrainLayers(groundSample, peakSample, w);
     }
     

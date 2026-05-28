@@ -86,7 +86,8 @@ public:
 			// Material
 			auto mat = std::make_shared<alm::gfx::TerrainMaterial>("Heightmap");
 			mat->Ground.BaseColorTint = { 0.f, 1.f, 0.f };
-			mat->Slope.BaseColorTint = { 0.2, 0.2f, 0.35f };
+			//mat->Slope.BaseColorTint = { 0.2, 0.2f, 0.35f };
+			mat->Slope.BaseColorTint = { 1.f, 1.f, 0.f };
 			mat->Peak.BaseColorTint = { 1.f, 1.f, 1.f };
 
 			// Heightmap

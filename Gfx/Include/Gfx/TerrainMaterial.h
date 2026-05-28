@@ -25,10 +25,10 @@ struct TerrainMaterial
     TerrainMaterialLayer Slope;      // pendientes
     TerrainMaterialLayer Peak;
 
-    float SlopeAngleStartDeg = 60.0f;
+    float SlopeAngleStartDeg = 45.0f;
     float SlopeAngleEndDeg = 90.0f;
     float PeakHeightStart = 0.7f;
-    float PeakHeightEnd = 0.85f;
+    float GroundHeightEnd = 0.85f;
     float BlendSharpness = 0.5f;
 
     TerrainMaterial(const std::string& name) : m_Name{ name }

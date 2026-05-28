@@ -17,7 +17,7 @@ namespace alm::gfx
 	class Material;
 	class Mesh;
 	class MeshInstance;
-	class TerrainMaterial;
+	struct TerrainMaterial;
 }
 
 namespace alm::gfx

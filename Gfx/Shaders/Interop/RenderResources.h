@@ -114,7 +114,7 @@ namespace interop
         float SlopeAngleStartSin;
         float SlopeAngleEndSin;
         float PeakHeightStart;
-        float PeakHeightEnd;
+        float GroundHeightEnd;
         float BlendSharpness;
     };
 

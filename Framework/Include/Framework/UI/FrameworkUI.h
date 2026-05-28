@@ -119,6 +119,11 @@ protected:
 	static void ShowPropertyInt(const char* label, float labelWidth, int value, float valueWidth, int id);
 	static void ShowPropertyText(const char* label, float labelWidth, const char* value, float valueWidth, int id);
 
+	static void TextRightAlignedPosX(float xpos, const char* fmt, ...);
+
+	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
+	std::string SaveFileNativeDialog(const std::string& filename);
+
 private:
 
 	struct UITextureWindow
@@ -190,9 +195,6 @@ private:
 	void BuildRSViews();
 	bool BuildRSTexView(RenderStageTextureView* rsTexView);
 	bool BuildRSBufferView(RenderStageBufferView* rsBufferView);
-
-	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
-	std::string SaveFileNativeDialog(const std::string& filename);
 
 protected:
 

@@ -71,7 +71,7 @@ static void SerializeTerrainMaterial(const alm::gfx::TerrainMaterial* mat, inter
 	dest->SlopeAngleStartSin = glm::sin(glm::radians(mat->SlopeAngleStartDeg));
 	dest->SlopeAngleEndSin = glm::sin(glm::radians(mat->SlopeAngleEndDeg));
 	dest->PeakHeightStart = mat->PeakHeightStart;
-	dest->PeakHeightEnd = mat->PeakHeightEnd;
+	dest->GroundHeightEnd = mat->GroundHeightEnd;
 	dest->BlendSharpness = mat->BlendSharpness;
 }
 
