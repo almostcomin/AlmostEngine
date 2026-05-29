@@ -492,7 +492,10 @@ void alm::fw::App::MainLoop()
 				simpleSkyRS->SetSkyParams(data.SimpleSkyParams);
 
 			if (skyRS)
+			{
+				skyRS->SetEnabled(data.SkyEnabled);
 				skyRS->SetSkyParams(data.SkyParams);
+			}
 
 			if (cloudsRS)
 				cloudsRS->SetCloudsParams(data.CloudsParams);

@@ -37,64 +37,68 @@ void OutdoorsUI::BuildUI()
 		alm::gfx::HeightmapInstance* heightmapInstace = m_RenderViewUI->GetHeightmapInstance(m_SceneHeightmap.get());
 		const alm::gfx::Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 
-		const alm::gfx::Transform& nodeTransform = m_SceneHeightmap->GetNode()->GetLocalTransform();		
-		float3 pos = nodeTransform.GetTranslation();
-		float3 scale = nodeTransform.GetScale();
-		bool transformUpdated = false;
-		transformUpdated |= ImGui::InputFloat3("Position##Heightmap", (float*)&pos.x, "%.2f", ImGuiInputTextFlags_None);
-		transformUpdated |= ImGui::InputFloat3("Scale##Heightmap", (float*)&scale, "%.2f", ImGuiInputTextFlags_None);
-
-		if (transformUpdated)
+		if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			alm::gfx::Transform newTransform = nodeTransform;
-			newTransform.SetTranslation(pos);
-			newTransform.SetScale(scale);
-			m_SceneHeightmap->GetNode()->SetLocalTransform(newTransform);
+			const alm::gfx::Transform& nodeTransform = m_SceneHeightmap->GetNode()->GetLocalTransform();
+			float3 pos = nodeTransform.GetTranslation();
+			float3 scale = nodeTransform.GetScale();
+			bool transformUpdated = false;
+			transformUpdated |= ImGui::InputFloat3("Position##Heightmap", (float*)&pos.x, "%.2f", ImGuiInputTextFlags_None);
+			transformUpdated |= ImGui::InputFloat3("Scale##Heightmap", (float*)&scale, "%.2f", ImGuiInputTextFlags_None);
+
+			if (transformUpdated)
+			{
+				alm::gfx::Transform newTransform = nodeTransform;
+				newTransform.SetTranslation(pos);
+				newTransform.SetScale(scale);
+				m_SceneHeightmap->GetNode()->SetLocalTransform(newTransform);
+			}
 		}
 
-		ImGui::Spacing();
-
-		auto lodFactor = heightmapInstace->GetLODDistanceFactor();
-		if(ImGui::InputFloat("LOD factor##Heightmap", &lodFactor, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_None))
-			heightmapInstace->SetLODDistanceFactor(lodFactor);
-
-		ImGui::Spacing();
-
-		// Depth level
+		if (ImGui::CollapsingHeader("Tesselation", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			float itemWidth = availWidth / 4;
+			auto lodFactor = heightmapInstace->GetLODDistanceFactor();
+			if(ImGui::InputFloat("LOD factor##Heightmap", &lodFactor, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_None))
+				heightmapInstace->SetLODDistanceFactor(lodFactor);
 
-			int maxDephLevel = heightmapInstace->GetMaxDepthLevel();
-			ImGui::SetNextItemWidth(itemWidth);
-			if (ImGui::InputInt("Max depth level", &maxDephLevel))
+			ImGui::Spacing();
+
+			// Depth level
 			{
-				if (heightmap->InfiniteDepthLevel() || m_ForceSetMaxDepth)
+				float itemWidth = availWidth / 4;
+
+				int maxDephLevel = heightmapInstace->GetMaxDepthLevel();
+				ImGui::SetNextItemWidth(itemWidth);
+				if (ImGui::InputInt("Max depth level", &maxDephLevel))
 				{
-					maxDephLevel = std::max(0, maxDephLevel);
+					if (heightmap->InfiniteDepthLevel() || m_ForceSetMaxDepth)
+					{
+						maxDephLevel = std::max(0, maxDephLevel);
+					}
+					else
+					{
+						uint32_t upLimit = heightmap->GetMaxDepthLevel();
+						maxDephLevel = std::clamp(maxDephLevel, 0, (int)upLimit);
+					}
+					heightmapInstace->SetMaxDepthLevel(maxDephLevel);
+				}
+
+				ImGui::SameLine();
+				ImGui::SetNextItemWidth(itemWidth);
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + itemWidth / 2.f);
+				ImGui::Checkbox("Force set", &m_ForceSetMaxDepth);
+
+				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+				if (heightmap->InfiniteDepthLevel())
+				{
+					ImGui::Text("Max: infinite");
 				}
 				else
 				{
-					uint32_t upLimit = heightmap->GetMaxDepthLevel();
-					maxDephLevel = std::clamp(maxDephLevel, 0, (int)upLimit);
+					ImGui::Text("Max: %d", heightmap->GetMaxDepthLevel());
 				}
-				heightmapInstace->SetMaxDepthLevel(maxDephLevel);
+				ImGui::PopStyleColor();
 			}
-
-			ImGui::SameLine();
-			ImGui::SetNextItemWidth(itemWidth);
-			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + itemWidth / 2.f);
-			ImGui::Checkbox("Force set", &m_ForceSetMaxDepth);
-
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-			if (heightmap->InfiniteDepthLevel())
-			{
-				ImGui::Text("Max: infinite");
-			}
-			else
-			{
-				ImGui::Text("Max: %d", heightmap->GetMaxDepthLevel());
-			}
-			ImGui::PopStyleColor();
 		}
 
 		ImGui::Spacing();

@@ -24,6 +24,9 @@ float4 main(PS_INPUT input) : SV_Target
     Texture2D uiTexture = ResourceDescriptorHeap[Constants.uiTextureDI];
     float4 uiColor = uiTexture.Sample(pointClampSampler, input.uv);
     
+    uiColor.rgb = SRGBToLinear(uiColor.rgb);
+    float4 color = float4(lerp(sceneColor.rgb, uiColor.rgb, uiColor.a), 1.0);
+    
     if (Constants.colorSpace == COLOR_SPACE_SRGB)
     {
         // assuming back-buffer is SRGB, do not LinearToSRGB
@@ -35,15 +38,14 @@ float4 main(PS_INPUT input) : SV_Target
         const float st2084max = 10000.0;
         const float hdrScalar = referenceWhiteNits / st2084max;
 	    // The input is in Rec.709, but the display is Rec.2020
-        sceneColor.rgb = Rec709ToRec2020(sceneColor.rgb);
+        color.rgb = Rec709ToRec2020(color.rgb);
         // Apply the ST.2084 curve to the result.
-        sceneColor.rgb = LinearToST2084(sceneColor.rgb * hdrScalar);
+        color.rgb = LinearToST2084(color.rgb * hdrScalar);
     }
     else // colorSpace == COLOR_SPACE_HDR_LINEAR
     {
         // Just pass through
     }
-    
-    float4 color = float4(lerp(sceneColor, uiColor, uiColor.a));
+        
     return color;
 }

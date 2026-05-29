@@ -1272,6 +1272,8 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
         if (ImGui::CollapsingHeader("Sky"))
         {
             ImGui::Checkbox("Enabled##Sky", &FrameworkData.SkyEnabled);
+            ImGui::InputFloat("Earth radius", &FrameworkData.SkyParams.EarthRadius);
+            ImGui::InputFloat("Atmospheric depth", &FrameworkData.SkyParams.AtmosHeight);
             ImGui::SliderFloat("Mie Anisotropy##Sky", &FrameworkData.SkyParams.MieAnisotropy, 0.f, 1.f);
             ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &FrameworkData.SkyParams.NumSteps);
             ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &FrameworkData.SkyParams.NumLightSteps);
@@ -2096,10 +2098,6 @@ std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filena
 
     OPENFILENAME ofn;       // common dialog box structure
     TCHAR szFile[260] = { 0 };       // if using TCHAR macros
-    if (!filename.empty())
-    {
-        strcpy_s<260>(szFile, filename.c_str());
-    }
 
     // Initialize OPENFILENAME
     ZeroMemory(&ofn, sizeof(ofn));
@@ -2132,7 +2130,7 @@ std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filena
     ofn.nFilterIndex = 0;
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
-    ofn.lpstrInitialDir = NULL;
+    ofn.lpstrInitialDir = filename.empty() ? NULL : filename.c_str();
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
     if (GetOpenFileName(&ofn) == TRUE)

@@ -58,7 +58,7 @@ float3 SRGBToLinear(float3 color)
     // Approximately pow(color, 2.2)
     return select(
         color / 12.92,
-        pow(abs(color + 0.055) / 1.055, 2.4),
+        pow((abs(color) + 0.055) / 1.055, 2.4),
         color < 0.04045);
 }
 
