@@ -18,10 +18,9 @@ public:
     static constexpr float kAtmosRefHeight = 60000.f;
 
     // Planet Earth defaults
-    static constexpr float3 kWaveLengths = { 680, 530.f, 440.f };
-    static constexpr float3 kRefRayleighScattering = { 5.8e-6f, 13.5e-6f, 33.1e-6f };
+    static constexpr float3 kRefRayleighWaveLengths = { 680, 530.f, 440.f };
     static constexpr float kRefRayleighScaleHeight = 8000.f;
-    static constexpr float3 kRefMieScattering = { 21e-6f, 21e-6f, 21e-6f };
+    static constexpr float kMieBase = 21e-6f;
     static constexpr float kRefMieScaleHeight = 1200.f;
 
 	struct SkyParams
@@ -29,6 +28,8 @@ public:
         float3 EarthCenter = { 0.f, 0.f, 0.f };
         float EarthRadius = kEarthRefRadius;
         float AtmosHeight = kAtmosRefHeight;
+        float3 RayleighWaveLengths = kRefRayleighWaveLengths;
+        float Turbidity = 1.f;
         float MieAnisotropy = 0.76f;
         uint32_t NumSteps = 64;
         uint32_t NumLightSteps = 8;

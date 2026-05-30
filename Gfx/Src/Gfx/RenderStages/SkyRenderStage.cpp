@@ -34,6 +34,12 @@ static float3 ComputeRayleighScattering(const float3& wavelengthsNm)
 		ComputeRayleighCoeff(wavelengthsNm.z) };
 }
 
+static float ComputeMieCoeff(float wavelengthNm, float base, float alpha)
+{
+	float ratio = 550.f / wavelengthNm;
+	return base * powf(ratio, alpha);
+}
+
 void alm::gfx::SkyRenderStage::SetEarthCenter(const float3& pos)
 {
 	m_Params.EarthCenter = pos;
@@ -84,9 +90,8 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		const float sunEdgeAAFalloff = 1.0f / glm::max(sunRadiusPixels, 1.0f); // fade in 1 pixel
 
 		// The amount of scattering is inversely proportional to the 4th power of the wavelength
-		//float3 rayleighScatteringCoefficients = 
-		//	{ pow(1.f / kWaveLengths.x, 4.f), pow(1.f / kWaveLengths.y, 4.f), pow(1.f / kWaveLengths.z, 4.f) };
-		//rayleighScatteringCoefficients = ComputeRayleighScattering(kWaveLengths);
+		const float3 rayleighScatteringCoefficients = ComputeRayleighScattering(
+			m_Params.RayleighWaveLengths);
 
 		skyData->ToSunDirection = -sunDir;
 		skyData->AtmosRadius = m_Params.EarthRadius + m_Params.AtmosHeight;
@@ -94,9 +99,9 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		skyData->SunIntensity = sunParams.Irradiance * 22.f;
 		skyData->EarthCenter = m_Params.EarthCenter;
 		skyData->EarthRadius = m_Params.EarthRadius;	
-		skyData->bR = kRefRayleighScattering / atmosScale;
+		skyData->bR = rayleighScatteringCoefficients / atmosScale;
 		skyData->Hr = kRefRayleighScaleHeight * atmosScale;
-		skyData->bM = kRefMieScattering / atmosScale;
+		skyData->bM = float3{ kMieBase / atmosScale * m_Params.Turbidity };
 		skyData->Hm = kRefMieScaleHeight * atmosScale;
 		skyData->SunRadiance = sunParams.Color * sunParams.Irradiance / sunSolidAngle;
 		skyData->G = m_Params.MieAnisotropy;

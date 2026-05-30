@@ -1274,6 +1274,8 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
             ImGui::Checkbox("Enabled##Sky", &FrameworkData.SkyEnabled);
             ImGui::InputFloat("Earth radius", &FrameworkData.SkyParams.EarthRadius);
             ImGui::InputFloat("Atmospheric depth", &FrameworkData.SkyParams.AtmosHeight);
+            ImGui::InputFloat3("Rayleigh Wave Lengths", &FrameworkData.SkyParams.RayleighWaveLengths.x, "%.1f");
+            ImGui::InputFloat("Turbidity factor", &FrameworkData.SkyParams.Turbidity);
             ImGui::SliderFloat("Mie Anisotropy##Sky", &FrameworkData.SkyParams.MieAnisotropy, 0.f, 1.f);
             ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &FrameworkData.SkyParams.NumSteps);
             ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &FrameworkData.SkyParams.NumLightSteps);

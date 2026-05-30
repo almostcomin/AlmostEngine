@@ -41,7 +41,7 @@ class OutdoorsApp : public alm::fw::App
 {
 public:
 
-	static constexpr float kEarthRadius = 1000.f;//6360000.f;
+	static constexpr float kEarthRadius = 63600.f;// 1000.f;//6360000.f;
 	static constexpr float3 kEarthPos = { 0.f, -kEarthRadius, 0.f };
 
 	OutdoorsApp() : alm::fw::App{ "OutdoorsApp", alm::fw::App::RenderStageSetMode::User } {}
