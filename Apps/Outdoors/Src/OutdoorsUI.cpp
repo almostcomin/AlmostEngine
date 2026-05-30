@@ -10,13 +10,14 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/TextureCache.h"
+#include "Gfx/HeightmapSource.h"
 
 void OutdoorsUI::Init(SDL_Window* window, alm::weak<alm::gfx::Scene> scene, alm::weak<alm::gfx::RenderView> renderView,
 	alm::fw::CameraController* cameraController)
 {
 	FrameworkUI::Init(window, scene, renderView, cameraController);
 	
-	RegisterMainMenuItem("Heightmap", [this]() { BuildHeightmapMeniItem(); });
+	RegisterMainMenuItem("Heightmap", [this]() { BuildHeightmapMenuItem(); });
 }
 
 void OutdoorsUI::BuildUI()
@@ -35,7 +36,51 @@ void OutdoorsUI::BuildUI()
 		const ImGuiStyle& style = ImGui::GetStyle();
 		const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
 		alm::gfx::HeightmapInstance* heightmapInstace = m_RenderViewUI->GetHeightmapInstance(m_SceneHeightmap.get());
-		const alm::gfx::Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+		alm::gfx::Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+		const auto& dataSource = heightmap->GetSource();
+		auto sourceType = dataSource->GetType();
+
+		if (ImGui::CollapsingHeader("Data source", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			if (m_ComboDataSource == -1)
+			{
+				m_ComboDataSource = (int)sourceType;
+				if (m_ComboDataSource == (int)alm::gfx::IHeightmapSource::Type::Noise)
+				{
+					auto* noiseSource = static_cast<alm::gfx::NoiseHeightmapSource*>(dataSource.get());
+
+					m_NoiseHeightmapParams = noiseSource->GetParams();
+					m_NoiseTextureSize = heightmap->GetTextureResolution().x;
+				}
+			}
+
+			if (ImGui::Combo("Type", &m_ComboDataSource, "Noise\0Image\0\0"))
+			{
+				// TODO
+			}
+
+			ImGui::Spacing();
+
+			if (m_ComboDataSource == (int)alm::gfx::IHeightmapSource::Type::Noise)
+			{
+				ImGui::InputFloat("Frequency##NoiseParams", &m_NoiseHeightmapParams.Frequency, 0.0, 0.0, "%.2f", ImGuiInputTextFlags_None);
+				ImGui::InputInt("Octaves##NoiseParams", &m_NoiseHeightmapParams.Octaves);
+				ImGui::InputFloat2("Offset##NoiseParams", &m_NoiseHeightmapParams.OffsetX, "%.2f");
+
+				ImGui::SetCursorPosX(style.ItemSpacing.x);
+				if (ImGui::Button("Apply##NoiseParams", ImVec2(availWidth / 2, 0.f)))
+				{
+					static_cast<alm::gfx::NoiseHeightmapSource*>(dataSource.get())->SetParams(m_NoiseHeightmapParams);
+					heightmap->RefreshHeightsTexture();
+				}
+
+				ImGui::SameLine();
+				if (ImGui::Button("Reset##NoiseParams", ImVec2(availWidth / 2, 0.f)))
+				{
+					m_NoiseHeightmapParams = static_cast<alm::gfx::NoiseHeightmapSource*>(dataSource.get())->GetParams();
+				}
+			}
+		}
 
 		if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
 		{
@@ -54,6 +99,7 @@ void OutdoorsUI::BuildUI()
 				m_SceneHeightmap->GetNode()->SetLocalTransform(newTransform);
 			}
 		}
+		ImGui::Spacing();
 
 		if (ImGui::CollapsingHeader("Tesselation", ImGuiTreeNodeFlags_DefaultOpen))
 		{
@@ -63,15 +109,49 @@ void OutdoorsUI::BuildUI()
 
 			ImGui::Spacing();
 
+			ImGui::BeginDisabled(sourceType != alm::gfx::IHeightmapSource::Type::Noise);
+
+			float itemWidth = availWidth / 4;
+
+			ImGui::SetNextItemWidth(itemWidth);
+			ImGui::InputInt("Texture size (Noise only)", (int*)&m_NoiseTextureSize);
+
+			ImGui::SetCursorPosX(style.ItemSpacing.x);
+			if (ImGui::Button("Apply##TextureResolution", ImVec2(availWidth / 3, 0.f)))
+			{
+				heightmap->SetTextureResolution(uint2{ m_NoiseTextureSize, m_NoiseTextureSize });
+				heightmapInstace->SetMaxDepthLevel(heightmap->GetMaxDepthLevel());
+			}
+
+			ImGui::SameLine();
+			if (ImGui::Button("Reset##TextureResolution", ImVec2(availWidth / 3, 0.f)))
+			{
+				m_NoiseTextureSize = heightmap->GetTextureResolution().x;
+			}
+
+			ImGui::EndDisabled();
+
+			ImGui::SameLine();
+			if (ImGui::Button("View##TextureResolution", ImVec2(availWidth / 3, 0.f)))
+			{
+				alm::rhi::TextureHandle texture = heightmap->GetHeightsTexture();
+				AddTextureWindow(texture->GetDebugName(), texture);
+			}
+
+			ImGui::Spacing();
+
 			// Depth level
 			{
 				float itemWidth = availWidth / 4;
 
 				int maxDephLevel = heightmapInstace->GetMaxDepthLevel();
 				ImGui::SetNextItemWidth(itemWidth);
-				if (ImGui::InputInt("Max depth level", &maxDephLevel))
+				std::stringstream ss;
+				ss << "Max depth level (max " << heightmap->GetMaxDepthLevel() << ")##heightmap";
+				std::string label = ss.str();
+				if (ImGui::InputInt(label.c_str(), &maxDephLevel))
 				{
-					if (heightmap->InfiniteDepthLevel() || m_ForceSetMaxDepth)
+					if (m_ForceSetMaxDepth)
 					{
 						maxDephLevel = std::max(0, maxDephLevel);
 					}
@@ -84,23 +164,10 @@ void OutdoorsUI::BuildUI()
 				}
 
 				ImGui::SameLine();
-				ImGui::SetNextItemWidth(itemWidth);
-				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + itemWidth / 2.f);
+				ImGui::SetCursorPosX(style.ItemSpacing.x + availWidth * 4 / 5);
 				ImGui::Checkbox("Force set", &m_ForceSetMaxDepth);
-
-				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-				if (heightmap->InfiniteDepthLevel())
-				{
-					ImGui::Text("Max: infinite");
-				}
-				else
-				{
-					ImGui::Text("Max: %d", heightmap->GetMaxDepthLevel());
-				}
-				ImGui::PopStyleColor();
 			}
 		}
-
 		ImGui::Spacing();
 
 		if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen))
@@ -228,7 +295,7 @@ void OutdoorsUI::BuildUI()
 	}
 }
 
-void OutdoorsUI::BuildHeightmapMeniItem()
+void OutdoorsUI::BuildHeightmapMenuItem()
 {
 	if (ImGui::MenuItem("Settings", nullptr, m_ShowHeightmapSettings, m_SceneHeightmap != nullptr))
 		m_ShowHeightmapSettings = !m_ShowHeightmapSettings;

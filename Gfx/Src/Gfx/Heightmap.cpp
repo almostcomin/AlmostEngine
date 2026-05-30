@@ -8,27 +8,31 @@
 #include "RHI/Device.h"
 #include <glm/gtc/packing.hpp>
 
-alm::gfx::Heightmap::Heightmap(
-	DeviceManager* deviceManager,
-	std::shared_ptr<IHeightmapSource> source,
-	std::shared_ptr<TerrainMaterial> material,
-	const float2& uvScale,
-	const float2& uvOffset,
-	uint32_t patchResolution) :
-	m_DeviceManager{ deviceManager },
-	m_Source{ source },
-	m_uvScale{ uvScale },
-	m_uvOffset{ uvOffset },
-	m_PatchResolution{ patchResolution },
-	m_Material{ material }
-{
-	BuildTexture();
-	BuildPatch();
-	ComputeBounds();
-}
+alm::gfx::Heightmap::Heightmap(DeviceManager* deviceManager) : m_DeviceManager{ deviceManager }
+{}
 
 alm::gfx::Heightmap::~Heightmap()
 {}
+
+void alm::gfx::Heightmap::Init(
+	std::shared_ptr<IHeightmapSource> source,
+	std::shared_ptr<TerrainMaterial> material,
+	const uint2& textureResolution,
+	uint32_t patchResolution,
+	const float2& uvScale,
+	const float2& uvOffset)
+{
+	m_Source = source;
+	m_Material = material;
+	m_TextureResolution = textureResolution;
+	m_PatchResolution = patchResolution;
+	m_uvScale = uvScale;
+	m_uvOffset = uvOffset;
+
+	m_HeightsTexture = BuildTexture();
+	BuildPatch();
+	ComputeBounds();
+}
 
 float alm::gfx::Heightmap::Sample(const float2& uv) const
 {
@@ -46,41 +50,54 @@ void alm::gfx::Heightmap::ComputeBounds()
 	m_Bounds.max = float3{ normSize.x, heightRange.y, normSize.y };
 }
 
-void alm::gfx::Heightmap::BuildTexture()
+alm::rhi::TextureOwner alm::gfx::Heightmap::BuildTexture()
 {
 	auto* dataUploader = m_DeviceManager->GetDataUploader();
 	auto* device = m_DeviceManager->GetDevice();
 
-	rhi::TextureDesc desc{
-		.width = m_Source->GetDataSize().x,
-		.height = m_Source->GetDataSize().y,
+	rhi::TextureDesc texDesc{
+		.width = m_TextureResolution.x,
+		.height = m_TextureResolution.y,
 		.format = rhi::Format::R16_FLOAT,
 		.shaderUsage = rhi::TextureShaderUsage::Sampled };
 
-	auto requestResult = dataUploader->RequestUploadTicket(desc);
+	auto requestResult = dataUploader->RequestUploadTicket(texDesc);
 	assert(requestResult);
 
-	const rhi::SubresourceCopyableRequirements copyReq = device->GetSubresourceCopyableRequirements(desc, 0, 0);
-	for (uint32_t y = 0; y < desc.height; ++y)
+	auto getHeight = [&](uint32_t x, uint32_t y) -> float
+	{
+		if (m_Source->InfiniteDataResolution())
+		{
+			return m_Source->Sample(float2{ (float)x / texDesc.width, (float)y / texDesc.height });
+		}
+		else
+		{
+			return m_Source->GetHeight(uint2{ x, y });
+		}
+	};
+
+	const rhi::SubresourceCopyableRequirements copyReq = device->GetSubresourceCopyableRequirements(texDesc, 0, 0);
+	for (uint32_t y = 0; y < texDesc.height; ++y)
 	{
 		uint16_t* rowData = (uint16_t*)((uint8_t*)requestResult->GetPtr() + y * (copyReq.rowStride));
-		for (uint32_t x = 0; x < desc.width; ++x)
+		for (uint32_t x = 0; x < texDesc.width; ++x)
 		{
-			rowData[x] = glm::packHalf1x16(m_Source->GetHeight(uint2{ x, y }));
+			rowData[x] = glm::packHalf1x16(getHeight(x, y));
 		}
 	}
 
-	m_HeightsTexture = device->CreateTexture(desc, rhi::ResourceState::COPY_DST, m_Source->GetName());
-	assert(m_HeightsTexture);
+	rhi::TextureOwner texture = device->CreateTexture(texDesc, rhi::ResourceState::COPY_DST, m_Source->GetName());
+	assert(texture);
 
 	auto uploadResult = dataUploader->CommitUploadTextureTicket(
 		std::move(*requestResult),
-		m_HeightsTexture.get_weak(),
+		texture.get_weak(),
 		rhi::ResourceState::COPY_DST,
 		rhi::ResourceState::SHADER_RESOURCE);
 	assert(uploadResult);
 
 	uploadResult->Wait();
+	return texture;
 }
 
 void alm::gfx::Heightmap::BuildPatch()
@@ -194,23 +211,24 @@ void alm::gfx::Heightmap::BuildPatch()
 	m_PatchMesh->SetBounds(aabox3f{ float3(0.f, 0.f, 0.f), float3(1.f, 1.f, 1.f) });
 }
 
-bool alm::gfx::Heightmap::InfiniteDepthLevel() const
-{
-	return m_Source && m_Source->InfiniteDataResolution();
-}
-
 uint32_t alm::gfx::Heightmap::GetMaxDepthLevel() const
 {
-	if (!m_Source)
-		return 0;
-	if (m_Source->InfiniteDataResolution())
-		return UINT32_MAX;
-
-	uint2 dataResolution = m_Source->GetDataResolution();
-	uint32_t maxRes = std::max(dataResolution.x, dataResolution.y);
+	uint32_t maxRes = std::max(m_TextureResolution.x, m_TextureResolution.y);
 	uint32_t maxLevel = static_cast<uint32_t>(std::floor(std::log2(maxRes / m_PatchResolution)));
 
 	return maxLevel;
+}
+
+void alm::gfx::Heightmap::SetTextureResolution(const uint2& textureResolution)
+{
+	m_TextureResolution = textureResolution;
+	RefreshHeightsTexture();
+}
+
+void alm::gfx::Heightmap::RefreshHeightsTexture()
+{
+	auto newTexture = BuildTexture();
+	m_HeightsTexture->Swap(*newTexture);
 }
 
 uint32_t alm::gfx::Heightmap::GetPatchIndicesCount() const

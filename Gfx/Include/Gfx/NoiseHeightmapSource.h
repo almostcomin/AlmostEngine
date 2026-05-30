@@ -18,16 +18,28 @@ public:
 
 public:
 
-    NoiseHeightmapSource(const Params& params) : m_Params{ params }
+    NoiseHeightmapSource(const Params& params, const std::string& name) : m_Params{ params }, m_Name{ name }
     {}
 
+    const Params& GetParams() const { return m_Params; }
+    void SetParams(const Params& p) { m_Params = p; }
+
+    float GetHeight(const uint2& p) const override;
     float Sample(const float2& uv) const override;
 
-    virtual bool InfiniteDataResolution() const { return true; }
-    virtual uint2 GetDataResolution() const { return { UINT32_MAX, UINT32_MAX }; }
+    bool IsTileable() const override { return true; }
+    float2 GetNormalizedSize() const override { return float2{ 1.f, 1.f }; }
+    float2 GetHeightRange() const override { return float2{ 0.f, 1.f }; }
+
+    bool InfiniteDataResolution() const override { return true; }
+    uint2 GetDataResolution() const override { return { UINT32_MAX, UINT32_MAX }; }
+
+    Type GetType() const override { return Type::Noise; }
+    const std::string& GetName() const override { return m_Name; }
 
 private:
 
     Params m_Params;
+    std::string m_Name;
 };
 }

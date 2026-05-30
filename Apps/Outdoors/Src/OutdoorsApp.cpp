@@ -31,6 +31,7 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/SceneHeightmap.h"
 #include "Gfx/ImageHeightmapSource.h"
+#include "Gfx/NoiseHeightmapSource.h"
 #include "Gfx/Heightmap.h"
 #include "Gfx/TerrainMaterial.h"
 #include "OutdoorsUI.h"
@@ -81,10 +82,23 @@ public:
 		alm::weak<alm::gfx::SceneHeightmap> sceneHeightmap;
 		{
 			// Data source
-			auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
-				alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
-			bool sourceOk = imageSource->Load("SpainHeightmap.png");
-			assert(sourceOk);
+			std::shared_ptr<alm::gfx::IHeightmapSource> dataSource;
+			{
+				alm::gfx::NoiseHeightmapSource::Params params{
+					.Frequency = 8.f,
+					.Octaves = 6 };
+
+				auto noiseSource = std::make_shared<alm::gfx::NoiseHeightmapSource>(params, "NoiseHeightmap");
+				dataSource = noiseSource;					
+/*
+				auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
+					alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
+				bool sourceOk = imageSource->Load("SpainHeightmap.png");
+				assert(sourceOk);
+
+				dataSource = imageSource;
+*/
+			}
 
 			// Material
 			auto mat = std::make_shared<alm::gfx::TerrainMaterial>("Heightmap");
@@ -171,7 +185,9 @@ public:
 			}
 
 			// Heightmap
-			heightmap = std::make_shared<alm::gfx::Heightmap>(m_DeviceManager.get(), imageSource, mat);
+			heightmap = std::make_shared<alm::gfx::Heightmap>(m_DeviceManager.get());
+			heightmap->Init(dataSource, mat,
+				dataSource->InfiniteDataResolution() ? uint2{ 1024, 1042 } : dataSource->GetDataResolution());
 
 			// Leaf
 			auto sceneHeightmapUnique = alm::make_unique_with_weak<alm::gfx::SceneHeightmap>();

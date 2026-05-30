@@ -123,11 +123,6 @@ float alm::gfx::ImageHeightmapSource::Sample(const float2& uv) const
          + fetch(i2.x + 1, i2.y + 1) *      f2.x  *      f2.y;
 }
 
-uint2 alm::gfx::ImageHeightmapSource::GetDataSize() const
-{
-    return uint2{ m_Width, m_Height };
-}
-
 float2 alm::gfx::ImageHeightmapSource::GetNormalizedSize() const
 {
     if (m_Data.empty())

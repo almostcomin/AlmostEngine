@@ -87,10 +87,7 @@ alm::gfx::HeightmapInstance::HeightmapInstance(const SceneHeightmap* sceneHeight
 	m_SceneHeightmap{ sceneHeightmap }, m_DeviceManager{ deviceManager }
 {
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
-	if (!heightmap->InfiniteDepthLevel())
-	{
-		m_MaxLevel = heightmap->GetMaxDepthLevel();
-	}
+	m_MaxLevel = heightmap->GetMaxDepthLevel();
 }
 
 alm::gfx::HeightmapInstance::~HeightmapInstance()

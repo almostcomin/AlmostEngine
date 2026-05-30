@@ -1,9 +1,7 @@
 #pragma once
 
 #include "Framework/UI/FrameworkUI.h"
-#include "Gfx/Scene.h"
-#include "Gfx/RenderStages/CloudsRenderStage.h"
-#include "Gfx/RenderStages/SkyRenderStage.h"
+#include "Gfx/NoiseHeightmapSource.h"
 
 namespace alm::gfx
 {
@@ -24,7 +22,7 @@ private:
 
 	void BuildUI() override;
 
-	void BuildHeightmapMeniItem();
+	void BuildHeightmapMenuItem();
 
 private:
 
@@ -32,4 +30,8 @@ private:
 	bool m_ShowHeightmapSettings = true;
 
 	bool m_ForceSetMaxDepth;
+	int m_ComboDataSource = -1;
+
+	alm::gfx::NoiseHeightmapSource::Params m_NoiseHeightmapParams;
+	uint32_t m_NoiseTextureSize = 0;
 };
