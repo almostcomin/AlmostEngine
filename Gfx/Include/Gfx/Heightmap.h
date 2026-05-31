@@ -57,6 +57,7 @@ private:
 
 	alm::unique<Mesh> m_PatchMesh;
 	rhi::TextureOwner m_HeightsTexture;
+	//alm::gfx::LoadedTexture m_HeightsTexture;
 	std::shared_ptr<TerrainMaterial> m_Material;
 
 	DeviceManager* m_DeviceManager;

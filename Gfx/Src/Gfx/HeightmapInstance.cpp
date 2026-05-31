@@ -95,10 +95,10 @@ alm::gfx::HeightmapInstance::~HeightmapInstance()
 
 void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
-	auto* uploadBuffer = m_DeviceManager->GetUploadBuffer();
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	auto dataSource = heightmap->GetSource();
 	rhi::TextureSampledView textureView = heightmap->GetHeightsTexture()->GetSampledView();
+	const rhi::TextureDesc& texDesc = heightmap->GetHeightsTexture()->GetDesc();
 
 	m_LeafNodes.clear();
 	QuadNodeCoord root{
@@ -108,9 +108,9 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 	if (m_LeafNodes.empty())
 		return;
 
-	auto [patchDataRawPtr, patchDataBufferOffset] = 
-		uploadBuffer->RequestSpaceForBufferDataUpload(m_LeafNodes.size() * sizeof(interop::HeightmapPatchData));
-	auto* patchDataPtr = (interop::HeightmapPatchData*)patchDataRawPtr;
+	const float4x4 nodeWorldMatrix = m_SceneHeightmap->GetWorldTransform();
+	const float4x4 inverseNodeWorldMatrix = glm::inverse(nodeWorldMatrix);
+	const float3x3 nodeNormalMatrix = glm::transpose(glm::mat3(inverseNodeWorldMatrix));
 
 	GpuSceneBuffers::HeightmapPatchesAllocation alloc = gpuSceneBuffers->AllocateTransientHeightmapPatches(gpuBuffersHandle, m_LeafNodes.size());
 	for (size_t i = 0; i < m_LeafNodes.size(); ++i)
@@ -123,14 +123,22 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 		localTransform.SetTranslation({ minUV.x, 0.f, minUV.y });
 		localTransform.SetScale({ cellSize, 1.f, cellSize });
 
-		float4x4 worldMatrix = m_SceneHeightmap->GetWorldTransform() * localTransform.GetMatrix();
+		const float4x4 worldMatrix = nodeWorldMatrix * localTransform.GetMatrix();
+		const float4x4 inverseWorldMatrix = glm::inverse(worldMatrix);
+		const float3x3 normalMatrix = glm::transpose(glm::mat3(inverseWorldMatrix));
 		
 		alloc.InstancesDataPtr[i].modelMatrix = worldMatrix;
-		alloc.InstancesDataPtr[i].inverseModelMatrix = glm::inverse(worldMatrix);
+		alloc.InstancesDataPtr[i].inverseModelMatrix = inverseWorldMatrix;
 		
 		alloc.HeightmapPatchesPtr[i].MinUV = minUV;
 		alloc.HeightmapPatchesPtr[i].DataNormSize = dataSource->GetNormalizedSize();
 		alloc.HeightmapPatchesPtr[i].CellSize = cellSize;
+		alloc.HeightmapPatchesPtr[i].MipLevel = heightmap->GetMaxDepthLevel() - node.Level;
+		alloc.HeightmapPatchesPtr[i].TextureResolution = uint2{ texDesc.width, texDesc.height };
+		alloc.HeightmapPatchesPtr[i].NormalMatrixCol0 = float4{ nodeNormalMatrix[0], 0.0 };
+		alloc.HeightmapPatchesPtr[i].NormalMatrixCol1 = float4{ nodeNormalMatrix[1], 0.0 };
+		alloc.HeightmapPatchesPtr[i].NormalMatrixCol2 = float4{ nodeNormalMatrix[2], 0.0 };
+		alloc.HeightmapPatchesPtr[i].InverseModelMatrix = inverseNodeWorldMatrix;
 		alloc.HeightmapPatchesPtr[i].HeightmapTextureDI = textureView;
 	}
 	m_InstancesAllocBaseIdx = alloc.InstancesBaseIndex;

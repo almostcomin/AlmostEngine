@@ -69,6 +69,7 @@ void alm::gfx::GBuffersRenderStage::Render(alm::rhi::CommandListHandle commandLi
 	interop::GBufferStageConstats shaderConstants;
 	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
 	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();
+	shaderConstants.DebugChannel = (uint)m_DebugChannel;
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 

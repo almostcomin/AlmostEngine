@@ -11,6 +11,7 @@
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/TextureCache.h"
 #include "Gfx/HeightmapSource.h"
+#include "Gfx/RenderStages/GBuffersRenderStage.h"
 
 void OutdoorsUI::Init(SDL_Window* window, alm::weak<alm::gfx::Scene> scene, alm::weak<alm::gfx::RenderView> renderView,
 	alm::fw::CameraController* cameraController)
@@ -288,6 +289,15 @@ void OutdoorsUI::BuildUI()
 			if (matDirty)
 			{
 				GetDeviceManager()->GetGpuSceneBuffers()->SetDirtyTerrainMaterial(mat.get());
+			}
+		}
+
+		if (ImGui::CollapsingHeader("Debug visualization", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			if (ImGui::Combo("Channel", &m_DebugChannel, "Disabled\0Heights\0Slope\0Normals\0\0"))
+			{
+				auto gBuffersRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GBuffersRenderStage>();
+				gBuffersRS->SetDebugChannel((alm::gfx::GBuffersRenderStage::DebugChannel)m_DebugChannel);
 			}
 		}
 

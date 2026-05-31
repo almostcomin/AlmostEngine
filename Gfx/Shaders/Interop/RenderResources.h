@@ -151,12 +151,19 @@ namespace interop
 
     struct HeightmapPatchData
     {
-        float2 MinUV;
+        float2 MinUV;           
         float2 DataNormSize;
-        float CellSize;
-        TextureSampledViewIndex HeightmapTextureDI;
-        uint2 _padding;
-    };
+        float CellSize;             // offset 4
+        uint MipLevel;
+        uint2 TextureResolution;
+        // 3x3 normal matrix, stored as 3 float4 columns (w unused)
+        float4 NormalMatrixCol0;    // offset 8
+        float4 NormalMatrixCol1;
+        float4 NormalMatrixCol2;
+        float4x4 InverseModelMatrix; // offset 20
+        TextureSampledViewIndex HeightmapTextureDI; // Offset 36
+        uint3 _padding;
+    }; // size 40 * 4 = 160 bytes
 
     // Warning! can't use _padding[2] since in a constant buffer each array element consumes 4 bytes:
     // https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules#more-aggressive-packing
@@ -216,6 +223,7 @@ namespace interop
     {
         BufferUniformIndex sceneDI;         // SceneConstants
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+        uint DebugChannel;                  // GBuffersRenderStage::DebugChannel
     };
 
     struct ShadowmapStageConstats

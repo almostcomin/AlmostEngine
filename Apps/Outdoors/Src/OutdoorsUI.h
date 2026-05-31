@@ -34,4 +34,5 @@ private:
 
 	alm::gfx::NoiseHeightmapSource::Params m_NoiseHeightmapParams;
 	uint32_t m_NoiseTextureSize = 0;
+	int m_DebugChannel = 0;
 };

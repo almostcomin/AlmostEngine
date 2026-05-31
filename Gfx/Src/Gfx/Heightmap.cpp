@@ -58,8 +58,9 @@ alm::rhi::TextureOwner alm::gfx::Heightmap::BuildTexture()
 	rhi::TextureDesc texDesc{
 		.width = m_TextureResolution.x,
 		.height = m_TextureResolution.y,
+		.mipLevels = (uint32_t)floor(log2(std::max(m_TextureResolution.x, m_TextureResolution.y))) + 1,
 		.format = rhi::Format::R16_FLOAT,
-		.shaderUsage = rhi::TextureShaderUsage::Sampled };
+		.shaderUsage = rhi::TextureShaderUsage::Sampled | rhi::TextureShaderUsage::Storage };
 
 	auto requestResult = dataUploader->RequestUploadTicket(texDesc);
 	assert(requestResult);
@@ -93,7 +94,10 @@ alm::rhi::TextureOwner alm::gfx::Heightmap::BuildTexture()
 		std::move(*requestResult),
 		texture.get_weak(),
 		rhi::ResourceState::COPY_DST,
-		rhi::ResourceState::SHADER_RESOURCE);
+		rhi::ResourceState::SHADER_RESOURCE,
+		rhi::TextureSubresourceSet{ 0, 1, 0, 1 }, // first mip only
+		DataUploader::GenMipsMethod::GenMips_Color
+	);
 	assert(uploadResult);
 
 	uploadResult->Wait();

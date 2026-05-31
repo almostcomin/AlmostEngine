@@ -99,6 +99,7 @@ namespace alm::rhi::dx12
 
 		void ReleaseTimerQuery(dx12::TimerQuery* timerQuery);
 
+		void SetDebugCaptureWindow(void* windowHandle) override;
 		ID3D12Device* GetD3d12Device() { return m_D3d12Device.Get(); }
 
 	protected:

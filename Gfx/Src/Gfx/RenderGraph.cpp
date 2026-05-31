@@ -715,6 +715,9 @@ alm::rhi::FramebufferHandle alm::gfx::RenderGraph::GetFrameBuffer(RGFramebufferH
 
 alm::rhi::TextureSampledView alm::gfx::RenderGraph::GetTextureSampledView(RGTextureHandle handle)
 {
+	if (!handle)
+		return {};
+
 	auto tex = GetTexture(handle);
 	return tex ? tex->GetSampledView() : rhi::c_InvalidDescriptorIndex;
 }

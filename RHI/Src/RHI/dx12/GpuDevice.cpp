@@ -13,6 +13,7 @@
 #include "RHI/dx12/PipelineState.h"
 #include "RHI/dx12/TimerQuery.h"
 #include "RHI/dx12/Utils.h"
+#include <pix3.h>
 
 #define HR_RETURN_NULL(hr)			\
 	do {							\
@@ -893,6 +894,11 @@ void alm::rhi::dx12::GpuDevice::ReleaseTimerQuery(dx12::TimerQuery* timerQuery)
 	assert(beginIdx + 1 == endIdx);
 
 	m_TimerQueries.Release(beginIdx / 2);
+}
+
+void alm::rhi::dx12::GpuDevice::SetDebugCaptureWindow(void* windowHandle)
+{
+	PIXSetTargetWindow((HWND)windowHandle);
 }
 
 void alm::rhi::dx12::GpuDevice::ReleaseImmediatelyInternal(IResource* resource)

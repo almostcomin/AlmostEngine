@@ -95,6 +95,7 @@ namespace alm::rhi
 
         virtual void Shutdown() = 0;
 
+        virtual void SetDebugCaptureWindow(void* windowHandle) = 0;
         virtual NativeResource GetNativeDevice() = 0;
 
     protected:

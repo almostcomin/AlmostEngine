@@ -179,7 +179,7 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(const al
         texture.get_weak(),
         rhi::ResourceState::COPY_DST,
         rhi::ResourceState::SHADER_RESOURCE,
-        rhi::TextureSubresourceSet{ 0, 1, 0, 1 }, //rhi::AllSubresources,
+        rhi::TextureSubresourceSet{ 0, 1, 0, 1 },
         getMipsMethod,
         texInfo.debugName.c_str());
     if (!uploadResult)

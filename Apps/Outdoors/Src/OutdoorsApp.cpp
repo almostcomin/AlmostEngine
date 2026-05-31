@@ -84,20 +84,21 @@ public:
 			// Data source
 			std::shared_ptr<alm::gfx::IHeightmapSource> dataSource;
 			{
+#if 0
 				alm::gfx::NoiseHeightmapSource::Params params{
 					.Frequency = 8.f,
 					.Octaves = 6 };
 
 				auto noiseSource = std::make_shared<alm::gfx::NoiseHeightmapSource>(params, "NoiseHeightmap");
 				dataSource = noiseSource;					
-/*
+#else
 				auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
 					alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
 				bool sourceOk = imageSource->Load("SpainHeightmap.png");
 				assert(sourceOk);
 
 				dataSource = imageSource;
-*/
+#endif
 			}
 
 			// Material
@@ -182,6 +183,9 @@ public:
 					mat->Slope.MetalRoughTexture = loadResult->first;
 				}
 				mat->Slope.UVScale = 60.f;
+
+				//mat->SlopeAngleStartDeg = 15.f;
+				//mat->SlopeAngleEndDeg = 20.f;
 			}
 
 			// Heightmap
@@ -198,7 +202,7 @@ public:
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
 			graphNode->SetName("Heightmap");
 			graphNode->SetLeaf(std::move(sceneHeightmapUnique));
-			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 0.2f, 12.f }));
+			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 1.2f, 12.f }));
 			//graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation(kEarthPos));
 
 			// Attach to scene

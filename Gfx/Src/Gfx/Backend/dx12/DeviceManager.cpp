@@ -183,6 +183,13 @@ bool alm::gfx::dx12::DeviceManager::InternalInit(const DeviceParams& params)
     m_BackBufferHeight = 0;
     UpdateWindowSize();
 
+    {
+        SDL_PropertiesID windowProps = SDL_GetWindowProperties(m_DeviceParams.WindowHandle);
+        HWND hWnd = (HWND)SDL_GetPointerProperty(windowProps, SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+
+        m_Device->SetDebugCaptureWindow((void*)hWnd);
+    }
+
     return true;
 };
 

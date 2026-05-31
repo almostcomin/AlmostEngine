@@ -14,7 +14,19 @@ class GBuffersRenderStage : public RenderStage
 
 public:
 
+	enum class DebugChannel
+	{
+		Disabled,
+		Heightmap_Heights,
+		Heightmap_Slope,
+		Heightmap_Normals
+	};
+
+public:
+
 	GBuffersRenderStage() = default;
+
+	void SetDebugChannel(DebugChannel v)	{ m_DebugChannel = v; }
 
 private:
 
@@ -42,6 +54,8 @@ private:
 	alm::rhi::FramebufferOwner m_FB;
 	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	alm::gfx::MaterialPassRenderer m_MaterialPassRenderer;
+
+	DebugChannel m_DebugChannel = DebugChannel::Disabled;
 };
 
 } // namespace st::gfx

@@ -3,7 +3,7 @@
 #include "Shading.hlsli"
 #include "Shadowmap.hlsli"
 
-// Keep in sync with st::gfx::DeferredLightingRenderStage::MaterialChannel
+// Keep in sync with alm::gfx::DeferredLightingRenderStage::MaterialChannel
 static const uint MaterialChannel_Disabled      = 0;
 static const uint MaterialChannel_BaseColor     = 1;
 static const uint MaterialChannel_Metalness     = 2;
