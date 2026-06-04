@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
+include(${CMAKE_SOURCE_DIR}/CMake/Utils.cmake)
 
 project(Framework)
 

@@ -54,3 +54,5 @@ Apps/*/Data/Generated/
 Apps/*/Data/Shaders/
 
 imgui.ini
+
+__pycache__/
