@@ -56,3 +56,4 @@ Apps/*/Data/Shaders/
 imgui.ini
 
 __pycache__/
+_build/
