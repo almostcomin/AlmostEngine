@@ -9,7 +9,7 @@
 
 namespace alm::rhi::dx12
 {
-	class Queue;
+	struct Queue;
 
 	class CommandList : public ICommandList
 	{
@@ -49,9 +49,9 @@ namespace alm::rhi::dx12
 
 		void SetViewport(const rhi::ViewportState& vp) override;
 
-		void SetStencilRef(uint8_t value);
+		void SetStencilRef(uint8_t value) override;
 
-		void SetBlendFactor(const float4& value);
+		void SetBlendFactor(const float4& value) override;
 
 		void PushConstants(uint32_t slot, const void* data, size_t sizeBytes, size_t offsetBytes, bool isCompute) override;
 

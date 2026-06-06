@@ -39,6 +39,8 @@ class RenderStage
 
 public:
 
+	virtual ~RenderStage() = default;
+
 	RenderView* GetRenderView() const;
 	Camera* GetCamera() const;
 	Scene* GetScene() const;

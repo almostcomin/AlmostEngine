@@ -12,8 +12,6 @@ void StructureUI::BuildUI()
 {
     FrameworkUI::BuildUI();
 
-    ImGuiIO const& io = ImGui::GetIO();
-
     BeginFullScreenWindow();
     {
         if (GetScene()->GetSceneGraph()->GetRoot()->GetChildrenCount() == 0)

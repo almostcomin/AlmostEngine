@@ -62,18 +62,18 @@ void alm::rhi::dx12::CheckDRED(ID3D12Device* device)
 		D3D12_DRED_PAGE_FAULT_OUTPUT2 dredPageFaultOutput;
 
 		D3D12_DRED_DEVICE_STATE deviceState = pDred->GetDeviceState();
-		(deviceState);
+		(void)deviceState;
 
 		if (SUCCEEDED(pDred->GetAutoBreadcrumbsOutput1(&dredAutoBreadcrumbsOutput)))
 		{
-			(dredAutoBreadcrumbsOutput);
+			(void)dredAutoBreadcrumbsOutput;
 			// Each 'Nodes' is a command queue.
 			// 'pLastCompletedOp' is the last complemente command
 		}
 
 		if (SUCCEEDED(pDred->GetPageFaultAllocationOutput2(&dredPageFaultOutput)))
 		{
-			(dredAutoBreadcrumbsOutput);
+			(void)dredAutoBreadcrumbsOutput;
 		}
 	}
 }
@@ -1148,7 +1148,6 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 D3D12_RESOURCE_DESC alm::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc& desc)
 {
 	const DxgiFormatMapping& formatMap = GetDxgiFormatMapping(desc.format);
-	const FormatInfo& formatInfo = GetFormatInfo(desc.format);
 
 	D3D12_RESOURCE_DESC d3d12Desc = {};
 

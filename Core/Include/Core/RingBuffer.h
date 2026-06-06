@@ -180,8 +180,8 @@ namespace alm
 			return std::launder(reinterpret_cast<const T*>(std::addressof(m_Storage[idx])));
 		}
 
-		using StorageType = std::aligned_storage_t<sizeof(T), alignof(T)>;
-		std::array<StorageType, kBufferSize> m_Storage;
+		struct alignas(T) Slot { std::byte data[sizeof(T)]; };
+		std::array<Slot, kBufferSize> m_Storage;
 
 		size_t m_Head = 0;
 		size_t m_Tail = 0;

@@ -159,11 +159,9 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 void alm::gfx::BloomRenderStage::OnAttached()
 {
 	auto* deviceManager = m_RenderGraph->GetDeviceManager();
-	auto* device = deviceManager->GetDevice();
 	auto* commonResources = deviceManager->GetCommonResources();
 	auto* shaderFactory = deviceManager->GetShaderFactory();
 	rhi::TextureHandle sceneTex = m_RenderGraph->GetTexture(m_SceneColorTexture);
-	const auto& sceneTexDesc = sceneTex->GetDesc();
 	rhi::TextureHandle bloomTex = m_RenderGraph->GetTexture(m_BloomResultTexture);
 
 	// Create shaders

@@ -71,7 +71,6 @@ void ImGui_Impl_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
 
 void ImGui_Impl_RenderWindow(ImGuiViewport* viewport, void*)
 {
-	ImGuiImplData* bd = GetImplData();
 	ImGuiImplViewportData* viewportData = (ImGuiImplViewportData*)viewport->RendererUserData;
 	alm::gfx::RenderView* renderView = viewportData->RenderView.get();
 

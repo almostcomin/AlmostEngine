@@ -62,9 +62,9 @@ namespace
 } // anonymous namespace
 
 alm::gfx::RenderGraph::RenderGraph(RenderView* renderView, const char* debugName) :
+	m_IsRendering{ false },
 	m_DebugName{ debugName },
 	m_RenderView{ renderView },
-	m_IsRendering{ false },
 	m_DeviceManager{ renderView->GetDeviceManager() }
 {
 	rhi::Device* device = m_DeviceManager->GetDevice();

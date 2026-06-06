@@ -110,7 +110,6 @@ void alm::gfx::WBOITResolveRenderStage::OnDetached()
 void alm::gfx::WBOITResolveRenderStage::OnBackbufferResize()
 {
 	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
-	alm::gfx::CommonResources* commonResources = deviceManager->GetCommonResources();
 	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create Framebuffer

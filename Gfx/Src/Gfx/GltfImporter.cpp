@@ -18,8 +18,10 @@
 #include "RHI/Device.h"
 #include "Gfx/LoadedTexture.h"
 
+ALM_DISABLE_THIRDPARTY_WARNINGS
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
+ALM_RESTORE_WARNINGS
 
 namespace
 {
@@ -392,7 +394,6 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
     {
         // If the image has inline data, like coming from a GLB container, use that.
 
-        const uint8_t* dataPtr = static_cast<const uint8_t*>(image->buffer_view->buffer->data) + image->buffer_view->offset;
         const size_t dataSize = image->buffer_view->size;
 
         // We need to have a managed pointer to the texture data for async decoding.
@@ -631,6 +632,9 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         case cgltf_alpha_mode_blend:
             mat->SetDomain(alm::gfx::MaterialDomain::AlphaBlended);
             break;
+        default:
+            assert(0);
+            break;
         }
 
         // Avoid duplicated materials
@@ -648,6 +652,7 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
     return matMap;
 }
 
+[[maybe_unused]]
 void GetIndexVertexCount(const cgltf_data* objects, size_t& out_totalIndices, size_t& out_totalVertices, size_t& out_morphTargetTotalVertices, bool& out_hasJoints)
 {
     out_totalIndices = 0;
@@ -699,7 +704,6 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
 {
     static_assert(std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t>, "Only 16 or 32 bit indices are allowed");
 
-    size_t indexCount = 0;
     if (prim.indices)
     {
         out_indexData = alm::Blob{ (uint8_t*)malloc(prim.indices->count * sizeof(T)), prim.indices->count * sizeof(T) };
@@ -1008,9 +1012,9 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             const cgltf_accessor* normals = nullptr;
             const cgltf_accessor* tangents = nullptr;
             const cgltf_accessor* texcoords = nullptr;
-            const cgltf_accessor* joint_weights = nullptr;
-            const cgltf_accessor* joint_indices = nullptr;
-            const cgltf_accessor* radius = nullptr;
+            [[maybe_unused]] const cgltf_accessor* joint_weights = nullptr;
+            [[maybe_unused]] const cgltf_accessor* joint_indices = nullptr;
+            [[maybe_unused]] const cgltf_accessor* radius = nullptr;
 
             for (size_t attr_idx = 0; attr_idx < prim.attributes_count; attr_idx++)
             {
@@ -1397,7 +1401,7 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
                 t.SetScale(glm::vec3{ srcNode->scale[0], srcNode->scale[1], srcNode->scale[2] });
             if (srcNode->has_rotation)
                 t.SetRotation(glm::quat{ srcNode->rotation[3], srcNode->rotation[0], srcNode->rotation[1], srcNode->rotation[2] });
-            if (srcNode->translation)
+            if (srcNode->has_translation)
                 t.SetTranslation(glm::vec3{ srcNode->translation[0], srcNode->translation[1], srcNode->translation[2] });
             dstNode->SetLocalTransform(t);
         }

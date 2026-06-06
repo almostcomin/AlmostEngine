@@ -35,8 +35,8 @@ alm::rhi::ShaderOwner alm::gfx::ShaderFactory::LoadShader(const std::string& nam
 		}
 		else if (srcExists)
 		{
-			auto sourceTime = std::filesystem::last_write_time(srcPath);
-			auto binTime = std::filesystem::last_write_time(binPath);
+			//auto sourceTime = std::filesystem::last_write_time(srcPath);
+			//auto binTime = std::filesystem::last_write_time(binPath);
 			
 			// Actually we should check also all the chain of include files to check if any of them has changed...
 			// for the moment, recompile always

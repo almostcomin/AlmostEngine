@@ -1,31 +1,28 @@
 #include "Core/CorePCH.h"
 #include "Core/Log.h"
 
-namespace alm::log
+namespace
 {
 
-void DefaultCallback(Severity severity, std::string_view msg, std::string_view file, int line); // forward decl
+void DefaultCallback(alm::log::Severity severity, std::string_view msg, std::string_view file, int line); // forward decl
 
-Callback g_Callback = DefaultCallback;
+alm::log::Callback g_Callback = DefaultCallback;
 bool g_OutputToDebug = true;
 bool g_OutputToMessageBox = true;
 bool g_OutputToConsole = false;
 std::unordered_set<std::string> g_IgnoredMessages;
-
-constexpr size_t g_MessageBufferSize = 4096;
 std::mutex g_LogMutex;
 
-
-void DefaultCallback(Severity severity, std::string_view msg, std::string_view file, int line)
+void DefaultCallback(alm::log::Severity severity, std::string_view msg, std::string_view file, int line)
 {
     std::string_view severityText;
     switch (severity)
     {
-    case Severity::Debug:   severityText = "DEBUG";         break;
-    case Severity::Info:    severityText = "INFO";          break;
-    case Severity::Warning: severityText = "WARNING";       break;
-    case Severity::Error:   severityText = "ERROR";         break;
-    case Severity::Fatal:   severityText = "FATAL ERROR";   break;
+    case alm::log::Severity::Debug:   severityText = "DEBUG";         break;
+    case alm::log::Severity::Info:    severityText = "INFO";          break;
+    case alm::log::Severity::Warning: severityText = "WARNING";       break;
+    case alm::log::Severity::Error:   severityText = "ERROR";         break;
+    case alm::log::Severity::Fatal:   severityText = "FATAL ERROR";   break;
     default:
         break;
     }
@@ -45,7 +42,7 @@ void DefaultCallback(Severity severity, std::string_view msg, std::string_view f
 
         if (g_OutputToMessageBox)
         {
-            if (severity == Severity::Error || severity == Severity::Fatal)
+            if (severity == alm::log::Severity::Error || severity == alm::log::Severity::Fatal)
             {
                 std::string id = std::format("{}({})", file, line);
                 if (g_IgnoredMessages.find(id) == g_IgnoredMessages.end())
@@ -69,30 +66,30 @@ void DefaultCallback(Severity severity, std::string_view msg, std::string_view f
 #endif
         if (g_OutputToConsole)
         {
-            if (severity == Severity::Error || severity == Severity::Fatal)
+            if (severity == alm::log::Severity::Error || severity == alm::log::Severity::Fatal)
                 fprintf(stderr, "%s\n", actualMsg.c_str());
             else
                 fprintf(stdout, "%s\n", actualMsg.c_str());
         }
     }
 
-    if (severity == Severity::Fatal)
+    if (severity == alm::log::Severity::Fatal)
         abort();
 }
 
-void SetCallback(Callback cb)
+} // anonimous namespace
+
+void alm::log::SetCallback(Callback cb)
 {
     g_Callback = cb;
 }
 
-void ResetCallback()
+void alm::log::ResetCallback()
 {
     g_Callback = DefaultCallback;
 }
 
-void Message(Severity severity, std::string_view msg, std::string_view file, int line)
+void alm::log::Message(Severity severity, std::string_view msg, std::string_view file, int line)
 {
     g_Callback(severity, msg, file, line);
 }
-
-} // namespace st::log

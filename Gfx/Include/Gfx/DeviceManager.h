@@ -5,7 +5,7 @@
 #include "Core/Math/glm_config.h"
 #include "Core/Common.h"
 #include "RHI/Format.h"
-#include "RHI/FrameBuffer.h"
+#include "RHI/Framebuffer.h"
 #include "Gfx/ViewportSwapChain.h"
 
 struct SDL_Window;
@@ -148,7 +148,7 @@ public:
 
 protected:
 
-    DeviceManager() = default;
+    DeviceManager();
 
     DeviceParams m_DeviceParams;
 

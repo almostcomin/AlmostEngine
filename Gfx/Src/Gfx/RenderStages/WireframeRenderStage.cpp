@@ -41,8 +41,6 @@ void alm::gfx::WireframeRenderStage::Render(alm::rhi::CommandListHandle commandL
 		return;
 	}
 
-	rhi::Device* device = GetDeviceManager()->GetDevice();
-
 	commandList->BeginRenderPass(
 		m_FB.get(),
 		{ rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack()} },

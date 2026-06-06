@@ -2,7 +2,7 @@
 
 #include "Gfx/MaterialDomain.h"
 #include "RHI/PipelineState.h"
-#include "RHI/FrameBuffer.h"
+#include "RHI/Framebuffer.h"
 
 namespace alm::rhi
 {

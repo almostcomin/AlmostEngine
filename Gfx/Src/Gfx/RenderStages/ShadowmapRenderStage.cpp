@@ -146,8 +146,6 @@ void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandL
 {
 	if (GetRenderView()->IsShadowmapValid())
 	{
-		rhi::Device* device = GetDeviceManager()->GetDevice();
-
 		commandList->BeginRenderPass(
 			m_FB.get(),
 			{},

@@ -3,12 +3,12 @@
 #include "RHI/Device.h"
 
 alm::gfx::Mesh::Mesh(rhi::Device* device, const char* name, const char* sourceFilename) :
-	m_Device{ device },
 	m_Name{ name ? name : "<null>" },
 	m_SourceFilename{ sourceFilename ? sourceFilename : "<null>" },
 	m_Bounds{ alm::aabox3f::InitEmpty },
 	m_PrimitiveTopo{ rhi::PrimitiveTopology::TriangleList },
-	m_IndexSize{ 0 }
+	m_IndexSize{ 0 },
+	m_Device{ device }
 {}
 
 alm::gfx::Mesh::~Mesh()

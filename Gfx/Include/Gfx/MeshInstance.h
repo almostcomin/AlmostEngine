@@ -42,8 +42,8 @@ public:
 	SceneContentFlags GetContentFlags() const override;
 	Type GetType() const override { return Type::MeshInstance; }
 
-	IRenderable* AsRenderable() { return this; }
-	const IRenderable* AsRenderable() const { return this; }
+	IRenderable* AsRenderable() override { return this; }
+	const IRenderable* AsRenderable() const override { return this; }
 
 	Flags GetInstanceFlags() const { return m_InstanceFlags; }
 	void SetInstanceFlags(Flags flags);

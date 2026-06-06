@@ -1,5 +1,5 @@
 #include "RHI/RHI_PCH.h"
-#include "RHI/FrameBuffer.h"
+#include "RHI/Framebuffer.h"
 
 alm::rhi::FramebufferInfo::FramebufferInfo(const FramebufferDesc& desc)
 {

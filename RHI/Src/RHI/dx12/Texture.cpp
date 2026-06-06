@@ -8,7 +8,6 @@ alm::rhi::dx12::Texture::Texture(const alm::rhi::TextureDesc& desc, ComPtr<ID3D1
     , m_Desc{ desc }
 	, m_D3d12Resource{ resource }
 {
-    GpuDevice* gpuDevice = checked_cast<GpuDevice*>(device);
     if (has_any_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
     {
         m_SampledView = device->CreateTextureSampledView(this);

@@ -72,7 +72,6 @@ void alm::gfx::ToneMappingRenderStage::Render(alm::rhi::CommandListHandle comman
 	DeviceManager* deviceManager = GetDeviceManager();
 	CommonResources* commonResources = deviceManager->GetCommonResources();
 	UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
-	rhi::Device* device = deviceManager->GetDevice();
 
 	alm::rhi::TextureHandle inputTexture = m_RenderGraph->GetTexture(m_SceneColorTexture);
 	alm::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ToneMappedTexture);

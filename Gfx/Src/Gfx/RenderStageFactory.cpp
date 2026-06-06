@@ -22,5 +22,5 @@ std::unique_ptr<alm::gfx::RenderStage> alm::gfx::RenderStageFactory::Create(alm:
 
 std::shared_ptr<alm::gfx::RenderStage> alm::gfx::RenderStageFactory::CreateShared(alm::gfx::RenderStageTypeID id)
 {
-	return std::move(Create(id));
+	return Create(id);
 }

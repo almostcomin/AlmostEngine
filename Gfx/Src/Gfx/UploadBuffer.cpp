@@ -3,9 +3,9 @@
 #include "RHI/Device.h"
 
 alm::gfx::UploadBuffer::UploadBuffer(uint64_t firstFrameIdx, size_t bufferSize, rhi::Device* device) :
+	m_Size{ bufferSize },
 	m_Head{ 0 },
 	m_Tail{ 0 },
-	m_Size{ bufferSize },
 	m_CurrentFrameIdx{ firstFrameIdx },
 	m_Device{ device }
 {
@@ -54,7 +54,6 @@ std::pair<void*, uint64_t> alm::gfx::UploadBuffer::RequestSpace(size_t size, siz
 	uint64_t startTail = UINT64_MAX;
 	auto sizeNeeded = size;
 
-	bool found = false;
 	// Case 1: tail >= head, try tail to end
 	if (tail >= head)
 	{

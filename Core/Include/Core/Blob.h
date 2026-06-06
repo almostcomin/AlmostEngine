@@ -83,28 +83,30 @@ public:
 	SharedBlob() = default;
 
 	SharedBlob(uint8_t* data, size_t size) :
-		m_data{ data }, m_size{ size }, m_proxy{ std::shared_ptr<proxy_t>(new proxy_t, customDeleter) }
+		m_proxy{ std::shared_ptr<proxy_t>(new proxy_t, customDeleter) }, m_data{ data }, m_size{ size }
 	{
 		m_proxy->data = data;
 	}
 
 	SharedBlob(uint8_t* data, size_t size, uint8_t* real_ptr, std::function<void(void*)> deleter) :
-		m_data{ data }, m_size{ size }, m_proxy{ std::shared_ptr<proxy_t>(new proxy_t, customDeleter) }
+		m_proxy{ std::shared_ptr<proxy_t>(new proxy_t, customDeleter) }, m_data{ data }, m_size{ size }
 	{
 		m_proxy->data = real_ptr;
 		m_proxy->deleter = std::move(deleter);
 	}
 
-	SharedBlob(const SharedBlob& other) : m_data{ other.m_data }, m_size{ other.m_size }, m_proxy{ other.m_proxy }
+	SharedBlob(const SharedBlob& other) :
+		m_proxy{ other.m_proxy }, m_data{ other.m_data }, m_size{ other.m_size }
 	{}
 
-	SharedBlob(uint8_t* data, size_t size, const SharedBlob& other) : m_data(data), m_size(size), m_proxy(other.m_proxy)
+	SharedBlob(uint8_t* data, size_t size, const SharedBlob& other) : 
+		m_proxy(other.m_proxy), m_data(data), m_size(size)
 	{}
 
 	SharedBlob(SharedBlob&& other) noexcept :
+		m_proxy{ std::move(other.m_proxy) },
 		m_data{ std::exchange(other.m_data, nullptr) },
-		m_size{ std::exchange(other.m_size, 0) },
-		m_proxy{ std::move(other.m_proxy) }
+		m_size{ std::exchange(other.m_size, 0) }
 	{}
 
 	~SharedBlob()

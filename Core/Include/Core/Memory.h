@@ -11,20 +11,20 @@ class weak
     template <typename U>
     friend class weak;
 
-    template<class T>
+    template<typename U>
     friend class unique;
 
-    template<class T>
+    template<typename U>
     friend class enable_weak_from_this;
 
-    template<class T, class U>
-    friend alm::weak<T> static_pointer_cast(const alm::weak<U>& r) noexcept;
+    template<class U, class V>
+    friend alm::weak<U> static_pointer_cast(const alm::weak<V>& r) noexcept;
 
-    template<class T, class U>
-    friend alm::weak<T> dynamic_pointer_cast(const alm::weak<U>& r) noexcept;
+    template<class U, class V>
+    friend alm::weak<U> dynamic_pointer_cast(const alm::weak<V>& r) noexcept;
 
-    template<class T, class U>
-    friend alm::weak<T> checked_pointer_cast(const alm::weak<U>& r) noexcept;
+    template<class U, class V>
+    friend alm::weak<U> checked_pointer_cast(const alm::weak<V>& r) noexcept;
 
 public:
     weak() : ptr(nullptr) {};
@@ -108,7 +108,7 @@ private:
 template<class T>
 class enable_weak_from_this
 {
-    template<class T>
+    template<class U>
     friend class unique;
 public:
     weak<T> weak_from_this()
@@ -125,8 +125,8 @@ class unique
     template <typename U>
     friend class unique;
 
-    template<class T, class U>
-    friend alm::unique<T> adopt_unique(alm::unique<U>&& r) noexcept;
+    template<class U, class V>
+    friend alm::unique<U> adopt_unique(alm::unique<V>&& r) noexcept;
 
 public:
 

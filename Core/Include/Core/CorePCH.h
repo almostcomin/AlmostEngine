@@ -37,6 +37,8 @@
 
 #endif // _WIN32
 
+#include "Core/CompilerHelpers.h"
+
 #include "Core/Math/glm_config.h"
 #include "Core/static_vector.h"
 #include "Core/unique_vector.h"

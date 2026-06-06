@@ -16,9 +16,9 @@ struct RenderSet : public alm::noncopyable_nonmovable
 	{
 		return Elements | std::views::transform([](auto& domainSet)
 		{
-			return domainSet.second | std::views::transform([&domainSet](auto& cullSet) 
+			return domainSet.second | std::views::transform([](auto& cullSet) 
 			{
-				return cullSet.second | std::views::transform([&domainSet, &cullSet](const auto& drawInfo) 
+				return cullSet.second | std::views::transform([](const auto& drawInfo) 
 				{
 					return drawInfo;
 				});

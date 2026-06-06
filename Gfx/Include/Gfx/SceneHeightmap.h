@@ -21,8 +21,8 @@ public:
 	SceneContentFlags GetContentFlags() const override { return alm::gfx::SceneContentFlags::Meshes | alm::gfx::SceneContentFlags::ShadowCasters; }
 	Type GetType() const override { return SceneGraphLeaf::Type::Heightmap; }
 
-	IRenderable* AsRenderable() { return this; }
-	const IRenderable* AsRenderable() const { return this; }
+	IRenderable* AsRenderable() override { return this; }
+	const IRenderable* AsRenderable() const override { return this; }
 
 	// IRenderable interface
 	void CollectDrawInfos(const VisibleSetContext& context, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const override;

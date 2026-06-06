@@ -6,7 +6,7 @@
 
 namespace alm::rhi::dx12
 {
-	class Queue;
+	struct Queue;
 
 	class TimerQuery : public ITimerQuery
 	{

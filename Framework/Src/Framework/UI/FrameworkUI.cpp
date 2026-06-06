@@ -14,7 +14,7 @@
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
-#include "rhi/Device.h"
+#include "RHI/Device.h"
 #include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
 #include <SDL3/SDL.h>
 #include <commdlg.h>
@@ -216,7 +216,6 @@ namespace
             ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-            const char* topoStr = nullptr;
             switch (topo)
             {
             case alm::rhi::PrimitiveTopology::PointList:
@@ -245,7 +244,7 @@ namespace
             ImGui::SeparatorText("Vertex format");
             {
                 const alm::gfx::Mesh::VertexFormat& vertexFormat = mesh->GetVertexFormat();
-                const float cb_w = ImGui::GetFrameHeight();
+
                 ImGui::BeginTable("##flags", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
                 ImGui::TableSetupColumn("cb0", ImGuiTableColumnFlags_WidthFixed, 0.0f);
                 ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthStretch, 1.0f);
@@ -743,7 +742,6 @@ void alm::fw::FrameworkUI::BuildBottomBar()
     ImGui::Begin("##StatusBar", nullptr, flags);
     {
         float textHeight = ImGui::GetTextLineHeight();
-        float paddingY = ImGui::GetStyle().WindowPadding.y;
 
         float cursorX = 0.f;
         const float cursorY = (statusBarHeight - textHeight) * 0.5f;
@@ -782,7 +780,7 @@ void alm::fw::FrameworkUI::BuildBottomBar()
             cursorX -= textWidth;
             ImGui::SameLine();
             ImGui::SetCursorPosX(cursorX);
-            ImGui::Text(actualText.c_str());
+            ImGui::TextUnformatted(actualText.c_str());
         }
         m_BottomBarRightAlignTexts.clear();
     }
@@ -842,7 +840,6 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
         // Left side
         if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
         {
-            uint32_t pushid_count = 0;
             alm::gfx::SceneGraph::Walker walker(*m_Scene->GetSceneGraph());
             while (walker)
             {
@@ -850,7 +847,7 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::PushID((const void*)node);
-                ++pushid_count;
+
                 ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
                 tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
                 tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
@@ -1393,8 +1390,6 @@ void alm::fw::FrameworkUI::BuildRenderStagesWindow()
     alm::gfx::RenderGraph* renderGraph = m_RenderViewUI->GetRenderGraph().get();
     const float parentHeight = ImGui::GetIO().DisplaySize.y;
     const float windowHeight = parentHeight * 0.9f;
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
 
     ImGui::SetNextWindowSize(ImVec2(320, windowHeight), ImGuiCond_Once);
     std::string title = m_RenderViewUI->GetName() + " - " + renderGraph->GetCurrentRenderMode() + "###RenderViewWindow";
@@ -2114,7 +2109,7 @@ std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filena
     std::vector<char> fil;
     if (!filters.empty())
     {
-        for (const auto p : filters)
+        for (const auto& p : filters)
         {
             fil.insert(fil.end(), p.first.begin(), p.first.end());
             fil.push_back('\0');

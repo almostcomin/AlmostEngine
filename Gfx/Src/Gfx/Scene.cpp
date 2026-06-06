@@ -17,7 +17,7 @@
 #include <cassert>
 
 alm::gfx::Scene::Scene(const std::string& name, DeviceManager* deviceManager) : 
-	m_Name{ name }, m_ResetGpuBuffers{ false }, m_DeviceManager{ deviceManager }
+	m_ResetGpuBuffers{ false }, m_Name{ name }, m_DeviceManager{ deviceManager }
 {
 	m_AmbientParams = AmbientParams{
 		.SkyColor = float3{ 0.17f, 0.37f, 0.65f },

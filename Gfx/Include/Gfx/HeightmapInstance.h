@@ -14,7 +14,7 @@ class HeightmapInstance
 {
 public:
 
-	HeightmapInstance(const SceneHeightmap* sceneHeightmap, DeviceManager* deviceManager);
+	HeightmapInstance(const SceneHeightmap* sceneHeightmap);
 	~HeightmapInstance();
 
 	void Update(const Camera* camera, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle);
@@ -60,8 +60,6 @@ private:
 
 	uint32_t m_InstancesAllocBaseIdx;
 	uint32_t m_PatchesAllocBaseIndex;
-
-	DeviceManager* m_DeviceManager;
 };
 
 } // namespace alm::gfx

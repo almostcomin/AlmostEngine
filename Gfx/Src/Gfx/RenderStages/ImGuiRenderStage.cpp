@@ -11,6 +11,10 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_sdl3.h>
 
+alm::gfx::ImGuiRenderStage::ImGuiRenderStage() = default;
+
+alm::gfx::ImGuiRenderStage::~ImGuiRenderStage() = default;
+
 void alm::gfx::ImGuiRenderStage::OnAttached()
 {
     Init();
@@ -23,8 +27,6 @@ void alm::gfx::ImGuiRenderStage::OnDetached()
 
 void alm::gfx::ImGuiRenderStage::BeginFullScreenWindow()
 {
-    ImGuiIO const& io = ImGui::GetIO();
-
     const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(main_viewport->WorkPos);
     ImGui::SetNextWindowSize(main_viewport->WorkSize);
@@ -42,8 +44,6 @@ void alm::gfx::ImGuiRenderStage::EndFullScreenWindow()
 
 void alm::gfx::ImGuiRenderStage::DrawCenteredText(const char* text)
 {
-    ImGuiIO const& io = ImGui::GetIO();
-
     ImVec2 textSize = ImGui::CalcTextSize(text);
     ImVec2 contentPos = ImGui::GetCursorScreenPos();
     ImVec2 contentSize = ImGui::GetContentRegionAvail();
@@ -75,8 +75,6 @@ void alm::gfx::ImGuiRenderStage::Setup(RenderGraphBuilder& builder)
 
 void alm::gfx::ImGuiRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
-	auto& io = ImGui::GetIO();
-
     // Address any change in font data. Needs to be called before ImGui::NewFrame()
     if (!UpdateFontTexture(commandList.get()))
     {
@@ -210,7 +208,6 @@ bool alm::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandLis
 {
     alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
     alm::gfx::UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
-    auto* device = deviceManager->GetDevice();
     ImGuiIO& io = ImGui::GetIO();
     ImTextureData* texData = io.Fonts->TexRef._TexData;
 

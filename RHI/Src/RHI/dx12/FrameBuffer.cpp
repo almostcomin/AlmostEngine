@@ -1,5 +1,5 @@
 #include "RHI/RHI_PCH.h"
-#include "RHI/dx12/FrameBuffer.h"
+#include "RHI/dx12/Framebuffer.h"
 #include "RHI/dx12/GpuDevice.h"
 
 alm::rhi::TextureColorTargetView alm::rhi::dx12::Framebuffer::GetColorTargetView(uint32_t idx) const

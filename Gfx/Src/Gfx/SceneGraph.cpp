@@ -146,6 +146,8 @@ void alm::gfx::SceneGraph::ReportLeafDirty(const SceneGraphLeaf* leaf)
     case SceneGraphLeaf::Type::MeshInstance:
         m_GpuSceneBuffers->SetDirtyMeshInstance(m_GpuBuffersHandle, checked_cast<const MeshInstance*>(leaf));
         break;
+    default:
+        assert(0);
     }
 }
 

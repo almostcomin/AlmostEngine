@@ -13,6 +13,8 @@
 #include "RHI/TimerQuery.h"
 #include <imgui/imgui.h>
 
+alm::gfx::DeviceManager::DeviceManager() = default;
+
 alm::gfx::DeviceManager::~DeviceManager() = default;
 
 alm::gfx::DeviceManager* alm::gfx::DeviceManager::Create(alm::gfx::GraphicsAPI api)

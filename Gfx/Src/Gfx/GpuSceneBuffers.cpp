@@ -216,7 +216,6 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMesh(const gfx::Mesh* mesh, Material
 
 		if (materialType != MaterialType::Undef)
 		{
-			uint32_t materialIdx = UINT32_MAX;
 			switch (materialType)
 			{
 			case MaterialType::Regular:
@@ -225,6 +224,8 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMesh(const gfx::Mesh* mesh, Material
 			case MaterialType::Heightmap:
 				m_MeshMaterialIndices[meshRefIdx].Index = RegisterTerrainMaterial(mesh->GetTerrainMaterial().get());
 				break;
+			default:
+				assert(0);
 			}
 			m_MeshMaterialIndices[meshRefIdx].Type = materialType;
 		}
@@ -331,6 +332,8 @@ void alm::gfx::GpuSceneBuffers::UnregisterMesh(uint32_t idx)
 				case MaterialType::Heightmap:
 					UnregisterTerrainMaterial(m_MeshMaterialIndices[idx].Index);
 					break;
+				default:
+					assert(0);
 				}
 				
 				// Remove material binding
@@ -450,6 +453,8 @@ void alm::gfx::GpuSceneBuffers::RebindMeshMaterial(const Mesh* mesh, MaterialTyp
 			m_MeshMaterialIndices[meshIdx].Index = RegisterTerrainMaterial(newMat.get());
 		}
 	} break;
+	default:
+		assert(0);
 	}
 	m_MeshMaterialIndices[meshIdx].Type = materialType;
 

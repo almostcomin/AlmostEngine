@@ -30,8 +30,8 @@ public:
     float2 GetNormalizedSize() const override;
     float2 GetHeightRange() const override;
 
-    virtual bool InfiniteDataResolution() const { return false; }
-    virtual uint2 GetDataResolution() const { return { m_Width, m_Height }; }
+    virtual bool InfiniteDataResolution() const override { return false; }
+    virtual uint2 GetDataResolution() const override { return { m_Width, m_Height }; }
 
     Type GetType() const override { return Type::Image; }
     const std::string& GetName() const override { return m_Name; }

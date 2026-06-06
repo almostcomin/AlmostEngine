@@ -54,8 +54,10 @@ constexpr bool HasBoundsCategory(SceneContentType t)
     case SceneContentType::Cameras:
     case SceneContentType::Animations:
         return false;
+    default:
+        assert(0);
+        return false;
     }
-    return false;
 }
 
 constexpr bool HasRenderableCategory(SceneContentType t)
@@ -70,8 +72,10 @@ constexpr bool HasRenderableCategory(SceneContentType t)
     case SceneContentType::Cameras:
     case SceneContentType::Animations:
         return false;
+    default:
+        assert(0);
+        return false;
     }
-    return false;
 }
 
 } // namespace st::gfx

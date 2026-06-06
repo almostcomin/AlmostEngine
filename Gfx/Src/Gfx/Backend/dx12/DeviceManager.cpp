@@ -445,11 +445,11 @@ alm::rhi::ColorSpace alm::gfx::dx12::DeviceManager::GetColorSpace() const
         return rhi::ColorSpace::HDR10_ST2084;
     case DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709:
         return rhi::ColorSpace::HDR_LINEAR;
+    default:
+        // Not initialized?
+        assert(0);
+        return rhi::ColorSpace::SRGB;
     }
-
-    // Not initialized?
-    assert(0);
-    return rhi::ColorSpace::SRGB;
 }
 
 void alm::gfx::dx12::DeviceManager::ReportLiveObjects()

@@ -6,12 +6,12 @@
 namespace alm
 {
 
-template<typename T, int n>
+template<typename T, int N>
 struct aabox
 {
-	static_assert(n > 1);
+	static_assert(N > 1);
 
-    using vec_t = glm::vec<n, T, glm::defaultp>;
+    using vec_t = glm::vec<N, T, glm::defaultp>;
 
 	vec_t min;
 	vec_t max;
@@ -28,7 +28,7 @@ struct aabox
     {}
 
     template<typename U>
-    aabox(const aabox<U, n>& o)
+    aabox(const aabox<U, N>& o)
     {
         min = o.min;
         max = o.max;
@@ -70,13 +70,13 @@ struct aabox
         return *this;
     }
 
-    [[nodiscard]] aabox transform(const glm::mat<n + 1, n + 1, T, glm::defaultp>& mat) const
+    [[nodiscard]] aabox transform(const glm::mat<N + 1, N + 1, T, glm::defaultp>& mat) const
     {
         // fast method to apply an affine matrix transform to an AABB
-        aabox<T, n> result;
+        aabox<T, N> result;
         result.min = vec_t(mat[3]); // translation column
         result.max = result.min;
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < N; i++)
         {
             auto a = vec_t(mat[i]) * min[i];
             auto b = vec_t(mat[i]) * max[i];
@@ -99,7 +99,6 @@ struct aabox
     }
 
     // Returns true if inside (direction of the normal) or overlaps the plane
-    template<typename T>
     bool test(const plane<T, 3>& _plane) const
     {
         glm::vec3 p{
@@ -110,7 +109,7 @@ struct aabox
         return _plane.distance(p) >= 0.f;
     };
 
-    static const aabox<T, n>& get_empty()
+    static const aabox<T, N>& get_empty()
     {
         static aabox emptyBBox{ InitEmpty };
         return emptyBBox;

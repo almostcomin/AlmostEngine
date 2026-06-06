@@ -907,7 +907,7 @@ namespace PIXEventsDetail
     template<typename CONTEXT>
     void PIXEndEvent(CONTEXT* context)
     {
-        UINT64* destination = nullptr;
+        [[maybe_unused]] UINT64* destination = nullptr;
 #ifdef PIX_CONTEXT_EMIT_CPU_EVENTS
         destination = PIXEndEventOnContextCpu(context);
 #endif

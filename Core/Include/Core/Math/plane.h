@@ -5,12 +5,12 @@
 namespace alm
 {
 
-template<typename T, int n>
+template<typename T, int N>
 struct plane
 {
-	static_assert(n > 1);
+	static_assert(N > 1);
 
-	using vec_t = glm::vec<n, T, glm::defaultp>;
+	using vec_t = glm::vec<N, T, glm::defaultp>;
 
 	vec_t normal;	// normal
 	T d;			// independent value
@@ -26,7 +26,7 @@ struct plane
 
 	plane(const vec_t& n, T dVal) : normal{ n }, d{ dVal } {}
 
-	plane(const glm::vec<n + 1, T, glm::defaultp>& xyzd)
+	plane(const glm::vec<N + 1, T, glm::defaultp>& xyzd)
 	{
 		normal = vec_t{ xyzd.x, xyzd.y, xyzd.z };
 		d = xyzd.w;
@@ -47,11 +47,11 @@ struct plane
 		d = d / len;
 	}
 
-	[[nodiscard]] plane transform(const glm::mat<n + 1, n + 1, T, glm::defaultp>& mat) const
+	[[nodiscard]] plane transform(const glm::mat<N + 1, N + 1, T, glm::defaultp>& mat) const
 	{
-		glm::vec<n + 1, T, glm::defaultp> v{ normal, d };
+		glm::vec<N + 1, T, glm::defaultp> v{ normal, d };
 		v = glm::transpose(mat) * v;
-		return plane{ vec_t(v), v[n] };
+		return plane{ vec_t(v), v[N] };
 	}
 };
 

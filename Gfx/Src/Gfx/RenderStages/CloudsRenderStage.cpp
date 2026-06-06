@@ -101,8 +101,6 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		return;
 	}
 
-	auto* deviceManager = m_RenderGraph->GetDeviceManager();
-	auto* commonResources = deviceManager->GetCommonResources();
 	const auto& sunParams = GetScene()->GetSunParams();
 
 	// Initialize buffers
@@ -156,7 +154,7 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 	{
 		commandList->BeginRenderPass(
 			m_CloudsFB[m_CloudsTextureIdx].get(),
-			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, float4{ 0.f, 0.f, 0.f, 1.f }} },
+			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack() }},
 			rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::NoAccess },
 			{}, rhi::RenderPassFlags::None);
 

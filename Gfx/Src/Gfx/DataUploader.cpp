@@ -8,7 +8,6 @@
 namespace
 {
 	static constexpr size_t c_UploadBufferSize = alm::MiB(256);
-	static constexpr uint64_t c_FailedToReserveSpace = std::numeric_limits<uint64_t>::max();
 }
 
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized
@@ -79,7 +78,6 @@ std::expected<alm::gfx::DataUploader::UploadTicket, std::string> alm::gfx::DataU
 	uint64_t startTail = UINT64_MAX;
 	auto sizeNeeded = size;
 	
-	bool found = false;
 	// Case 1: tail >= head, try tail to end
 	if (tail >= head)
 	{
@@ -286,7 +284,6 @@ std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::UploadTe
 	// Perform copy
 	size_t srcOffset = 0;
 	size_t dstOffset = 0;
-	size_t sliceCount = 0;
 
 	for (auto arraySlice = subresources.baseArraySlice; arraySlice < subresources.GetNumArraySlices(texDesc); ++arraySlice)
 	{

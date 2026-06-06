@@ -53,8 +53,6 @@ public:
 
 	bool Update(float deltaTime) override
 	{
-		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
-
 		if (!m_RequestLoadFile.empty())
 		{
 			auto importResult = alm::gfx::ImportGlTF(m_RequestLoadFile.c_str(), m_DeviceManager.get());

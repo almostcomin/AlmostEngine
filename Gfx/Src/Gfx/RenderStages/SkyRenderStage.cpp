@@ -75,9 +75,6 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 
 	interop::SkyData* skyData = (interop::SkyData*)m_ShaderCB.Map();
 	{
-		float lightAngularSize = glm::radians(glm::clamp(sunParams.AngularSizeDeg, 0.1f, 90.f));
-		float lightSolidAngle = 4 * PI * square(sinf(lightAngularSize * 0.5f));
-		float lightRadiance = sunParams.Irradiance / lightSolidAngle;
 		const float3 sunDir = alm::ElevationAzimuthRadToDir(
 			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
 
@@ -131,7 +128,6 @@ void alm::gfx::SkyRenderStage::OnAttached()
 {
 	auto* deviceManager = m_RenderGraph->GetDeviceManager();
 	auto* device = deviceManager->GetDevice();
-	auto* commonResources = deviceManager->GetCommonResources();
 	auto* shaderFactory = deviceManager->GetShaderFactory();
 
 	m_CS = shaderFactory->LoadShader("Sky_cs", rhi::ShaderType::Compute);

@@ -6,9 +6,9 @@
 #include "RHI/dx12/Texture.h"
 #include "RHI/dx12/ResourceState.h"
 #include "RHI/dx12/PipelineState.h"
-#include "RHI/dx12/FrameBuffer.h"
+#include "RHI/dx12/Framebuffer.h"
 #include "RHI/dx12/TimerQuery.h"
-#include "RHI/dx12/GPUDevice.h"
+#include "RHI/dx12/GpuDevice.h"
 #include "RHI/dx12/Utils.h"
 #include <pix3.h>
 
@@ -128,9 +128,9 @@ void alm::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::
 		{
 			D3D12_TEXTURE_COPY_LOCATION dst = 
 			{
-				dstTexture->GetNativeResource(),
-				D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-				D3D12CalcSubresource(mip, arraySlice, 0, desc.mipLevels, desc.arraySize)
+				.pResource = dstTexture->GetNativeResource(),
+				.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+				.SubresourceIndex = D3D12CalcSubresource(mip, arraySlice, 0, desc.mipLevels, desc.arraySize)
 			};
 
 			D3D12_TEXTURE_COPY_LOCATION src = {};
@@ -176,16 +176,16 @@ void alm::rhi::dx12::CommandList::CopyTextureToTexture(ITexture* dstTexture, con
 	
 	D3D12_TEXTURE_COPY_LOCATION dst =
 	{
-		dstTexture->GetNativeResource(),
-		D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-		D3D12CalcSubresource(0, 0, 0, dstDesc.mipLevels, dstDesc.arraySize)
+		.pResource = dstTexture->GetNativeResource(),
+		.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		.SubresourceIndex = D3D12CalcSubresource(0, 0, 0, dstDesc.mipLevels, dstDesc.arraySize)
 	};
 
 	D3D12_TEXTURE_COPY_LOCATION src =
 	{
-		srcTexture->GetNativeResource(),
-		D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-		D3D12CalcSubresource(0, 0, 0, srcDesc.mipLevels, srcDesc.arraySize)
+		.pResource = srcTexture->GetNativeResource(),
+		.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		.SubresourceIndex = D3D12CalcSubresource(0, 0, 0, srcDesc.mipLevels, srcDesc.arraySize)
 	};
 
 	m_D3d12Commandlist->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
@@ -229,9 +229,9 @@ void alm::rhi::dx12::CommandList::CopyTextureToBuffer(IBuffer* dstBuffer, ITextu
 	{
 		D3D12_TEXTURE_COPY_LOCATION src =
 		{
-			srcTexture->GetNativeResource(),
-			D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-			D3D12CalcSubresource(0, 0, 0, srcDesc.mipLevels, srcDesc.arraySize)
+			.pResource = srcTexture->GetNativeResource(),
+			.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+			.SubresourceIndex = D3D12CalcSubresource(0, 0, 0, srcDesc.mipLevels, srcDesc.arraySize)
 		};
 
 		D3D12_TEXTURE_COPY_LOCATION dst =

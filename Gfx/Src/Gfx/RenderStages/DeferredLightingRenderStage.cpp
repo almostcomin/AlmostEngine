@@ -10,6 +10,10 @@
 #include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/RenderView.h"
 
+alm::gfx::DeferredLightingRenderStage::DeferredLightingRenderStage() = default;
+
+alm::gfx::DeferredLightingRenderStage::~DeferredLightingRenderStage() = default;
+
 void alm::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	//m_SceneColorTexture = builder.CreateColorTarget("SceneColor", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
@@ -37,7 +41,6 @@ void alm::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
 
 void alm::gfx::DeferredLightingRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
-	rhi::Device* device = GetDeviceManager()->GetDevice();
 	alm::rhi::TextureHandle shadowmapTex = GetRenderView()->IsShadowmapValid() ?
 		m_RenderGraph->GetTexture(m_ShadowmapTexture) : rhi::TextureHandle{};
 	float2 shadowMapResolution = { 0.f, 0.f };

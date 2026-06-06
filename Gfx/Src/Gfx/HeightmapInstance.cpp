@@ -74,7 +74,6 @@ float2 alm::gfx::HeightmapInstance::QuadNodeCoord::CenterUV() const
 
 alm::aabox3f alm::gfx::HeightmapInstance::QuadNodeCoord::Bounds(float minY, float maxY) const
 {
-	const float cellSize = CellSize();
 	const float2 minUV = MinUV();
 	const float2 maxUV = MaxUV();
 	return aabox3f{
@@ -83,8 +82,8 @@ alm::aabox3f alm::gfx::HeightmapInstance::QuadNodeCoord::Bounds(float minY, floa
 	};
 }
 
-alm::gfx::HeightmapInstance::HeightmapInstance(const SceneHeightmap* sceneHeightmap, DeviceManager* deviceManager) :
-	m_SceneHeightmap{ sceneHeightmap }, m_DeviceManager{ deviceManager }
+alm::gfx::HeightmapInstance::HeightmapInstance(const SceneHeightmap* sceneHeightmap) :
+	m_SceneHeightmap{ sceneHeightmap }
 {
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	m_MaxLevel = heightmap->GetMaxDepthLevel();
@@ -125,7 +124,6 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 
 		const float4x4 worldMatrix = nodeWorldMatrix * localTransform.GetMatrix();
 		const float4x4 inverseWorldMatrix = glm::inverse(worldMatrix);
-		const float3x3 normalMatrix = glm::transpose(glm::mat3(inverseWorldMatrix));
 		
 		alloc.InstancesDataPtr[i].modelMatrix = worldMatrix;
 		alloc.InstancesDataPtr[i].inverseModelMatrix = inverseWorldMatrix;

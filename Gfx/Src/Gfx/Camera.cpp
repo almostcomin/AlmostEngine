@@ -10,9 +10,9 @@ alm::gfx::Camera::Camera() :
 	m_Right{ 1.f, 0.f, 0.f },
 	m_UpRef{ 0.f, 1.f, 0.f },
 	m_VerticalFov{ glm::radians(60.f) },
-	m_Aspect{ 1.f },
 	m_zNear{ 0.1f },
 	m_zFar{ 1000.f },
+	m_Aspect{ 1.f },
 	m_IsDirty{ true }
 {
 }
@@ -173,7 +173,7 @@ void alm::gfx::Camera::SetPitch(float pitch)
 
 void alm::gfx::Camera::SetRoll(float roll)
 {
-	float3 right = glm::normalize(glm::cross(float3{ 0.f, 1.f, 0.f }, m_Forward));
+	//float3 right = glm::normalize(glm::cross(float3{ 0.f, 1.f, 0.f }, m_Forward));
 	float3 baseUp = float3{ 0.f, 1.f, 0.f };// glm::cross(m_Forward, right);
 
 	float c = cosf(roll);

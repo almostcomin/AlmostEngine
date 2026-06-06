@@ -30,6 +30,8 @@ namespace alm::rhi
 
     public:
 
+        virtual ~Device() = default;
+
         virtual ShaderOwner CreateShader(const ShaderDesc& desc, const WeakBlob& bytecode, const std::string& debugName) = 0;
         virtual BufferOwner CreateBuffer(const BufferDesc& desc, ResourceState initialState, const std::string& debugName) = 0;
         virtual TextureOwner CreateTexture(const TextureDesc& desc, ResourceState initialState, const std::string& debugName) = 0;

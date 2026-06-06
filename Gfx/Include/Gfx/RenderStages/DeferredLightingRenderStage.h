@@ -31,7 +31,8 @@ public:
 
 public:
 
-	DeferredLightingRenderStage() = default;
+	DeferredLightingRenderStage();
+	~DeferredLightingRenderStage();
 
 	void SetMaterialChannel(MaterialChannel v) { m_MaterialChannel = v; }
 	void ShowSSAO(bool b) { m_ShowSSAO = b; }

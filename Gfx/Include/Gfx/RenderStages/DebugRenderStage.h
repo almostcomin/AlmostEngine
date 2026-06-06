@@ -4,7 +4,7 @@
 #include "RHI/PipelineState.h"
 #include "RHI/Buffer.h"
 #include "RHI/CommandList.h"
-#include "RHI/FrameBuffer.h"
+#include "RHI/Framebuffer.h"
 #include "Gfx/RenderGraphTypes.h"
 #include "Gfx/RenderStageFactory.h"
 #include "Gfx/SceneContentFlags.h"

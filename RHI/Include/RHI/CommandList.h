@@ -11,7 +11,7 @@ namespace alm::rhi
 
 class IGraphicsPipelineState;
 class IFramebuffer;
-class ViewportState;
+struct ViewportState;
 
 enum class QueueType : uint8_t
 {
@@ -36,7 +36,7 @@ union ClearValue
 		uint32_t stencil;
 	} depthStencil;
 
-	static constexpr ClearValue ColorBlack() { return ClearValue{ float4{ 0.f } }; }
+	static constexpr ClearValue ColorBlack() { return ClearValue{ .color{ 0.f, 0.f, 0.f, 1.f } }; }
 	static constexpr ClearValue DepthZero() { return ClearValue{ .depthStencil{ 0.f, 0u } }; }
 	static constexpr ClearValue DepthOne() { return ClearValue{ .depthStencil{ 1.f, 0u } }; }
 

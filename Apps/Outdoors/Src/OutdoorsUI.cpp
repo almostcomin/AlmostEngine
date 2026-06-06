@@ -232,7 +232,6 @@ void OutdoorsUI::BuildUI()
 				ImGui::SeparatorText(id);
 
 				bool matDirty = false;
-				const float itemWidth = (availWidth - style.ItemSpacing.x * 4) / 3;
 
 				matDirty |= buildTex("BaseColorTexture", layer.BaseColorTexture, true, false);
 				matDirty |= buildTex("NormalTexture", layer.NormalTexture, false, true);

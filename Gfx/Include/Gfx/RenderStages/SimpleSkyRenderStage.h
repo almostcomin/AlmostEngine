@@ -35,7 +35,7 @@ public:
 
 private:
 
-	void Setup(RenderGraphBuilder& builder);
+	void Setup(RenderGraphBuilder& builder) override;
 	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;

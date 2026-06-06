@@ -106,7 +106,7 @@ void alm::gfx::RenderView::RegisterHeightmap(const SceneHeightmap* sceneHeightma
 {
 	assert(m_HeightmapInstances.find(sceneHeightmap) == m_HeightmapInstances.end() &&
 		"Heightmap already registered");
-	m_HeightmapInstances.emplace(sceneHeightmap, std::make_unique<HeightmapInstance>(sceneHeightmap, m_DeviceManager));
+	m_HeightmapInstances.emplace(sceneHeightmap, std::make_unique<HeightmapInstance>(sceneHeightmap));
 }
 
 void alm::gfx::RenderView::UnregisterHeightmap(const SceneHeightmap* sceneHeightmap)

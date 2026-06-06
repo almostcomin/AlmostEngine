@@ -16,8 +16,6 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
     assert(readResult);
     alm::Blob fileData = std::move(*readResult);
 
-    std::string_view ext = GetExtensionFromPath(path);
-
     auto loadImageResult = LoadImageTexture(alm::WeakBlob{ fileData }, false);
     if (!loadImageResult)
     {

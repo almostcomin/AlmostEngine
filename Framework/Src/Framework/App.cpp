@@ -366,7 +366,6 @@ void alm::fw::App::MainLoop()
 	auto lastTime = appStartTime;
 	auto fpsLastTime = appStartTime;
 	uint32_t fpsFrameCount = 0;
-	bool mouseMiddlePressed = false;
 
 	while (!requestQuit)
 	{

@@ -6,7 +6,6 @@ namespace
 	// Hash by David_Hoskins
 	constexpr uint32_t UI0 = 1597334673;
 	constexpr uint32_t UI1 = 3812015801;
-	constexpr uint2 UI2 = uint2{ UI0, UI1 };
 	constexpr uint3 UI3 = uint3{ UI0, UI1, 2798796415 };
 	constexpr float UIF = 1.0f / float(0xffffffffU);
 

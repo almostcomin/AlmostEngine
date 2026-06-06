@@ -45,6 +45,9 @@ public:
 
 public:
 
+	ImGuiRenderStage();
+	~ImGuiRenderStage();
+
 	virtual void BuildUI() {};
 
 	void RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList);
