@@ -14,9 +14,9 @@
 - glTF file loader
 - Physically Based Rendering (PBR)
 - Fully bindless pipeline
-- WBOIT (Weighted Blended Order Independent Transparency)
+- WBOIT
 - Directional, point and spot lights
-- Shadow mapping (no cascade)
+- Shadow mapping
 - Physically Based Bloom
 
 ---
@@ -33,20 +33,13 @@ Third-party libraries are included as Git submodules:
 | [stb_image](https://github.com/nothings/stb) | Image loading |
 | [WinPixEventRuntime](https://github.com/microsoft/Pix) | GPU profiling |
 
+Build toolchain: **CMake 3.20+**, **Python 3.13+**, **LLVM/Clang** (or **Clang-cl** on Windows).
+
 ---
 
-## Installation
+## Build Instructions (Windows)
 
-### Prerequisites
-
-| Software | Minimum Version |
-|----------|-----------------|
-| **Windows** | 11 |
-| **Visual Studio** | 17.14.24 (2022) |
-| **CMake** | 3.20+ |
-| **Python** | 3.13+ |
-
-### Build Instructions
+> Linux support is experimental (Vulkan backend in progress).
 
 ```bash
 # 1. Clone with all submodules (IMPORTANT!)
@@ -54,23 +47,20 @@ git clone --recursive https://github.com/almostcomin/AlmostEngine.git
 cd AlmostEngine
 
 # 2. Build third-party dependencies (first time only)
-cd 3rdParty
-python BuildAll.py
-cd ..
+python BuildScripts/Build3rdParties.py --target {win-dx12-clang,linux-vk-clang} [--config {Debug,Release,RelWithDebInfo,All}]
 
-# 3. Configure and generate project files
-mkdir Build
-cd Build
-cmake ..
+# 3. Generate Visual Studio solution (optional, for IDE development)
+python GenerateVSProjects.py --target win-dx12-clang
 
-# 4. Open AlmostEngine.sln in Visual Studio and build
+# 4. Alternatively, build directly from the command line:
+python BuildEngine.py --target win-dx12-clang [--config {Debug,Release,RelWithDebInfo,All}]
 ```
 ---
 ## Future Work
-- MBOIT (Moment Based Order Independent Transparency)
+- MBOIT
 - Bloom in compute
-- Raytracing (DXR integration)
+- DXR / Raytracing
 - GPU Driven Rendering
-- Image Based Lighting)
-- Cascaded Shadow Mapping
-- Depth of Field effect
+- Image Based Lighting
+- Cascaded Shadow Maps
+- Depth of Field

@@ -3,6 +3,8 @@ include(${CMAKE_SOURCE_DIR}/CMake/Utils.cmake)
 
 project(Core)
 
+set(THIRDPARTY_ROOT "${CMAKE_SOURCE_DIR}/3rdParty")
+
 file(GLOB_RECURSE CORE_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/Include/*.*"
     "${CMAKE_CURRENT_SOURCE_DIR}/Src/*.*"
@@ -20,7 +22,7 @@ target_include_directories(Core
 
 # Third-party (GLM)
 target_include_directories(Core PUBLIC
-    "${CMAKE_SOURCE_DIR}/3rdParty/Sources/glm"
+    "${THIRDPARTY_ROOT}/Sources/glm"
 )
 
 # PCH

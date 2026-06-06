@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(RHI)
 
+set(THIRDPARTY_ROOT "${CMAKE_SOURCE_DIR}/3rdParty")
+
 include(FetchContent)
 include(dxc.cmake)
 
@@ -28,19 +30,27 @@ setup_pch(RHI
 target_link_libraries(RHI PUBLIC Core)
 
 # Third-party: DirectX-Headers
-target_include_directories(RHI PUBLIC "${CMAKE_SOURCE_DIR}/3rdParty/DirectX-Headers/$<CONFIG>/include")
-target_link_directories(RHI PUBLIC "${CMAKE_SOURCE_DIR}/3rdParty/DirectX-Headers/$<CONFIG>/lib")
-target_link_libraries(RHI PUBLIC DirectX-Guids.lib)
+if(WIN32)
+    target_include_directories(RHI PUBLIC 
+        "${THIRDPARTY_ROOT}/DirectX-Headers/${ALMOSTENGINE_TARGET}/$<CONFIG>/include")
+    target_link_directories(RHI PUBLIC
+        "${THIRDPARTY_ROOT}/DirectX-Headers/${ALMOSTENGINE_TARGET}/$<CONFIG>/lib")
+    target_link_libraries(RHI PUBLIC DirectX-Guids.lib)
+endif()
 
 # Third-party: DXC
-GetDXC()
-target_include_directories(RHI PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/dxc/inc")
-target_link_directories(RHI PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/dxc/lib/x64")
-target_link_libraries(RHI PRIVATE dxcompiler.lib)
+if(WIN32)
+    GetDXC()
+    target_include_directories(RHI PRIVATE "${THIRDPARTY_ROOT}/dxc/inc")
+    target_link_directories(RHI PRIVATE "${THIRDPARTY_ROOT}/dxc/lib/x64")
+    target_link_libraries(RHI PRIVATE dxcompiler.lib)
+endif()
 
 # Third-party: PIX
-target_include_directories(RHI PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/WinPixEventRuntime/Include/WinPixEventRuntime")
-target_link_libraries(RHI PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/WinPixEventRuntime/bin/x64/WinPixEventRuntime.lib")
+if(WIN32)
+    target_include_directories(RHI PRIVATE "${THIRDPARTY_ROOT}/WinPixEventRuntime/Include/WinPixEventRuntime")
+    target_link_libraries(RHI PRIVATE "${THIRDPARTY_ROOT}/WinPixEventRuntime/bin/x64/WinPixEventRuntime.lib")
+endif()
 
 target_compile_features(RHI PUBLIC cxx_std_23)
 set_target_properties(RHI PROPERTIES

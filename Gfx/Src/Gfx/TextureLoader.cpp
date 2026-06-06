@@ -3,11 +3,14 @@
 #include "Core/File.h"
 #include "Gfx/Util.h"
 #include "RHI/Device.h"
-#include <DirectXTex.h>
 #include <filesystem>
 
+// Need to include stb before DirectXTex because of weird compilation issue
+// https://github.com/nothings/stb/issues/978
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
+
+#include <DirectXTex.h>
 
 namespace
 {

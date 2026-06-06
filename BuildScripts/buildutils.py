@@ -42,7 +42,7 @@ def run_cmake_build(source_dir, build_dir, install_dir, config_name, target, ext
         build_cmd = ["cmake", "--build", build_dir, "--config", config_name]
         subprocess.run(build_cmd, env=env, check=True)
     
-    if do_install:
+    if do_install and install_dir is not None:
         print(f"Installing to {install_dir}...")
         install_cmd = ["cmake", "--install", build_dir, "--config", config_name]
         subprocess.run(install_cmd, env=env, check=True)

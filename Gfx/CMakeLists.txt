@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(Gfx)
 
+set(THIRDPARTY_ROOT "${CMAKE_SOURCE_DIR}/3rdParty")
+
 file(GLOB_RECURSE GFX_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/Include/*.*"
     "${CMAKE_CURRENT_SOURCE_DIR}/Src/*.*"
@@ -44,22 +46,30 @@ target_link_libraries(Gfx PUBLIC RHI)
 target_include_directories(Gfx PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/Sources/cgltf")
 
 # Third-party: SDL3
-target_include_directories(Gfx PUBLIC "${CMAKE_SOURCE_DIR}/3rdParty/SDL/$<CONFIG>/include")
-target_link_directories(Gfx PUBLIC "${CMAKE_SOURCE_DIR}/3rdParty/SDL/$<CONFIG>/lib")
+target_include_directories(Gfx PUBLIC 
+    "${THIRDPARTY_ROOT}/SDL/${ALMOSTENGINE_TARGET}/$<CONFIG>/include")
+target_link_directories(Gfx PUBLIC 
+    "${THIRDPARTY_ROOT}/SDL/${ALMOSTENGINE_TARGET}/$<CONFIG>/lib")
 target_link_libraries(Gfx PUBLIC SDL3-static)
 
 # ImGUI
-target_include_directories(Gfx PUBLIC "${CMAKE_SOURCE_DIR}/3rdParty/imgui/$<CONFIG>/include")
-target_link_directories(Gfx PUBLIC "${CMAKE_SOURCE_DIR}/3rdParty/imgui/$<CONFIG>/lib")
+target_include_directories(Gfx PUBLIC 
+    "${THIRDPARTY_ROOT}/imgui/${ALMOSTENGINE_TARGET}/$<CONFIG>/include")
+target_link_directories(Gfx PUBLIC 
+    "${THIRDPARTY_ROOT}/imgui/${ALMOSTENGINE_TARGET}/$<CONFIG>/lib")
 target_link_libraries(Gfx PUBLIC imgui)
 
 # DirectXTex
-target_include_directories(Gfx PUBLIC "${CMAKE_SOURCE_DIR}/3rdParty/DirectXTex/$<CONFIG>/include")
-target_link_directories(Gfx PUBLIC "${CMAKE_SOURCE_DIR}/3rdParty/DirectXTex/$<CONFIG>/lib")
-target_link_libraries(Gfx PUBLIC DirectXTex)
+if(WIN32)
+    target_include_directories(Gfx PUBLIC 
+        "${THIRDPARTY_ROOT}/DirectXTex/${ALMOSTENGINE_TARGET}/$<CONFIG>/include")
+    target_link_directories(Gfx PUBLIC 
+        "${THIRDPARTY_ROOT}/DirectXTex/${ALMOSTENGINE_TARGET}/$<CONFIG>/lib")
+    target_link_libraries(Gfx PUBLIC DirectXTex)
+endif()
 
 # stb
-target_include_directories(Gfx PRIVATE "${CMAKE_SOURCE_DIR}/3rdParty/stb/include")
+target_include_directories(Gfx PRIVATE "${THIRDPARTY_ROOT}/stb/include")
 
 target_compile_features(Gfx PUBLIC cxx_std_23)
 set_target_properties(Gfx PROPERTIES
