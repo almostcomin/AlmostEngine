@@ -18,18 +18,18 @@ config = {
     
     # CMake arguments fixed for this target
     "cmake_args": [
+        "-G Ninja",
         "-DBUILD_DX12=ON",
-        "-DBUILD_DX11=OFF",          # Disable DX11 if not needed
+        "-DBUILD_DX11=OFF",
         "-DBUILD_TOOLS=OFF",
         "-DBUILD_SHARED_LIBS=OFF",
         "-DBUILD_SAMPLE=OFF",
-        "-DBC_USE_OPENMP=ON",        # OpenMP works fine on Windows with Clang
+        "-DBC_USE_OPENMP=ON",
         "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
-        # Force Clang as compiler (CMake might detect MSVC otherwise)
         "-DCMAKE_C_COMPILER=clang",
         "-DCMAKE_CXX_COMPILER=clang++",
     ],
     
     # Optional: list of tools that must be present in PATH
-    "required_tools": ["clang", "cmake"],
+    "required_tools": ["clang", "cmake", "ninja"],
 }
