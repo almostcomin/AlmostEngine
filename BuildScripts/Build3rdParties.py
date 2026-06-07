@@ -23,10 +23,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "BuildScripts"))
 
 # Mapping of scripts to their compatibility with each target
 COMPATIBILITY = {
-    "Build_DirectX-Headers.py": ["win-dx12-clang"],
-    "Build_DirectXTex.py":      ["win-dx12-clang"],
+    "Build_DirectX-Headers.py": ["win-dx12-clang", "win-dx12-msvc"],
+    "Build_DirectXTex.py":      ["win-dx12-clang", "win-dx12-msvc"],
     "Build_SDL.py":             "all",
-    "Build_imgui.py":           "all",       # Depends on SDL
+    "Build_imgui.py":           "all",
     "Build_stb.py":             "all",
 }
 
@@ -44,7 +44,7 @@ BUILD_SCRIPTS_DIR = os.path.dirname(__file__)
 
 def main():
     parser = argparse.ArgumentParser(description="Build all 3rd-party dependencies")
-    parser.add_argument("--target", choices=["win-dx12-clang", "linux-vk-clang"], required=True)
+    parser.add_argument("--target", choices=["win-dx12-clang", "win-dx12-msvc", "linux-vk-clang"], required=True)
     parser.add_argument("--config", choices=["Debug", "Release", "RelWithDebInfo", "All"], default="Release",
                         help="Build configuration (Debug, Release, RelWithDebInfo, or All)")
     args = parser.parse_args()

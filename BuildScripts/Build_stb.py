@@ -6,7 +6,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(description="Copy stb header files (header-only library)")
-    parser.add_argument("--target", choices=["win-dx12-clang", "linux-vk-clang"], required=True,
+    parser.add_argument("--target", choices=["win-dx12-clang", "win-dx12-msvc", "linux-vk-clang"], required=False,
                         help="Target (ignored, stb is platform-independent)")
     parser.add_argument("--config", choices=["Debug", "Release", "RelWithDebInfo", "All"], default="Release",
                         help="Configuration (ignored, as stb is header-only)")

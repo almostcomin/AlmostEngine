@@ -26,7 +26,7 @@ def build_project(name, source_rel, build_base_rel, install_base_rel, default_ar
         extra_args_func: Optional callable that takes (target, config) and returns additional args
     """
     parser = argparse.ArgumentParser(description=f"Build {name}")
-    parser.add_argument("--target", choices=["win-dx12-clang", "linux-vk-clang"], required=True)
+    parser.add_argument("--target", choices=["win-dx12-clang", "win-dx12-msvc", "linux-vk-clang"], required=True)
     parser.add_argument("--config", choices=VALID_CONFIGS + ["All"], default="Release",
                         help="Build configuration (Debug, Release, RelWithDebInfo, or All)")
     args = parser.parse_args()

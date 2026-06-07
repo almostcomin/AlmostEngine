@@ -29,7 +29,7 @@ def build_engine(target, config_name):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--target", choices=["win-dx12-clang", "linux-vk-clang"], required=True)
+    parser.add_argument("--target", choices=["win-dx12-clang", "win-dx12-msvc", "linux-vk-clang"], required=True)
     parser.add_argument("--config", choices=["Debug", "Release", "RelWithDebInfo", "All"], default="Release")
     args = parser.parse_args()
 
