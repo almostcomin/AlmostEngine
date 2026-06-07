@@ -1,5 +1,3 @@
 @echo off
-pushd "%~dp0"
-cmake -B build
-popd
+python GenerateVSProjects_MSVC.py
 pause
