@@ -58,9 +58,13 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
         float hR = heightsTexture.SampleLevel(linearClampSampler, uv + float2(ts.x, 0), 0).r;
         float hD = heightsTexture.SampleLevel(linearClampSampler, uv + float2(0, -ts.y), 0).r;
         float hU = heightsTexture.SampleLevel(linearClampSampler, uv + float2(0, ts.y), 0).r;
-        // derivates
-        float dHdU = (hR - hL) * 0.5 / ts.x;
-        float dHdV = (hU - hD) * 0.5 / ts.y;
+        // one-sided derivatives: keep the steepest slope to avoid cancellation on ridges/valleys
+        float gRU = (hR - H) / ts.x; // forward  U
+        float gLD = (H - hL) / ts.x; // backward U
+        float dHdU = (abs(gRU) > abs(gLD)) ? gRU : gLD;
+        float gUU = (hU - H) / ts.y; // forward  V
+        float gDD = (H - hD) / ts.y; // backward V
+        float dHdV = (abs(gUU) > abs(gDD)) ? gUU : gDD;
         float3 normalLocal = normalize(float3(-dHdU, 1.0, -dHdV));
         // transform to world
         float3x3 normalMatrix = float3x3(

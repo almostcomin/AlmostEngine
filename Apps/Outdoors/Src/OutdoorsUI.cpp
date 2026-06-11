@@ -291,12 +291,24 @@ void OutdoorsUI::BuildUI()
 			}
 		}
 
-		if (ImGui::CollapsingHeader("Debug visualization", ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			if (ImGui::Combo("Channel", &m_DebugChannel, "Disabled\0Heights\0Slope\0Normals\0\0"))
+			if (ImGui::Combo("Channel##Debug", &m_DebugChannel, "Disabled\0Heights\0Slope\0Normals\0\0"))
 			{
 				auto gBuffersRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GBuffersRenderStage>();
 				gBuffersRS->SetDebugChannel((alm::gfx::GBuffersRenderStage::DebugChannel)m_DebugChannel);
+			}
+
+			if (ImGui::Checkbox("Freeze tesselation##Debug", &m_FreezeTesselation))
+			{
+				heightmapInstace->FreezeTesselation(m_FreezeTesselation);
+			}
+
+			ImGui::SameLine();
+			if (ImGui::Button("Dump tesselation info##Debug"))
+			{
+				std::string tesselationInfo =  heightmapInstace->DumpTesselationInfo();
+				LOG_INFO(tesselationInfo);
 			}
 		}
 

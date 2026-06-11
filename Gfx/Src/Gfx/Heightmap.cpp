@@ -1,4 +1,4 @@
-#include "Gfx/GfxPCH.h"
+﻿#include "Gfx/GfxPCH.h"
 #include "Gfx/Heightmap.h"
 #include "Gfx/HeightmapSource.h"
 #include "Gfx/DeviceManager.h"
@@ -7,6 +7,23 @@
 #include "Gfx/Material.h"
 #include "RHI/Device.h"
 #include <glm/gtc/packing.hpp>
+
+namespace
+{
+	const char* GetEdgeModeString(alm::gfx::Heightmap::EdgeMode edgeMode)
+	{
+		switch (edgeMode)
+		{
+		case alm::gfx::Heightmap::EdgeMode::Normal:
+			return "Normal";
+		case alm::gfx::Heightmap::EdgeMode::Low:
+			return "Low";
+		default:
+			assert(0);
+			return "";
+		}
+	}
+}
 
 alm::gfx::Heightmap::Heightmap(DeviceManager* deviceManager) : m_DeviceManager{ deviceManager }
 {}
@@ -30,7 +47,7 @@ void alm::gfx::Heightmap::Init(
 	m_uvOffset = uvOffset;
 
 	m_HeightsTexture = BuildTexture();
-	BuildPatch();
+	BuildPatchVariants();
 	ComputeBounds();
 }
 
@@ -38,6 +55,36 @@ float alm::gfx::Heightmap::Sample(const float2& uv) const
 {
 	const float2 sourceUV = uv * m_uvScale + m_uvOffset;
 	return m_Source->Sample(sourceUV);
+}
+
+uint32_t alm::gfx::Heightmap::GetMaxDepthLevel() const
+{
+	uint32_t maxRes = std::max(m_TextureResolution.x, m_TextureResolution.y);
+	uint32_t maxLevel = static_cast<uint32_t>(std::floor(std::log2(maxRes / m_PatchResolution)));
+
+	return maxLevel;
+}
+
+void alm::gfx::Heightmap::SetTextureResolution(const uint2& textureResolution)
+{
+	m_TextureResolution = textureResolution;
+	RefreshHeightsTexture();
+}
+
+void alm::gfx::Heightmap::RefreshHeightsTexture()
+{
+	auto newTexture = BuildTexture();
+	m_HeightsTexture->Swap(*newTexture);
+}
+
+uint32_t alm::gfx::Heightmap::GetPatchIndicesCount(uint32_t variantIdx) const
+{
+	return m_PatchMeshVariants[variantIdx]->GetIndexCount();
+}
+
+uint32_t alm::gfx::Heightmap::EdgeConfigToVariantIndex(const PatchEdgeConfig& config)
+{
+	return (uint32_t)config.North + (uint32_t)config.South * 2 + (uint32_t)config.East * 4 + (uint32_t)config.West * 8;
 }
 
 void alm::gfx::Heightmap::ComputeBounds()
@@ -66,16 +113,16 @@ alm::rhi::TextureOwner alm::gfx::Heightmap::BuildTexture()
 	assert(requestResult);
 
 	auto getHeight = [&](uint32_t x, uint32_t y) -> float
-	{
-		if (m_Source->InfiniteDataResolution())
 		{
-			return m_Source->Sample(float2{ (float)x / texDesc.width, (float)y / texDesc.height });
-		}
-		else
-		{
-			return m_Source->GetHeight(uint2{ x, y });
-		}
-	};
+			if (m_Source->InfiniteDataResolution())
+			{
+				return m_Source->Sample(float2{ (float)x / texDesc.width, (float)y / texDesc.height });
+			}
+			else
+			{
+				return m_Source->GetHeight(uint2{ x, y });
+			}
+		};
 
 	const rhi::SubresourceCopyableRequirements copyReq = device->GetSubresourceCopyableRequirements(texDesc, 0, 0);
 	for (uint32_t y = 0; y < texDesc.height; ++y)
@@ -104,7 +151,7 @@ alm::rhi::TextureOwner alm::gfx::Heightmap::BuildTexture()
 	return texture;
 }
 
-void alm::gfx::Heightmap::BuildPatch()
+void alm::gfx::Heightmap::BuildPatchVariants()
 {
 	auto* dataUploader = m_DeviceManager->GetDataUploader();
 	auto* device = m_DeviceManager->GetDevice();
@@ -112,7 +159,7 @@ void alm::gfx::Heightmap::BuildPatch()
 	// Generate vertices
 	// Position : float2
 	const uint32_t vertexSize = sizeof(float2);
-	alm::rhi::BufferOwner vertexBuffer;
+	auto vertexBuffer = std::make_shared<rhi::BufferOwner>();
 	alm::SignalListener vbUploadSignal;
 	const uint32_t numVertices = (m_PatchResolution + 1) * (m_PatchResolution + 1);
 	{
@@ -135,107 +182,234 @@ void alm::gfx::Heightmap::BuildPatch()
 			}
 		}
 
-		vertexBuffer = device->CreateBuffer(vertexBufferDesc, alm::rhi::ResourceState::COPY_DST, "HeightmapPatch VB");
+		*vertexBuffer = device->CreateBuffer(vertexBufferDesc, alm::rhi::ResourceState::COPY_DST, "HeightmapPatch VB");
 		auto verticesUploadResult = dataUploader->CommitUploadBufferTicket(
 			std::move(*verticesRequestResult),
-			vertexBuffer.get_weak(),
+			vertexBuffer->get_weak(),
 			alm::rhi::ResourceState::COPY_DST,
 			alm::rhi::ResourceState::SHADER_RESOURCE);
 		assert(verticesUploadResult);
 		vbUploadSignal = *verticesUploadResult;
 	}
 
-	// Generate indices (two triangles per cell)
-	const uint32_t numIndices = 6 * m_PatchResolution * m_PatchResolution;
-	const bool idx32bits = numVertices > std::numeric_limits<uint16_t>::max() ? true : false;
-	alm::rhi::BufferOwner indexBuffer;
-	alm::SignalListener ibUploadSignal;
+	// Generate index buffers
+	const bool idx32bits = true;
+	std::array<std::shared_ptr<rhi::BufferOwner>, kPatchMeshVariantsCount> indexBuffers;
+	for (auto north : { EdgeMode::Normal, EdgeMode::Low })
 	{
-		alm::rhi::BufferDesc indexBufferDesc;
-		indexBufferDesc.memoryAccess = alm::rhi::MemoryAccess::Default;
-		indexBufferDesc.shaderUsage = alm::rhi::BufferShaderUsage::ReadOnly;
-		indexBufferDesc.sizeBytes = numIndices * (idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
-		indexBufferDesc.stride = idx32bits ? sizeof(int32_t) : sizeof(int16_t);
-
-		auto requestResult = dataUploader->RequestUploadTicket(indexBufferDesc);
-		assert(requestResult);
-		char* indices = (char*)requestResult->GetPtr();
-
-		auto pushIndex = [&indices, idx32bits](uint32_t i)
+		for (auto south : { EdgeMode::Normal, EdgeMode::Low })
 		{
-			if (idx32bits)
+			for (auto east : { EdgeMode::Normal, EdgeMode::Low })
 			{
-				*(uint32_t*)indices = i;
-				indices += sizeof(uint32_t);
-			}
-			else
-			{
-				*(uint16_t*)indices = i;
-				indices += sizeof(uint16_t);
-			}
-		};
+				for (auto west : { EdgeMode::Normal, EdgeMode::Low })
+				{
+					PatchEdgeConfig edgeConfig{ .North = north, .South = south, .East = east, .West = west };
+					const uint32_t variantIndex = EdgeConfigToVariantIndex(edgeConfig);
 
-		for (uint32_t y = 0; y < m_PatchResolution; ++y)
-		{
-			for (uint32_t x = 0; x < m_PatchResolution; ++x)
-			{
-				uint32_t v00 = y * (m_PatchResolution + 1) + x;	// bottom-left
-				uint32_t v10 = v00 + 1;							// bottom-right
-				uint32_t v01 = v00 + m_PatchResolution + 1;		// top-left
-				uint32_t v11 = v01 + 1;							// top-right
-			
-				// Front face CCW
-				pushIndex(v00); pushIndex(v01); pushIndex(v10);
-				pushIndex(v10); pushIndex(v01); pushIndex(v11);
+					indexBuffers[variantIndex] = CreateIndexBufferVariant(edgeConfig, idx32bits);
+				}
 			}
 		}
-
-		indexBuffer = device->CreateBuffer(indexBufferDesc, alm::rhi::ResourceState::COPY_DST, "HeightmapPatch IB");
-		auto uploadResult = dataUploader->CommitUploadBufferTicket(
-			std::move(*requestResult),
-			indexBuffer.get_weak(),
-			alm::rhi::ResourceState::COPY_DST,
-			alm::rhi::ResourceState::SHADER_RESOURCE);
-		assert(uploadResult);
-		ibUploadSignal = *uploadResult;
 	}
 
-	m_PatchMesh = alm::make_unique_with_weak<Mesh>(device, "HeightmapPatch", "[generated]");
+	// Create meshes
+	for (uint32_t variantIndex = 0; variantIndex < kPatchMeshVariantsCount; ++variantIndex)
+	{
+		m_PatchMeshVariants[variantIndex] = alm::make_unique_with_weak<Mesh>(device, "HeightmapPatch", "[generated]");
 
-	Mesh::VertexFormat vertexFormat{
-		.VertexStride = vertexSize,
-		.PositionOffset = 0 };
+		Mesh::VertexFormat vertexFormat{
+			.VertexStride = vertexSize,
+			.PositionOffset = 0 };
 
-	m_PatchMesh->SetVertexBuffer(std::move(vertexBuffer), vertexFormat);
-	m_PatchMesh->SetIndexBuffer(std::move(indexBuffer), rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
+		m_PatchMeshVariants[variantIndex]->SetVertexBuffer(
+			vertexBuffer, vertexFormat);
+		m_PatchMeshVariants[variantIndex]->SetIndexBuffer(
+			indexBuffers[variantIndex], rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
 
-	m_PatchMesh->SetTerrainMaterial(m_Material);
+		m_PatchMeshVariants[variantIndex]->SetTerrainMaterial(m_Material);
 
-	// Actually, this is irrelevant
-	m_PatchMesh->SetBounds(aabox3f{ float3(0.f, 0.f, 0.f), float3(1.f, 1.f, 1.f) });
+		// Actually, this is irrelevant
+		m_PatchMeshVariants[variantIndex]->SetBounds(aabox3f{ float3(0.f, 0.f, 0.f), float3(1.f, 1.f, 1.f) });
+	}
 }
 
-uint32_t alm::gfx::Heightmap::GetMaxDepthLevel() const
+std::shared_ptr<alm::rhi::BufferOwner> alm::gfx::Heightmap::CreateIndexBufferVariant(const PatchEdgeConfig& edgeConfig, const bool indices32Bits) const
 {
-	uint32_t maxRes = std::max(m_TextureResolution.x, m_TextureResolution.y);
-	uint32_t maxLevel = static_cast<uint32_t>(std::floor(std::log2(maxRes / m_PatchResolution)));
+/*
+		┌───┬──────────┬───┐
+		│ NW│  North   │ NE│
+		├───┼──────────┼───┤
+		│ W │ Interior │ E │
+		│   │          │   │
+		│   │          │   │
+		├───┼──────────┼───┤
+		│ SW│  South   │ SE│
+		└───┴──────────┴───┘
+*/
 
-	return maxLevel;
-}
+	auto* dataUploader = m_DeviceManager->GetDataUploader();
+	auto* device = m_DeviceManager->GetDevice();
 
-void alm::gfx::Heightmap::SetTextureResolution(const uint2& textureResolution)
-{
-	m_TextureResolution = textureResolution;
-	RefreshHeightsTexture();
-}
+	std::vector<uint32_t> indices;
+	const uint32_t stride = m_PatchResolution + 1;
 
-void alm::gfx::Heightmap::RefreshHeightsTexture()
-{
-	auto newTexture = BuildTexture();
-	m_HeightsTexture->Swap(*newTexture);
-}
+	auto pushIndex = [&](const uint32_t idx)
+	{
+		indices.push_back(idx);
+	};
 
-uint32_t alm::gfx::Heightmap::GetPatchIndicesCount() const
-{
-	return 6 * m_PatchResolution * m_PatchResolution;
+	auto triangulateNormalCell = [&](uint32_t x, uint32_t y)
+	{
+		uint32_t v00 = y * stride + x;	// bottom-left
+		uint32_t v10 = v00 + 1;			// bottom-right
+		uint32_t v01 = v00 + stride;	// top-left
+		uint32_t v11 = v01 + 1;			// top-right
+
+		// Front face CCW
+		pushIndex(v00); pushIndex(v01); pushIndex(v10);
+		pushIndex(v10); pushIndex(v01); pushIndex(v11);
+	};
+
+	auto triangulateLowNorthCell = [&](uint32_t k)
+	{
+		uint32_t y0 = m_PatchResolution - 1;
+		uint32_t y1 = m_PatchResolution;
+
+		uint32_t vA = y0 * stride + (2 * k);		// bottom-left
+		uint32_t vB = y0 * stride + (2 * k + 1);	// bottom-middle
+		uint32_t vC = y0 * stride + (2 * k + 2);	// bottom-right
+		uint32_t vD = y1 * stride + (2 * k);		// top-left
+		uint32_t vF = y1 * stride + (2 * k + 2);	// top-right
+
+		pushIndex(vA); pushIndex(vD); pushIndex(vB);
+		pushIndex(vB); pushIndex(vD); pushIndex(vF);
+		pushIndex(vB); pushIndex(vF); pushIndex(vC);
+	};
+
+	auto triangulateLowSouthCell = [&](uint32_t k)
+	{
+		uint32_t y0 = 0;
+		uint32_t y1 = 1;
+
+		uint32_t vA = y0 * stride + (2 * k);		// bottom-left
+		uint32_t vC = y0 * stride + (2 * k + 2);	// bottom-right
+		uint32_t vD = y1 * stride + (2 * k);		// top-left
+		uint32_t vE = y1 * stride + (2 * k + 1);	// top-middle
+		uint32_t vF = y1 * stride + (2 * k + 2);	// top-right
+
+		pushIndex(vA); pushIndex(vD); pushIndex(vE);
+		pushIndex(vA); pushIndex(vE); pushIndex(vC);
+		pushIndex(vC); pushIndex(vE); pushIndex(vF);
+	};
+
+	auto triangulateLowEastCell = [&](uint32_t k)
+	{
+		// Neighbour is right border (x=N)
+		uint32_t x0 = m_PatchResolution - 1;
+		uint32_t x1 = m_PatchResolution;
+
+		uint32_t vA = (2 * k)	  * stride + x0;	// bottom-left
+		uint32_t vB = (2 * k + 1) * stride + x0;	// mid-left
+		uint32_t vC = (2 * k + 2) * stride + x0;	// top-left
+		uint32_t vD = (2 * k)	  * stride + x1;	// bottom-right
+		uint32_t vE = (2 * k + 2) * stride + x1;	// top-right
+
+		pushIndex(vA); pushIndex(vB); pushIndex(vD);
+		pushIndex(vD); pushIndex(vB); pushIndex(vE);
+		pushIndex(vB); pushIndex(vC); pushIndex(vE);
+	};
+
+	auto triangulateLowWestCell = [&](uint32_t k)
+	{
+		// Neighbour is left border (x=N)
+		uint32_t x0 = 0;
+		uint32_t x1 = 1;
+
+		uint32_t vA = (2 * k)     * stride + x0;	// bottom-left
+		uint32_t vC = (2 * k + 2) * stride + x0;	// top-left
+		uint32_t vD = (2 * k)     * stride + x1;	// bottom-right
+		uint32_t vE = (2 * k + 1) *	stride + x1;	// mid-right
+		uint32_t vF = (2 * k + 2) * stride + x1;	// top-right
+		
+		pushIndex(vA); pushIndex(vE); pushIndex(vD);
+		pushIndex(vA); pushIndex(vC); pushIndex(vE);
+		pushIndex(vC); pushIndex(vF); pushIndex(vE);
+	};
+
+	for (uint32_t y = 1; y < m_PatchResolution - 1; ++y)
+	{
+		for (uint32_t x = 1; x < m_PatchResolution - 1; ++x)
+			triangulateNormalCell(x, y);
+	}
+
+	if (edgeConfig.North == EdgeMode::Normal)
+	{
+		for (uint32_t x = 0; x < m_PatchResolution; ++x)
+			triangulateNormalCell(x, m_PatchResolution - 1);
+	}
+	else
+	{
+		for (uint32_t x = 0; x < m_PatchResolution / 2; ++x)
+			triangulateLowNorthCell(x);
+	}
+
+	if (edgeConfig.South == EdgeMode::Normal)
+	{
+		for (uint32_t x = 0; x < m_PatchResolution; ++x)
+			triangulateNormalCell(x, 0);
+	}
+	else
+	{
+		for (uint32_t x = 0; x < m_PatchResolution / 2; ++x)
+			triangulateLowSouthCell(x);
+	}
+
+	if (edgeConfig.East == EdgeMode::Normal)
+	{
+		for (uint32_t y = 0; y < m_PatchResolution; ++y)
+			triangulateNormalCell(m_PatchResolution - 1, y);
+	}
+	else
+	{
+		for (uint32_t y = 0; y < m_PatchResolution / 2; ++y)
+			triangulateLowEastCell(y);
+	}
+
+	if (edgeConfig.West == EdgeMode::Normal)
+	{
+		for (uint32_t y = 0; y < m_PatchResolution; ++y)
+			triangulateNormalCell(0, y);
+	}
+	else
+	{
+		for (uint32_t y = 0; y < m_PatchResolution / 2; ++y)
+			triangulateLowWestCell(y);
+	}
+
+	alm::rhi::BufferDesc indexBufferDesc;
+	indexBufferDesc.memoryAccess = alm::rhi::MemoryAccess::Default;
+	indexBufferDesc.shaderUsage = alm::rhi::BufferShaderUsage::ReadOnly;
+	indexBufferDesc.sizeBytes = indices.size() * sizeof(uint32_t);
+	indexBufferDesc.stride = sizeof(int32_t);
+
+	std::stringstream ss;
+	ss << "HeightmapPatchIB[North:"
+		<< GetEdgeModeString(edgeConfig.North) << "][South:"
+		<< GetEdgeModeString(edgeConfig.South) << "][East:"
+		<< GetEdgeModeString(edgeConfig.East) << "][West:"
+		<< GetEdgeModeString(edgeConfig.West) << "]";
+
+	auto indexBuffer = std::make_shared<rhi::BufferOwner>();
+	*indexBuffer = device->CreateBuffer(indexBufferDesc, rhi::ResourceState::COPY_DST, ss.str());
+
+	auto uploadResult = dataUploader->UploadBufferData(
+		WeakBlob{ (uint8_t*)indices.data(), indices.size() * sizeof(uint32_t) },
+		indexBuffer->get_weak(),
+		rhi::ResourceState::COPY_DST,
+		rhi::ResourceState::SHADER_RESOURCE);
+
+	assert(uploadResult);	
+	uploadResult->Wait();
+
+	return indexBuffer;
 }

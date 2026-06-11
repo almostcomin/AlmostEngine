@@ -193,7 +193,7 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterTerrainMaterial(const gfx::TerrainMa
 	}
 	else
 	{
-		++m_Materials[materialIdx].refCount;
+		++m_TerrainMaterials[materialIdx].refCount;
 	}
 
 	return materialIdx;

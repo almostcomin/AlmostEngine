@@ -202,7 +202,7 @@ public:
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
 			graphNode->SetName("Heightmap");
 			graphNode->SetLeaf(std::move(sceneHeightmapUnique));
-			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 1.2f, 12.f }));
+			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 0.3f, 12.f }));
 			//graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation(kEarthPos));
 
 			// Attach to scene

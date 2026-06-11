@@ -910,7 +910,7 @@ void ComputeTangents(const cgltf_accessor& indices, const cgltf_accessor& positi
     }
 }
 
-std::expected<std::pair<alm::rhi::BufferOwner, alm::SignalListener>, std::string>
+std::expected<std::pair<std::shared_ptr<alm::rhi::BufferOwner>, alm::SignalListener>, std::string>
 CreateIndexBuffer(alm::Blob&& indexData, bool idx32bits, const char* debugName, alm::gfx::DataUploader* dataUploader, alm::rhi::Device* device)
 {
     alm::rhi::BufferDesc bufferDesc;
@@ -922,16 +922,17 @@ CreateIndexBuffer(alm::Blob&& indexData, bool idx32bits, const char* debugName, 
     std::string name = debugName ? debugName : "{null}";
     name.append(" - IndexBuffer");
 
-    alm::rhi::BufferOwner indexBuffer = device->CreateBuffer(bufferDesc, alm::rhi::ResourceState::COPY_DST, name);
+    auto indexBuffer = std::make_shared<alm::rhi::BufferOwner>();
+    *indexBuffer = device->CreateBuffer(bufferDesc, alm::rhi::ResourceState::COPY_DST, name);
     auto uploadResult = dataUploader->UploadBufferData(
         alm::WeakBlob{ indexData },
-        indexBuffer.get_weak(),
+        indexBuffer->get_weak(),
         alm::rhi::ResourceState::COPY_DST,
         alm::rhi::ResourceState::INDEX_BUFFER | alm::rhi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
     {
-        return std::make_pair(std::move(indexBuffer), *uploadResult);
+        return std::make_pair(indexBuffer, *uploadResult);
     }
     else
     {
@@ -939,7 +940,7 @@ CreateIndexBuffer(alm::Blob&& indexData, bool idx32bits, const char* debugName, 
     }
 }
 
-std::expected<std::pair<alm::rhi::BufferOwner, alm::SignalListener>, std::string>
+std::expected<std::pair<std::shared_ptr<alm::rhi::BufferOwner>, alm::SignalListener>, std::string>
 CreateVertexBuffer(alm::Blob&& vertexData, int vertexStride, const char* debugName, alm::gfx::DataUploader* dataUploader, alm::rhi::Device* device)
 {
     alm::rhi::BufferDesc bufferDesc;
@@ -951,16 +952,17 @@ CreateVertexBuffer(alm::Blob&& vertexData, int vertexStride, const char* debugNa
     std::string name = debugName ? debugName : "{null}";
     name.append(" - VertexBuffer");
 
-    auto vertexBuffer = device->CreateBuffer(bufferDesc, alm::rhi::ResourceState::COPY_DST, name);
+    auto vertexBuffer = std::make_shared<alm::rhi::BufferOwner>();
+    *vertexBuffer = device->CreateBuffer(bufferDesc, alm::rhi::ResourceState::COPY_DST, name);
     auto uploadResult = dataUploader->UploadBufferData(
         alm::WeakBlob{ vertexData },
-        vertexBuffer.get_weak(),
+        vertexBuffer->get_weak(),
         alm::rhi::ResourceState::COPY_DST,
         alm::rhi::ResourceState::SHADER_RESOURCE);
 
     if (uploadResult)
     {
-        return std::make_pair(std::move(vertexBuffer), *uploadResult);
+        return std::make_pair(vertexBuffer, *uploadResult);
     }
     else
     {
@@ -1161,7 +1163,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             auto indexBufferResult = CreateIndexBuffer(std::move(indexData), idx32bits, debugName.c_str(), dataUploader, device);
             if (indexBufferResult)
             {
-                mesh->SetIndexBuffer(std::move(indexBufferResult->first), alm::rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(int32_t) : sizeof(int16_t));
+                mesh->SetIndexBuffer(indexBufferResult->first, alm::rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(int32_t) : sizeof(int16_t));
                 out_handlesToWait.push_back(indexBufferResult->second);
             }
 
@@ -1239,7 +1241,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             auto vertexBufferResult = CreateVertexBuffer(std::move(vertexData), vertexStride, debugName.c_str(), dataUploader, device);
             if (vertexBufferResult)
             {
-                mesh->SetVertexBuffer(std::move(vertexBufferResult->first), vertexFormat);
+                mesh->SetVertexBuffer(vertexBufferResult->first, vertexFormat);
                 out_handlesToWait.push_back(vertexBufferResult->second);
             }
 

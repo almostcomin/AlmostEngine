@@ -12,6 +12,24 @@ class Heightmap
 {
 public:
 
+	static constexpr uint32_t kPatchMeshVariantsCount = 16;
+
+	enum class EdgeMode
+	{
+		Normal,
+		Low
+	};
+
+	struct PatchEdgeConfig
+	{
+		EdgeMode North;
+		EdgeMode South;
+		EdgeMode East;
+		EdgeMode West;
+	};
+
+public:
+
 	Heightmap(DeviceManager* deviceManager);
 	~Heightmap();
 
@@ -33,17 +51,24 @@ public:
 	const uint2& GetTextureResolution() const { return m_TextureResolution; }
 
 	rhi::TextureHandle GetHeightsTexture() const { return m_HeightsTexture.get_weak(); }
-	alm::weak<Mesh> GetPatchMesh() const { return m_PatchMesh.get_weak(); }
+	
+	alm::weak<Mesh> GetPatchMesh(uint32_t variantIdx) const { return m_PatchMeshVariants[variantIdx].get_weak(); }
+
 	std::shared_ptr<TerrainMaterial> GetMaterial() const { return m_Material; }
 
 	void RefreshHeightsTexture();
-	uint32_t GetPatchIndicesCount() const;
+	uint32_t GetPatchIndicesCount(uint32_t variantIdx) const;
+
+	// 0..15
+	static uint32_t EdgeConfigToVariantIndex(const PatchEdgeConfig& config);
 
 private:
 
 	void ComputeBounds();
 	rhi::TextureOwner BuildTexture();
-	void BuildPatch();
+	void BuildPatchVariants();
+
+	std::shared_ptr<alm::rhi::BufferOwner> CreateIndexBufferVariant(const PatchEdgeConfig& edgeConfig, const bool indices32Bits) const;
 
 	std::shared_ptr<IHeightmapSource> m_Source;
 
@@ -55,9 +80,9 @@ private:
 
 	uint2 m_TextureResolution;
 
-	alm::unique<Mesh> m_PatchMesh;
+	std::array<alm::unique<Mesh>, 16> m_PatchMeshVariants;
+
 	rhi::TextureOwner m_HeightsTexture;
-	//alm::gfx::LoadedTexture m_HeightsTexture;
 	std::shared_ptr<TerrainMaterial> m_Material;
 
 	DeviceManager* m_DeviceManager;

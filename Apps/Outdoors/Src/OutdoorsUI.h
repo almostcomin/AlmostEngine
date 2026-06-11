@@ -31,6 +31,7 @@ private:
 
 	bool m_ForceSetMaxDepth;
 	int m_ComboDataSource = -1;
+	bool m_FreezeTesselation = false;
 
 	alm::gfx::NoiseHeightmapSource::Params m_NoiseHeightmapParams;
 	uint32_t m_NoiseTextureSize = 0;

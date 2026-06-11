@@ -35,20 +35,20 @@ public:
 
 	const alm::aabox3f& GetBounds() const { return m_Bounds; }
 
-	void SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo, uint8_t indexSize);
-	void SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexFormat& fmt);
+	void SetIndexBuffer(std::shared_ptr<rhi::BufferOwner> indexBuffer, rhi::PrimitiveTopology topo, uint8_t indexSize);
+	void SetVertexBuffer(std::shared_ptr<rhi::BufferOwner> vertexBuffer, const VertexFormat& fmt);
 
 	void SetMaterial(std::shared_ptr<Material> mat);
 	void SetTerrainMaterial(std::shared_ptr<TerrainMaterial> mat);
 
 	void SetBounds(const alm::aabox3f& bounds) { m_Bounds = bounds; }
 
-	rhi::BufferHandle GetIndexBuffer() const { return m_IndexBuffer.get_weak(); }
+	rhi::BufferHandle GetIndexBuffer() const { return m_IndexBuffer ? m_IndexBuffer->get_weak() : rhi::BufferHandle{}; }
 	size_t GetIndexCount() const;
 	rhi::PrimitiveTopology GetPrimitiveTopology() const { return m_PrimitiveTopo; }
 	uint8_t GetIndexSize() const { return m_IndexSize; }
 
-	rhi::BufferHandle GetVertexBuffer() const { return m_VertexBuffer.get_weak(); }
+	rhi::BufferHandle GetVertexBuffer() const { return m_VertexBuffer ? m_VertexBuffer->get_weak() : rhi::BufferHandle{}; }
 	const VertexFormat& GetVertexFormat() const { return m_VertexFormat; }
 
 	std::shared_ptr<Material> GetMaterial() const { return m_Material; }
@@ -63,11 +63,11 @@ private:
 
 	alm::aabox3f m_Bounds;
 
-	rhi::BufferOwner m_IndexBuffer;
+	std::shared_ptr<rhi::BufferOwner> m_IndexBuffer;
 	rhi::PrimitiveTopology m_PrimitiveTopo;
 	uint8_t m_IndexSize;
 
-	rhi::BufferOwner m_VertexBuffer;
+	std::shared_ptr<rhi::BufferOwner> m_VertexBuffer;
 	VertexFormat m_VertexFormat;
 
 	std::shared_ptr<Material> m_Material;

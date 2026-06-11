@@ -2,15 +2,17 @@
 
 #include "Gfx/SceneGraphLeaf.h"
 #include "Gfx/Renderable.h"
+#include "Gfx/Heightmap.h"
 
 namespace alm::gfx
 {
 
-class Heightmap;
-
 class SceneHeightmap : public SceneGraphLeaf, public IRenderable
 {
 public:
+
+	SceneHeightmap();
+	~SceneHeightmap();
 
 	void SetHeightmap(std::shared_ptr<Heightmap> heightmap) { m_Heightmap = heightmap; }
 	const std::shared_ptr<Heightmap>& GetHeightmap() const { return m_Heightmap; }
@@ -27,13 +29,13 @@ public:
 	// IRenderable interface
 	void CollectDrawInfos(const VisibleSetContext& context, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const override;
 
-	void SetPatchMeshGpuIndex(uint32_t idx) { m_PatchMeshGpuIndex = idx; }
-	uint32_t GetPatchMeshGpuIndex() const { return m_PatchMeshGpuIndex; }
+	void SetPatchMeshGpuIndex(uint32_t variantIndex, uint32_t meshGpuIndex) { m_PatchMeshGpuIndices[variantIndex] = meshGpuIndex; }
+	uint32_t GetPatchMeshGpuIndex(uint32_t variantIndex) const { return m_PatchMeshGpuIndices[variantIndex]; }
 
 private:
 
 	std::shared_ptr<Heightmap> m_Heightmap;
-	uint32_t m_PatchMeshGpuIndex = UINT32_MAX;
+	std::array<uint32_t, Heightmap::kPatchMeshVariantsCount> m_PatchMeshGpuIndices;
 };
 
 } // namespace alm::gfx

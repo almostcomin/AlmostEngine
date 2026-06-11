@@ -755,7 +755,18 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 	{
 		for(int cullMode = 0; cullMode < (int)rhi::CullMode::_Size; ++cullMode)
 		{
-			std::ranges::sort(drawInfos[domain][cullMode], [](const RenderableDrawInfo& a, const RenderableDrawInfo& b)
+			// Sort by BatchKey so consecutive draw infos sharing a key can be issued as
+			// a single DrawInstanced call.
+			//
+			// Stable sort is required (not just sort): inside a batch, the draw infos are
+			// expected to have consecutive InstanceIdx values (e.g. baseInstance..baseInstance+N-1),
+			// because the shader will read instances[baseInstance + SV_InstanceID].
+			// Reordering draw infos within the same BatchKey would break that invariant.
+			//
+			// This matters in particular for HeightmapInstance, which pre-sorts its leaf
+			// nodes by mesh variant before allocating consecutive transient slots; any
+			// reshuffling here would mismatch slots and shader instance accesses.
+			std::ranges::stable_sort(drawInfos[domain][cullMode], [](const RenderableDrawInfo& a, const RenderableDrawInfo& b)
 			{
 				return a.BatchKey < b.BatchKey;
 			});

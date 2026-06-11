@@ -4,6 +4,13 @@
 #include "Gfx/VisibleSetContext.h"
 #include "Gfx/HeightmapInstance.h"
 
+alm::gfx::SceneHeightmap::SceneHeightmap()
+{
+	std::ranges::fill(m_PatchMeshGpuIndices, UINT32_MAX);
+}
+
+alm::gfx::SceneHeightmap::~SceneHeightmap() = default;
+
 const alm::aabox3f& alm::gfx::SceneHeightmap::GetBounds() const
 {
 	return m_Heightmap ? m_Heightmap->GetBounds() : aabox3f::get_empty();

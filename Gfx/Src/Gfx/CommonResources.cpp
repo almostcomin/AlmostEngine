@@ -104,8 +104,8 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 
 	// Position : float3
 	// Normal : uint32_t
+	std::shared_ptr<rhi::BufferOwner> vertexBuffer;
 	const uint32_t vertexSize = sizeof(float3) + sizeof(uint32_t);
-	alm::rhi::BufferOwner vertexBuffer;
 	alm::SignalListener vbUploadSignal;
 	const uint32_t numVertices = (stacks + 1) * (slices + 1);
 	{
@@ -144,10 +144,13 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 			}
 		}
 
-		vertexBuffer = m_Device->CreateBuffer(vertexBufferDesc, alm::rhi::ResourceState::COPY_DST, std::format("{} - VB", name));
+		auto vertexBuffer = std::make_shared<alm::rhi::BufferOwner>();
+
+		*vertexBuffer = m_Device->CreateBuffer(
+			vertexBufferDesc, alm::rhi::ResourceState::COPY_DST, std::format("{} - VB", name));
 		auto verticesUploadResult = dataUploader->CommitUploadBufferTicket(
 			std::move(*verticesRequestResult),
-			vertexBuffer.get_weak(),
+			vertexBuffer->get_weak(),
 			alm::rhi::ResourceState::COPY_DST,
 			alm::rhi::ResourceState::SHADER_RESOURCE);
 		assert(verticesUploadResult);
@@ -155,9 +158,9 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 	}
 
 	// Generate indices (two triangles per quad)
+	std::shared_ptr<rhi::BufferOwner> indexBuffer;
 	const uint32_t numIndices = 6 * slices * (stacks - 1);  // poles generate a single triangle, not a quad
 	const bool idx32bits = numVertices > std::numeric_limits<uint16_t>::max() ? true : false;
-	alm::rhi::BufferOwner indexBuffer;
 	alm::SignalListener ibUploadSignal;
 	{
 		alm::rhi::BufferDesc indexBufferDesc;
@@ -213,10 +216,13 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 			}
 		}
 
-		indexBuffer = m_Device->CreateBuffer(indexBufferDesc, alm::rhi::ResourceState::COPY_DST, std::format("{} - IB", name));
+		indexBuffer = std::make_shared<alm::rhi::BufferOwner>();
+
+		*indexBuffer = m_Device->CreateBuffer(
+			indexBufferDesc, alm::rhi::ResourceState::COPY_DST, std::format("{} - IB", name));
 		auto uploadResult = dataUploader->CommitUploadBufferTicket(
 			std::move(*requestResult),
-			indexBuffer.get_weak(),
+			indexBuffer->get_weak(),
 			alm::rhi::ResourceState::COPY_DST,
 			alm::rhi::ResourceState::SHADER_RESOURCE);
 		assert(uploadResult);
@@ -230,9 +236,9 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 		.PositionOffset = 0,
 		.NormalOffset = sizeof(float3)
 	};
-	mesh->SetVertexBuffer(std::move(vertexBuffer), vertexFormat);
+	mesh->SetVertexBuffer(vertexBuffer, vertexFormat);
 	
-	mesh->SetIndexBuffer(std::move(indexBuffer), rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
+	mesh->SetIndexBuffer(indexBuffer, rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
 
 	Material* material = new Material(std::format("{} - Material", name), "[generated]");
 	material->SetBaseColor(float3{ 0.5f, 1.f, 1.f });

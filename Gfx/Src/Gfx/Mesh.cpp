@@ -12,21 +12,18 @@ alm::gfx::Mesh::Mesh(rhi::Device* device, const char* name, const char* sourceFi
 {}
 
 alm::gfx::Mesh::~Mesh()
-{
-	m_Device->ReleaseQueued(std::move(m_IndexBuffer));
-	m_Device->ReleaseQueued(std::move(m_VertexBuffer));
-}
+{}
 
-void alm::gfx::Mesh::SetIndexBuffer(rhi::BufferOwner&& indexBuffer, rhi::PrimitiveTopology topo, uint8_t indexSize)
+void alm::gfx::Mesh::SetIndexBuffer(std::shared_ptr<rhi::BufferOwner> indexBuffer, rhi::PrimitiveTopology topo, uint8_t indexSize)
 {
-	m_IndexBuffer = std::move(indexBuffer);
+	m_IndexBuffer = indexBuffer;
 	m_PrimitiveTopo = topo;
 	m_IndexSize = indexSize;
 }
 
-void alm::gfx::Mesh::SetVertexBuffer(rhi::BufferOwner&& vertexBuffer, const VertexFormat& fmt)
+void alm::gfx::Mesh::SetVertexBuffer(std::shared_ptr<rhi::BufferOwner> vertexBuffer, const VertexFormat& fmt)
 { 
-	m_VertexBuffer = std::move(vertexBuffer);
+	m_VertexBuffer = vertexBuffer;
 	m_VertexFormat = fmt;
 }
 
@@ -42,5 +39,5 @@ void alm::gfx::Mesh::SetTerrainMaterial(std::shared_ptr<TerrainMaterial> mat)
 
 size_t alm::gfx::Mesh::GetIndexCount() const
 {
-	return m_IndexBuffer ? m_IndexBuffer->GetDesc().sizeBytes / m_IndexBuffer->GetDesc().stride : 0u;
+	return m_IndexBuffer ? (*m_IndexBuffer)->GetDesc().sizeBytes / (*m_IndexBuffer)->GetDesc().stride : 0u;
 }

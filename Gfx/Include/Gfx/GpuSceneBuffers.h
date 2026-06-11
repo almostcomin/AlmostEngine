@@ -106,7 +106,6 @@ public:
 	HeightmapPatchesAllocation AllocateTransientHeightmapPatches(GpuSceneBuffersHandle handle, uint32_t count);
 
 	const MaterialsContainer& GetMaterials() const { return m_Materials; }
-	// Registering a Mesh also register its material
 	const MeshesContainer& GetMeshes() const { return m_Meshes; }
 
 	MaterialIndexEntry GetMaterialIndexFromMesh(const gfx::Mesh* mesh) const;

@@ -306,11 +306,15 @@ void alm::gfx::SceneGraph::RegisterLeaf(SceneGraphLeaf* leaf)
     case SceneGraphLeaf::Type::Heightmap:
     {
         auto* sh = checked_cast<SceneHeightmap*>(leaf);
-        auto mesh = sh->GetHeightmap()->GetPatchMesh();
-        uint32_t meshIdx = m_GpuSceneBuffers->RegisterMesh(mesh.get(), GpuSceneBuffers::MaterialType::Heightmap);
-
-        sh->SetPatchMeshGpuIndex(meshIdx);
-
+        for (uint32_t variantIndex = 0; variantIndex < Heightmap::kPatchMeshVariantsCount; ++variantIndex)
+        {
+            auto mesh = sh->GetHeightmap()->GetPatchMesh(variantIndex);
+            if (mesh)
+            {
+                uint32_t meshIdx = m_GpuSceneBuffers->RegisterMesh(mesh.get(), GpuSceneBuffers::MaterialType::Heightmap);
+                sh->SetPatchMeshGpuIndex(variantIndex, meshIdx);
+            }
+        }
         m_Leafs.SceneHeightmaps.insert(sh);
     } break;
         
@@ -352,9 +356,11 @@ void alm::gfx::SceneGraph::UnregisterLeaf(SceneGraphLeaf* leaf)
     case SceneGraphLeaf::Type::Heightmap:
     {
         auto* sh = checked_cast<SceneHeightmap*>(leaf);
-        m_GpuSceneBuffers->UnregisterMesh(sh->GetPatchMeshGpuIndex());
-        sh->SetPatchMeshGpuIndex(UINT32_MAX);
-
+        for (uint32_t variantIndex = 0; variantIndex < Heightmap::kPatchMeshVariantsCount; ++variantIndex)
+        {
+            m_GpuSceneBuffers->UnregisterMesh(sh->GetPatchMeshGpuIndex(variantIndex));
+            sh->SetPatchMeshGpuIndex(variantIndex, UINT32_MAX);
+        }
         m_Leafs.SceneHeightmaps.erase(checked_cast<SceneHeightmap*>(leaf));
     } break;
 
