@@ -137,10 +137,6 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 		edgeConfig.West  = FindNeighbourLevel(leafSet, coord, Axis::West)  < coord.Level ?
 			Heightmap::EdgeMode::Low : Heightmap::EdgeMode::Normal;
 
-//		edgeConfig.North = Heightmap::EdgeMode::Low;
-//		edgeConfig.South = Heightmap::EdgeMode::Low;
-//		edgeConfig.East = Heightmap::EdgeMode::Low;
-//		edgeConfig.West = Heightmap::EdgeMode::Low;
 		coord.patchVariantIdx = Heightmap::EdgeConfigToVariantIndex(edgeConfig);  // 0..15
 	}	
 
@@ -365,6 +361,11 @@ uint32_t alm::gfx::HeightmapInstance::FindNeighbourLevel(const std::unordered_se
 
 void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
+	// patchVariantIdx encode N/S/E/W bits in compitlbe format with EdgeMask del shader.
+	// This is only valid only while EdgeConfigToVariantIndex keeps this layout
+	static_assert((int)Heightmap::EdgeMode::Normal == 0 && (int)Heightmap::EdgeMode::Low == 1,
+		"EdgeMode values must be 0/1 for patchVariantIdx → EdgeMask aliasing");
+
 	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	const auto& dataSource = heightmap->GetSource();
 	rhi::TextureSampledView textureView = heightmap->GetHeightsTexture()->GetSampledView();
@@ -400,6 +401,7 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 		alloc.HeightmapPatchesPtr[i].NormalMatrixCol1 = float4{ nodeNormalMatrix[1], 0.0 };
 		alloc.HeightmapPatchesPtr[i].NormalMatrixCol2 = float4{ nodeNormalMatrix[2], 0.0 };
 		alloc.HeightmapPatchesPtr[i].InverseModelMatrix = inverseNodeWorldMatrix;
+		alloc.HeightmapPatchesPtr[i].EdgeMask = coord.patchVariantIdx;
 		alloc.HeightmapPatchesPtr[i].HeightmapTextureDI = textureView;
 	}
 	m_InstancesAllocBaseIdx = alloc.InstancesBaseIndex;

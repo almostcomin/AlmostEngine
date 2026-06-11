@@ -1,6 +1,7 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 #include "Common.hlsli"
+#include "HeightmapCommon.hlsli"
 
 ConstantBuffer<interop::GBufferStageConstats> StageConstants : register(b0);
 ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
@@ -68,13 +69,14 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     float2 uv = patchData.MinUV + pos2 * patchData.CellSize;
     uv /= patchData.DataNormSize;
     
-    float H = heightsTexture.SampleLevel(linearClampSampler, uv, patchData.MipLevel).r;
+    float H = heightsTexture.SampleLevel(linearClampSampler, uv, patchData.MipLevel + GetHeightmapMipBias(pos2, patchData.EdgeMask)).r;
     float3 pos = float3(pos2.x, H, pos2.y);
     
     // Normal & Tangent
     float3 normal;
     float4 tangent;
-    GetLocalSpaceNormalTangent(heightsTexture, patchData.TextureResolution, uv, patchData.MipLevel, normal, tangent);
+    GetLocalSpaceNormalTangent(heightsTexture, patchData.TextureResolution, uv,
+        patchData.MipLevel + GetHeightmapMipBias(pos2, patchData.EdgeMask), normal, tangent);
             
     // Transform
     float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
