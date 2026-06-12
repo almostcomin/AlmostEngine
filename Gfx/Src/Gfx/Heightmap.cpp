@@ -23,6 +23,268 @@ namespace
 			return "";
 		}
 	}
+
+	template<typename PIf>
+	void TriangulateNorthWestCorner(const alm::gfx::Heightmap::PatchEdgeConfig& edgeConfig, uint32_t N, PIf pushIndex)
+	{
+		const uint32_t stride = N + 1;
+
+		uint32_t vBL = (N - 2) * stride;		// bottom-left
+		uint32_t vBM = (N - 2) * stride + 1;	// bottom-middle
+		uint32_t vBR = (N - 2) * stride + 2;	// bottom-right
+		uint32_t vML = vBL + stride;			// middle-left
+		uint32_t vMM = vBM + stride;			// middle-middle
+		uint32_t vMR = vBR + stride;			// middle-right
+		uint32_t vTL = vML + stride;			// top-left
+		uint32_t vTM = vMM + stride;			// top-middle
+		uint32_t vTR = vMR + stride;			// top-right
+
+		if (edgeConfig.North == alm::gfx::Heightmap::EdgeMode::Normal && edgeConfig.West == alm::gfx::Heightmap::EdgeMode::Normal)
+		{
+			pushIndex(vBL); pushIndex(vML); pushIndex(vBM);
+			pushIndex(vML); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vTM); pushIndex(vMR); pushIndex(vMM);
+			pushIndex(vTM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else if (edgeConfig.North == alm::gfx::Heightmap::EdgeMode::Normal && edgeConfig.West == alm::gfx::Heightmap::EdgeMode::Low)
+		{
+			pushIndex(vBL); pushIndex(vMM); pushIndex(vBM);
+			pushIndex(vBL); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vTM); pushIndex(vMR); pushIndex(vMM);
+			pushIndex(vTM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else if (edgeConfig.North == alm::gfx::Heightmap::EdgeMode::Low && edgeConfig.West == alm::gfx::Heightmap::EdgeMode::Normal)
+		{
+			pushIndex(vBL); pushIndex(vML); pushIndex(vBM);
+			pushIndex(vML); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTR); pushIndex(vMM);
+			pushIndex(vMM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else if (edgeConfig.North == alm::gfx::Heightmap::EdgeMode::Low && edgeConfig.West == alm::gfx::Heightmap::EdgeMode::Low)
+		{
+			pushIndex(vBL); pushIndex(vMM); pushIndex(vBM);
+			pushIndex(vBL); pushIndex(vTL); pushIndex(vMM);
+
+			pushIndex(vTL); pushIndex(vTR); pushIndex(vMM);
+			pushIndex(vMM); pushIndex(vTR); pushIndex(vMR);
+		}
+	}
+
+	template<typename PIf>
+	void TriangulateNorthEastCorner(const alm::gfx::Heightmap::PatchEdgeConfig& edgeConfig, uint32_t N, PIf pushIndex)
+	{
+		const uint32_t stride = N + 1;
+		uint32_t vBL = (N - 2) * stride + (N - 2);	// bottom-left
+		uint32_t vBM = (N - 2) * stride + (N - 1);	// bottom-middle
+		uint32_t vBR = (N - 2) * stride + N;		// bottom-right
+		uint32_t vML = vBL + stride;				// middle-left
+		uint32_t vMM = vBM + stride;				// middle-middle
+		uint32_t vMR = vBR + stride;				// middle-right
+		uint32_t vTL = vML + stride;				// top-left
+		uint32_t vTM = vMM + stride;				// top-middle
+		uint32_t vTR = vMR + stride;				// top-right
+
+		if (edgeConfig.North == alm::gfx::Heightmap::EdgeMode::Normal && edgeConfig.East == alm::gfx::Heightmap::EdgeMode::Normal)
+		{
+			pushIndex(vBL); pushIndex(vML); pushIndex(vBM);
+			pushIndex(vML); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vBM); pushIndex(vMM); pushIndex(vBR);
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vMR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vMR);
+			pushIndex(vTM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else if (edgeConfig.North == alm::gfx::Heightmap::EdgeMode::Normal && edgeConfig.East == alm::gfx::Heightmap::EdgeMode::Low)
+		{
+			// East is Low: discard vMR (middle of east edge)
+			pushIndex(vBL); pushIndex(vML); pushIndex(vBM);
+			pushIndex(vML); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vBM); pushIndex(vMM); pushIndex(vBR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vTR);
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vTR);
+		}
+		else if (edgeConfig.North == alm::gfx::Heightmap::EdgeMode::Low && edgeConfig.East == alm::gfx::Heightmap::EdgeMode::Normal)
+		{
+			// North is Low: discard vTM (middle of north edge)
+			pushIndex(vBL); pushIndex(vML); pushIndex(vBM);
+			pushIndex(vML); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vBM); pushIndex(vMM); pushIndex(vBR);
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vMR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTR); pushIndex(vMM);
+
+			pushIndex(vMM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else // North == Low && East == Low
+		{
+			// Discard both vTM and vMR
+			pushIndex(vBL); pushIndex(vML); pushIndex(vBM);
+			pushIndex(vML); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vBM); pushIndex(vMM); pushIndex(vBR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTR); pushIndex(vMM);
+
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vTR);
+		}
+	}
+
+	template<typename PIf>
+	void TriangulateSouthEastCorner(const alm::gfx::Heightmap::PatchEdgeConfig& edgeConfig, uint32_t N, PIf pushIndex)
+	{
+		const uint32_t stride = N + 1;
+		uint32_t vBL = 0 * stride + (N - 2);	// bottom-left
+		uint32_t vBM = 0 * stride + (N - 1);	// bottom-middle
+		uint32_t vBR = 0 * stride + N;			// bottom-right
+		uint32_t vML = vBL + stride;
+		uint32_t vMM = vBM + stride;
+		uint32_t vMR = vBR + stride;
+		uint32_t vTL = vML + stride;
+		uint32_t vTM = vMM + stride;
+		uint32_t vTR = vMR + stride;
+
+		if (edgeConfig.South == alm::gfx::Heightmap::EdgeMode::Normal && edgeConfig.East == alm::gfx::Heightmap::EdgeMode::Normal)
+		{
+			pushIndex(vBL); pushIndex(vML); pushIndex(vBM);
+			pushIndex(vML); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vBM); pushIndex(vMM); pushIndex(vBR);
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vMR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vMR);
+			pushIndex(vTM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else if (edgeConfig.South == alm::gfx::Heightmap::EdgeMode::Normal && edgeConfig.East == alm::gfx::Heightmap::EdgeMode::Low)
+		{
+			// East Low: discard vMR
+			pushIndex(vBL); pushIndex(vML); pushIndex(vBM);
+			pushIndex(vML); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vBM); pushIndex(vMM); pushIndex(vBR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vTR);
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vTR);
+		}
+		else if (edgeConfig.South == alm::gfx::Heightmap::EdgeMode::Low && edgeConfig.East == alm::gfx::Heightmap::EdgeMode::Normal)
+		{
+			// South Low: discard vBM
+			pushIndex(vBL); pushIndex(vML); pushIndex(vMM);
+			pushIndex(vBL); pushIndex(vMM); pushIndex(vBR);
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vMR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vMR);
+			pushIndex(vTM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else // Both Low
+		{
+			// Discard vBM and vMR
+			pushIndex(vBL); pushIndex(vML); pushIndex(vMM);
+			pushIndex(vBL); pushIndex(vMM); pushIndex(vBR);
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vTR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vTR);
+		}
+	}
+
+	template<typename PIf>
+	void TriangulateSouthWestCorner(const alm::gfx::Heightmap::PatchEdgeConfig& edgeConfig, uint32_t N, PIf pushIndex)
+	{
+		const uint32_t stride = N + 1;
+		uint32_t vBL = 0 * stride;			// bottom-left
+		uint32_t vBM = 0 * stride + 1;		// bottom-middle
+		uint32_t vBR = 0 * stride + 2;		// bottom-right
+		uint32_t vML = vBL + stride;
+		uint32_t vMM = vBM + stride;
+		uint32_t vMR = vBR + stride;
+		uint32_t vTL = vML + stride;
+		uint32_t vTM = vMM + stride;
+		uint32_t vTR = vMR + stride;
+
+		if (edgeConfig.South == alm::gfx::Heightmap::EdgeMode::Normal && edgeConfig.West == alm::gfx::Heightmap::EdgeMode::Normal)
+		{
+			pushIndex(vBL); pushIndex(vML); pushIndex(vBM);
+			pushIndex(vML); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vBM); pushIndex(vMM); pushIndex(vBR);
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vMR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vMR);
+			pushIndex(vTM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else if (edgeConfig.South == alm::gfx::Heightmap::EdgeMode::Normal && edgeConfig.West == alm::gfx::Heightmap::EdgeMode::Low)
+		{
+			// West Low: discard vML
+			pushIndex(vBL); pushIndex(vMM); pushIndex(vBM);
+
+			pushIndex(vBM); pushIndex(vMM); pushIndex(vBR);
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vMR);
+
+			pushIndex(vBL); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vMR);
+			pushIndex(vTM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else if (edgeConfig.South == alm::gfx::Heightmap::EdgeMode::Low && edgeConfig.West == alm::gfx::Heightmap::EdgeMode::Normal)
+		{
+			// South Low: discard vBM
+			pushIndex(vBL); pushIndex(vML); pushIndex(vMM);
+			pushIndex(vBL); pushIndex(vMM); pushIndex(vBR);
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vMR);
+
+			pushIndex(vML); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vMR);
+			pushIndex(vTM); pushIndex(vTR); pushIndex(vMR);
+		}
+		else // Both Low
+		{
+			// Discard vBM and vML
+			pushIndex(vBL); pushIndex(vMM); pushIndex(vBR);
+			pushIndex(vBR); pushIndex(vMM); pushIndex(vMR);
+
+			pushIndex(vBL); pushIndex(vTL); pushIndex(vMM);
+			pushIndex(vTL); pushIndex(vTM); pushIndex(vMM);
+
+			pushIndex(vMM); pushIndex(vTM); pushIndex(vMR);
+			pushIndex(vTM); pushIndex(vTR); pushIndex(vMR);
+		}
+	}
 }
 
 alm::gfx::Heightmap::Heightmap(DeviceManager* deviceManager) : m_DeviceManager{ deviceManager }
@@ -344,47 +606,52 @@ std::shared_ptr<alm::rhi::BufferOwner> alm::gfx::Heightmap::CreateIndexBufferVar
 
 	if (edgeConfig.North == EdgeMode::Normal)
 	{
-		for (uint32_t x = 0; x < m_PatchResolution; ++x)
+		for (uint32_t x = 2; x < m_PatchResolution - 2; ++x)
 			triangulateNormalCell(x, m_PatchResolution - 1);
 	}
 	else
 	{
-		for (uint32_t x = 0; x < m_PatchResolution / 2; ++x)
+		for (uint32_t x = 1; x < (m_PatchResolution / 2) - 1; ++x)
 			triangulateLowNorthCell(x);
 	}
 
 	if (edgeConfig.South == EdgeMode::Normal)
 	{
-		for (uint32_t x = 0; x < m_PatchResolution; ++x)
+		for (uint32_t x = 2; x < m_PatchResolution - 2; ++x)
 			triangulateNormalCell(x, 0);
 	}
 	else
 	{
-		for (uint32_t x = 0; x < m_PatchResolution / 2; ++x)
+		for (uint32_t x = 1; x < (m_PatchResolution / 2) - 1; ++x)
 			triangulateLowSouthCell(x);
 	}
 
 	if (edgeConfig.East == EdgeMode::Normal)
 	{
-		for (uint32_t y = 0; y < m_PatchResolution; ++y)
+		for (uint32_t y = 2; y < m_PatchResolution - 2; ++y)
 			triangulateNormalCell(m_PatchResolution - 1, y);
 	}
 	else
 	{
-		for (uint32_t y = 0; y < m_PatchResolution / 2; ++y)
+		for (uint32_t y = 1; y < (m_PatchResolution / 2) - 1; ++y)
 			triangulateLowEastCell(y);
 	}
 
 	if (edgeConfig.West == EdgeMode::Normal)
 	{
-		for (uint32_t y = 0; y < m_PatchResolution; ++y)
+		for (uint32_t y = 2; y < m_PatchResolution - 2; ++y)
 			triangulateNormalCell(0, y);
 	}
 	else
 	{
-		for (uint32_t y = 0; y < m_PatchResolution / 2; ++y)
+		for (uint32_t y = 1; y < (m_PatchResolution / 2) - 1; ++y)
 			triangulateLowWestCell(y);
 	}
+
+	TriangulateNorthEastCorner(edgeConfig, m_PatchResolution, pushIndex);
+	TriangulateNorthWestCorner(edgeConfig, m_PatchResolution, pushIndex);
+	TriangulateSouthEastCorner(edgeConfig, m_PatchResolution, pushIndex);
+	TriangulateSouthWestCorner(edgeConfig, m_PatchResolution, pushIndex);
 
 	alm::rhi::BufferDesc indexBufferDesc;
 	indexBufferDesc.memoryAccess = alm::rhi::MemoryAccess::Default;

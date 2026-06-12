@@ -24,11 +24,6 @@
 *															 └────┴────┴────┴────┘
 */
 
-namespace
-{
-
-}
-
 alm::gfx::HeightmapInstance::QuadNodeCoord alm::gfx::HeightmapInstance::QuadNodeCoord::Child(int i) const
 {
 	assert(i >= 0 && i < 4);
