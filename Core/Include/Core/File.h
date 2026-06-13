@@ -34,6 +34,8 @@ public:
 	// Error if open mode is not write
 	std::expected<size_t, std::string> Write(const void* data, size_t size);
 
+	std::fstream& GetStream() { return m_FileStream; }
+
 	bool IsOpen() const;
 	size_t Size() const;
 	size_t Pos();

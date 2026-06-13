@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gfx/HeightmapSource.h"
+#include "Core/Blob.h"
 
 namespace alm::gfx
 {
@@ -45,7 +46,9 @@ private:
     uint32_t m_Height = 0;
     float2 m_HeightRange;
 
-    std::vector<float> m_Data;
+    //std::vector<float> m_Data;
+    alm::Blob m_Data;
+    std::span<float> m_DataView;
 
     std::string m_Name = "<uninitialized>";
 };

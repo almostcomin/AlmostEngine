@@ -1,69 +1,93 @@
 #include "Gfx/GfxPCH.h"
 #include "Gfx/ImageHeightmapSource.h"
 #include "Gfx/TextureLoader.h"
+#include "Gfx/EHdrImageLoader.h"
 #include "Core/File.h"
 
 bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
 {
-    alm::fs::File file{ path };
-    if (!file.IsOpen())
-    {
-        LOG_ERROR("File {} not found.", path);
-        return false;
-    }
+    TextureInfo texInfo;
+    alm::Blob srcData;
 
-    auto readResult = file.Read();
-    assert(readResult);
-    alm::Blob fileData = std::move(*readResult);
-
-    auto loadImageResult = LoadImageTexture(alm::WeakBlob{ fileData }, false);
-    if (!loadImageResult)
+    if (GetExtensionFromPath(path) == "hdr")
     {
-        LOG_ERROR("Failed to load image from file {}. It is a valid image file?", path);
-        return false;
-    }
-
-    const TextureInfo& texInfo = loadImageResult->first;
-    const alm::Blob& blob = loadImageResult->second;
-    const uint32_t pixelCount = texInfo.width * texInfo.height;
-    m_Data.resize(pixelCount);
-
-    switch (texInfo.format)
-    {
-    case rhi::Format::R8_UNORM:
-    {
-        const uint8_t* src = blob.data();
-        for (uint32_t i = 0; i < pixelCount; ++i)
+        auto loadResult = LoadEHdr(path);
+        if (!loadResult)
         {
-            m_Data[i] = src[i];
+            LOG_ERROR(loadResult.error());
+            return false;
         }
-    } break;
 
-    case rhi::Format::R16_UNORM:
+        texInfo = loadResult->first;
+        srcData = std::move(loadResult->second);
+    }
+    else
     {
-        const uint16_t* src = (uint16_t*)blob.data();
-        for (uint32_t i = 0; i < pixelCount; ++i)
+        alm::fs::File file{ path };
+        if (!file.IsOpen())
         {
-            m_Data[i] = src[i] / 65535.f;
+            LOG_ERROR("File {} not found.", path);
+            return false;
         }
-    } break;
 
-    case rhi::Format::R32_FLOAT:
+        auto readResult = file.Read();
+        assert(readResult);
+        alm::Blob fileData = std::move(*readResult);
+
+        auto loadImageResult = LoadImageTexture(alm::WeakBlob{ fileData }, false);
+        if (!loadImageResult)
+        {
+            LOG_ERROR("Failed to load image from file {}. It is a valid image file?", path);
+            return false;
+        }
+
+        texInfo = loadImageResult->first;
+        srcData = std::move(loadImageResult->second);
+    }
+    const size_t pixelCount = texInfo.width * texInfo.height;
+
+    // If format is not R32_FLOAT we have to convert
+    if (texInfo.format != rhi::Format::R32_FLOAT)
     {
-        const float* src = (float*)blob.data();
-        std::copy(src, src + pixelCount, m_Data.begin());
-    } break;
+        m_Data.alloc(pixelCount * sizeof(float));
+        m_DataView = std::span<float>{ (float*)m_Data.data(), pixelCount };
 
-    case rhi::Format::RGBA8_UNORM:
+        switch (texInfo.format)
+        {
+        case rhi::Format::R8_UNORM:
+        {
+            const uint8_t* src = srcData.data();
+            for (uint32_t i = 0; i < pixelCount; ++i)
+            {
+                m_DataView[i] = src[i];
+            }
+        } break;
+
+        case rhi::Format::R16_UNORM:
+        {
+            const uint16_t* src = (uint16_t*)srcData.data();
+            for (uint32_t i = 0; i < pixelCount; ++i)
+            {
+                m_DataView[i] = src[i] / 65535.f;
+            }
+        } break;
+
+        case rhi::Format::RGBA8_UNORM:
+        {
+            const uint8_t* src = srcData.data();
+            for (uint32_t i = 0; i < pixelCount; ++i)
+                m_DataView[i] = src[i * 4] / 255.0f; // R channel
+        } break;
+
+        default:
+            LOG_ERROR("ImageHeightmapSource: unsupported format {}", (int)texInfo.format);
+            return false;
+        }
+    }
+    else
     {
-        const uint8_t* src = blob.data();
-        for (uint32_t i = 0; i < pixelCount; ++i)
-            m_Data[i] = src[i * 4] / 255.0f; // R channel
-    } break;
-
-    default:
-        LOG_ERROR("ImageHeightmapSource: unsupported format {}", (int)texInfo.format);
-        return false;
+        m_Data = std::move(srcData);
+        m_DataView = std::span<float>{ (float*)m_Data.data(), pixelCount };
     }
 
     m_Width = texInfo.width;
@@ -77,18 +101,18 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
 
 float alm::gfx::ImageHeightmapSource::GetHeight(const uint2& p) const
 {
-    if (m_Data.empty())
+    if (m_DataView.empty())
     {
         LOG_ERROR("ImageHeightmapSource: Data not initialized");
         return 0.f;
     }
 
-    return m_Data[std::clamp(p.y, 0u, m_Height - 1) * m_Width + std::clamp(p.x, 0u, m_Width - 1)];
+    return m_DataView[std::clamp(p.y, 0u, m_Height - 1) * m_Width + std::clamp(p.x, 0u, m_Width - 1)];
 }
 
 float alm::gfx::ImageHeightmapSource::Sample(const float2& uv) const
 {
-    if (m_Data.empty())
+    if (m_DataView.empty())
     {
         LOG_ERROR("ImageHeightmapSource: Data not initialized");
         return 0.f;
@@ -112,7 +136,7 @@ float alm::gfx::ImageHeightmapSource::Sample(const float2& uv) const
 
     auto fetch = [&](int x, int y) -> float
     {
-        return m_Data[resolve(y, m_Height) * m_Width + resolve(x, m_Width)];
+        return m_DataView[resolve(y, m_Height) * m_Width + resolve(x, m_Width)];
     };
 
     return fetch(i2.x,     i2.y)     * (1 - f2.x) * (1 - f2.y)
@@ -148,7 +172,7 @@ void alm::gfx::ImageHeightmapSource::ComputeHeightRange()
 {
     m_HeightRange.x = FLT_MAX;
     m_HeightRange.y = -FLT_MAX;
-    for (float h : m_Data)
+    for (float h : m_DataView)
     {
         m_HeightRange.x = std::min(m_HeightRange.x, h);
         m_HeightRange.y = std::max(m_HeightRange.y, h);

@@ -7,7 +7,7 @@
 
 namespace
 {
-	static constexpr size_t c_UploadBufferSize = alm::MiB(256);
+	static constexpr size_t c_UploadBufferSize = alm::MiB(512);
 }
 
 // m_CommitCount starts with 1 since 0 is interpreted as not-initialized

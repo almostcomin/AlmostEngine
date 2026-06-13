@@ -49,6 +49,17 @@ public:
 		return *this;
 	}
 
+	uint8_t* alloc(size_t size)
+	{
+		reset();
+
+		m_data = (uint8_t*)malloc(size);
+		m_size = size;
+		m_real_ptr = m_data;
+		m_deleter = nullptr;
+		return m_data;
+	}
+
 	uint8_t* data() const { return m_data; }
 	size_t size() const { return m_size; }
 	bool empty() const { return m_data == nullptr || m_size == 0; }
