@@ -1,9 +1,9 @@
 #include "Core/CorePCH.h"
 #include "Core/File.h"
 
-alm::fs::File::File(const std::string& path, OpenMode mode)
+alm::fs::File::File(const std::string& path, OpenMode mode, bool createDirectories)
 {
-	Open(path, mode);	
+	Open(path, mode, createDirectories);
 }
 
 alm::fs::File::~File()
@@ -11,8 +11,23 @@ alm::fs::File::~File()
 	Close();
 }
 
-bool alm::fs::File::Open(const std::string& path, OpenMode mode)
+bool alm::fs::File::Open(const std::string& path, OpenMode mode, bool createDirectories)
 {
+	if (mode == OpenMode::Write && createDirectories)
+	{
+		const std::filesystem::path parent = std::filesystem::path(path).parent_path();
+		if (!parent.empty())
+		{
+			std::error_code ec;
+			std::filesystem::create_directories(parent, ec);
+			if (ec)
+			{
+				LOG_ERROR("Could not create directory [{}]", parent.string());
+				return false;
+			}
+		}
+	}
+
 	m_FileStream.open(path, (mode == OpenMode::Read ? std::ios::in : std::ios::out) | std::ios::binary);
 	if (m_FileStream.is_open())
 	{
@@ -32,6 +47,10 @@ bool alm::fs::File::Open(const std::string& path, OpenMode mode)
 	}
 	else
 	{
+		if (mode == OpenMode::Write)
+		{
+			LOG_ERROR("Could not write to file [{}]", path);
+		}
 		m_FileSize = 0;
 		return false;
 	}

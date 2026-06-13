@@ -20,10 +20,10 @@ class File
 public:
 
 	File() = default;
-	File(const std::string& path, OpenMode mode = OpenMode::Read);
+	File(const std::string& path, OpenMode mode = OpenMode::Read, bool reateDirectories = true);
 	~File();
 
-	bool Open(const std::string& path, OpenMode mode = OpenMode::Read);
+	bool Open(const std::string& path, OpenMode mode = OpenMode::Read, bool createDirectories = true);
 	void Close();
 
 	// Reads from current pos size bytes. If size < 0, reads to the end of the file.

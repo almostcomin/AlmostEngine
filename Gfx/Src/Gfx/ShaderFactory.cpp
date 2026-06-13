@@ -18,7 +18,7 @@ alm::rhi::ShaderOwner alm::gfx::ShaderFactory::LoadShader(const std::string& nam
 	{
 		std::filesystem::path srcPath = SHADERS_SRC_FOLDER;
 		srcPath /= (name + ".hlsl");
-		std::filesystem::path binPath = std::filesystem::current_path() / "Shaders" / (name + ".bin");
+		std::filesystem::path binPath = std::filesystem::current_path() / "_shaders" / (name + ".bin");
 
 		const bool srcExists = std::filesystem::exists(srcPath);
 		const bool binExists = std::filesystem::exists(binPath);

@@ -23,6 +23,18 @@ bool alm::gfx::SaveDDSTexture(rhi::TextureHandle texture, rhi::ResourceState cur
         return false;
     }
 
+    const std::filesystem::path parent = std::filesystem::path(filename).parent_path();
+    if (!parent.empty())
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(parent, ec);
+        if (ec)
+        {
+            LOG_ERROR("Could not create directory [{}]", parent.string());
+            return false;
+        }
+    }
+
     std::wstring ws_filename = ToWide(filename.c_str());
     hr = DirectX::SaveToDDSFile(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::DDS_FLAGS_NONE, ws_filename.c_str());
     if (FAILED(hr))

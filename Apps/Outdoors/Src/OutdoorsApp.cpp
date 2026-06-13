@@ -95,7 +95,7 @@ public:
 				auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
 					alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
 				//bool sourceOk = imageSource->Load("SpainHeightmap.png");
-				bool sourceOk = imageSource->Load("Stromboli_20250702_for_OT.hdr");
+				bool sourceOk = imageSource->Load("_heightmaps/Stromboli/Stromboli_20250702_for_OT.hdr");
 				assert(sourceOk);
 
 				dataSource = imageSource;
@@ -231,10 +231,10 @@ public:
 		}
 
 		// Set clouds texture
-		if (std::filesystem::exists("Generated/CloudShape.dds"))
+		if (std::filesystem::exists("_generated/CloudShape.dds"))
 		{
 			alm::gfx::TextureCache* txtrCache = m_DeviceManager->GetTextureCache();
-			auto loadResult = txtrCache->Load("Generated/CloudShape.dds", alm::gfx::TextureCache::Flags::None);
+			auto loadResult = txtrCache->Load("_generated/CloudShape.dds", alm::gfx::TextureCache::Flags::None);
 			if (!loadResult)
 			{
 				LOG_ERROR("Failed loading CloudsShape.dds\n{}", loadResult.error());
@@ -253,7 +253,7 @@ public:
 			createResult->second.Wait();
 			alm::rhi::TextureOwner& cloudsTexture = createResult->first;
 			alm::gfx::SaveDDSTexture(cloudsTexture.get_weak(), alm::rhi::ResourceState::SHADER_RESOURCE, alm::rhi::ResourceState::SHADER_RESOURCE,
-				m_DeviceManager->GetDevice(), "Generated/CloudShape.dds");
+				m_DeviceManager->GetDevice(), "_generated/CloudShape.dds");
 
 			m_CloudsRS->SetCloudsShapeTexture(std::move(cloudsTexture));
 		}
