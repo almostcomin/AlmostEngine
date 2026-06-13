@@ -19,7 +19,8 @@ public:
 		Disabled,
 		Heightmap_Heights,
 		Heightmap_Slope,
-		Heightmap_Normals
+		Heightmap_Normals,
+		Heightmap_Connections
 	};
 
 public:

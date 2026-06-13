@@ -257,6 +257,15 @@ public:
 			m_CloudsRS->SetCloudsShapeTexture(std::move(cloudsTexture));
 		}
 
+		// Load axes model
+		{
+			auto importResult = alm::gfx::ImportGlTF("axes.gltf", m_DeviceManager.get());
+			if (importResult)
+			{
+				m_Scene->GetSceneGraph()->GetRoot()->AddChild(std::move(*importResult));
+			}
+		}
+
 		// Init UI
 		{
 			m_UI->Init(m_Window, m_Scene.get_weak(), m_MainRenderView.get_weak(), &m_CameraController);

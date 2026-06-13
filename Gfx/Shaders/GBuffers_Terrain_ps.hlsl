@@ -1,12 +1,7 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 #include "TerrainMaterial.hlsli"
-
-// Keep in sync with alm::gfx::GBuffersRenderStage::DebugChannel
-static const uint DebugChannel_Disabled             = 0;
-static const uint DebugChannel_Heightmap_Heights    = 1;
-static const uint DebugChannel_Heightmap_Slope      = 2;
-static const uint DebugChannel_Heightmap_Normals    = 3;
+#include "HeightmapCommon.hlsli"
 
 ConstantBuffer<interop::GBufferStageConstats> StageConstants : register(b0);
 ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
@@ -95,6 +90,13 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     else if (StageConstants.DebugChannel == DebugChannel_Heightmap_Normals)
     {
         output.GBuffer0 = float4(sampledNormal * 0.5 + 0.5, 1);
+        output.GBuffer1 = float4(0, 0, 0, 1);
+        output.GBuffer2 = float4(EncodeNormal(float3(0, 1, 0)), 1.0, 0.0);
+        output.GBuffer3 = float4(0, 0, 0, 0);
+    }
+    else if (StageConstants.DebugChannel == DebugChannel_Heightmap_Connections)
+    {
+        output.GBuffer0 = float4(input.normalWorld, 1);
         output.GBuffer1 = float4(0, 0, 0, 1);
         output.GBuffer2 = float4(EncodeNormal(float3(0, 1, 0)), 1.0, 0.0);
         output.GBuffer3 = float4(0, 0, 0, 0);

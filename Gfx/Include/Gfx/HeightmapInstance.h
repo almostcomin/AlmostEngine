@@ -45,6 +45,7 @@ private:
 		uint32_t Level;		// 0 = root
 		uint2 CellIndex;	// index of the cell inside level, [0, 2^level]
 		uint32_t patchVariantIdx; // index of mesh variant [0, 15]
+		uint32_t edgeMask; 
 
 		QuadNodeCoord Child(int i) const;	// i [0, 3]
 		QuadNodeCoord Parent() const;

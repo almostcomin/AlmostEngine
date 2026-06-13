@@ -101,5 +101,11 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     output.posWorld = posWorld.xyz;
     output.patchIndex = patchIndex;
     
+    // For Connectios debug, we are going to pass de debug color in the normalWorld
+    if (StageConstants.DebugChannel == DebugChannel_Heightmap_Connections)
+    {
+        output.normalWorld = GetHeightmapDebugConnectionColor(pos2, patchData.EdgeMask);
+    }
+    
     return output;
 }

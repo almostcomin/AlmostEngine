@@ -293,7 +293,7 @@ void OutdoorsUI::BuildUI()
 
 		if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			if (ImGui::Combo("Channel##Debug", &m_DebugChannel, "Disabled\0Heights\0Slope\0Normals\0\0"))
+			if (ImGui::Combo("Channel##Debug", &m_DebugChannel, "Disabled\0Heights\0Slope\0Normals\0Connections\0\0"))
 			{
 				auto gBuffersRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GBuffersRenderStage>();
 				gBuffersRS->SetDebugChannel((alm::gfx::GBuffersRenderStage::DebugChannel)m_DebugChannel);

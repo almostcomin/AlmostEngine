@@ -133,6 +133,52 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 			Heightmap::EdgeMode::Low : Heightmap::EdgeMode::Normal;
 
 		coord.patchVariantIdx = Heightmap::EdgeConfigToVariantIndex(edgeConfig);  // 0..15
+
+		// EdgeMask:
+		{
+			// Corners: coord is (L, x, y)
+			//			NE is (L, x+1, y+1)
+			//			NW is (L, x-1, y+1)
+			//			SE is (L, x+1, y-1)
+			//			SW is (L, x-1, y-1)
+			auto findCornerNeighbourLevel = [&](int dx, int dy) -> uint32_t
+			{
+				int32_t nx = (int32_t)coord.CellIndex.x + dx;
+				int32_t ny = (int32_t)coord.CellIndex.y + dy;
+				const int32_t cellsPerSide = 1 << coord.Level;
+				if (nx < 0 || nx >= cellsPerSide || ny < 0 || ny >= cellsPerSide)
+					return UINT32_MAX;
+
+				QuadNodeCoord cornerCoord{ coord.Level, { (uint32_t)nx, (uint32_t)ny } };
+				if (leafSet.count(cornerCoord) > 0)
+					return coord.Level;
+
+				if (coord.Level > 0)
+				{
+					QuadNodeCoord parent = cornerCoord.Parent();
+					if (leafSet.count(parent) > 0)
+						return parent.Level;
+				}
+				return UINT32_MAX;
+			};
+
+			uint32_t levelNE = findCornerNeighbourLevel( 1,  1);
+			uint32_t levelNW = findCornerNeighbourLevel(-1,  1);
+			uint32_t levelSE = findCornerNeighbourLevel( 1, -1);
+			uint32_t levelSW = findCornerNeighbourLevel(-1, -1);
+
+			// bits 0-3 edge mode:		bit0 = N Low?,  bit1 = S Low?,  bit2 = E Low?,  bit3 = W Low?
+			// bits 4-7 corner mode:	bit4 = NE Low?, bit5 = NW Low?, bit6 = SE Low?, bit7 = SW Low?
+			coord.edgeMask = 0;
+			coord.edgeMask |= (edgeConfig.North == Heightmap::EdgeMode::Low) ? (1u << 0) : 0u;
+			coord.edgeMask |= (edgeConfig.South == Heightmap::EdgeMode::Low) ? (1u << 1) : 0u;
+			coord.edgeMask |= (edgeConfig.East  == Heightmap::EdgeMode::Low) ? (1u << 2) : 0u;
+			coord.edgeMask |= (edgeConfig.West  == Heightmap::EdgeMode::Low) ? (1u << 3) : 0u;
+			coord.edgeMask |= (levelNE < coord.Level) ? (1u << 4) : 0u;
+			coord.edgeMask |= (levelNW < coord.Level) ? (1u << 5) : 0u;
+			coord.edgeMask |= (levelSE < coord.Level) ? (1u << 6) : 0u;
+			coord.edgeMask |= (levelSW < coord.Level) ? (1u << 7) : 0u;
+		}
 	}	
 
 	// We have to sort by variant so patches with the same variant (mesh) are consecutive
@@ -356,11 +402,6 @@ uint32_t alm::gfx::HeightmapInstance::FindNeighbourLevel(const std::unordered_se
 
 void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
-	// patchVariantIdx encode N/S/E/W bits in compitlbe format with EdgeMask del shader.
-	// This is only valid only while EdgeConfigToVariantIndex keeps this layout
-	static_assert((int)Heightmap::EdgeMode::Normal == 0 && (int)Heightmap::EdgeMode::Low == 1,
-		"EdgeMode values must be 0/1 for patchVariantIdx → EdgeMask aliasing");
-
 	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	const auto& dataSource = heightmap->GetSource();
 	rhi::TextureSampledView textureView = heightmap->GetHeightsTexture()->GetSampledView();
@@ -396,7 +437,7 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 		alloc.HeightmapPatchesPtr[i].NormalMatrixCol1 = float4{ nodeNormalMatrix[1], 0.0 };
 		alloc.HeightmapPatchesPtr[i].NormalMatrixCol2 = float4{ nodeNormalMatrix[2], 0.0 };
 		alloc.HeightmapPatchesPtr[i].InverseModelMatrix = inverseNodeWorldMatrix;
-		alloc.HeightmapPatchesPtr[i].EdgeMask = coord.patchVariantIdx;
+		alloc.HeightmapPatchesPtr[i].EdgeMask = coord.edgeMask;
 		alloc.HeightmapPatchesPtr[i].HeightmapTextureDI = textureView;
 	}
 	m_InstancesAllocBaseIdx = alloc.InstancesBaseIndex;
