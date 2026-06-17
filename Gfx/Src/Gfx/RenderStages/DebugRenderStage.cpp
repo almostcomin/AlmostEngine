@@ -6,7 +6,9 @@
 #include "RHI/Device.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
+#include "Gfx/SceneHeightmap.h"
 #include "Gfx/RenderGraphBuilder.h"
+#include "Gfx/HeightmapInstance.h"
 #include "Interop/RenderResources.h"
 
 void alm::gfx::DebugRenderStage::ShowRenderBBoxes(SceneContentType boundsType, bool b)
@@ -32,7 +34,7 @@ void alm::gfx::DebugRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	if (!scene)
 		return;
 
-	if (!any(m_RenderBBoxes))
+	if (!any(m_RenderBBoxes) && !m_RenderHeightmapBBoxes)
 		return;
 
 	commandList->BeginRenderPass(
@@ -51,7 +53,29 @@ void alm::gfx::DebugRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	{
 		if (m_RenderBBoxes[i])
 		{
-			auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene, (SceneContentType)i, commandList);
+			auto [bboxBufferDI, bboxCount] = GetAABBOXBuffer(scene, (SceneContentType)i);
+			if (bboxCount == 0)
+				continue;
+
+			interop::DebugStage shaderConstants;
+			shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
+			shaderConstants.aaboxDI = bboxBufferDI;
+			commandList->PushGraphicsConstants(0, shaderConstants);
+
+			commandList->DrawInstanced(24, bboxCount, 0);
+		}
+	}
+
+	if (m_RenderHeightmapBBoxes)
+	{
+		for (const auto* sceneHeightmap : scene->GetSceneGraph()->GetSceneHeightmaps())
+		{
+			alm::gfx::HeightmapInstance* heightmapInstance = GetRenderView()->GetHeightmapInstance(sceneHeightmap);
+			std::vector<alm::aabox3f> bboxes = heightmapInstance->CollectAABBoxes();
+
+			auto [bboxBufferDI, bboxCount] = FillBuffer(bboxes);
+			if (bboxCount == 0)
+				continue;
 
 			interop::DebugStage shaderConstants;
 			shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
@@ -107,7 +131,6 @@ void alm::gfx::DebugRenderStage::OnDetached()
 	m_PSO.reset();
 	m_VS.reset();
 	m_PS.reset();
-	m_AABBOXBuffer.reset();
 	m_FB.reset();
 }
 
@@ -140,10 +163,8 @@ void alm::gfx::DebugRenderStage::OnBackbufferResize()
 	}
 }
 
-std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, SceneContentType boundsType, rhi::CommandListHandle commandList)
+std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetAABBOXBuffer(const Scene* scene, SceneContentType boundsType)
 {
-	rhi::Device* device = GetDeviceManager()->GetDevice();
-
 	// Check the number of aabox we need
 	if (!scene)
 		return { rhi::c_InvalidDescriptorIndex, 0 };
@@ -165,29 +186,28 @@ std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetA
 		}
 	}
 
+	return FillBuffer(aabboxes);
+}
+
+std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::FillBuffer(const std::vector<alm::aabox3f>& aabboxes)
+{
+	rhi::Device* device = GetDeviceManager()->GetDevice();
+
 	if (aabboxes.empty())
 		return { rhi::c_InvalidDescriptorIndex, 0 };
 
-	if (!m_AABBOXBuffer || (m_AABBOXBuffer->GetDesc().sizeBytes < (aabboxes.size() * sizeof(interop::AABB))))
-	{
-		if (m_AABBOXBuffer)
-		{
-			device->ReleaseQueued(std::move(m_AABBOXBuffer));
-		}
-
-		m_AABBOXBuffer = device->CreateBuffer(
-			rhi::BufferDesc{
-				.memoryAccess = rhi::MemoryAccess::Upload,
-				.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
-				.sizeBytes = aabboxes.size() * sizeof(interop::AABB),
-				.stride = sizeof(interop::AABB) },
+	auto buffer = device->CreateBuffer(
+		rhi::BufferDesc{
+			.memoryAccess = rhi::MemoryAccess::Upload,
+			.shaderUsage = rhi::BufferShaderUsage::ReadOnly,
+			.sizeBytes = aabboxes.size() * sizeof(interop::AABB),
+			.stride = sizeof(interop::AABB) },
 			rhi::ResourceState::SHADER_RESOURCE,
 			"AABBOX buffer");
-	}
 
-	void *ptr = m_AABBOXBuffer->Map();
+	void* ptr = buffer->Map();
 	std::memcpy(ptr, aabboxes.data(), aabboxes.size() * sizeof(interop::AABB));
-	m_AABBOXBuffer->Unmap();
+	buffer->Unmap();
 
-	return { m_AABBOXBuffer->GetReadOnlyView(), aabboxes.size() };
+	return { buffer->GetReadOnlyView(), aabboxes.size() };
 }

@@ -6,8 +6,10 @@
 
 bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
 {
-    TextureInfo texInfo;
+    uint2 dims;
+    rhi::Format format;
     alm::Blob srcData;
+    float cellSize = -1.f;
 
     if (GetExtensionFromPath(path) == "hdr")
     {
@@ -18,7 +20,14 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
             return false;
         }
 
-        texInfo = loadResult->first;
+        const EHdrInfo& info = loadResult->first;
+        dims.x = info.Width;
+        dims.y = info.Height;
+        format = rhi::Format::R32_FLOAT;
+        if (info.HasCellSize)
+        {
+            cellSize = info.CellSize;
+        }
         srcData = std::move(loadResult->second);
     }
     else
@@ -41,18 +50,21 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
             return false;
         }
 
-        texInfo = loadImageResult->first;
+        const gfx::TextureInfo& info = loadImageResult->first;
+        dims.x = info.width;
+        dims.y = info.height;
+        format = info.format;
         srcData = std::move(loadImageResult->second);
     }
-    const size_t pixelCount = texInfo.width * texInfo.height;
+    const size_t pixelCount = dims.x * dims.y;
 
     // If format is not R32_FLOAT we have to convert
-    if (texInfo.format != rhi::Format::R32_FLOAT)
+    if (format != rhi::Format::R32_FLOAT)
     {
         m_Data.alloc(pixelCount * sizeof(float));
         m_DataView = std::span<float>{ (float*)m_Data.data(), pixelCount };
 
-        switch (texInfo.format)
+        switch (format)
         {
         case rhi::Format::R8_UNORM:
         {
@@ -80,7 +92,7 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
         } break;
 
         default:
-            LOG_ERROR("ImageHeightmapSource: unsupported format {}", (int)texInfo.format);
+            LOG_ERROR("ImageHeightmapSource: unsupported format {}", (int)format);
             return false;
         }
     }
@@ -90,10 +102,12 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
         m_DataView = std::span<float>{ (float*)m_Data.data(), pixelCount };
     }
 
-    m_Width = texInfo.width;
-    m_Height = texInfo.height;
+    m_Width = dims.x;
+    m_Height = dims.y;
+    m_CellSize = cellSize;
 
     ComputeHeightRange();
+    //Normalize();
 
     m_Name = GetFilenameFromPath(path);
     return true;
@@ -177,4 +191,14 @@ void alm::gfx::ImageHeightmapSource::ComputeHeightRange()
         m_HeightRange.x = std::min(m_HeightRange.x, h);
         m_HeightRange.y = std::max(m_HeightRange.y, h);
     }
+}
+
+void alm::gfx::ImageHeightmapSource::Normalize()
+{
+    for (float& h : m_DataView)
+    {
+        h = (h - m_HeightRange.x) / (m_HeightRange.y - m_HeightRange.x);
+    }
+    m_HeightRange.x = 0.f;
+    m_HeightRange.y = 1.f;
 }

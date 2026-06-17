@@ -37,8 +37,8 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     
     // Build local pos
     float2 pos2 = LoadVertexAttributeFloat2(vertexBuffer, vertexBufferOffset, meshData.vertexPositionOffset);
-    float2 uv = patchData.MinUV + pos2 * patchData.CellSize;
-    uv /= patchData.DataNormSize;
+    float2 uv = patchData.MinUV + pos2 * patchData.SizeUV;
+    uv *= patchData.UVScale;
     float H = heightsTexture.SampleLevel(linearClampSampler, uv, patchData.MipLevel + GetHeightmapMipBias(pos2, patchData.EdgeMask)).r;
     
     float3 pos = float3(pos2.x, H, pos2.y);

@@ -52,30 +52,30 @@ alm::gfx::HeightmapInstance::QuadNodeCoord alm::gfx::HeightmapInstance::QuadNode
 	return result;
 }
 
-float alm::gfx::HeightmapInstance::QuadNodeCoord::CellSize() const
+float alm::gfx::HeightmapInstance::QuadNodeCoord::SizeUV() const
 {
 	return 1.0f / float(1u << Level);   // 1 / 2^Level
 }
 
 float2 alm::gfx::HeightmapInstance::QuadNodeCoord::MinUV() const
 {
-	return float2(CellIndex.x, CellIndex.y) * CellSize();
+	return float2(CellIndex.x, CellIndex.y) * SizeUV();
 }
 
 float2 alm::gfx::HeightmapInstance::QuadNodeCoord::MaxUV() const
 {
-	return MinUV() + CellSize();
+	return MinUV() + SizeUV();
 }
 
 float2 alm::gfx::HeightmapInstance::QuadNodeCoord::CenterUV() const
 {
-	return MinUV() + CellSize() / 2.f;
+	return MinUV() + SizeUV() / 2.f;
 }
 
-alm::aabox3f alm::gfx::HeightmapInstance::QuadNodeCoord::Bounds(float minY, float maxY) const
+alm::aabox3f alm::gfx::HeightmapInstance::QuadNodeCoord::Bounds(float sizeFactor, float minY, float maxY) const
 {
-	const float2 minUV = MinUV();
-	const float2 maxUV = MaxUV();
+	const float2 minUV = MinUV() * sizeFactor;
+	const float2 maxUV = MaxUV() * sizeFactor;
 	return aabox3f{
 		float3(minUV.x, minY, minUV.y),
 		float3(maxUV.x, maxY, maxUV.y)
@@ -107,8 +107,6 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 	SelectLODNodes(m_LeafNodes, root, camera);
 	if (m_LeafNodes.empty())
 		return;
-
-	EnforceRestrictedQuadtree(m_LeafNodes);
 
 	// Calc mesh variant
 	std::unordered_set<QuadNodeCoord, QuadNodeCoordHash> leafSet;
@@ -233,6 +231,24 @@ std::string alm::gfx::HeightmapInstance::DumpTesselationInfo() const
 	return ss.str();
 }
 
+std::vector<alm::aabox3f> alm::gfx::HeightmapInstance::CollectAABBoxes() const
+{
+	std::vector<alm::aabox3f> result;
+	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+	const auto& dataSource = heightmap->GetSource();
+	const float2 heightRange = dataSource->GetHeightRange();
+
+	for (const auto& coord : m_LeafNodes)
+	{
+		aabox3f localBounds = coord.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
+		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
+
+		result.push_back(worldBounds);
+	}
+
+	return result;
+}
+
 bool alm::gfx::HeightmapInstance::ShouldSubdivide(const QuadNodeCoord& coord, const aabox3f& worldBounds, const Camera* camera)
 {	
 	const float3 worldCenter = worldBounds.center();
@@ -268,7 +284,7 @@ bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoor
 
 	// If neighbour doesn't want to subdivide we have finished
 	{
-		aabox3f localBounds = neighbor.Bounds(heightRange.x, heightRange.y);
+		aabox3f localBounds = neighbor.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
 		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 
 		if (!ShouldSubdivide(neighbor, worldBounds, camera))
@@ -288,7 +304,7 @@ bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoor
 	{
 		QuadNodeCoord child = neighbor.Child(i);
 
-		aabox3f localBounds = child.Bounds(heightRange.x, heightRange.y);
+		aabox3f localBounds = child.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
 		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 
 		if (ShouldSubdivide(child, worldBounds, camera))
@@ -306,15 +322,14 @@ void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& lea
 	// Data out of range (not tileable only)
 	if (!dataSource->IsTileable())
 	{
-		float2 dataNormSize = dataSource->GetNormalizedSize();
-		float2 minUV = coord.MinUV();
-		if (minUV.x >= dataNormSize.x || minUV.y >= dataNormSize.y)
+		float2 minUV = coord.MinUV() * heightmap->GetUVScale();
+		if (minUV.x >= 1.f || minUV.y > 1.f)
 			return;
 	}
 
 	// Check frustum
 	const float2 heightRange = dataSource->GetHeightRange();
-	aabox3f localBounds = coord.Bounds(heightRange.x, heightRange.y);
+	aabox3f localBounds = coord.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
 
 	aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 	if (!camera->GetFrustum().test(worldBounds))
@@ -344,17 +359,6 @@ void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& lea
 	{
 		leafNodes.push_back(coord);
 	}
-}
-
-void alm::gfx::HeightmapInstance::EnforceRestrictedQuadtree(std::vector<QuadNodeCoord>& leafNodes)
-{
-	// Convertir to set
-	std::unordered_set<QuadNodeCoord, QuadNodeCoordHash> leafSet;
-	leafSet.reserve(leafNodes.size() * 2);  // space enough for potential new leafs
-	for (const auto& c : leafNodes)
-		leafSet.insert(c);
-
-
 }
 
 uint32_t alm::gfx::HeightmapInstance::FindNeighbourLevel(const std::unordered_set<QuadNodeCoord, QuadNodeCoordHash>& leafSet,
@@ -408,36 +412,44 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 	const rhi::TextureDesc& texDesc = heightmap->GetHeightsTexture()->GetDesc();
 
 	const float4x4 nodeWorldMatrix = m_SceneHeightmap->GetWorldTransform();
+
 	const float4x4 inverseNodeWorldMatrix = glm::inverse(nodeWorldMatrix);
+
+	alm::gfx::Transform hmTransform;
+	hmTransform.SetScale(float3{ heightmap->GetCellSize() });
+	const float4x4 inverseHeightmapMatrix = hmTransform.GetMatrix() * inverseNodeWorldMatrix;
+
 	const float3x3 nodeNormalMatrix = glm::transpose(glm::mat3(inverseNodeWorldMatrix));
+
+	float2 uvScale = heightmap->GetUVScale();
 
 	GpuSceneBuffers::HeightmapPatchesAllocation alloc = gpuSceneBuffers->AllocateTransientHeightmapPatches(gpuBuffersHandle, m_LeafNodes.size());
 	for (size_t i = 0; i < m_LeafNodes.size(); ++i)
 	{
 		const QuadNodeCoord& coord = m_LeafNodes[i];
 		const float2 minUV = coord.MinUV();
-		const float cellSize = coord.CellSize();
+		const float sizeUV = coord.SizeUV();
 
 		Transform localTransform;
-		localTransform.SetTranslation({ minUV.x, 0.f, minUV.y });
-		localTransform.SetScale({ cellSize, 1.f, cellSize });
+		localTransform.SetTranslation(float3{ minUV.x, 0.f, minUV.y } * heightmap->GetVirtualSize());
+		localTransform.SetScale(float3{ sizeUV * heightmap->GetVirtualSize(), 1.f, sizeUV * heightmap->GetVirtualSize() });
 
 		const float4x4 worldMatrix = nodeWorldMatrix * localTransform.GetMatrix();
 		const float4x4 inverseWorldMatrix = glm::inverse(worldMatrix);
 
 		alloc.InstancesDataPtr[i].modelMatrix = worldMatrix;
 		alloc.InstancesDataPtr[i].inverseModelMatrix = inverseWorldMatrix;
-
 		alloc.HeightmapPatchesPtr[i].MinUV = minUV;
-		alloc.HeightmapPatchesPtr[i].DataNormSize = dataSource->GetNormalizedSize();
-		alloc.HeightmapPatchesPtr[i].CellSize = cellSize;
+		alloc.HeightmapPatchesPtr[i].UVScale = uvScale;
+		alloc.HeightmapPatchesPtr[i].SizeUV = sizeUV;
 		alloc.HeightmapPatchesPtr[i].MipLevel = heightmap->GetMaxDepthLevel() - coord.Level;
 		alloc.HeightmapPatchesPtr[i].TextureResolution = uint2{ texDesc.width, texDesc.height };
 		alloc.HeightmapPatchesPtr[i].NormalMatrixCol0 = float4{ nodeNormalMatrix[0], 0.0 };
 		alloc.HeightmapPatchesPtr[i].NormalMatrixCol1 = float4{ nodeNormalMatrix[1], 0.0 };
 		alloc.HeightmapPatchesPtr[i].NormalMatrixCol2 = float4{ nodeNormalMatrix[2], 0.0 };
-		alloc.HeightmapPatchesPtr[i].InverseModelMatrix = inverseNodeWorldMatrix;
+		alloc.HeightmapPatchesPtr[i].InverseHeightmapMatrix = inverseHeightmapMatrix;
 		alloc.HeightmapPatchesPtr[i].EdgeMask = coord.edgeMask;
+		alloc.HeightmapPatchesPtr[i].CellSize = heightmap->GetCellSize();
 		alloc.HeightmapPatchesPtr[i].HeightmapTextureDI = textureView;
 	}
 	m_InstancesAllocBaseIdx = alloc.InstancesBaseIndex;

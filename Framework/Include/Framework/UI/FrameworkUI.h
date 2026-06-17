@@ -36,6 +36,7 @@ public:
 		{
 			bool ShowMeshBBoxes = false;
 			bool ShowLightBBoxes = false;
+			bool ShowHeightmapBBoxes = false;
 		} Debug;
 
 		int2 ShadowmapSize = { 0, 0 };

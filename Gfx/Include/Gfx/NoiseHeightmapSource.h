@@ -34,6 +34,9 @@ public:
     bool InfiniteDataResolution() const override { return true; }
     uint2 GetDataResolution() const override { return { UINT32_MAX, UINT32_MAX }; }
 
+    bool HasCellSize() const override { return false; }
+    float GetCellSize() const override { return 0.f; }
+
     Type GetType() const override { return Type::Noise; }
     const std::string& GetName() const override { return m_Name; }
 

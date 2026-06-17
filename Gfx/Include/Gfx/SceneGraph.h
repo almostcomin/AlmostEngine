@@ -81,7 +81,7 @@ public:
     using SceneDirectionalLightsContainer = std::unordered_set<SceneDirectionalLight*>;
     using ScenePointLightsContainer = std::unordered_set<ScenePointLight*>;
     using SceneSpotLightsContainer = std::unordered_set<SceneSpotLight*>;
-    using ScenenHeightmapsContainer = std::unordered_set<SceneHeightmap*>;
+    using SceneHeightmapsContainer = std::unordered_set<SceneHeightmap*>;
 
     using RegisterLeafCB = std::function<void(SceneGraphLeaf*)>;
     using UnregisterLeafCB = std::function<void(SceneGraphLeaf*)>;
@@ -107,7 +107,7 @@ public:
     const SceneDirectionalLightsContainer& GetSceneDirLights() const { return m_Leafs.SceneDirLights; }
     const ScenePointLightsContainer& GetScenePointLights() const { return m_Leafs.ScenePointLights; }
     const SceneSpotLightsContainer& GetSceneSpotLights() const { return m_Leafs.SceneSpotLights; }
-    const ScenenHeightmapsContainer& GetSceneHeightmaps() const { return m_Leafs.SceneHeightmaps; }
+    const SceneHeightmapsContainer& GetSceneHeightmaps() const { return m_Leafs.SceneHeightmaps; }
 
     // Called when leaf content has changed
     void ReportLeafDirty(const SceneGraphLeaf* leaf);
@@ -136,7 +136,7 @@ private:
         SceneDirectionalLightsContainer SceneDirLights;
         ScenePointLightsContainer ScenePointLights;
         SceneSpotLightsContainer SceneSpotLights;
-        ScenenHeightmapsContainer SceneHeightmaps;
+        SceneHeightmapsContainer SceneHeightmaps;
     }  m_Leafs;
 
     RegisterLeafCB m_RegisterLeafCB;

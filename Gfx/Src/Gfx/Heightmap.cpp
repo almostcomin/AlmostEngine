@@ -297,32 +297,23 @@ void alm::gfx::Heightmap::Init(
 	std::shared_ptr<IHeightmapSource> source,
 	std::shared_ptr<TerrainMaterial> material,
 	const uint2& textureResolution,
-	uint32_t patchResolution,
-	const float2& uvScale,
-	const float2& uvOffset)
+	uint32_t patchResolution)
 {
 	m_Source = source;
 	m_Material = material;
 	m_TextureResolution = textureResolution;
 	m_PatchResolution = patchResolution;
-	m_uvScale = uvScale;
-	m_uvOffset = uvOffset;
 
 	m_HeightsTexture = BuildTexture();
 	BuildPatchVariants();
+	CalcVirtualSize();
 	ComputeBounds();
-}
-
-float alm::gfx::Heightmap::Sample(const float2& uv) const
-{
-	const float2 sourceUV = uv * m_uvScale + m_uvOffset;
-	return m_Source->Sample(sourceUV);
 }
 
 uint32_t alm::gfx::Heightmap::GetMaxDepthLevel() const
 {
-	uint32_t maxRes = std::max(m_TextureResolution.x, m_TextureResolution.y);
-	uint32_t maxLevel = static_cast<uint32_t>(std::floor(std::log2(maxRes / m_PatchResolution)));
+	uint32_t maxPatches = NextPowerOf2(std::max(m_TextureResolution.x, m_TextureResolution.y) / m_PatchResolution);
+	uint32_t maxLevel = static_cast<uint32_t>(std::floor(std::log2(maxPatches)));
 
 	return maxLevel;
 }
@@ -344,6 +335,41 @@ uint32_t alm::gfx::Heightmap::GetPatchIndicesCount(uint32_t variantIdx) const
 	return m_PatchMeshVariants[variantIdx]->GetIndexCount();
 }
 
+uint32_t alm::gfx::Heightmap::GetVirtualCellsCount() const
+{
+	// Max number of patches for desired resolution (per axis)
+	// Needs to be power of two to make sure subdivisiones are multiple of patch resolution
+	const uint32_t maxPatches = NextPowerOf2(std::max(m_TextureResolution.x, m_TextureResolution.y) / m_PatchResolution);
+	// Number of virtual cells.
+	// This is the number of cells that the quadtree is going to have (per axis)
+	// It is equal or lower than the data resolution
+	return maxPatches * m_PatchResolution;
+}
+
+float2 alm::gfx::Heightmap::GetUVScale() const
+{
+	const uint32_t virtualSize = GetVirtualCellsCount();
+	// Relation between virtual size and data size
+	return float2{ (float)virtualSize / m_TextureResolution.x, (float)virtualSize / m_TextureResolution.y };
+}
+
+float alm::gfx::Heightmap::GetCellSize() const
+{
+	if (m_Source->HasCellSize())
+	{
+		return m_Source->GetCellSize();
+	}
+	else
+	{
+		return 1.f / m_PatchResolution;
+	}
+}
+
+float2 alm::gfx::Heightmap::GetUVToMeters() const
+{
+	return float2{ (float)m_TextureResolution.x, (float)m_TextureResolution.y } * GetCellSize();
+}
+
 uint32_t alm::gfx::Heightmap::EdgeConfigToVariantIndex(const PatchEdgeConfig& config)
 {
 	return (uint32_t)config.North + (uint32_t)config.South * 2 + (uint32_t)config.East * 4 + (uint32_t)config.West * 8;
@@ -352,7 +378,7 @@ uint32_t alm::gfx::Heightmap::EdgeConfigToVariantIndex(const PatchEdgeConfig& co
 void alm::gfx::Heightmap::ComputeBounds()
 {
 	const float2 heightRange = m_Source->GetHeightRange();
-	const float2 normSize = m_Source->GetNormalizedSize();
+	const float2 normSize = GetUVToMeters();
 
 	// Actually if m_Source->IsTileable bounds in x/y are infinite?
 	m_Bounds.min = float3{ 0.f, heightRange.x, 0.f };
@@ -375,16 +401,16 @@ alm::rhi::TextureOwner alm::gfx::Heightmap::BuildTexture()
 	assert(requestResult);
 
 	auto getHeight = [&](uint32_t x, uint32_t y) -> float
+	{
+		if (m_Source->InfiniteDataResolution())
 		{
-			if (m_Source->InfiniteDataResolution())
-			{
-				return m_Source->Sample(float2{ (float)x / texDesc.width, (float)y / texDesc.height });
-			}
-			else
-			{
-				return m_Source->GetHeight(uint2{ x, y });
-			}
-		};
+			return m_Source->Sample(float2{ (float)x / texDesc.width, (float)y / texDesc.height });
+		}
+		else
+		{
+			return m_Source->GetHeight(uint2{ x, y });
+		}
+	};
 
 	const rhi::SubresourceCopyableRequirements copyReq = device->GetSubresourceCopyableRequirements(texDesc, 0, 0);
 	for (uint32_t y = 0; y < texDesc.height; ++y)
@@ -679,4 +705,9 @@ std::shared_ptr<alm::rhi::BufferOwner> alm::gfx::Heightmap::CreateIndexBufferVar
 	uploadResult->Wait();
 
 	return indexBuffer;
+}
+
+void alm::gfx::Heightmap::CalcVirtualSize()
+{
+	m_VirtualSize = GetCellSize() * GetVirtualCellsCount();
 }

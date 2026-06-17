@@ -5,18 +5,23 @@
 
 namespace
 {
+
     // Parses an ESRI EHdr (.flt/.hdr) sidecar header.
     // Returns false if the header is malformed or missing required fields.
-    struct EHdrInfo
+    struct EHdrHeader
     {
         uint32_t width = 0;
         uint32_t height = 0;
         bool bigEndian = false;     // BYTEORDER: 'I' (Intel/LSB) or 'M' (Motorola/MSB)
         bool hasNoData = false;
         float noDataValue = 0.f;
+        float cellSize = 1.f;       // world units per pixel (meters if CRS is UTM)
+        bool hasCellSize = false;
     };
 
-    bool ParseEHdr(const std::string& hdrPath, EHdrInfo& outInfo)
+    // Parses an ESRI EHdr (.flt/.hdr) sidecar header.
+    // Returns false if the header is malformed or missing required fields.
+    bool ParseEHdr(const std::string& hdrPath, EHdrHeader& outInfo)
     {
         alm::fs::File file{ hdrPath };
         if (!file.IsOpen())
@@ -56,6 +61,17 @@ namespace
             {
                 stream >> outInfo.noDataValue;
                 outInfo.hasNoData = true;
+            }
+            else if (key == "CELLSIZE")
+            {
+                stream >> outInfo.cellSize;
+                outInfo.hasCellSize = true;
+            }
+            // XDIM/YDIM are the alternative when pixel is not square
+            else if (key == "XDIM")
+            {
+                stream >> outInfo.cellSize;   // assume pixel is square
+                outInfo.hasCellSize = true;
             }
             else
             {
@@ -105,11 +121,11 @@ namespace
 
 } // anonymous namespace
 
-std::expected<std::pair<alm::gfx::TextureInfo, alm::Blob>, std::string>
+std::expected<std::pair<alm::gfx::EHdrInfo, alm::Blob>, std::string>
 alm::gfx::LoadEHdr(const std::string& hdrPath)
 {
-    EHdrInfo info;
-    if (!ParseEHdr(hdrPath, info))
+    EHdrHeader header;
+    if (!ParseEHdr(hdrPath, header))
         return std::unexpected(std::format("Error loading EHdr header image [{}]", hdrPath));
 
     const std::string binPath = FindEHdrBinary(hdrPath);
@@ -124,7 +140,7 @@ alm::gfx::LoadEHdr(const std::string& hdrPath)
     assert(readResult);
     alm::Blob fileData = std::move(*readResult);
 
-    const uint32_t pixelCount = info.width * info.height;
+    const uint32_t pixelCount = header.width * header.height;
     const size_t expectedBytes = size_t(pixelCount) * sizeof(float);
     if (fileData.size() < expectedBytes)
     {
@@ -135,7 +151,7 @@ alm::gfx::LoadEHdr(const std::string& hdrPath)
     float* heights = reinterpret_cast<float*>(fileData.data());
 
     // Fix endian
-    if (info.bigEndian)
+    if (header.bigEndian)
     {
         for (uint32_t i = 0; i < pixelCount; ++i)
         {
@@ -150,13 +166,13 @@ alm::gfx::LoadEHdr(const std::string& hdrPath)
     // OpenTopography marks voids with a sentinel (often -9999 or -3.4e38).
     // Replace them with the lowest valid sample so ComputeHeightRange and the
     // terrain mesh don't get wrecked by spurious pits.
-    if (info.hasNoData)
+    if (header.hasNoData)
     {
         // First pass: find the minimum among valid samples.
         float minValid = std::numeric_limits<float>::max();
         for (uint32_t i = 0; i < pixelCount; ++i)
         {
-            if (heights[i] != info.noDataValue && heights[i] > -1e30f)
+            if (heights[i] != header.noDataValue && heights[i] > -1e30f)
                 minValid = std::min(minValid, heights[i]);
         }
         if (minValid == std::numeric_limits<float>::max())
@@ -164,20 +180,16 @@ alm::gfx::LoadEHdr(const std::string& hdrPath)
 
         for (uint32_t i = 0; i < pixelCount; ++i)
         {
-            heights[i] = (heights[i] == info.noDataValue || heights[i] <= -1e30f) ? minValid : heights[i];
+            heights[i] = (heights[i] == header.noDataValue || heights[i] <= -1e30f) ? minValid : heights[i];
         }
     }
 
-    alm::gfx::TextureInfo texInfo{
-        .format = rhi::Format::R32_FLOAT,
-        .width = info.width,
-        .height = info.height,
-        .depth = 1,
-        .arraySize = 1,
-        .mipLevels = 1,
-        .dimension = rhi::TextureDimension::Texture2D,
-        .debugName = std::string{ GetFilenameFromPath(hdrPath) }
+    EHdrInfo info{
+        .Width = header.width,
+        .Height = header.height,
+        .CellSize = header.cellSize,
+        .HasCellSize = header.hasCellSize
     };
 
-    return std::pair<alm::gfx::TextureInfo, alm::Blob> { texInfo, std::move(fileData) };
+    return std::pair<alm::gfx::EHdrInfo, alm::Blob> { info, std::move(fileData) };
 }

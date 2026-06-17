@@ -48,11 +48,6 @@
 
 build/*
 
-# Apps/*/Data/**/*
-# !Apps/*/Data/**/.do_not_delete
-Apps/*/Data/Generated/
-Apps/*/Data/Shaders/
-
 imgui.ini
 
 _*

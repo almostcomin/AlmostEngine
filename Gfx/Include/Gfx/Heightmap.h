@@ -36,11 +36,7 @@ public:
 	void Init(std::shared_ptr<IHeightmapSource> source,
 		std::shared_ptr<TerrainMaterial> material,
 		const uint2& textureResolution,
-		uint32_t patchResolution = 64,
-		const float2& uvScale = { 1.f, 1.f },
-		const float2& uvOffset = { 0.f, 0.f });
-
-	float Sample(const float2& uv) const;
+		uint32_t patchResolution = 64);
 
 	const std::shared_ptr<IHeightmapSource>& GetSource() const { return m_Source; }
 	const aabox3f& GetBounds() const { return m_Bounds; }
@@ -58,6 +54,21 @@ public:
 
 	void RefreshHeightsTexture();
 	uint32_t GetPatchIndicesCount(uint32_t variantIdx) const;
+	uint32_t GetPatchResolution() const { return m_PatchResolution; }
+	
+	// Virtual size/count takes into consideration that the size of the heightmap (the quadtree) needs to be power of two. 
+	// So it is always equal of higher that the data size/count
+
+	// Number of virtual cells.
+	uint32_t GetVirtualCellsCount() const;
+	// Virtual size of the heightmap
+	float GetVirtualSize() const { return m_VirtualSize; }
+	// Relation between virtual/data size
+	float2 GetUVScale() const;
+	// Returns the cell size, size of a patch quad
+	float GetCellSize() const;
+
+	float2 GetUVToMeters() const;
 
 	// 0..15
 	static uint32_t EdgeConfigToVariantIndex(const PatchEdgeConfig& config);
@@ -70,11 +81,18 @@ private:
 
 	std::shared_ptr<alm::rhi::BufferOwner> CreateIndexBufferVariant(const PatchEdgeConfig& edgeConfig, const bool indices32Bits) const;
 
+	void CalcVirtualSize();
+
+private:
+
 	std::shared_ptr<IHeightmapSource> m_Source;
 
-	float2 m_uvScale;
-	float2 m_uvOffset;
+	// Geometry size (per axis), power of two.
 	uint32_t m_PatchResolution;
+	// Size of the heightmap.
+	// Virtual means that takes into account that the source data might not be multiple of two.
+	// Virtual size is 
+	float m_VirtualSize;
 
 	aabox3f m_Bounds;
 

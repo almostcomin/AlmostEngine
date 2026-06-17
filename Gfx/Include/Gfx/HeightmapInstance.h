@@ -29,6 +29,7 @@ public:
 
 	void FreezeTesselation(bool freeze) { m_Frozen = freeze; }
 	std::string DumpTesselationInfo() const;
+	std::vector<alm::aabox3f> CollectAABBoxes() const;
 
 private:
 
@@ -50,11 +51,11 @@ private:
 		QuadNodeCoord Child(int i) const;	// i [0, 3]
 		QuadNodeCoord Parent() const;
 
-		float CellSize() const;
+		float SizeUV() const;
 		float2 MinUV() const;
 		float2 MaxUV() const;
 		float2 CenterUV() const;
-		aabox3f Bounds(float minY, float maxY) const;
+		aabox3f Bounds(float sizeFactor, float minY, float maxY) const;
 
 		bool operator==(const QuadNodeCoord& other) const
 		{
@@ -78,12 +79,11 @@ private:
 private:
 
 	bool ShouldSubdivide(const QuadNodeCoord& coord, const aabox3f& worldBounds, const Camera* camera);
-
 	bool NeighborWouldForceSubdivide(const QuadNodeCoord& coord, Axis axis, const Camera* camera);
+	uint32_t FindNeighbourLevel(const std::unordered_set<QuadNodeCoord, QuadNodeCoordHash>& leafSet, const QuadNodeCoord& coord, Axis axis);
 
 	void SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& coord, const Camera* camera);
-	static void EnforceRestrictedQuadtree(std::vector<QuadNodeCoord>& leafNodes);
-	uint32_t FindNeighbourLevel(const std::unordered_set<QuadNodeCoord, QuadNodeCoordHash>& leafSet, const QuadNodeCoord& coord, Axis axis);
+
 	void FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle);
 
 private:

@@ -184,9 +184,6 @@ public:
 					mat->Slope.MetalRoughTexture = loadResult->first;
 				}
 				mat->Slope.UVScale = 60.f;
-
-				//mat->SlopeAngleStartDeg = 15.f;
-				//mat->SlopeAngleEndDeg = 20.f;
 			}
 
 			// Heightmap
@@ -203,8 +200,19 @@ public:
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
 			graphNode->SetName("Heightmap");
 			graphNode->SetLeaf(std::move(sceneHeightmapUnique));
-			graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 0.3f, 12.f }));
+
+			if (dataSource->HasCellSize())
+			{
+				float factor = (float)heightmap->GetPatchResolution() * dataSource->GetCellSize();
+				//graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ factor, 1.f, factor }));
+			}
+			else
+			{
+				//graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 1.f, 0.1f, 1.f }));
+			}
+
 			//graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation(kEarthPos));
+			//graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 0.3f, 12.f }));
 
 			// Attach to scene
 			auto sceneGraph = m_Scene->GetSceneGraph();
@@ -289,6 +297,8 @@ public:
 		float altutide = glm::distance(m_MainCamera->GetPosition(), kEarthPos) - kEarthRadius;
 		m_UI->AddBottomBarText(std::format("Altitude: {:1.3f}", altutide));
 
+		m_UI->AddBottomBarText(std::format("Camera speed: {:1.1f}", m_CameraController.GetSpeed()));
+
 		return true;
 	}
 
@@ -317,6 +327,20 @@ public:
 					m_Wireframe = !m_Wireframe;
 				}
 				break;
+
+			case SDLK_KP_PLUS:
+			{
+				float speed = m_CameraController.GetSpeed();
+				speed += (speed < 1.f) ? 0.1f : 1.f;
+				m_CameraController.SetSpeed(speed);
+			} break;
+
+			case SDLK_KP_MINUS:
+			{
+				float speed = m_CameraController.GetSpeed();
+				speed -= (speed > 1.1f) ? 1.f : 0.1f;
+				m_CameraController.SetSpeed(speed);
+			} break;
 			}
 		} break;
 		}

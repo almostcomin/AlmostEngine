@@ -472,6 +472,7 @@ void alm::fw::App::MainLoop()
 
 			debugRS->ShowRenderBBoxes(alm::gfx::SceneContentType::Meshes, data.Debug.ShowMeshBBoxes);
 			debugRS->ShowRenderBBoxes(alm::gfx::SceneContentType::SpotLights, data.Debug.ShowLightBBoxes);
+			debugRS->ShowHeightmapsBBoxes(data.Debug.ShowHeightmapBBoxes);
 
 			if (shadowmapRS->GetSize() != data.ShadowmapSize)
 				shadowmapRS->SetSize(data.ShadowmapSize);

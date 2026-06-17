@@ -26,6 +26,7 @@ public:
 	DebugRenderStage() = default;
 
 	void ShowRenderBBoxes(SceneContentType boundsType, bool b);
+	void ShowHeightmapsBBoxes(bool b) { m_RenderHeightmapBBoxes = b; }
 
 private:
 
@@ -35,7 +36,8 @@ private:
 	void OnDetached() override;
 	void OnBackbufferResize() override;
 
-	std::pair<rhi::BufferReadOnlyView, size_t> GetAABBOXBuffer(const Scene* scene, SceneContentType boundsType, rhi::CommandListHandle commandList);
+	std::pair<rhi::BufferReadOnlyView, size_t> GetAABBOXBuffer(const Scene* scene, SceneContentType boundsType);
+	std::pair<rhi::BufferReadOnlyView, size_t> FillBuffer(const std::vector<alm::aabox3f>& aabboxes);
 
 private:
 
@@ -45,10 +47,11 @@ private:
 	rhi::GraphicsPipelineStateOwner m_PSO;
 	rhi::ShaderOwner m_VS;
 	rhi::ShaderOwner m_PS;
-	rhi::BufferOwner m_AABBOXBuffer;
+
 	rhi::FramebufferOwner m_FB;
 
 	std::array<bool, (int)SceneContentType::_Size> m_RenderBBoxes;
+	bool m_RenderHeightmapBBoxes = false;
 };
 
 } // namespace st::gfx

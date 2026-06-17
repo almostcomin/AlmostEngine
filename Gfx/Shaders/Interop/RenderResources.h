@@ -152,18 +152,19 @@ namespace interop
     struct HeightmapPatchData
     {
         float2 MinUV;           
-        float2 DataNormSize;
-        float CellSize;                 // offset 4
+        float2 UVScale;
+        float SizeUV;                       // offset 4
         uint MipLevel;
         uint2 TextureResolution;
         // 3x3 normal matrix, stored as 3 float4 columns (w unused)
-        float4 NormalMatrixCol0;        // offset 8
+        float4 NormalMatrixCol0;            // offset 8
         float4 NormalMatrixCol1;
         float4 NormalMatrixCol2;
-        float4x4 InverseModelMatrix;    // offset 20
-        uint EdgeMask;                  // bits: bit0=N Low?, bit1=S Low?, bit2=E Low?, bit3=W Low?
+        float4x4 InverseHeightmapMatrix;    // offset 20
+        uint EdgeMask;                      // bits: bit0=N Low?, bit1=S Low?, bit2=E Low?, bit3=W Low?
+        float CellSize;
         TextureSampledViewIndex HeightmapTextureDI; 
-        uint2 _padding;
+        uint _padding;
     }; // size 40 * 4 = 160 bytes
 
     // Warning! can't use _padding[2] since in a constant buffer each array element consumes 4 bytes:

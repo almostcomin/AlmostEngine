@@ -11,10 +11,10 @@ struct PS_INPUT
     float4 pos                      : SV_POSITION;
     float3 normal                   : NORMAL;           // view space
     float4 tangent                  : TANGENT;          // xyz = tangent, w = handedness (-1 or +1)    
-    float3 normalWorld              : NORMAL1;
     float2 uv                       : TEXCOORD0;
     float3 posWorld                 : TEXCOORD1;
     nointerpolation uint patchIndex : PATCH_INDEX;
+    float3 debugConnectionColor     : COLOR0;
 };
 
 struct PS_OUTPUT
@@ -37,8 +37,8 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     
     Texture2D<float> heightsTexture = ResourceDescriptorHeap[patchData.HeightmapTextureDI];
     
-    float4 localPos = mul(patchData.InverseModelMatrix, float4(input.posWorld, 1.0));
-    float2 uv = float2(localPos.x, localPos.z) / patchData.DataNormSize;
+    float4 localPos = mul(patchData.InverseHeightmapMatrix, float4(input.posWorld, 1.0));
+    float2 uv = float2(localPos.x, localPos.z) * patchData.UVScale;
     
     // Height sampled from heightmap
     float H = heightsTexture.SampleLevel(linearClampSampler, uv, 0).r;
@@ -49,18 +49,16 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
         // texel size
         float2 ts = float2(1.0 / patchData.TextureResolution.x, 1.0 / patchData.TextureResolution.y);
         // sample heights
-        float hL = heightsTexture.SampleLevel(linearClampSampler, uv + float2(-ts.x, 0), 0).r;
-        float hR = heightsTexture.SampleLevel(linearClampSampler, uv + float2(ts.x, 0), 0).r;
-        float hD = heightsTexture.SampleLevel(linearClampSampler, uv + float2(0, -ts.y), 0).r;
-        float hU = heightsTexture.SampleLevel(linearClampSampler, uv + float2(0, ts.y), 0).r;
-        // one-sided derivatives: keep the steepest slope to avoid cancellation on ridges/valleys
-        float gRU = (hR - H) / ts.x; // forward  U
-        float gLD = (H - hL) / ts.x; // backward U
-        float dHdU = (abs(gRU) > abs(gLD)) ? gRU : gLD;
-        float gUU = (hU - H) / ts.y; // forward  V
-        float gDD = (H - hD) / ts.y; // backward V
-        float dHdV = (abs(gUU) > abs(gDD)) ? gUU : gDD;
+        float hL = heightsTexture.SampleLevel(linearClampSampler, uv + float2(-ts.x,     0), patchData.MipLevel).r;
+        float hR = heightsTexture.SampleLevel(linearClampSampler, uv + float2( ts.x,     0), patchData.MipLevel).r;
+        float hD = heightsTexture.SampleLevel(linearClampSampler, uv + float2(    0, -ts.y), patchData.MipLevel).r;
+        float hU = heightsTexture.SampleLevel(linearClampSampler, uv + float2(    0,  ts.y), patchData.MipLevel).r;
+        
+        float dHdU = (hR - hL) / (2.0 * patchData.CellSize);
+        float dHdV = (hU - hD) / (2.0 * patchData.CellSize);
+        
         float3 normalLocal = normalize(float3(-dHdU, 1.0, -dHdV));
+
         // transform to world
         float3x3 normalMatrix = float3x3(
             patchData.NormalMatrixCol0.xyz,
@@ -96,7 +94,7 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     }
     else if (StageConstants.DebugChannel == DebugChannel_Heightmap_Connections)
     {
-        output.GBuffer0 = float4(input.normalWorld, 1);
+        output.GBuffer0 = float4(input.debugConnectionColor, 1);
         output.GBuffer1 = float4(0, 0, 0, 1);
         output.GBuffer2 = float4(EncodeNormal(float3(0, 1, 0)), 1.0, 0.0);
         output.GBuffer3 = float4(0, 0, 0, 0);
@@ -105,7 +103,7 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     {
         MaterialSample matSample = EvaluateTerrainMaterial(
             H,
-            sampledNormal, //input.normalWorld,
+            sampledNormal,
             input.normal,
             input.tangent,
             input.uv,

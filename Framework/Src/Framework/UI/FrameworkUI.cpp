@@ -1126,6 +1126,7 @@ void alm::fw::FrameworkUI::BuildDebugViewSettings(float availWidth)
         ImGui::Checkbox("Mesh BBoxes", &FrameworkData.Debug.ShowMeshBBoxes);
         ImGui::SameLine(availWidth / 2);
         ImGui::Checkbox("Light BBoxes", &FrameworkData.Debug.ShowLightBBoxes);
+        ImGui::Checkbox("Heightmap BBoxes", &FrameworkData.Debug.ShowHeightmapBBoxes);
     }
 }
 
