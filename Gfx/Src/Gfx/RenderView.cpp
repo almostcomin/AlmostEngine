@@ -159,7 +159,7 @@ void alm::gfx::RenderView::OnWindowSizeChanged()
 	}
 }
 
-void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
+void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec, const MouseState& mouseState)
 {
 	alm::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
 	if (!frameBuffer)
@@ -177,6 +177,8 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec)
 	// Update common data
 	m_TimeSec = timeSec;
 	m_TimeDeltaSec = timeDeltaSec;
+	m_MouseState = mouseState;
+
 	if (m_Camera && m_ResetPrevFrameCamera)
 	{
 		m_PrevViewProjectionMatrix = m_Camera->GetViewProjectionMatrix();
@@ -259,13 +261,18 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 	interop::SceneConstants* sceneShaderConstant = (interop::SceneConstants*)m_SceneConstants.Map();
 	*sceneShaderConstant = {};
 
-	// Screen resolution
-	float2 screenResolution = float2{ GetFramebuffer()->GetFramebufferInfo().width, GetFramebuffer()->GetFramebufferInfo().height };
+	const float2 screenResolution = float2{ GetFramebuffer()->GetFramebufferInfo().width, GetFramebuffer()->GetFramebufferInfo().height };
+	sceneShaderConstant->screenResolution = screenResolution;
 	sceneShaderConstant->invScreenResolution = 1.0f / screenResolution;	
 	sceneShaderConstant->aspect = screenResolution.x / screenResolution.y;
 
 	sceneShaderConstant->time = m_TimeSec;
 	sceneShaderConstant->deltaTime = m_TimeDeltaSec;
+	sceneShaderConstant->mouseState = float4{
+		m_MouseState.pos.x, m_MouseState.pos.y,
+		m_MouseState.leftButton ? 1.f : 0.f,
+		m_MouseState.rightButton ? 1.f : 0.f
+	};
 
 	// Camera
 	if (m_Camera)
@@ -273,14 +280,16 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->camViewProjMatrix = m_Camera->GetViewProjectionMatrix();
 		sceneShaderConstant->camViewMatrix = m_Camera->GetViewMatrix();
 		sceneShaderConstant->camProjMatrix = m_Camera->GetProjectionMatrix();
-		sceneShaderConstant->camWorldPos = float4{ m_Camera->GetPosition(), 0.f };
+		sceneShaderConstant->camWorldPos = m_Camera->GetPosition();
+		sceneShaderConstant->camZNear = m_Camera->GetZNear();
 	}
 	else
 	{
 		sceneShaderConstant->camViewProjMatrix = float4x4{ 1.f };
 		sceneShaderConstant->camViewMatrix = float4x4{ 1.f };
 		sceneShaderConstant->camProjMatrix = float4x4{ 1.f };
-		sceneShaderConstant->camWorldPos = float4{ 0.f };
+		sceneShaderConstant->camWorldPos = float3{ 0.f };
+		sceneShaderConstant->camZNear = 0.f;
 	}
 	sceneShaderConstant->invCamViewProjMatrix = glm::inverse(sceneShaderConstant->camViewProjMatrix);
 	sceneShaderConstant->invCamViewMatrix = glm::inverse(sceneShaderConstant->camViewMatrix);

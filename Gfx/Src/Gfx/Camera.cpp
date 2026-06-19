@@ -91,7 +91,7 @@ void alm::gfx::Camera::Fit(const alm::aabox3f& bounds)
 	SetForward(newFwd);
 }
 
-const float4x4& alm::gfx::Camera::GetViewMatrix()
+const float4x4& alm::gfx::Camera::GetViewMatrix() const
 {
 	UpdateMatrices();
 	return m_ViewMatrix;

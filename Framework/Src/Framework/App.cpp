@@ -446,7 +446,15 @@ void alm::fw::App::MainLoop()
 
 		m_DeviceManager->Render([&]()
 		{
-			m_MainRenderView->Render(totalSec, elapsedSec);
+			float2 mousePos;
+			SDL_MouseButtonFlags mouseButtonFlags = SDL_GetMouseState(&mousePos.x, &mousePos.y);
+			gfx::RenderView::MouseState mouseState{
+				.pos = mousePos,
+				.leftButton = mouseButtonFlags & SDL_BUTTON_LEFT ? true : false,
+				.rightButton = mouseButtonFlags & SDL_BUTTON_RIGHT ? true : false
+			};
+
+			m_MainRenderView->Render(totalSec, elapsedSec, mouseState);
 		});
 
 		// Apply UI settings

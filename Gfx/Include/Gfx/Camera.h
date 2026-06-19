@@ -43,7 +43,7 @@ public:
 	float GetVerticalFOV() const { return m_VerticalFov; }
 	float GetZNear() const { return m_zNear; }
 
-	const float4x4& GetViewMatrix();
+	const float4x4& GetViewMatrix() const;
 	const float4x4& GetProjectionMatrix();
 	float4x4 GetViewProjectionMatrix();
 	

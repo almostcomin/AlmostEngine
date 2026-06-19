@@ -172,34 +172,34 @@ namespace interop
     // TODO: Split this in two buffers: Per scene & per render-view
     struct SceneConstants
     {
+        float2 screenResolution;
         float2 invScreenResolution;
         float aspect;
-        uint _padding0;
-
         float time;
         float deltaTime;
-        uint _padding1;
-        uint _padding2;
+        uint _padding0;
+        float4 mouseState;                      // .xy pos, .zw: leftBtn, rightBtn
 
         // Camera
-        float4x4 camViewProjMatrix;             // offset 8
-        float4x4 invCamViewProjMatrix;          // offset 24
-        float4x4 camViewMatrix;                 // offset 40
-        float4x4 invCamViewMatrix;              // offset 56
-        float4x4 camProjMatrix;                 // offset 72
-        float4x4 invCamProjMatrix;              // offset 88
-        float4 camWorldPos; // xyz              // offset 104
+        float4x4 camViewProjMatrix;             // offset 12
+        float4x4 invCamViewProjMatrix;          // offset 28
+        float4x4 camViewMatrix;                 // offset 44
+        float4x4 invCamViewMatrix;              // offset 60
+        float4x4 camProjMatrix;                 // offset 76
+        float4x4 invCamProjMatrix;              // offset 92
+        float3 camWorldPos;                     // offset 108
+        float camZNear;
 
         // Shadomap matrices
-        float4x4 shadowMapWorldToClipMatrix;    // offset 108
-        float4x4 shadowMapViewToClipMatrix;     // offset 124
+        float4x4 shadowMapWorldToClipMatrix;    // offset 112
+        float4x4 shadowMapViewToClipMatrix;     // offset 128
 
         // Sky/ambient light
-        float4 ambientTop;      // rgb          // offset 130
-        float4 ambientBottom;   // rgb          // offset 134
+        float4 ambientTop;      // rgb          // offset 134
+        float4 ambientBottom;   // rgb          // offset 138
 
         // Lights
-        DirLightData mainDirLight;              // offset 138
+        DirLightData mainDirLight;              // offset 142
         uint dirLightCount;
         BufferReadOnlyIndex dirLightsDataDI;    // DirLightData
         uint pointLightCount;
@@ -280,16 +280,26 @@ namespace interop
         uint ShowShadowmap;
     };
 
-    struct DebugStage
+    struct DebugStageBBoxes
     {
         BufferUniformIndex sceneDI;
         BufferReadOnlyIndex aaboxDI;
     };
 
+    struct DebugStageS2H
+    {
+        BufferUniformIndex sceneDI;
+        TextureStorageViewIndex inputTextureDI;
+        TextureStorageViewIndex outputTextureDI;
+        TextureSampledViewIndex GBuffer2DI;
+    };
+
     struct AABB
     {
         float3 min;
+        uint _padding0;
         float3 max;
+        uint _padding1;
     };
 
     struct CompositeConstants

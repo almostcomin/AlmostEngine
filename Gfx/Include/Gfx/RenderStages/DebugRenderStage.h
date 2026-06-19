@@ -39,16 +39,31 @@ private:
 	std::pair<rhi::BufferReadOnlyView, size_t> GetAABBOXBuffer(const Scene* scene, SceneContentType boundsType);
 	std::pair<rhi::BufferReadOnlyView, size_t> FillBuffer(const std::vector<alm::aabox3f>& aabboxes);
 
+	void CreateBBoxPSO();
+	void CreateS2HPSO();
+
+	void RenderBBoxes(alm::rhi::CommandListHandle commandList);
+	void RenderS2H(alm::rhi::CommandListHandle commandList);
+
 private:
 
 	RGTextureHandle m_TonemappedTexture;
 	RGTextureHandle m_SceneDepthTexture;
+	RGTextureHandle m_GBuffer2Texture;
+	RGFramebufferHandle m_FB;
 
-	rhi::GraphicsPipelineStateOwner m_PSO;
-	rhi::ShaderOwner m_VS;
-	rhi::ShaderOwner m_PS;
+	struct
+	{
+		rhi::GraphicsPipelineStateOwner PSO;
+		rhi::ShaderOwner VS;
+		rhi::ShaderOwner PS;
+	} m_BBoxRenderResources;
 
-	rhi::FramebufferOwner m_FB;
+	struct
+	{
+		rhi::ComputePipelineStateOwner PSO;
+		rhi::ShaderOwner CS;
+	} m_S2HRenderResources;
 
 	std::array<bool, (int)SceneContentType::_Size> m_RenderBBoxes;
 	bool m_RenderHeightmapBBoxes = false;

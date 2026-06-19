@@ -38,6 +38,13 @@ class RenderView : public alm::enable_weak_from_this<RenderView>, private alm::n
 {
 public:
 
+	struct MouseState
+	{
+		float2 pos;
+		bool leftButton;
+		bool rightButton;
+	};
+
 	RenderView(DeviceManager* deviceManager, const char* debugName);
 	RenderView(ViewportSwapChainId, DeviceManager* deviceManager, const char* debugName);
 	~RenderView();
@@ -53,7 +60,7 @@ public:
 	void UnregisterHeightmap(const SceneHeightmap* sceneHeightmap);
 
 	alm::weak<Scene> GetScene() { return m_Scene; }
-	std::shared_ptr<Camera> GetCamera() { return m_Camera; }
+	std::shared_ptr<Camera> GetCamera() const { return m_Camera; }
 	alm::weak<RenderGraph> GetRenderGraph() { return m_RenderGraph.get_weak(); }
 	alm::rhi::FramebufferHandle GetFramebuffer();
 	alm::rhi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
@@ -72,10 +79,11 @@ public:
 
 	void OnWindowSizeChanged();
 
-	void Render(double timeSec, float timeDeltaSec);
+	void Render(double timeSec, float timeDeltaSec, const MouseState& mouseState);
 
 	double GetTime() const { return m_TimeSec; }
 	float GetTimeDelta() const { return m_TimeDeltaSec; }
+	const MouseState& GetMouseState() const { return m_MouseState; }
 
 	HeightmapInstance* GetHeightmapInstance(const SceneHeightmap* sceneHeightmap) const;
 
@@ -153,6 +161,7 @@ private:
 
 	double m_TimeSec;
 	float m_TimeDeltaSec;
+	MouseState m_MouseState;
 
 	std::string m_DebugName;
 	DeviceManager* m_DeviceManager;

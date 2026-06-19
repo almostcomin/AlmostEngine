@@ -7,7 +7,7 @@ struct VS_OUTPUT
     float4 color : COLOR;
 };
 
-ConstantBuffer<interop::DebugStage> Constants : register(b0);
+ConstantBuffer<interop::DebugStageBBoxes> Constants : register(b0);
 
 static const uint edgeIndices[24] =
 {
