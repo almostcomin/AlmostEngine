@@ -198,7 +198,7 @@ void alm::gfx::SceneGraph::LogGraph()
 
 void alm::gfx::SceneGraph::UpdateNodeRecursive(SceneGraphNode* node, bool parentTransformChanged)
 {
-    if (!has_any_flag(node->m_DirtyFlags, SceneGraphNode::DirtyFlags::All))
+    if (!parentTransformChanged && !has_any_flag(node->m_DirtyFlags, SceneGraphNode::DirtyFlags::All))
         return;
 
     // Snapshot what changed in THIS node before we clear flags.

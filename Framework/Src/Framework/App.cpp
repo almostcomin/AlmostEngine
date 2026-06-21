@@ -21,6 +21,12 @@
 #include "Gfx/RenderStages/SimpleSkyRenderStage.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/ImGUIViewportsRenderer.h"
+#include "Gfx/GltfImporter.h"
+#include "Gfx/SceneGraph.h"
+#include "Gfx/MeshInstance.h"
+#include "Gfx/Mesh.h"
+#include "Gfx/Material.h"
+#include "RHI/Device.h"
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_init.h>
 #include <imgui/imgui_impl_sdl3.h>
@@ -157,6 +163,151 @@ void alm::fw::App::RefreshUIData()
 		data.Tonemapping.AdaptationUpSpeed = tonemappingRS->GetAdaptationUpSpeed();
 		data.Tonemapping.AdaptationDownSpeed = tonemappingRS->GetAdaptationDownSpeed();
 	}
+}
+
+void alm::fw::App::ShowArrow(const gfx::Transform& transform)
+{
+	// Lazy load
+	if (!m_ArrowMeshY)
+	{
+		auto importResult = alm::gfx::ImportGlTF("arrowY.gltf", m_DeviceManager.get());
+		if (!importResult)
+		{
+			LOG_ERROR(importResult.error());
+			return;
+		}
+
+		m_ArrowMeshY = m_Scene->GetSceneGraph()->GetRoot()->AddChild(std::move(*importResult));
+
+		// Change material domain so it does not write de z-buffer
+		for (auto walker = gfx::SceneGraph::Walker{ m_ArrowMeshY.get() }; walker; walker.Next())
+		{
+			auto node = *walker;
+			if (node->GetLeaf() && node->GetLeaf()->GetType() == gfx::SceneGraphLeaf::Type::MeshInstance)
+			{
+				auto meshInstance = alm::checked_pointer_cast<gfx::MeshInstance>(node->GetLeaf());
+				auto mat = meshInstance->GetMesh()->GetMaterial();
+				mat->SetDomain(gfx::MaterialDomain::AlphaBlended);
+			}
+		}
+	}
+
+	m_ArrowMeshY->SetLocalTransform(transform);
+}
+
+void alm::fw::App::HideArrow()
+{
+}
+
+void alm::fw::App::ShowNormal(const uint2& screenPos)
+{
+	auto* renderGraph = m_MainRenderView->GetRenderGraph().get();
+	auto gBuffer2TexHandle = renderGraph->GetTextureHandle("GBuffer2");
+
+	if (!gBuffer2TexHandle)
+	{
+		LOG_ERROR("Could not find \"GBuffer2\" texture in the render graph.");
+		return;
+	}
+
+	auto linearDepthTexHandle = renderGraph->GetTextureHandle("LinearDepth");
+	if (!linearDepthTexHandle)
+	{
+		LOG_ERROR("Could not find \"LinearDepth\" texture in the render graph.");
+		return;
+	}
+
+	const rhi::TextureDesc& gBuffer2TexDesc = renderGraph->GetTexture(gBuffer2TexHandle)->GetDesc();
+	const rhi::TextureDesc& linearDepthTexDesc = renderGraph->GetTexture(linearDepthTexHandle)->GetDesc();
+	
+	assert(gBuffer2TexDesc.width == linearDepthTexDesc.width && gBuffer2TexDesc.height == linearDepthTexDesc.height);
+	assert(gBuffer2TexDesc.format == rhi::Format::RGBA16_FLOAT);
+	assert(linearDepthTexDesc.format == rhi::Format::R32_FLOAT);
+
+	if (!m_GBuffer2ViewTicket)
+	{
+		m_GBuffer2ViewTicket = renderGraph->RequestBufferView(
+			gfx::GBuffersRenderStage::StaticType(), gfx::RenderGraph::AccessMode::Write, gBuffer2TexHandle);
+		if (!m_GBuffer2ViewTicket)
+		{
+			LOG_ERROR("Failed to request GBuffer2 view ticket");
+			return;
+		}
+	}
+	if (!m_LinearDepthViewTicket)
+	{
+		m_LinearDepthViewTicket = renderGraph->RequestBufferView(
+			gfx::LinearizeDepthRenderStage::StaticType(), gfx::RenderGraph::AccessMode::Write, linearDepthTexHandle);
+		if (!m_LinearDepthViewTicket)
+		{
+			LOG_ERROR("Failed to request LinearDepth view ticket");
+			return;
+		}
+	}
+
+	float3 normal = { 0.f, 0.f, 0.f };
+	bool validNormal = false;
+	float3 worldPos = { 0.f, 0.f, 0.f };
+	bool validPos = false;
+
+	alm::rhi::BufferHandle gBuffer2Buffer = renderGraph->GetBufferView(m_GBuffer2ViewTicket);
+	alm::rhi::BufferHandle linearDepthBuffer = renderGraph->GetBufferView(m_LinearDepthViewTicket);
+	if (gBuffer2Buffer && linearDepthBuffer)
+	{
+		// Get normal
+		{
+			alm::rhi::SubresourceCopyableRequirements copyReq = m_DeviceManager->GetDevice()->GetSubresourceCopyableRequirements(
+				gBuffer2TexDesc, 0, 0);
+
+			char* gBufferData = (char*)gBuffer2Buffer->Map();
+			gBufferData += copyReq.offset;
+			gBufferData += screenPos.y * copyReq.rowStride;
+			gBufferData += screenPos.x * sizeof(short4);
+
+			ushort4 pixelData = *(ushort4*)gBufferData;
+
+			float2 encodedNormal = { HalfToFloat(pixelData.x), HalfToFloat(pixelData.y) };
+			normal = DecodeNormal(encodedNormal);
+			float4x4 invCamViewMatrix = glm::inverse(m_MainRenderView->GetCamera()->GetViewMatrix());
+			normal = invCamViewMatrix * float4{ normal.x, normal.y, normal.z, 0.f };
+			normal = glm::normalize(normal);
+
+			gBuffer2Buffer->Unmap();
+			validNormal = true;
+		}
+
+		// Get world pos
+		{
+			alm::rhi::SubresourceCopyableRequirements copyReq = m_DeviceManager->GetDevice()->GetSubresourceCopyableRequirements(
+				linearDepthTexDesc, 0, 0);
+
+			char* linearDepthData = (char*)linearDepthBuffer->Map();
+			linearDepthData += copyReq.offset;
+			linearDepthData += screenPos.y * copyReq.rowStride;
+			linearDepthData += screenPos.x * sizeof(float);
+
+			float depth = *(float*)linearDepthData;
+
+			worldPos = m_MainRenderView->GetCamera()->ScreenToWorld(
+				screenPos, depth, uint2{ linearDepthTexDesc.width, linearDepthTexDesc.height });
+
+			linearDepthBuffer->Unmap();
+			validPos = true;
+		}
+	}
+
+	if (validNormal && validPos)
+	{
+		gfx::Transform transform;
+		transform.SetTranslation(worldPos);
+		transform.SetRotation(glm::rotation(float3{ 0.f, 1.f, 0.f }, normal));
+		transform.SetScale(float3{ 0.1f, 0.1f, 0.1f });
+
+		ShowArrow(transform);
+	}
+
+	//m_FrameworkUI->AddBottomBarText(std::format("Normal: {{{:1.3f}, {:1.3f}, {:1.3f}}}", normal.x, normal.y, normal.z));
+	//m_FrameworkUI->AddBottomBarText(std::format("Pos: {{{:1.3f}, {:1.3f}, {:1.3f}}}", worldPos.x, worldPos.y, worldPos.z));
 }
 
 alm::gfx::RenderStageTypeID alm::fw::App::GetUIRenderStageType() const
@@ -411,7 +562,42 @@ void alm::fw::App::MainLoop()
 				}
 				forwardEvent = false;
 				break;
+/*
+			case SDL_EVENT_MOUSE_BUTTON_DOWN:
+			{
+				if (event.button.button == SDL_BUTTON_LEFT)
+				{
+					const bool* keyboardState = SDL_GetKeyboardState(nullptr);
+					if (keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL])
+					{
+						float mouseX = event.button.x;  // window relative
+						float mouseY = event.button.y;
+
+						//ShowArrow({});
+						ShowNormal({ mouseX, mouseY });
+
+						forwardEvent = false; // Opcional: evitar que el evento se propague
+					}
+				}
+			} break;
+*/
 			}
+
+			{
+				SDL_PumpEvents();
+
+				float mouseX, mouseY;
+				bool leftPressed = SDL_GetMouseState(&mouseX, &mouseY) & SDL_BUTTON_LEFT;
+
+				const bool* keyboardState = SDL_GetKeyboardState(nullptr);
+				bool ctrlPressed = keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL];
+
+				if (leftPressed && ctrlPressed)
+				{
+					ShowNormal({ mouseX, mouseY });
+				}
+			}
+
 
 			const ImGuiIO& io = ImGui::GetIO();
 			forwardEvent &= !io.WantCaptureMouse;

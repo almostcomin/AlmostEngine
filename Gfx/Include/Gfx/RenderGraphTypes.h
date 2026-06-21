@@ -11,8 +11,20 @@ namespace alm::gfx
 		Handle(void* p) : ptr(p) {}
 		bool IsValid() const { return ptr != nullptr; }
 
-		bool operator ==(const Handle<Tag>& other) const { return ptr == other.ptr; }
-		bool operator <(const Handle<Tag>& other) const { return ptr < other.ptr; }
+		template<typename OtherTag>
+		bool operator ==(const Handle<OtherTag>& other) const 
+			requires std::same_as<Tag, OtherTag>
+		{ 
+			return ptr == other.ptr; 
+		}
+		
+		template<typename OtherTag>
+		bool operator <(const Handle<OtherTag>& other) const
+			requires std::same_as<Tag, OtherTag>
+		{ 
+			return ptr < other.ptr; 
+		}
+
 		operator bool() const { return ptr != nullptr; }
 	};
 

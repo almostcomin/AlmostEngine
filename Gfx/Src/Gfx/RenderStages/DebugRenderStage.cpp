@@ -241,4 +241,7 @@ void alm::gfx::DebugRenderStage::RenderS2H(alm::rhi::CommandListHandle commandLi
 	commandList->PushComputeConstants(0, shaderConstants);
 
 	commandList->Dispatch(DivRoundUp(texDesc.width, 8u), DivRoundUp(texDesc.height, 8u), 1);
+
+	commandList->PushBarrier(rhi::Barrier::Texture(tex.get(),
+		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::RENDERTARGET));
 }

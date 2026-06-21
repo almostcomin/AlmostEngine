@@ -301,7 +301,7 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 	{
 		// Update view of reads
 		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, m_TexturesState);
-		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, m_BuffersState);
+		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, m_BuffersState, m_TexturesState);
 
 		if (rs->renderStage->IsEnabled())
 		{
@@ -403,7 +403,7 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 
 		// Update view of writes
 		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, m_TexturesState);
-		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, m_BuffersState);
+		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, m_BuffersState, m_TexturesState);
 	} // end render stages iteration
 
 	stageCommandList->EndMarker();
@@ -820,14 +820,44 @@ alm::gfx::RGBufferViewTicket alm::gfx::RenderGraph::RequestBufferView(RenderStag
 {
 	for (auto& entry : m_BufferViewRequests)
 	{
-		if (entry->rsId == rsId && entry->accessMode == accessMode && entry->handle == handle)
+		if (entry->type == BufferViewRequest::Type::Buffer && entry->rsId == rsId && entry->accessMode == accessMode && entry->bufferHandle == handle)
 		{
 			++entry->refCount;
 			return RGBufferViewTicket{ entry };
 		}
 	}
 
-	auto* ticket = new BufferViewRequest{ rsId, accessMode, handle, 1, rhi::BufferOwner{} };
+	auto* ticket = new BufferViewRequest{ 
+		.type = BufferViewRequest::Type::Buffer,
+		.rsId = rsId,
+		.accessMode = accessMode,
+		.bufferHandle = handle,
+		.refCount = 1,
+		.buffer = rhi::BufferOwner{} };
+
+	m_BufferViewRequests.push_back(ticket);
+	return RGBufferViewTicket{ ticket };
+}
+
+alm::gfx::RGBufferViewTicket alm::gfx::RenderGraph::RequestBufferView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle)
+{
+	for (auto& entry : m_BufferViewRequests)
+	{
+		if (entry->type == BufferViewRequest::Type::Texture && entry->rsId == rsId && entry->accessMode == accessMode && entry->textureHandle == handle)
+		{
+			++entry->refCount;
+			return RGBufferViewTicket{ entry };
+		}
+	}
+
+	auto* ticket = new BufferViewRequest{
+		.type = BufferViewRequest::Type::Texture,
+		.rsId = rsId,
+		.accessMode = accessMode,
+		.textureHandle = handle,
+		.refCount = 1,
+		.buffer = rhi::BufferOwner{} };
+
 	m_BufferViewRequests.push_back(ticket);
 	return RGBufferViewTicket{ ticket };
 }
@@ -941,7 +971,7 @@ void alm::gfx::RenderGraph::UpdateRequestedTextureViews(alm::rhi::ICommandList* 
 				.depth = sourceTexDesc.depth,
 				.arraySize = sourceTexDesc.arraySize,
 				.mipLevels = sourceTexDesc.mipLevels,
-				.format = sourceTexDesc.format,//rhi::Format::RGBA8_UNORM,
+				.format = sourceTexDesc.format,
 				.shaderUsage = rhi::TextureShaderUsage::Sampled
 			};
 
@@ -987,52 +1017,118 @@ std::vector<alm::gfx::RenderGraph::BufferViewRequest*> alm::gfx::RenderGraph::Ge
 }
 
 void alm::gfx::RenderGraph::UpdateRequestedBufferViews(alm::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
-	const std::map<RGBufferHandle, rhi::ResourceState> resourceStates)
+	const std::map<RGBufferHandle, rhi::ResourceState> bufferStates, const std::map<RGTextureHandle, rhi::ResourceState> textureState)
 {
 	auto requests = GetBufferViewRequests(rs, accessMode);
 	for (auto req : requests)
 	{
-		rhi::BufferHandle srcBuffer = GetDeclBuffer(req->handle)->buffer.get_weak();
-		if (!srcBuffer)
-			continue;
-
-		// Create the target buffer if does not exists
-		// TODO: If the source buffer changed we need to re-create it
-		if (!req->buffer)
+		if (req->type == BufferViewRequest::Type::Buffer)
 		{
-			const rhi::BufferDesc& srcBufferDesc = srcBuffer->GetDesc();
-
-			rhi::BufferDesc desc{
-				.memoryAccess = rhi::MemoryAccess::Readback,
-				.shaderUsage = rhi::BufferShaderUsage::None,
-				.sizeBytes = srcBufferDesc.sizeBytes,
-				.format = rhi::Format::UNKNOWN,
-				.stride = 0 };
-
-			std::stringstream debugName;
-			debugName << rs->GetDebugName() << " - ";
-			if (accessMode == alm::gfx::RenderGraph::AccessMode::Read)
-				debugName << "Read";
-			else
-				debugName << "Write";
-			debugName << " - " << srcBuffer->GetDebugName();
-
-			req->buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COMMON, debugName.str().c_str());
-			assert(req->buffer);
+			UpdateRequestedBufferFromBufferView(req, rs, bufferStates, commandList);
 		}
-
-		rhi::ResourceState srcBufferState = resourceStates.find(req->handle)->second;
-
-		rhi::Barrier entryBarriers[] = {
-			rhi::Barrier::Buffer(srcBuffer.get(), srcBufferState, rhi::ResourceState::COPY_SRC),
-			rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST) };
-		commandList->PushBarriers(entryBarriers);
-
-		commandList->CopyBufferToBuffer(req->buffer.get(), 0, srcBuffer.get(), 0, req->buffer->GetDesc().sizeBytes);
-
-		rhi::Barrier exitBarriers[] = {
-			rhi::Barrier::Buffer(srcBuffer.get(), rhi::ResourceState::COPY_SRC, srcBufferState),
-			rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON) };
-		commandList->PushBarriers(exitBarriers);
+		else if (req->type == BufferViewRequest::Type::Texture)
+		{
+			UpdateRequestedBufferFromTextureView(req, rs, textureState, commandList);
+		}
+		else
+		{
+			assert(0);
+		}
 	}
+}
+
+void alm::gfx::RenderGraph::UpdateRequestedBufferFromBufferView(BufferViewRequest* req, RenderStage* rs,
+	const std::map<RGBufferHandle, rhi::ResourceState> resourceStates, alm::rhi::ICommandList* commandList)
+{
+	rhi::BufferHandle srcBuffer = GetDeclBuffer(req->bufferHandle)->buffer.get_weak();
+	if (!srcBuffer)
+		return;
+
+	// Create the target buffer if does not exists
+	// TODO: If the source buffer changed we need to re-create it
+	if (!req->buffer)
+	{
+		const rhi::BufferDesc& srcBufferDesc = srcBuffer->GetDesc();
+
+		rhi::BufferDesc desc{
+			.memoryAccess = rhi::MemoryAccess::Readback,
+			.shaderUsage = rhi::BufferShaderUsage::None,
+			.sizeBytes = srcBufferDesc.sizeBytes,
+			.format = rhi::Format::UNKNOWN,
+			.stride = 0 };
+
+		std::stringstream debugName;
+		debugName << rs->GetDebugName() << " - ";
+		if (req->accessMode == alm::gfx::RenderGraph::AccessMode::Read)
+			debugName << "Read";
+		else
+			debugName << "Write";
+		debugName << " - " << srcBuffer->GetDebugName();
+
+		req->buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COMMON, debugName.str().c_str());
+		assert(req->buffer);
+	}
+
+	rhi::ResourceState srcBufferState = resourceStates.find(req->bufferHandle)->second;
+
+	rhi::Barrier entryBarriers[] = {
+		rhi::Barrier::Buffer(srcBuffer.get(), srcBufferState, rhi::ResourceState::COPY_SRC),
+		rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST) };
+	commandList->PushBarriers(entryBarriers);
+
+	commandList->CopyBufferToBuffer(req->buffer.get(), 0, srcBuffer.get(), 0, req->buffer->GetDesc().sizeBytes);
+
+	rhi::Barrier exitBarriers[] = {
+		rhi::Barrier::Buffer(srcBuffer.get(), rhi::ResourceState::COPY_SRC, srcBufferState),
+		rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON) };
+	commandList->PushBarriers(exitBarriers);
+}
+
+void alm::gfx::RenderGraph::UpdateRequestedBufferFromTextureView(BufferViewRequest* req, RenderStage* rs,
+	const std::map<RGTextureHandle, rhi::ResourceState> resourceStates, alm::rhi::ICommandList* commandList)
+{
+	rhi::TextureHandle srcTex = GetDeclTex(req->textureHandle)->texture.get_weak();
+	if (!srcTex)
+		return;
+
+	// Create the target buffer if does not exists
+	// TODO: If the source texture changed we need to re-create it
+	if (!req->buffer)
+	{
+		const rhi::TextureDesc& srcTexDesc = srcTex->GetDesc();
+
+		rhi::StorageRequirements storageReq = m_DeviceManager->GetDevice()->GetCopyableRequirements(srcTexDesc, rhi::AllSubresources);
+
+		rhi::BufferDesc desc{
+			.memoryAccess = rhi::MemoryAccess::Readback,
+			.shaderUsage = rhi::BufferShaderUsage::None,
+			.sizeBytes = storageReq.size,
+			.format = rhi::Format::UNKNOWN,
+			.stride = 0 };
+
+		std::stringstream debugName;
+		debugName << rs->GetDebugName() << " - ";
+		if (req->accessMode == alm::gfx::RenderGraph::AccessMode::Read)
+			debugName << "Read";
+		else
+			debugName << "Write";
+		debugName << " - " << srcTex->GetDebugName();
+
+		req->buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COMMON, debugName.str().c_str());
+		assert(req->buffer);
+	}
+
+	rhi::ResourceState srcTexState = resourceStates.find(req->textureHandle)->second;
+
+	rhi::Barrier entryBarriers[] = {
+		rhi::Barrier::Texture(srcTex.get(), srcTexState, rhi::ResourceState::COPY_SRC),
+		rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST) };
+	commandList->PushBarriers(entryBarriers);
+
+	commandList->CopyTextureToBuffer(req->buffer.get(), srcTex.get(), rhi::AllSubresources);
+
+	rhi::Barrier exitBarriers[] = {
+		rhi::Barrier::Texture(srcTex.get(), rhi::ResourceState::COPY_SRC, srcTexState),
+		rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON) };
+	commandList->PushBarriers(exitBarriers);
 }

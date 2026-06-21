@@ -2,6 +2,8 @@
 
 #include "Core/Common.h"
 #include "Gfx/RenderStageType.h"
+#include "Gfx/Transform.h"
+#include "Gfx/RenderGraphTypes.h"
 #include <SDL3/SDL_events.h>
 
 struct SDL_Window;
@@ -13,6 +15,7 @@ namespace alm::gfx
     class RenderView;
     class Camera;
     class ImGuiRenderStage;
+    class SceneGraphNode;
 }
 
 namespace alm::fw
@@ -23,7 +26,7 @@ namespace alm::fw
 namespace alm::fw
 {
 
-class App //: public alm::noncopyable_nonmovable
+class App : public alm::noncopyable_nonmovable
 {
 public:
 
@@ -47,6 +50,11 @@ public:
     std::string GetStartupArgString(const std::string& key, const std::string& defaultValue = {});
 
     void RefreshUIData();
+
+    void ShowArrow(const gfx::Transform& transform);
+    void HideArrow();
+
+    void ShowNormal(const uint2& screenPos);
 
 protected:
 
@@ -80,6 +88,11 @@ protected:
     float m_FPS;
 
     AppArgs m_StartupArgs;
+
+    alm::weak<alm::gfx::SceneGraphNode> m_ArrowMeshY;
+    
+    alm::gfx::RGBufferViewTicket m_GBuffer2ViewTicket;
+    alm::gfx::RGBufferViewTicket m_LinearDepthViewTicket;
 
 private:
 

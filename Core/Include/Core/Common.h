@@ -37,6 +37,11 @@ std::string ToUtf8(const wchar_t* wide);
 
 // Convert float (32 bits) to half-float (16 bits) (IEEE 754)
 uint16_t FloatToHalf(float f);
+// Convert half-float (16 bits) to float (32 bits) (IEEE 754)
+float HalfToFloat(uint16_t h);
+
+// Octahedron decoding
+float3 DecodeNormal(float2 enc);
 
 inline bool AlmostEqual(float v1, float v2, float epsilon = 1.0e-05f)
 {

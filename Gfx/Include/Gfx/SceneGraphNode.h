@@ -41,7 +41,7 @@ public:
 
 	void SetName(const char* name) { m_Name = name; }
 
-	void AddChild(alm::unique<SceneGraphNode>&& child);
+	alm::weak<SceneGraphNode> AddChild(alm::unique<SceneGraphNode>&& child);
 	alm::unique<SceneGraphNode> RemoveChild(const alm::weak<SceneGraphNode>& child);
 
 	void SetLeaf(alm::unique<SceneGraphLeaf>&& leaf);
@@ -64,8 +64,8 @@ public:
 
 	bool Test(SceneContentType boundsType, std::span<const plane3f> planes) const;
 
+	SceneGraph* GetSceneGraph() { return m_Graph; }
 	SceneContentFlags GetContentFlags() const { return m_ContentFlags; }
-
 	const std::string& GetName() const { return m_Name; }
 
 private:

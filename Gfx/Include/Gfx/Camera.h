@@ -60,6 +60,8 @@ public:
 	void SetPitch(float pich);
 	void SetRoll(float roll);
 
+	float3 ScreenToWorld(const uint2& pixelPos, float linearDepth, const uint2& viewportSize);
+
 private:
 
 	void UpdateMatrices() const;

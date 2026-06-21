@@ -124,7 +124,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
         float2 uv = S2S_MOUSEPOS() / S2S_FRAMEBUFFERSIZE();
         float2 encodedNormal = GBuffer2.SampleLevel(pointClampSampler, uv, 0).xy;
         normal = DecodeNormal(encodedNormal);
-        normal = mul((float3x3)sceneConstants.invCamViewMatrix, normal);
+        //normal = mul((float3x3)sceneConstants.invCamViewMatrix, normal);
     }
     
     float4 fragColor = float4(0, 0, 0, 0);

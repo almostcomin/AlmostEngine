@@ -183,6 +183,32 @@ void alm::gfx::Camera::SetRoll(float roll)
 	SetUpRef(newUp);
 }
 
+float3 alm::gfx::Camera::ScreenToWorld(const uint2& pixelPos, float linearDepth, const uint2& viewportSize)
+{
+	UpdateMatrices();
+
+	float2 uv = float2{ (float)pixelPos.x + 0.5f, (float)pixelPos.y + 0.5f } / float2{ viewportSize.x, viewportSize.y };
+
+	float4 clipPos;
+	clipPos.x = uv.x * 2.f - 1.f;
+	clipPos.y = 1.0 - uv.y * 2.f; // flip Y (screen -> NDC)
+	clipPos.z = 1.f;			  // Direction to near plane
+	clipPos.w = 1.f;
+
+	float4x4 invProj = glm::inverse(m_ProjectionMatrix);
+	float4 viewPosNear = invProj * clipPos;
+	viewPosNear /= viewPosNear.w;      // Homogeneous
+
+	float scale = linearDepth / (-viewPosNear.z);
+	float3 viewPos = float3(viewPosNear.x, viewPosNear.y, viewPosNear.z) * scale;
+
+	float4x4 invView = glm::inverse(m_ViewMatrix);
+	float4 worldPos = invView * float4(viewPos, 1.0f);
+	worldPos /= worldPos.w;
+
+	return float3(worldPos.x, worldPos.y, worldPos.z);
+}
+
 void alm::gfx::Camera::UpdateMatrices() const
 {
 	if (m_IsDirty)

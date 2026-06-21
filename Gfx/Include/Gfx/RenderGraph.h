@@ -133,6 +133,7 @@ public:
 
 	RGTextureViewTicket RequestTextureView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle);
 	RGBufferViewTicket RequestBufferView(RenderStageTypeID rsId, AccessMode accessMode, RGBufferHandle handle);
+	RGBufferViewTicket RequestBufferView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle);
 
 	void ReleaseTextureView(RGTextureViewTicket ticket);
 	void ReleaseBufferView(RGBufferViewTicket ticket);
@@ -185,9 +186,16 @@ private:
 
 	struct BufferViewRequest
 	{
+		enum Type { Buffer, Texture };
+
+		Type type;
 		RenderStageTypeID rsId;
 		AccessMode accessMode;
-		RGBufferHandle handle;
+		union
+		{
+			RGBufferHandle bufferHandle;
+			RGTextureHandle textureHandle;
+		};
 		int refCount;
 		rhi::BufferOwner buffer;
 	};
@@ -207,7 +215,12 @@ private:
 
 	std::vector<BufferViewRequest*> GetBufferViewRequests(RenderStage* rs, AccessMode accessMode);
 	void UpdateRequestedBufferViews(alm::rhi::ICommandList* commandList, RenderStage* rs, AccessMode accessMode,
-		const std::map<RGBufferHandle, rhi::ResourceState> resourceStates);
+		const std::map<RGBufferHandle, rhi::ResourceState> bufferStates, const std::map<RGTextureHandle, rhi::ResourceState> textureState);
+
+	void UpdateRequestedBufferFromBufferView(BufferViewRequest* req, RenderStage* rs, const std::map<RGBufferHandle, rhi::ResourceState> resourceStates,
+		alm::rhi::ICommandList* commandList);
+	void UpdateRequestedBufferFromTextureView(BufferViewRequest* req, RenderStage* rs, const std::map<RGTextureHandle, rhi::ResourceState> resourceStates,
+		alm::rhi::ICommandList* commandList);
 
 private:
 

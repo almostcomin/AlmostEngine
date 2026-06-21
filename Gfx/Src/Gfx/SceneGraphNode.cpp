@@ -16,7 +16,7 @@ alm::gfx::SceneGraphNode::SceneGraphNode(const std::string& name) :
 alm::gfx::SceneGraphNode::~SceneGraphNode()
 {}
 
-void alm::gfx::SceneGraphNode::AddChild(alm::unique<SceneGraphNode>&& child)
+alm::weak<alm::gfx::SceneGraphNode> alm::gfx::SceneGraphNode::AddChild(alm::unique<SceneGraphNode>&& child)
 {
 	assert(!child->m_Graph);
 	assert(!child->m_Parent);
@@ -29,6 +29,8 @@ void alm::gfx::SceneGraphNode::AddChild(alm::unique<SceneGraphNode>&& child)
 	{
 		m_Graph->OnNodeAttached(pchild);
 	}
+
+	return pchild->weak_from_this();
 }
 
 alm::unique<alm::gfx::SceneGraphNode> alm::gfx::SceneGraphNode::RemoveChild(const alm::weak<SceneGraphNode>& child)
