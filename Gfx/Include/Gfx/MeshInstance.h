@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Gfx/SceneGraphLeaf.h"
-#include "Gfx/SceneContentFlags.h"
+#include "Gfx/SceneFlags.h"
 #include "Gfx/MaterialDomain.h"
 #include "Gfx/Renderable.h"
 #include "RHI/RasterizerState.h"
@@ -20,19 +20,6 @@ class MeshInstance : public SceneGraphLeaf, public IRenderable
 {
 public:
 
-	enum class Flags
-	{
-		None					= 0x00,
-		CastShadows				= 0x01,
-		ReceiveShadows			= 0x02,
-		Visible					= 0x04,
-		VisibleInReflections	= 0x08,
-		Static					= 0x10,
-		Default					= CastShadows | ReceiveShadows | Visible | VisibleInReflections
-	};
-
-public:
-
 	MeshInstance(std::shared_ptr<Mesh> mesh);
 	virtual ~MeshInstance();
 
@@ -44,9 +31,6 @@ public:
 
 	IRenderable* AsRenderable() override { return this; }
 	const IRenderable* AsRenderable() const override { return this; }
-
-	Flags GetInstanceFlags() const { return m_InstanceFlags; }
-	void SetInstanceFlags(Flags flags);
 
 	const std::shared_ptr<alm::gfx::Mesh>& GetMesh() const { return m_Mesh; }
 
@@ -62,9 +46,6 @@ private:
 
 	std::shared_ptr<alm::gfx::Mesh> m_Mesh;
 	uint32_t m_MeshSceneIndex;
-	Flags m_InstanceFlags;
 };
-
-ENUM_CLASS_FLAG_OPERATORS(gfx::MeshInstance::Flags)
 
 } // namespace 

@@ -720,7 +720,7 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 		if (has_any_flag(node->GetContentFlags(), ToFlag(primaryType)) && node->Test(primaryType, planes))
 		{
 			alm::weak<SceneGraphLeaf> leaf = node->GetLeaf();
-			if (leaf /*&& leaf->GetType() == SceneGraphLeaf::Type::MeshInstance*/)
+			if (leaf && has_any_flag(leaf->GetRenderFlags(), SceneRenderFlags::Visible))
 			{
 				if (has_any_flag(leaf->GetContentFlags(), ToFlag(primaryType)))
 				{

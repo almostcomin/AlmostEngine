@@ -6,6 +6,7 @@
 
 alm::gfx::SceneHeightmap::SceneHeightmap()
 {
+	m_RenderFlags = SceneRenderFlags::Default;
 	std::ranges::fill(m_PatchMeshGpuIndices, UINT32_MAX);
 }
 

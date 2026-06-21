@@ -32,6 +32,18 @@ enum class SceneContentFlags : uint32_t
 };
 ENUM_CLASS_FLAG_OPERATORS(SceneContentFlags);
 
+enum class SceneRenderFlags : uint32_t
+{
+    None = 0x00,
+    CastShadows = 0x01,
+    ReceiveShadows = 0x02,
+    Visible = 0x04,
+    VisibleInReflections = 0x08,
+    Static = 0x10,
+    Default = CastShadows | ReceiveShadows | Visible | VisibleInReflections
+};
+ENUM_CLASS_FLAG_OPERATORS(SceneRenderFlags);
+
 constexpr SceneContentFlags ToFlag(SceneContentType t)
 {
     return (SceneContentFlags)(1u << (int)t);

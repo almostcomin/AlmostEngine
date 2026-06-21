@@ -27,3 +27,15 @@ const float4x4& alm::gfx::SceneGraphLeaf::GetWorldTransform() const
 {
 	return m_Node ? m_Node->GetWorldTransform() : float4x4_I;
 }
+
+void alm::gfx::SceneGraphLeaf::SetVisible(bool b)
+{
+	if (b)
+	{
+		m_RenderFlags |= SceneRenderFlags::Visible;
+	}
+	else
+	{
+		m_RenderFlags &= ~SceneRenderFlags::Visible;
+	}
+}

@@ -4,7 +4,7 @@
 #include "Core/Common.h"
 #include "Core/Math/aabox.h"
 #include "RHI/Buffer.h"
-#include "Gfx/SceneContentFlags.h"
+#include "Gfx/SceneFlags.h"
 #include "Gfx/GpuSceneBuffersHandle.h"
 #include <map>
 

@@ -192,11 +192,31 @@ void alm::fw::App::ShowArrow(const gfx::Transform& transform)
 		}
 	}
 
+	for (auto walker = gfx::SceneGraph::Walker{ m_ArrowMeshY.get() }; walker; walker.Next())
+	{
+		auto node = *walker;
+		if (node->GetLeaf())
+		{
+			node->GetLeaf()->SetVisible(true);
+		}
+	}
+
 	m_ArrowMeshY->SetLocalTransform(transform);
 }
 
 void alm::fw::App::HideArrow()
 {
+	if (m_ArrowMeshY)
+	{
+		for (auto walker = gfx::SceneGraph::Walker{ m_ArrowMeshY.get() }; walker; walker.Next())
+		{
+			auto node = *walker;
+			if (node->GetLeaf())
+			{
+				node->GetLeaf()->SetVisible(false);
+			}
+		}
+	}
 }
 
 void alm::fw::App::ShowNormal(const uint2& screenPos)
@@ -306,8 +326,12 @@ void alm::fw::App::ShowNormal(const uint2& screenPos)
 		ShowArrow(transform);
 	}
 
-	//m_FrameworkUI->AddBottomBarText(std::format("Normal: {{{:1.3f}, {:1.3f}, {:1.3f}}}", normal.x, normal.y, normal.z));
-	//m_FrameworkUI->AddBottomBarText(std::format("Pos: {{{:1.3f}, {:1.3f}, {:1.3f}}}", worldPos.x, worldPos.y, worldPos.z));
+	m_FrameworkUI->AddBottomBarText(std::format("Normal: {{{:1.3f}, {:1.3f}, {:1.3f}}}", normal.x, normal.y, normal.z));
+}
+
+void alm::fw::App::HideNormal()
+{
+	HideArrow();
 }
 
 alm::gfx::RenderStageTypeID alm::fw::App::GetUIRenderStageType() const
@@ -562,42 +586,7 @@ void alm::fw::App::MainLoop()
 				}
 				forwardEvent = false;
 				break;
-/*
-			case SDL_EVENT_MOUSE_BUTTON_DOWN:
-			{
-				if (event.button.button == SDL_BUTTON_LEFT)
-				{
-					const bool* keyboardState = SDL_GetKeyboardState(nullptr);
-					if (keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL])
-					{
-						float mouseX = event.button.x;  // window relative
-						float mouseY = event.button.y;
-
-						//ShowArrow({});
-						ShowNormal({ mouseX, mouseY });
-
-						forwardEvent = false; // Opcional: evitar que el evento se propague
-					}
-				}
-			} break;
-*/
 			}
-
-			{
-				SDL_PumpEvents();
-
-				float mouseX, mouseY;
-				bool leftPressed = SDL_GetMouseState(&mouseX, &mouseY) & SDL_BUTTON_LEFT;
-
-				const bool* keyboardState = SDL_GetKeyboardState(nullptr);
-				bool ctrlPressed = keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL];
-
-				if (leftPressed && ctrlPressed)
-				{
-					ShowNormal({ mouseX, mouseY });
-				}
-			}
-
 
 			const ImGuiIO& io = ImGui::GetIO();
 			forwardEvent &= !io.WantCaptureMouse;
@@ -605,6 +594,23 @@ void alm::fw::App::MainLoop()
 			if (forwardEvent)
 			{
 				OnSDLEvent(event);
+			}
+		}
+
+		{
+			float mouseX, mouseY;
+			bool leftPressed = SDL_GetMouseState(&mouseX, &mouseY) & SDL_BUTTON_LEFT;
+
+			const bool* keyboardState = SDL_GetKeyboardState(nullptr);
+			bool ctrlPressed = keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL];
+
+			if (leftPressed && ctrlPressed)
+			{
+				ShowNormal({ mouseX, mouseY });
+			}
+			else
+			{
+				HideNormal();
 			}
 		}
 

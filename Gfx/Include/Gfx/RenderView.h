@@ -14,7 +14,7 @@
 #include "Gfx/MultiBuffer.h"
 #include "Gfx/MaterialDomain.h"
 #include "Gfx/RenderSet.h"
-#include "Gfx/SceneContentFlags.h"
+#include "Gfx/SceneFlags.h"
 
 namespace interop
 {

@@ -6,7 +6,7 @@
 #include "Core/Memory.h"
 #include "Core/Math/aabox.h"
 #include "Core/Math.h"
-#include "Gfx/SceneContentFlags.h"
+#include "Gfx/SceneFlags.h"
 
 namespace alm::gfx
 {
@@ -59,7 +59,7 @@ public:
 	const Transform& GetLocalTransform() const { return m_LocalTransform; }
 	const float4x4& GetWorldTransform() const { return m_WorldMatrix; }
 	const float3& GetWorldPosition() const;
-
+	
 	const alm::aabox3f& GetWorldBounds(SceneContentType type) const;
 
 	bool Test(SceneContentType boundsType, std::span<const plane3f> planes) const;

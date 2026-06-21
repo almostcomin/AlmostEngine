@@ -3,7 +3,7 @@
 #include "Core/Common.h"
 #include "Core/Memory.h"
 #include "Core/Math/aabox.h"
-#include "Gfx/SceneContentFlags.h"
+#include "Gfx/SceneFlags.h"
 
 namespace alm::gfx
 {
@@ -44,6 +44,8 @@ public:
 	virtual IRenderable* AsRenderable() { return nullptr; }
 	virtual const IRenderable* AsRenderable() const { return nullptr; }
 
+	SceneRenderFlags GetRenderFlags() const { return m_RenderFlags; }
+
 	void OnBoundsChanged();
 	void OnContentChanged();
 
@@ -53,6 +55,12 @@ public:
 	const float4x4& GetWorldTransform() const;
 
 	uint32_t GetLeafSceneIndex() const { return m_SceneIndex; }
+
+	void SetVisible(bool b);
+
+protected:
+
+	SceneRenderFlags m_RenderFlags = SceneRenderFlags::None;
 
 private:
 

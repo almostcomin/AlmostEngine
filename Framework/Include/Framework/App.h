@@ -51,10 +51,8 @@ public:
 
     void RefreshUIData();
 
-    void ShowArrow(const gfx::Transform& transform);
-    void HideArrow();
-
     void ShowNormal(const uint2& screenPos);
+    void HideNormal();
 
 protected:
 
@@ -67,6 +65,9 @@ protected:
     virtual std::shared_ptr<alm::gfx::ImGuiRenderStage> UserInitRenderStages() { return nullptr; };
 
     virtual gfx::RenderStageTypeID GetUIRenderStageType() const; // default FrameworkUI
+
+    void ShowArrow(const gfx::Transform& transform);
+    void HideArrow();
 
 protected:
 

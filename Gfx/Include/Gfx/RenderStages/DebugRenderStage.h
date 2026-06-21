@@ -7,7 +7,7 @@
 #include "RHI/Framebuffer.h"
 #include "Gfx/RenderGraphTypes.h"
 #include "Gfx/RenderStageFactory.h"
-#include "Gfx/SceneContentFlags.h"
+#include "Gfx/SceneFlags.h"
 
 namespace alm::gfx
 {
