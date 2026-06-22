@@ -416,7 +416,10 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 	const float4x4 inverseNodeWorldMatrix = glm::inverse(nodeWorldMatrix);
 
 	alm::gfx::Transform hmTransform;
-	hmTransform.SetScale(float3{ heightmap->GetCellSize() });
+	//hmTransform.SetScale(float3{ heightmap->GetCellSize() });
+	float2 scale = 1.f / heightmap->GetUVToMeters();
+
+	hmTransform.SetScale(float3{ scale.x, 1.f, scale.y });
 	const float4x4 inverseHeightmapMatrix = hmTransform.GetMatrix() * inverseNodeWorldMatrix;
 
 	const float3x3 nodeNormalMatrix = glm::transpose(glm::mat3(inverseNodeWorldMatrix));

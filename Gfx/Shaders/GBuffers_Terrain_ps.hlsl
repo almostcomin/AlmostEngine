@@ -38,7 +38,7 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     Texture2D<float> heightsTexture = ResourceDescriptorHeap[patchData.HeightmapTextureDI];
     
     float4 localPos = mul(patchData.InverseHeightmapMatrix, float4(input.posWorld, 1.0));
-    float2 uv = float2(localPos.x, localPos.z) * patchData.UVScale;
+    float2 uv = float2(localPos.x, localPos.z);
     
     // Height sampled from heightmap
     float H = heightsTexture.SampleLevel(linearClampSampler, uv, 0).r;
@@ -95,6 +95,14 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     else if (StageConstants.DebugChannel == DebugChannel_Heightmap_Connections)
     {
         output.GBuffer0 = float4(input.debugConnectionColor, 1);
+        output.GBuffer1 = float4(0, 0, 0, 1);
+        output.GBuffer2 = float4(EncodeNormal(float3(0, 1, 0)), 1.0, 0.0);
+        output.GBuffer3 = float4(0, 0, 0, 0);
+    }
+    else if (StageConstants.DebugChannel == DebugChannel_Heightmap_Resolution)
+    {
+        float2 uv2 = uv * patchData.TextureResolution * patchData.CellSize;
+        output.GBuffer0 = CheckerEffect(uv2, patchData.CellSize, float4(0, 0, 0, 1), float4(1, 1, 1, 1));
         output.GBuffer1 = float4(0, 0, 0, 1);
         output.GBuffer2 = float4(EncodeNormal(float3(0, 1, 0)), 1.0, 0.0);
         output.GBuffer3 = float4(0, 0, 0, 0);

@@ -20,7 +20,8 @@ public:
 		Heightmap_Heights,
 		Heightmap_Slope,
 		Heightmap_Normals,
-		Heightmap_Connections
+		Heightmap_Connections,
+		Heightmap_Resolution
 	};
 
 public:

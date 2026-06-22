@@ -167,4 +167,13 @@ float2 RaySphereIntersection(float3 rayOrigin, float3 rayDir, float3 sphereCente
     return float2(-b - sqrtD, -b + sqrtD); // tNear, tFar
 }
 
+float4 CheckerEffect(float2 uv, float squareSize, float4 color0, float4 color1)
+{
+    float2 cell = floor(uv / squareSize);
+    float2 cellPos = frac(uv / squareSize);
+    
+    float checker = fmod(cell.x + cell.y, 2.0);
+    return lerp(color0, color1, checker);
+}
+
 #endif // __COMMON_HLSLI__

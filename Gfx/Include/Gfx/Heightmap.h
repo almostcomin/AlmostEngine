@@ -56,13 +56,12 @@ public:
 	uint32_t GetPatchIndicesCount(uint32_t variantIdx) const;
 	uint32_t GetPatchResolution() const { return m_PatchResolution; }
 	
-	// Virtual size/count takes into consideration that the size of the heightmap (the quadtree) needs to be power of two. 
-	// So it is always equal of higher that the data size/count
+	float2 GetActualSize() const { return m_ActualSize; }
 
-	// Number of virtual cells.
-	uint32_t GetVirtualCellsCount() const;
-	// Virtual size of the heightmap
+	// Virtual size/count takes into consideration that the size of the heightmap (the quadtree) needs to be power of two. 
+	// So it is always equal of higher that the data size
 	float GetVirtualSize() const { return m_VirtualSize; }
+
 	// Relation between virtual/data size
 	float2 GetUVScale() const;
 	// Returns the cell size, size of a patch quad
@@ -75,23 +74,27 @@ public:
 
 private:
 
+	// Number of virtual cells.
+	uint32_t GetVirtualCellsCount() const;
+
 	void ComputeBounds();
 	rhi::TextureOwner BuildTexture();
 	void BuildPatchVariants();
 
 	std::shared_ptr<alm::rhi::BufferOwner> CreateIndexBufferVariant(const PatchEdgeConfig& edgeConfig, const bool indices32Bits) const;
 
-	void CalcVirtualSize();
-
 private:
 
 	std::shared_ptr<IHeightmapSource> m_Source;
 
-	// Geometry size (per axis), power of two.
+	// Geometry size (per axis), power of two (tipically 32 or 64).
 	uint32_t m_PatchResolution;
-	// Size of the heightmap.
+
+	// Size of the heightmap
+	float2 m_ActualSize;
+
 	// Virtual means that takes into account that the source data might not be multiple of two.
-	// Virtual size is 
+	// So virtual size is the size of the heightmap including the cells outside the source data.
 	float m_VirtualSize;
 
 	aabox3f m_Bounds;

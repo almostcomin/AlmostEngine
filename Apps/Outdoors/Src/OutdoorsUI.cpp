@@ -257,12 +257,15 @@ void OutdoorsUI::BuildUI()
 			ImGui::Separator();
 			ImGui::Spacing();
 
-			if (ImGui::SliderFloat("Height Transition Start", &mat->HeightTransitionStart, 0.f, 1.f, "%.2f"))
+		
+			if (ImGui::SliderFloat("Height Transition Start", &mat->HeightTransitionStart,
+				dataSource->GetHeightRange().x, dataSource->GetHeightRange().y, "%.2f"))
 			{
 				mat->HeightTransitionEnd = std::max(mat->HeightTransitionEnd, mat->HeightTransitionStart);
 				matDirty = true;
 			}
-			if (ImGui::SliderFloat("Height Transition End", &mat->HeightTransitionEnd, 0.f, 1.f, "%.2f"))
+			if (ImGui::SliderFloat("Height Transition End", &mat->HeightTransitionEnd,
+				dataSource->GetHeightRange().x, dataSource->GetHeightRange().y, "%.2f"))
 			{
 				mat->HeightTransitionStart = std::min(mat->HeightTransitionStart, mat->HeightTransitionEnd);
 				matDirty = true;
@@ -293,7 +296,8 @@ void OutdoorsUI::BuildUI()
 
 		if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			if (ImGui::Combo("Channel##Debug", &m_DebugChannel, "Disabled\0Heights\0Slope\0Normals\0Connections\0\0"))
+			if (ImGui::Combo("Channel##Debug", &m_DebugChannel,
+				"Disabled\0Heights\0Slope\0Normals\0Connections\0Resolution\0\0"))
 			{
 				auto gBuffersRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GBuffersRenderStage>();
 				gBuffersRS->SetDebugChannel((alm::gfx::GBuffersRenderStage::DebugChannel)m_DebugChannel);

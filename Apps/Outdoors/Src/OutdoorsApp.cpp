@@ -41,7 +41,7 @@ class OutdoorsApp : public alm::fw::App
 {
 public:
 
-	static constexpr float kEarthRadius = 63600.f;// 1000.f;//6360000.f;
+	static constexpr float kEarthRadius = 6360000.f / 10.f;
 	static constexpr float3 kEarthPos = { 0.f, -kEarthRadius, 0.f };
 
 	OutdoorsApp() : alm::fw::App{ "OutdoorsApp", alm::fw::App::RenderStageSetMode::User } {}
@@ -94,8 +94,8 @@ public:
 #else
 				auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
 					alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
-				bool sourceOk = imageSource->Load("SpainHeightmap.png");
-				//bool sourceOk = imageSource->Load("_heightmaps/Stromboli/Stromboli_20250702_for_OT.hdr");
+				//bool sourceOk = imageSource->Load("SpainHeightmap.png");
+				bool sourceOk = imageSource->Load("_heightmaps/Stromboli/Stromboli_20250702_for_OT.hdr");
 				assert(sourceOk);
 
 				dataSource = imageSource;
@@ -184,6 +184,12 @@ public:
 					mat->Slope.MetalRoughTexture = loadResult->first;
 				}
 				mat->Slope.UVScale = 60.f;
+
+				mat->HeightTransitionStart = dataSource->GetHeightRange().x + 0.8f * (dataSource->GetHeightRange().y - dataSource->GetHeightRange().x);
+				mat->HeightTransitionEnd = dataSource->GetHeightRange().x + 0.85f * (dataSource->GetHeightRange().y - dataSource->GetHeightRange().x);
+
+				mat->SlopeAngleStartDeg = 40.f;
+				mat->SlopeAngleEndDeg = 60.f;
 			}
 
 			// Heightmap
@@ -217,6 +223,11 @@ public:
 			// Attach to scene
 			auto sceneGraph = m_Scene->GetSceneGraph();
 			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
+
+			// Update camera speed
+			m_CameraController.SetSpeed(
+				std::max(std::max(heightmap->GetActualSize().x, heightmap->GetActualSize().y) * 0.01f, 1.f));
+
 		}
 
 		// Load file
@@ -331,14 +342,19 @@ public:
 			case SDLK_KP_PLUS:
 			{
 				float speed = m_CameraController.GetSpeed();
-				speed += (speed < 1.f) ? 0.1f : 1.f;
+				float magnitude = powf(10.f, floorf(log10f(speed)));
+				speed += magnitude * 0.1f;
+
 				m_CameraController.SetSpeed(speed);
 			} break;
 
 			case SDLK_KP_MINUS:
 			{
 				float speed = m_CameraController.GetSpeed();
-				speed -= (speed > 1.1f) ? 1.f : 0.1f;
+				float magnitude = powf(10.f, floorf(log10f(speed)));
+				speed -= magnitude * 0.1f;
+				speed = std::max(speed, 0.01f);
+
 				m_CameraController.SetSpeed(speed);
 			} break;
 			}

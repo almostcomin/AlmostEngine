@@ -304,9 +304,11 @@ void alm::gfx::Heightmap::Init(
 	m_TextureResolution = textureResolution;
 	m_PatchResolution = patchResolution;
 
+	m_ActualSize = GetCellSize() * float2 { m_TextureResolution.x, m_TextureResolution.y };
+	m_VirtualSize = GetCellSize() * GetVirtualCellsCount();
+
 	m_HeightsTexture = BuildTexture();
 	BuildPatchVariants();
-	CalcVirtualSize();
 	ComputeBounds();
 }
 
@@ -348,9 +350,9 @@ uint32_t alm::gfx::Heightmap::GetVirtualCellsCount() const
 
 float2 alm::gfx::Heightmap::GetUVScale() const
 {
-	const uint32_t virtualSize = GetVirtualCellsCount();
-	// Relation between virtual size and data size
-	return float2{ (float)virtualSize / m_TextureResolution.x, (float)virtualSize / m_TextureResolution.y };
+	const uint32_t virtualCells = GetVirtualCellsCount();
+	// Relation between virtual number of cells and data size
+	return float2{ (float)virtualCells / m_TextureResolution.x, (float)virtualCells / m_TextureResolution.y };
 }
 
 float alm::gfx::Heightmap::GetCellSize() const
@@ -705,9 +707,4 @@ std::shared_ptr<alm::rhi::BufferOwner> alm::gfx::Heightmap::CreateIndexBufferVar
 	uploadResult->Wait();
 
 	return indexBuffer;
-}
-
-void alm::gfx::Heightmap::CalcVirtualSize()
-{
-	m_VirtualSize = GetCellSize() * GetVirtualCellsCount();
 }

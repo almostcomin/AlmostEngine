@@ -327,6 +327,7 @@ void alm::fw::App::ShowNormal(const uint2& screenPos)
 	}
 
 	m_FrameworkUI->AddBottomBarText(std::format("Normal: {{{:1.3f}, {:1.3f}, {:1.3f}}}", normal.x, normal.y, normal.z));
+	m_FrameworkUI->AddBottomBarText(std::format("Pos: {{{:1.3f}, {:1.3f}, {:1.3f}}}", worldPos.x, worldPos.y, worldPos.z));
 }
 
 void alm::fw::App::HideNormal()
