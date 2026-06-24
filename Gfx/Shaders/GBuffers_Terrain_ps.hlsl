@@ -150,20 +150,16 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
             output.GBuffer0.xyz = lerp(output.GBuffer0.xyz, borderColor, borderMask);
         }
 */
-/*
-        {
-            float rep = frac(input.posWorld.y * 10.f);
-            float pixelSize = abs(ddy(rep));
-            float distToEdge = min(rep, 1.0 - rep);
-            float distToEdgePixels = distToEdge * pixelSize;
 
-            float borderWidthPixels = 2.0;
+        if (StageConstants.DebugChannel == DebugChannel_Heightmap_Contours)
+        {    
+            float borderMask = max(
+                GetContourLinesMask(input.posWorld.y, 1.0, 1.0),
+                GetContourLinesMask(input.posWorld.y, 10.0, 2.0));
             float3 borderColor = float3(0.0, 0.0, 0.0);
-            float borderMask = step(distToEdgePixels, borderWidthPixels);
             
             output.GBuffer0.xyz = lerp(output.GBuffer0.xyz, borderColor, borderMask);
         }
-*/
     }
         
     return output;

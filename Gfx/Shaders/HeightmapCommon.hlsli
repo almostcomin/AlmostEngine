@@ -8,6 +8,7 @@ static const uint DebugChannel_Heightmap_Slope = 2;
 static const uint DebugChannel_Heightmap_Normals = 3;
 static const uint DebugChannel_Heightmap_Connections = 4;
 static const uint DebugChannel_Heightmap_Resolution = 5;
+static const uint DebugChannel_Heightmap_Contours = 6;
 
 float GetHeightmapMipBias(float2 pos2, uint edgeMask)
 {
@@ -47,6 +48,22 @@ float3 GetHeightmapDebugConnectionColor(float2 pos2, uint edgeMask)
     
     return GetHeightmapMipBias(pos2, edgeMask) == 0.0 ?
         borderColor : lowColor;
+}
+
+float GetContourLinesMask(float posY, float spacing, float pixelsWidth)
+{
+    float scaledY = posY / spacing;
+    
+    float rep = frac(scaledY);
+    float distToEdge = min(rep, 1.0 - rep);
+    
+    float2 grad = float2(ddx(scaledY), ddy(scaledY));
+    float pixelSize = length(grad);
+    
+    float distPixels = distToEdge / pixelSize;
+    
+    float borderMask = step(distPixels, pixelsWidth * 0.5);
+    return borderMask;
 }
 
 #endif
