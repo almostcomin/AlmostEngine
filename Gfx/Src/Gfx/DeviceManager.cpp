@@ -36,7 +36,7 @@ bool alm::gfx::DeviceManager::Init(const DeviceParams& params)
 	bool ok = InternalInit(params);
 	if (ok)
 	{
-		m_ShaderFactory = std::make_unique<alm::gfx::ShaderFactory>(m_Device.get());
+		m_ShaderFactory = std::make_unique<alm::gfx::ShaderFactory>(params.ShadersDebug, m_Device.get());
 		m_DataUploader = std::make_unique<alm::gfx::DataUploader>(m_ShaderFactory.get(), m_Device.get());
 		m_TextureCache = std::make_unique<alm::gfx::TextureCache>(m_DataUploader.get(), m_Device.get());
 		m_CommonResources = std::make_unique<alm::gfx::CommonResources>(m_ShaderFactory.get(), m_Device.get());
@@ -200,6 +200,24 @@ void alm::gfx::DeviceManager::Render(std::function<void(void)> cb)
 			// Done
 			commandList->Close();
 			GetDevice()->ExecuteCommandList(commandList.get(), alm::rhi::QueueType::Graphics);
+		}
+
+		// FPS cap
+		if(m_DeviceParams.FPSCap > 0)
+		{
+			const auto frameDuration = std::chrono::microseconds(1000000 / m_DeviceParams.FPSCap);
+			static auto nextFrameTime = std::chrono::steady_clock::now();
+
+			auto now = std::chrono::steady_clock::now();
+			if (nextFrameTime < now)
+			{
+				nextFrameTime = now + frameDuration;
+			}
+			else
+			{
+				std::this_thread::sleep_until(nextFrameTime);
+				nextFrameTime += frameDuration;
+			}
 		}
 
 		bool presentOk = Present();

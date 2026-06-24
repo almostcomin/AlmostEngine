@@ -99,8 +99,13 @@ std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::Fill
 			rhi::ResourceState::SHADER_RESOURCE,
 			"AABBOX buffer");
 
-	void* ptr = buffer->Map();
-	std::memcpy(ptr, aabboxes.data(), aabboxes.size() * sizeof(interop::AABB));
+	auto* ptr = (interop::AABB*)buffer->Map();
+	for (const auto& bbox : aabboxes)
+	{
+		ptr->min = bbox.min;
+		ptr->max = bbox.max;
+		++ptr;
+	}
 	buffer->Unmap();
 
 	return { buffer->GetReadOnlyView(), aabboxes.size() };

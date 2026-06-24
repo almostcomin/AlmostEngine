@@ -28,7 +28,7 @@ class GpuSceneBuffers
 public:
 
 	static constexpr size_t kStaticInstanceCount	= 8192;
-	static constexpr size_t kTransientInstanceCount	= 4096;
+	static constexpr size_t kTransientInstanceCount	= 65536;
 	static constexpr size_t kMaterialCount			= 256;
 	static constexpr size_t kTerrainMaterialCount	= 8;
 	static constexpr size_t kMeshRefCount			= 4096;

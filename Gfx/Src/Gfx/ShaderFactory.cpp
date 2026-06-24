@@ -5,9 +5,9 @@
 #include "RHI/Device.h"
 #include "RHI/ShaderCompiler.h"
 
-alm::gfx::ShaderFactory::ShaderFactory(alm::rhi::Device* device) : m_Device(device)
-{
-}
+alm::gfx::ShaderFactory::ShaderFactory(bool shadersDebug, alm::rhi::Device* device) : 
+	m_ShadersDebug{ shadersDebug }, m_Device(device)
+{}
 
 alm::rhi::ShaderOwner alm::gfx::ShaderFactory::LoadShader(const std::string& name, alm::rhi::ShaderType shaderType)
 {
@@ -18,7 +18,10 @@ alm::rhi::ShaderOwner alm::gfx::ShaderFactory::LoadShader(const std::string& nam
 	{
 		std::filesystem::path srcPath = SHADERS_SRC_FOLDER;
 		srcPath /= (name + ".hlsl");
-		std::filesystem::path binPath = std::filesystem::current_path() / "_shaders" / (name + ".bin");
+		std::filesystem::path binPath = std::filesystem::current_path() / 
+			"_shaders" / 
+			(m_ShadersDebug ? "_debug" : "_release") /
+			(name + ".bin");
 
 		const bool srcExists = std::filesystem::exists(srcPath);
 		const bool binExists = std::filesystem::exists(binPath);
@@ -70,7 +73,8 @@ alm::rhi::ShaderOwner alm::gfx::ShaderFactory::LoadShader(const std::string& nam
 
 				LOG_INFO("Compiling shader '{}'...", srcPath.string());
 				auto startTime = std::chrono::steady_clock::now();
-				byteCode = alm::rhi::ShaderCompiler::Compile(srcPath.filename().string(), shaderType, alm::WeakBlob{ *readResult }, SHADERS_SRC_FOLDER, "main", true);
+				byteCode = alm::rhi::ShaderCompiler::Compile(srcPath.filename().string(), shaderType, alm::WeakBlob{ *readResult },
+					SHADERS_SRC_FOLDER, "main", m_ShadersDebug);
 				auto elapsed = std::chrono::steady_clock::now() - startTime;
 
 				if (byteCode)

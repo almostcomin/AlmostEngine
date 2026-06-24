@@ -46,8 +46,9 @@ public:
 
     void Run(const AppArgs& args);
 
-    bool GetStartupArgBool(const std::string& key, bool defaultValue = false);
-    std::string GetStartupArgString(const std::string& key, const std::string& defaultValue = {});
+    std::optional<bool>        GetStartupArgBool(const std::string& key);
+    std::optional<std::string> GetStartupArgString(const std::string& key);
+    std::optional<int>         GetStartupArgInt(const std::string& key);
 
     void RefreshUIData();
 

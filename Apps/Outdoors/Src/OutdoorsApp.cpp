@@ -226,13 +226,13 @@ public:
 
 			// Update camera speed
 			m_CameraController.SetSpeed(
-				std::max(std::max(heightmap->GetActualSize().x, heightmap->GetActualSize().y) * 0.01f, 1.f));
+				std::max(std::max(heightmap->GetActualSize().x, heightmap->GetActualSize().y) * 0.1f, 1.f));
 
 		}
 
 		// Load file
 		{
-			std::string path = GetStartupArgString("load");
+			std::string path = GetStartupArgString("load").value_or({});
 			if (!path.empty())
 			{
 				auto importResult = alm::gfx::ImportGlTF(path.c_str(), m_DeviceManager.get());

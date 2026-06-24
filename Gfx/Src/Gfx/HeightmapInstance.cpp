@@ -235,11 +235,11 @@ std::vector<alm::aabox3f> alm::gfx::HeightmapInstance::CollectAABBoxes() const
 {
 	std::vector<alm::aabox3f> result;
 	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
-	const auto& dataSource = heightmap->GetSource();
-	const float2 heightRange = dataSource->GetHeightRange();
 
 	for (const auto& coord : m_LeafNodes)
 	{
+		float2 heightRange = heightmap->GetPatchHeightRange(coord.Level, coord.CellIndex);
+
 		aabox3f localBounds = coord.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
 		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 
@@ -265,14 +265,12 @@ bool alm::gfx::HeightmapInstance::ShouldSubdivide(const QuadNodeCoord& coord, co
 
 	return errScreen > m_LODDistanceFactor;
 */
-	return errWorld > 0.f;
+	return errWorld > 0.001f;
 }
 
 bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoord& coord, Axis axis, const Camera* camera, const uint2& fbSize)
 {
 	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
-	const auto& dataSource = heightmap->GetSource();
-	const float2 heightRange = dataSource->GetHeightRange();
 
 	// Find same level neighbour coords
 	int32_t nx = (int32_t)coord.CellIndex.x;
@@ -292,6 +290,7 @@ bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoor
 
 	// If neighbour doesn't want to subdivide we have finished
 	{
+		float2 heightRange = heightmap->GetPatchHeightRange(neighbor.Level, neighbor.CellIndex);
 		aabox3f localBounds = neighbor.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
 		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 
@@ -311,6 +310,8 @@ bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoor
 	for (int i = 0; i < 4; ++i)
 	{
 		QuadNodeCoord child = neighbor.Child(i);
+
+		float2 heightRange = heightmap->GetPatchHeightRange(child.Level, child.CellIndex);
 
 		aabox3f localBounds = child.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
 		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());

@@ -48,24 +48,6 @@ alm::fw::App::AppArgs ParseArgs(int argc, char* argv[])
 	return args;
 }
 
-bool GetBoolArg(const alm::fw::App::AppArgs& args, const std::string& key, bool defaultValue = false)
-{
-	auto it = args.find(key);
-	if (it == args.end())
-		return defaultValue;
-	else
-		return it->second == "0" ? false : true;
-}
-
-std::string GetStringArg(const alm::fw::App::AppArgs& args, const std::string& key, const std::string& defaultValue = {})
-{
-	auto it = args.find(key);
-	if (it == args.end())
-		return defaultValue;
-	else
-		return it->second;
-}
-
 } // anonymous namespace
 
 int SDL_main(int argc, char* argv[])
@@ -100,14 +82,37 @@ void alm::fw::App::Run(const AppArgs& args)
 	ShutdownInternal();
 }
 
-bool alm::fw::App::GetStartupArgBool(const std::string& key, bool defaultValue)
+std::optional<bool> alm::fw::App::GetStartupArgBool(const std::string& key)
 {
-	return GetBoolArg(m_StartupArgs, key, defaultValue);
+	auto it = m_StartupArgs.find(key);
+	if (it == m_StartupArgs.end())
+		return std::nullopt;
+
+	return it->second == "0" ? false : true;
 }
 
-std::string alm::fw::App::GetStartupArgString(const std::string& key, const std::string& defaultValue)
+std::optional<std::string> alm::fw::App::GetStartupArgString(const std::string& key)
 {
-	return GetStringArg(m_StartupArgs, key, defaultValue);
+	auto it = m_StartupArgs.find(key);
+	if (it == m_StartupArgs.end())
+		return std::nullopt;
+
+	return it->second;
+}
+
+std::optional<int> alm::fw::App::GetStartupArgInt(const std::string& key)
+{
+	auto it = m_StartupArgs.find(key);
+	if (it == m_StartupArgs.end())
+		return std::nullopt;
+
+	int value;
+	auto [_, ec] = std::from_chars(it->second.data(), it->second.data() + it->second.size(), value);
+	if (ec == std::errc())
+	{
+		return value;
+	}
+	return std::nullopt;
 }
 
 void alm::fw::App::RefreshUIData()
@@ -342,34 +347,59 @@ alm::gfx::RenderStageTypeID alm::fw::App::GetUIRenderStageType() const
 
 bool alm::fw::App::InitInternal()
 {
-	// Initialize SDL
-	if (!SDL_Init(SDL_INIT_VIDEO))
+	LOG_INFO("Init SDL...");
 	{
-		LOG_FATAL("Error initializing SDL.");
-		return false; // Initialization failed
+		// Initialize SDL
+		if (!SDL_Init(SDL_INIT_VIDEO))
+		{
+			LOG_FATAL("Error initializing SDL.");
+			return false; // Initialization failed
+		}
 	}
+	LOG_INFO("Init SDL: Done");
 
-	// Create a window
-	m_Window = SDL_CreateWindow(m_Name.c_str(), 1920, 1080, SDL_WINDOW_RESIZABLE);
-	if (!m_Window)
+	LOG_INFO("Creating SDL Window...");
 	{
-		SDL_Quit();
-		return false; // Window creation failed
+		// Create a window
+		m_Window = SDL_CreateWindow(m_Name.c_str(), 1920, 1080, SDL_WINDOW_RESIZABLE);
+		if (!m_Window)
+		{
+			SDL_Quit();
+			return false; // Window creation failed
+		}
 	}
+	LOG_INFO("Creating SDL Window...");
 
-	const bool graphicsDebug = GetStartupArgBool("gd", false);
-	const bool vSync = GetStartupArgBool("vsync", false);
+	LOG_INFO("Parsing startup arguments: Done");
 
-	// Init device manager
-	m_DeviceManager = std::unique_ptr<alm::gfx::DeviceManager>{ alm::gfx::DeviceManager::Create(alm::gfx::GraphicsAPI::D3D12) };
-	alm::gfx::DeviceManager::DeviceParams initParams{
-		.WindowHandle = m_Window,
-		.DebugRuntime = graphicsDebug,
-		.GPUValidation = graphicsDebug,
-		.VSyncEnabled = vSync,
-		.ForceSDR = false
-	};
-	m_DeviceManager->Init(initParams);
+	const bool vSync = GetStartupArgBool("vsync").value_or(true);
+	const int fpsCap = GetStartupArgInt("fps_cap").value_or(0);
+	const bool graphicsDebug = GetStartupArgBool("gd").value_or(false);
+	const bool shadersDebug = GetStartupArgBool("shaders_debug").value_or(false);
+
+	LOG_INFO("Parsing startup arguments: Done");
+
+	LOG_INFO("   vsync:         {}", vSync);
+	LOG_INFO("   fps_cap:       {}", fpsCap);
+	LOG_INFO("   gd:            {}", graphicsDebug);
+	LOG_INFO("   shaders_debug: {}", shadersDebug);
+
+
+	LOG_INFO("Init device manager...");
+	{
+		m_DeviceManager = std::unique_ptr<alm::gfx::DeviceManager>{ alm::gfx::DeviceManager::Create(alm::gfx::GraphicsAPI::D3D12) };
+		alm::gfx::DeviceManager::DeviceParams initParams{
+			.WindowHandle = m_Window,
+			.DebugRuntime = graphicsDebug,
+			.GPUValidation = graphicsDebug,
+			.VSyncEnabled = vSync,
+			.FPSCap = fpsCap,
+			.ShadersDebug = shadersDebug,
+			.ForceSDR = false
+		};
+		m_DeviceManager->Init(initParams);
+	}
+	LOG_INFO("Init device manager: Done");
 
 	// Reset window title
 	std::string windowTitle = m_Name + " - " + m_DeviceManager->GetBackEndHWName();
@@ -558,7 +588,7 @@ void alm::fw::App::MainLoop()
 			m_GPUTime = (std::max)(m_DeviceManager->GetGPUFrameTime(), 0.f);
 
 			std::chrono::duration<float> fpsElapsed = currentTime - fpsLastTime;
-			if (fpsElapsed.count() > 1.f)
+			if (fpsElapsed.count() > 1.0f)
 			{
 				m_FPS = fpsFrameCount / fpsElapsed.count();
 				fpsFrameCount = 0;

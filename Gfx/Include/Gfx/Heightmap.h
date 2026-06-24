@@ -68,6 +68,7 @@ public:
 	float GetCellSize() const;
 
 	float GetPatchErrorValue(uint32_t level, const uint2& c);
+	const float2& GetPatchHeightRange(uint32_t level, const uint2& c);
 
 	// 0..15
 	static uint32_t EdgeConfigToVariantIndex(const PatchEdgeConfig& config);
@@ -86,7 +87,10 @@ private:
 	std::shared_ptr<alm::rhi::BufferOwner> CreateIndexBufferVariant(const PatchEdgeConfig& edgeConfig, const bool indices32Bits) const;
 
 	void BuildErrorPyramid();
+	void CalcHeightRanges();
+
 	uint32_t GetErrorPyramidIndex(uint32_t level, const uint2& coords);
+	uint32_t GetHeightRangeIndex(uint32_t level, const uint2& coords);
 
 private:
 
@@ -102,6 +106,7 @@ private:
 	float m_VirtualSize;
 
 	std::vector<float> m_ErrorPyramid;
+	std::vector<float2> m_HeightRange;
 
 	// Bounds of the full heightmap, not 
 	aabox3f m_Bounds;

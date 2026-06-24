@@ -68,6 +68,9 @@ public:
         bool WarningsAsErrors = false;
 
         bool VSyncEnabled = false;
+        int FPSCap = 0;
+
+        bool ShadersDebug = false;
 
         bool EnableComputeQueue = true;
         bool EnableCopyQueue = true;
