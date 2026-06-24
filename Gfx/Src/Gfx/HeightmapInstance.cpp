@@ -92,7 +92,7 @@ alm::gfx::HeightmapInstance::HeightmapInstance(const SceneHeightmap* sceneHeight
 alm::gfx::HeightmapInstance::~HeightmapInstance()
 {}
 
-void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
+void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSize, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
 	if (m_Frozen)
 	{
@@ -104,7 +104,7 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, GpuSceneBuffers* 
 	QuadNodeCoord root{
 		.Level = 0, .CellIndex{0, 0} };
 
-	SelectLODNodes(m_LeafNodes, root, camera);
+	SelectLODNodes(m_LeafNodes, root, camera, fbSize);
 	if (m_LeafNodes.empty())
 		return;
 
@@ -249,18 +249,26 @@ std::vector<alm::aabox3f> alm::gfx::HeightmapInstance::CollectAABBoxes() const
 	return result;
 }
 
-bool alm::gfx::HeightmapInstance::ShouldSubdivide(const QuadNodeCoord& coord, const aabox3f& worldBounds, const Camera* camera)
+bool alm::gfx::HeightmapInstance::ShouldSubdivide(const QuadNodeCoord& coord, const aabox3f& worldBounds,
+	const Camera* camera, const uint2& fbSize)
 {	
-	const float3 worldCenter = worldBounds.center();
-	const float dist = glm::distance(camera->GetPosition(), worldCenter);
-	const float3 d = worldBounds.diagonal();
-	const float2 dXZ = float2{ d.x, d.z };
-	const float size = glm::length(dXZ);
+	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 
-	return dist < size * m_LODDistanceFactor;
+	const float errWorld = heightmap->GetPatchErrorValue(coord.Level, coord.CellIndex);
+/*	
+	const float3 worldCenter = worldBounds.center();
+	const float depth = glm::dot(worldCenter - camera->GetPosition(), camera->GetForward());
+
+	const float focalPixels = ((float)fbSize.y / 2) / std::tan(camera->GetVerticalFOV() / 2);
+
+	const float errScreen = errWorld * focalPixels / depth;
+
+	return errScreen > m_LODDistanceFactor;
+*/
+	return errWorld > 0.f;
 }
 
-bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoord& coord, Axis axis, const Camera* camera)
+bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoord& coord, Axis axis, const Camera* camera, const uint2& fbSize)
 {
 	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	const auto& dataSource = heightmap->GetSource();
@@ -287,7 +295,7 @@ bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoor
 		aabox3f localBounds = neighbor.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
 		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 
-		if (!ShouldSubdivide(neighbor, worldBounds, camera))
+		if (!ShouldSubdivide(neighbor, worldBounds, camera, fbSize))
 			return false;
 	}
 
@@ -307,14 +315,15 @@ bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoor
 		aabox3f localBounds = child.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
 		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 
-		if (ShouldSubdivide(child, worldBounds, camera))
+		if (ShouldSubdivide(child, worldBounds, camera, fbSize))
 			return true;
 	}
 
 	return false;
 }
 
-void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& coord, const Camera* camera)
+void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& coord,
+	const Camera* camera, const uint2& fbSize)
 {
 	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	const auto& dataSource = heightmap->GetSource();
@@ -335,12 +344,12 @@ void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& lea
 	if (!camera->GetFrustum().test(worldBounds))
 		return;
 
-	bool shouldSubdivide = coord.Level < m_MaxLevel && ShouldSubdivide(coord, worldBounds, camera);
+	bool shouldSubdivide = coord.Level < m_MaxLevel && ShouldSubdivide(coord, worldBounds, camera, fbSize);
 	if (!shouldSubdivide && coord.Level < m_MaxLevel)
 	{
 		for (Axis axis : { Axis::North, Axis::South, Axis::East, Axis::West })
 		{
-			if (NeighborWouldForceSubdivide(coord, axis, camera))
+			if (NeighborWouldForceSubdivide(coord, axis, camera, fbSize))
 			{
 				shouldSubdivide = true;
 				break;
@@ -352,7 +361,7 @@ void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& lea
 	{
 		for (int i = 0; i < 4; ++i)
 		{
-			SelectLODNodes(leafNodes, coord.Child(i), camera);
+			SelectLODNodes(leafNodes, coord.Child(i), camera, fbSize);
 		}
 	}
 	else
@@ -416,9 +425,7 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 	const float4x4 inverseNodeWorldMatrix = glm::inverse(nodeWorldMatrix);
 
 	alm::gfx::Transform hmTransform;
-	//hmTransform.SetScale(float3{ heightmap->GetCellSize() });
-	float2 scale = 1.f / heightmap->GetUVToMeters();
-
+	const float2 scale = 1.f / heightmap->GetActualSize();
 	hmTransform.SetScale(float3{ scale.x, 1.f, scale.y });
 	const float4x4 inverseHeightmapMatrix = hmTransform.GetMatrix() * inverseNodeWorldMatrix;
 

@@ -98,7 +98,7 @@ private:
 	void UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList);
-	void UpdateHeightmaps(rhi::ICommandList* commandList);
+	void UpdateHeightmaps(const uint2& frameBufferSize, rhi::ICommandList* commandList);
 
 	void GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
 		aabox3f* opt_outPrimaryBounds = nullptr, SceneContentType secondaryType = SceneContentType::_Size, aabox3f* opt_outSecondaryBounds = nullptr) const;

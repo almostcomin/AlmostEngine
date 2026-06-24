@@ -304,20 +304,19 @@ void alm::gfx::Heightmap::Init(
 	m_TextureResolution = textureResolution;
 	m_PatchResolution = patchResolution;
 
-	m_ActualSize = GetCellSize() * float2 { m_TextureResolution.x, m_TextureResolution.y };
+	// Max number of patches for desired resolution (per axis)
+	// Needs to be power of two to make sure subdivisiones are multiple of patch resolution
+	m_BottomLevelPatchesCount = NextPowerOf2(std::max(m_TextureResolution.x, m_TextureResolution.y) / m_PatchResolution);
+	m_MaxDepthLevel = static_cast<uint32_t>(std::floor(std::log2(m_BottomLevelPatchesCount)));
+
+	m_ActualSize = float2{ (float)m_TextureResolution.x, (float)m_TextureResolution.y } * GetCellSize();
 	m_VirtualSize = GetCellSize() * GetVirtualCellsCount();
 
 	m_HeightsTexture = BuildTexture();
 	BuildPatchVariants();
 	ComputeBounds();
-}
 
-uint32_t alm::gfx::Heightmap::GetMaxDepthLevel() const
-{
-	uint32_t maxPatches = NextPowerOf2(std::max(m_TextureResolution.x, m_TextureResolution.y) / m_PatchResolution);
-	uint32_t maxLevel = static_cast<uint32_t>(std::floor(std::log2(maxPatches)));
-
-	return maxLevel;
+	BuildErrorPyramid();
 }
 
 void alm::gfx::Heightmap::SetTextureResolution(const uint2& textureResolution)
@@ -337,15 +336,21 @@ uint32_t alm::gfx::Heightmap::GetPatchIndicesCount(uint32_t variantIdx) const
 	return m_PatchMeshVariants[variantIdx]->GetIndexCount();
 }
 
+float alm::gfx::Heightmap::GetHeight(const uint2& c) const
+{
+	if (m_Source->InfiniteDataResolution())
+	{
+		return m_Source->Sample(float2{ (float)c.x / m_TextureResolution.x, (float)c.y / m_TextureResolution.y });
+	}
+	else
+	{
+		return m_Source->GetHeight(c);
+	}
+}
+
 uint32_t alm::gfx::Heightmap::GetVirtualCellsCount() const
 {
-	// Max number of patches for desired resolution (per axis)
-	// Needs to be power of two to make sure subdivisiones are multiple of patch resolution
-	const uint32_t maxPatches = NextPowerOf2(std::max(m_TextureResolution.x, m_TextureResolution.y) / m_PatchResolution);
-	// Number of virtual cells.
-	// This is the number of cells that the quadtree is going to have (per axis)
-	// It is equal or lower than the data resolution
-	return maxPatches * m_PatchResolution;
+	return m_BottomLevelPatchesCount * m_PatchResolution;
 }
 
 float2 alm::gfx::Heightmap::GetUVScale() const
@@ -367,9 +372,10 @@ float alm::gfx::Heightmap::GetCellSize() const
 	}
 }
 
-float2 alm::gfx::Heightmap::GetUVToMeters() const
+float alm::gfx::Heightmap::GetPatchErrorValue(uint32_t level, const uint2& c)
 {
-	return float2{ (float)m_TextureResolution.x, (float)m_TextureResolution.y } * GetCellSize();
+	const auto patchIndex = GetErrorPyramidIndex(level, c);
+	return m_ErrorPyramid[patchIndex];
 }
 
 uint32_t alm::gfx::Heightmap::EdgeConfigToVariantIndex(const PatchEdgeConfig& config)
@@ -380,11 +386,10 @@ uint32_t alm::gfx::Heightmap::EdgeConfigToVariantIndex(const PatchEdgeConfig& co
 void alm::gfx::Heightmap::ComputeBounds()
 {
 	const float2 heightRange = m_Source->GetHeightRange();
-	const float2 normSize = GetUVToMeters();
 
 	// Actually if m_Source->IsTileable bounds in x/y are infinite?
 	m_Bounds.min = float3{ 0.f, heightRange.x, 0.f };
-	m_Bounds.max = float3{ normSize.x, heightRange.y, normSize.y };
+	m_Bounds.max = float3{ m_ActualSize.x, heightRange.y, m_ActualSize.y };
 }
 
 alm::rhi::TextureOwner alm::gfx::Heightmap::BuildTexture()
@@ -402,25 +407,13 @@ alm::rhi::TextureOwner alm::gfx::Heightmap::BuildTexture()
 	auto requestResult = dataUploader->RequestUploadTicket(texDesc);
 	assert(requestResult);
 
-	auto getHeight = [&](uint32_t x, uint32_t y) -> float
-	{
-		if (m_Source->InfiniteDataResolution())
-		{
-			return m_Source->Sample(float2{ (float)x / texDesc.width, (float)y / texDesc.height });
-		}
-		else
-		{
-			return m_Source->GetHeight(uint2{ x, y });
-		}
-	};
-
 	const rhi::SubresourceCopyableRequirements copyReq = device->GetSubresourceCopyableRequirements(texDesc, 0, 0);
 	for (uint32_t y = 0; y < texDesc.height; ++y)
 	{
 		uint16_t* rowData = (uint16_t*)((uint8_t*)requestResult->GetPtr() + y * (copyReq.rowStride));
 		for (uint32_t x = 0; x < texDesc.width; ++x)
 		{
-			rowData[x] = glm::packHalf1x16(getHeight(x, y));
+			rowData[x] = glm::packHalf1x16(GetHeight({ x, y }));
 		}
 	}
 
@@ -707,4 +700,95 @@ std::shared_ptr<alm::rhi::BufferOwner> alm::gfx::Heightmap::CreateIndexBufferVar
 	uploadResult->Wait();
 
 	return indexBuffer;
+}
+
+// Error is "max absolute deviation from mean"
+void alm::gfx::Heightmap::BuildErrorPyramid()
+{
+	// We have to store the error for each node of each level
+	size_t size = 0;
+	for (int i = 0; i <= m_MaxDepthLevel; ++i)
+	{
+		size += square(m_BottomLevelPatchesCount >> (m_MaxDepthLevel - i));
+	}
+	m_ErrorPyramid.resize(size);
+
+	// Start with the bottom level.
+	for (int patchX = 0; patchX < m_BottomLevelPatchesCount; ++patchX)
+	{
+		for (int patchY = 0; patchY < m_BottomLevelPatchesCount; ++patchY)
+		{
+			const auto patchIndex = GetErrorPyramidIndex(m_MaxDepthLevel, { patchX, patchY });
+
+			// Cache samples
+			std::vector<float> samples;
+			samples.reserve(square(m_PatchResolution));
+
+			for (int x = patchX * m_PatchResolution; x < (patchX + 1) * m_PatchResolution; ++x)
+			{
+				for (int y = patchY * m_PatchResolution; y < (patchY + 1) * m_PatchResolution; ++y)
+				{
+					if (x < m_TextureResolution.x && y < m_TextureResolution.y)
+					{
+						samples.push_back(GetHeight({ x, y }));
+					}
+				}
+			}
+
+			if (samples.empty())
+			{
+				m_ErrorPyramid[patchIndex] = 0.f;
+				continue;
+			}
+
+			// Calc mean
+			float sumH = std::accumulate(samples.begin(), samples.end(), 0.f);
+			float mean = sumH / samples.size();
+
+			// Calc max deviation from mean
+			float maxDev = 0.f;
+			for (float H : samples)
+			{
+				maxDev = std::max(maxDev, std::abs(H - mean));
+			}
+
+			m_ErrorPyramid[patchIndex] = maxDev;
+		}
+	}
+
+	// Propagate to upper levels
+
+	if (m_MaxDepthLevel == 0)
+		return;
+
+	for (int level = m_MaxDepthLevel - 1; level >= 0; --level)
+	{
+		int patchesInLevel = m_BottomLevelPatchesCount >> (m_MaxDepthLevel - level);
+		for (int patchX = 0; patchX < patchesInLevel; ++patchX)
+		{
+			for (int patchY = 0; patchY < patchesInLevel; ++patchY)
+			{
+				float maxDev = 0.f;
+				for (int childIdx = 0; childIdx < 4; ++childIdx)
+				{
+					const auto childPatchIndex = GetErrorPyramidIndex(level + 1,
+						{ patchX * 2 + childIdx % 2,
+						  patchY * 2 + childIdx / 2 });
+
+					maxDev = std::max(maxDev, m_ErrorPyramid[childPatchIndex]);
+				}
+
+				const auto patchIndex = GetErrorPyramidIndex(level, { patchX, patchY });
+				m_ErrorPyramid[patchIndex] = maxDev;
+			}
+		}
+	}
+}
+
+uint32_t alm::gfx::Heightmap::GetErrorPyramidIndex(uint32_t level, const uint2& coords)
+{
+	const uint64_t offset = (square(m_BottomLevelPatchesCount >> (m_MaxDepthLevel - level)) - 1) / 3;
+	const uint64_t stride = m_BottomLevelPatchesCount >> (m_MaxDepthLevel - level);
+
+	return offset + coords.y * stride + coords.x;
 }

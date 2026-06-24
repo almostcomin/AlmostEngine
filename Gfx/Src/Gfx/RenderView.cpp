@@ -189,7 +189,8 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec, const Mous
 	// Update heightmaps
 	if (m_Scene)
 	{
-		UpdateHeightmaps(beginCommandList);
+		const auto& fbInfo = frameBuffer->GetFramebufferInfo();
+		UpdateHeightmaps({ fbInfo.width, fbInfo.height }, beginCommandList);
 		// Upload transients (for heightmap only atm)
 		gpuSceneBuffers->FlushTransients(m_Scene->GetGpuSceneBuffersHandle(), beginCommandList);
 	}
@@ -680,7 +681,7 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 	commandList->EndMarker();
 }
 
-void alm::gfx::RenderView::UpdateHeightmaps(rhi::ICommandList* commandList)
+void alm::gfx::RenderView::UpdateHeightmaps(const uint2& frameBufferSize, rhi::ICommandList* commandList)
 {
 	commandList->BeginMarker("Heightmaps");
 
@@ -688,7 +689,7 @@ void alm::gfx::RenderView::UpdateHeightmaps(rhi::ICommandList* commandList)
 	{
 		for (auto& [_, instance] : m_HeightmapInstances)
 		{
-			instance->Update(m_Camera.get(), m_DeviceManager->GetGpuSceneBuffers(), m_Scene->GetGpuSceneBuffersHandle());
+			instance->Update(m_Camera.get(), frameBufferSize, m_DeviceManager->GetGpuSceneBuffers(), m_Scene->GetGpuSceneBuffersHandle());
 		}
 	}
 

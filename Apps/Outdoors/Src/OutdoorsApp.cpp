@@ -94,8 +94,8 @@ public:
 #else
 				auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
 					alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
-				//bool sourceOk = imageSource->Load("SpainHeightmap.png");
-				bool sourceOk = imageSource->Load("_heightmaps/Stromboli/Stromboli_20250702_for_OT.hdr");
+				bool sourceOk = imageSource->Load("SpainHeightmap.png");
+				//bool sourceOk = imageSource->Load("_heightmaps/Stromboli/Stromboli_20250702_for_OT.hdr");
 				assert(sourceOk);
 
 				dataSource = imageSource;
