@@ -22,6 +22,7 @@ public:
 		Heightmap_Normals,
 		Heightmap_Connections,
 		Heightmap_Resolution,
+		Heightmap_Patches,
 		Heightmap_Contours
 	};
 

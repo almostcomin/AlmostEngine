@@ -8,7 +8,8 @@ static const uint DebugChannel_Heightmap_Slope = 2;
 static const uint DebugChannel_Heightmap_Normals = 3;
 static const uint DebugChannel_Heightmap_Connections = 4;
 static const uint DebugChannel_Heightmap_Resolution = 5;
-static const uint DebugChannel_Heightmap_Contours = 6;
+static const uint DebugChannel_Heightmap_Patches = 6;
+static const uint DebugChannel_Heightmap_Contours = 7;
 
 float GetHeightmapMipBias(float2 pos2, uint edgeMask)
 {

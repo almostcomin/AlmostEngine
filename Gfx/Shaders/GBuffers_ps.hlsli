@@ -1,6 +1,7 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 #include "Material.hlsli"
+#include "GBuffersCommon.hlsli"
 
 ConstantBuffer<interop::GBufferStageConstats> StageConstants : register(b0);
 ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
@@ -13,13 +14,7 @@ struct PS_INPUT
     float2 uv : TEXCOORD0;
 };
 
-struct PS_OUTPUT
-{
-    float4 GBuffer0 : SV_Target0;
-    float4 GBuffer1 : SV_Target1;
-    float4 GBuffer2 : SV_Target2;
-    float4 GBuffer3 : SV_Target3;
-};
+typedef GBufferData PS_OUTPUT;
 
 [RootSignature(BindlessRootSignature)]
 PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
@@ -36,20 +31,7 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     clip(matSample.opacity - matData.alphaCutoff);
 #endif
 
-    PS_OUTPUT output;
-    
-    // GBuffer0: diffuseAlbedo.rgb + opacity.w
-    output.GBuffer0 = float4(matSample.diffuseAlbedo, matSample.opacity);
-
-    // GBuffer1: specularF0.rgb + occlusion.w
-    output.GBuffer1 = float4(matSample.specularF0, matSample.occlusion);
-    
-    // GBuffer2: Normal.xy + roughnes.z + metalness.w
-    // metalness is actually not needed since we have speculatF0, but keeping here so we can show metalness in MaterialChannels
-    output.GBuffer2 = float4(EncodeNormal(matSample.normal), matSample.roughness, matSample.metalness);
-    
-    // GBuffer3: Emissive.rgb
-    output.GBuffer3 = float4(matSample.emissiveColor, 0.0);
-        
+    PS_OUTPUT output = EncodeGBuffers(matSample);
+            
     return output;
 }

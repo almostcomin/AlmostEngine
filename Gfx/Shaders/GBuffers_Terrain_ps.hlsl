@@ -2,6 +2,7 @@
 #include "BindlessRS.hlsli"
 #include "TerrainMaterial.hlsli"
 #include "HeightmapCommon.hlsli"
+#include "GBuffersCommon.hlsli"
 
 ConstantBuffer<interop::GBufferStageConstats> StageConstants : register(b0);
 ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
@@ -17,13 +18,7 @@ struct PS_INPUT
     float3 debugConnectionColor     : COLOR0;
 };
 
-struct PS_OUTPUT
-{
-    float4 GBuffer0 : SV_Target0;
-    float4 GBuffer1 : SV_Target1;
-    float4 GBuffer2 : SV_Target2;
-    float4 GBuffer3 : SV_Target3;
-};
+typedef GBufferData PS_OUTPUT;
 
 [RootSignature(BindlessRootSignature)]
 PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
@@ -117,39 +112,25 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
             input.uv,
             matData);
         
-        // GBuffer0: diffuseAlbedo.rgb + opacity.w
-        output.GBuffer0 = float4(matSample.diffuseAlbedo, matSample.opacity);
-
-        // GBuffer1: specularF0.rgb + occlusion.w
-        output.GBuffer1 = float4(matSample.specularF0, matSample.occlusion);
-    
-        // GBuffer2: Normal.xy + roughnes.z + metalness.w
-        // metalness is actually not needed since we have speculatF0, but keeping here so we can show metalness in MaterialChannels
-        output.GBuffer2 = float4(EncodeNormal(matSample.normal), matSample.roughness, matSample.metalness);
-    
-        // GBuffer3: Emissive.rgb
-        output.GBuffer3 = float4(matSample.emissiveColor, 0.0);
-        
-/*
+        output = EncodeGBuffers(matSample);
+          
+        if (StageConstants.DebugChannel == DebugChannel_Heightmap_Patches)
         {
             float2 uv2 = uv / patchData.UVScale;
             uv2 -= patchData.MinUV;
             uv2 /= patchData.SizeUV;
             
             float2 distToEdgeUV = min(uv2, 1.0 - uv2);
-            float2 pixelSizeUV = float2(fwidth(uv2.x), fwidth(uv2.y));
-            float distToEdgePixels = min(
-                distToEdgeUV.x / max(pixelSizeUV.x, 1e-6),
-                distToEdgeUV.y / max(pixelSizeUV.y, 1e-6));
+            float2 pixelSizeUV = fwidth(uv2);
+            float2 distPixels = distToEdgeUV / pixelSizeUV;
+            float minDistPixels = min(distPixels.x, distPixels.y);
+                                    
+            const float borderWidthPixels = 1.0;
+            float borderMask = step(minDistPixels, borderWidthPixels);
             
-            const float borderWidthPixels = 2.0;
-            float3 borderColor = float3(0.0, 0.0, 0.0);
-
-            float borderMask = step(distToEdgePixels, borderWidthPixels);
-            
+            float3 borderColor = float3(0.0, 0.0, 0.0);            
             output.GBuffer0.xyz = lerp(output.GBuffer0.xyz, borderColor, borderMask);
         }
-*/
 
         if (StageConstants.DebugChannel == DebugChannel_Heightmap_Contours)
         {    

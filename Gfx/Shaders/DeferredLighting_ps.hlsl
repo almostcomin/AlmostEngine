@@ -2,6 +2,7 @@
 #include "BindlessRS.hlsli"
 #include "Shading.hlsli"
 #include "Shadowmap.hlsli"
+#include "GBuffersCommon.hlsli"
 
 // Keep in sync with alm::gfx::DeferredLightingRenderStage::MaterialChannel
 static const uint MaterialChannel_Disabled      = 0;
@@ -17,22 +18,6 @@ static const uint MaterialChannel_Emissive      = 9;
 static const uint MaterialChannel_SpecularF0    = 10;
 
 ConstantBuffer<interop::DeferredLightingConstants> Constants : register(b0);
-
-MaterialSample DecodeGBuffer(float4 channels[4])
-{
-    MaterialSample surface = DefaultMaterialSample();
-    
-    surface.diffuseAlbedo = channels[0].xyz;
-    surface.opacity = channels[0].w;
-    surface.specularF0 = channels[1].xyz;
-    surface.occlusion = channels[1].w;
-    surface.normal = DecodeNormal(channels[2].xy);
-    surface.roughness = channels[2].z;
-    surface.metalness = channels[2].w;
-    surface.emissiveColor = channels[3].xyz;
-    
-    return surface;
-}
 
 struct PS_INPUT
 {
@@ -61,7 +46,7 @@ float4 main(PS_INPUT input) : SV_Target
     gbuffers[2] = GBuffer2.SampleLevel(pointClampSampler, input.uv, 0);
     gbuffers[3] = GBuffer3.SampleLevel(pointClampSampler, input.uv, 0);
         
-    MaterialSample surfaceMat = DecodeGBuffer(gbuffers);
+    MaterialSample surfaceMat = DecodeGBuffers(gbuffers);
 
     float3 color = 0.0;
     if (Constants.MaterialChannel == MaterialChannel_BaseColor)
