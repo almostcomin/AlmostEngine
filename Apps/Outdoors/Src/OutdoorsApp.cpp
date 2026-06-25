@@ -96,6 +96,7 @@ public:
 					alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
 				//bool sourceOk = imageSource->Load("SpainHeightmap.png");
 				bool sourceOk = imageSource->Load("_heightmaps/Stromboli/Stromboli_20250702_for_OT.hdr");
+				//bool sourceOk = imageSource->Load("_heightmaps/Badlands Range Sharp 1/Badlands Range Sharp 1.hdr");
 				assert(sourceOk);
 
 				dataSource = imageSource;

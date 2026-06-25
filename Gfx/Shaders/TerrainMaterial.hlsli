@@ -68,9 +68,9 @@ MaterialSample EvaluateTerrainMaterial(float normHeight, float3 normalWorld, flo
     interop::TerrainMaterialData mat)
 {
     TerrainLayerSample layerSample;
-    const float slopeS = 1.0 - normalWorld.y; // Sin of slope angle
+    const float slopeCos = saturate(normalWorld.y);
     
-    if (slopeS >= mat.SlopeAngleEndSin)
+    if (slopeCos <= mat.SlopeAngleEndCos)
     {
         layerSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.SlopeLayer);
     }
@@ -91,10 +91,10 @@ MaterialSample EvaluateTerrainMaterial(float normHeight, float3 normalWorld, flo
             float w = smoothstep(mat.HeightTransitionStart, mat.HeightTransitionEnd, normHeight);
             layerSample = MergeTerrainLayers(groundSample, peakSample, w);
         }
-        if (slopeS >= mat.SlopeAngleStartSin)
+        if (slopeCos <= mat.SlopeAngleStartCos)
         {
             TerrainLayerSample slopeSample = SampleTerrainLayerColor(uv, normalView, tangentView, mat.SlopeLayer);
-            float sw = smoothstep(mat.SlopeAngleStartSin, mat.SlopeAngleEndSin, slopeS);
+            float sw = 1.0 - smoothstep(mat.SlopeAngleEndCos, mat.SlopeAngleStartCos, slopeCos);
             sw = pow(sw, mat.SlopeBlendSharpness);
             layerSample = MergeTerrainLayers(layerSample, slopeSample, sw);
         }

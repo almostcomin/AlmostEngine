@@ -287,6 +287,10 @@ void OutdoorsUI::BuildUI()
 				mat->SlopeAngleEndDeg = glm::degrees(slopeAngleEnd);
 				matDirty = true;
 			}
+			if (ImGui::InputFloat("Slope Blend Sharpness", &mat->SlopeBlendSharpness, 0.0, 0.0, "%.1f", ImGuiInputTextFlags_None))
+			{
+				matDirty = true;
+			}
 
 			if (matDirty)
 			{

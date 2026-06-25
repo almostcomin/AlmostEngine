@@ -9,7 +9,7 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
     uint2 dims;
     rhi::Format format;
     alm::Blob srcData;
-    float cellSize = -1.f;
+    float cellSize = 1.f;
 
     if (GetExtensionFromPath(path) == "hdr")
     {

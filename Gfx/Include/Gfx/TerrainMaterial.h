@@ -31,7 +31,7 @@ struct TerrainMaterial
 
     // Ground/Peak -> Slope transition
     float SlopeAngleStartDeg = 45.f;
-    float SlopeAngleEndDeg = 60.f;
+    float SlopeAngleEndDeg = 70.f;
 
     float SlopeBlendSharpness = 1.f;
 

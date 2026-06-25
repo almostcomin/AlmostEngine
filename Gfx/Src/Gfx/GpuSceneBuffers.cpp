@@ -68,8 +68,8 @@ static void SerializeTerrainMaterial(const alm::gfx::TerrainMaterial* mat, inter
 	SerializeTerrainMaterialLayer(&mat->Ground, &dest->GroundLayer);
 	SerializeTerrainMaterialLayer(&mat->Slope, &dest->SlopeLayer);
 	SerializeTerrainMaterialLayer(&mat->Peak, &dest->PeakLayer);
-	dest->SlopeAngleStartSin = glm::sin(glm::radians(mat->SlopeAngleStartDeg));
-	dest->SlopeAngleEndSin = glm::sin(glm::radians(mat->SlopeAngleEndDeg));
+	dest->SlopeAngleStartCos = glm::cos(glm::radians(mat->SlopeAngleStartDeg));
+	dest->SlopeAngleEndCos = glm::cos(glm::radians(mat->SlopeAngleEndDeg));
 	dest->HeightTransitionStart = mat->HeightTransitionStart;
 	dest->HeightTransitionEnd = mat->HeightTransitionEnd;
 	dest->SlopeBlendSharpness = mat->SlopeBlendSharpness;

@@ -111,8 +111,8 @@ namespace interop
         TerrainMaterialLayer GroundLayer;
         TerrainMaterialLayer SlopeLayer;
         TerrainMaterialLayer PeakLayer;
-        float SlopeAngleStartSin;
-        float SlopeAngleEndSin;
+        float SlopeAngleStartCos;
+        float SlopeAngleEndCos;
         float HeightTransitionStart;
         float HeightTransitionEnd;
         float SlopeBlendSharpness;

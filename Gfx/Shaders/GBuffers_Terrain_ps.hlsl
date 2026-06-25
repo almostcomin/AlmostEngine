@@ -74,7 +74,7 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     }
     else if (StageConstants.DebugChannel == DebugChannel_Heightmap_Slope)
     {
-        const float slopeS = 1.0 - sampledNormal.y; // Sin of slope angle        
+        const float slopeS = 1.0 - sampledNormal.y; // Sin of slope angle
         output.GBuffer0 = float4(slopeS, slopeS, slopeS, 1);
         output.GBuffer1 = float4(0, 0, 0, 1);
         output.GBuffer2 = float4(EncodeNormal(float3(0, 1, 0)), 1.0, 0.0);
