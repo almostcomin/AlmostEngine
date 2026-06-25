@@ -93,6 +93,7 @@ protected:
     AppArgs m_StartupArgs;
 
     alm::weak<alm::gfx::SceneGraphNode> m_ArrowMeshY;
+    float m_ArrowMeshScale;
     
     alm::gfx::RGBufferViewTicket m_GBuffer2ViewTicket;
     alm::gfx::RGBufferViewTicket m_LinearDepthViewTicket;

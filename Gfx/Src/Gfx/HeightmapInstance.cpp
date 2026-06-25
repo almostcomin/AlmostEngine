@@ -461,6 +461,7 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 		alloc.HeightmapPatchesPtr[i].InverseHeightmapMatrix = inverseHeightmapMatrix;
 		alloc.HeightmapPatchesPtr[i].EdgeMask = coord.edgeMask;
 		alloc.HeightmapPatchesPtr[i].CellSize = heightmap->GetCellSize();
+		alloc.HeightmapPatchesPtr[i].CellUVScale = heightmap->GetCellSize() / (sizeUV * heightmap->GetVirtualSize());
 		alloc.HeightmapPatchesPtr[i].HeightmapTextureDI = textureView;
 	}
 	m_InstancesAllocBaseIdx = alloc.InstancesBaseIndex;

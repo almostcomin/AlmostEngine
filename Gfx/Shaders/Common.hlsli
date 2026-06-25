@@ -24,6 +24,9 @@ float4 PosReconstruction(float2 uv, float depth, float4x4 invViewProjMatrix)
 
 float3 ApplyNormalMap(float3 vNormal, float4 vTangent, float3 tNormal, float2 normalScale)
 {
+    //****
+    return normalize(vNormal);
+    
     // Remap to [-1,1]
     float3 tangentNormal = tNormal * 2.0 - 1.0;
     // Apply scale

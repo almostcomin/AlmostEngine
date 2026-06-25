@@ -21,7 +21,7 @@ public:
     ImageHeightmapSource(EdgeMode edgeMode = EdgeMode::Clamp) : m_EdgeMode{ edgeMode }
     {}
 
-    bool Load(const std::string& path);
+    bool Load(const std::string& path, float scaleH = 1.f, float cellSize = -1.f);
 
     // IHeightmapSource interface
     float GetHeight(const uint2& p) const override;
@@ -36,6 +36,7 @@ public:
 
     bool HasCellSize() const override { return m_CellSize > 0.f; }
     float GetCellSize() const override { return m_CellSize; }
+    void SetCellSize(float v) { m_CellSize = v; }
 
     Type GetType() const override { return Type::Image; }
     const std::string& GetName() const override { return m_Name; }

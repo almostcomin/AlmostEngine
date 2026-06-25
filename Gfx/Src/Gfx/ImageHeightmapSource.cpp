@@ -4,12 +4,11 @@
 #include "Gfx/EHdrImageLoader.h"
 #include "Core/File.h"
 
-bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
+bool alm::gfx::ImageHeightmapSource::Load(const std::string& path, float scaleH, float cellSize)
 {
     uint2 dims;
     rhi::Format format;
     alm::Blob srcData;
-    float cellSize = 1.f;
 
     if (GetExtensionFromPath(path) == "hdr")
     {
@@ -24,7 +23,7 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
         dims.x = info.Width;
         dims.y = info.Height;
         format = rhi::Format::R32_FLOAT;
-        if (info.HasCellSize)
+        if (cellSize < 0.f && info.HasCellSize)
         {
             cellSize = info.CellSize;
         }
@@ -59,7 +58,7 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
     const size_t pixelCount = dims.x * dims.y;
 
     // If format is not R32_FLOAT we have to convert
-    if (format != rhi::Format::R32_FLOAT)
+    if (format != rhi::Format::R32_FLOAT || scaleH != 1.f)
     {
         m_Data.alloc(pixelCount * sizeof(float));
         m_DataView = std::span<float>{ (float*)m_Data.data(), pixelCount };
@@ -71,7 +70,8 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
             const uint8_t* src = srcData.data();
             for (uint32_t i = 0; i < pixelCount; ++i)
             {
-                m_DataView[i] = src[i];
+                m_DataView[i] = (float)src[i] / 255.f;
+                m_DataView[i] *= scaleH;
             }
         } break;
 
@@ -80,7 +80,8 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
             const uint16_t* src = (uint16_t*)srcData.data();
             for (uint32_t i = 0; i < pixelCount; ++i)
             {
-                m_DataView[i] = src[i] / 65535.f;
+                m_DataView[i] = (float)src[i] / 65535.f;
+                m_DataView[i] *= scaleH;
             }
         } break;
 
@@ -88,8 +89,20 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path)
         {
             const uint8_t* src = srcData.data();
             for (uint32_t i = 0; i < pixelCount; ++i)
+            {
                 m_DataView[i] = src[i * 4] / 255.0f; // R channel
+                m_DataView[i] *= scaleH;
+            }
         } break;
+
+        case rhi::Format::R32_FLOAT:
+        {
+            const float* src = (float*)srcData.data();
+            for (uint32_t i = 0; i < pixelCount; ++i)
+            {
+                m_DataView[i] = src[i] * scaleH;
+            }
+        }
 
         default:
             LOG_ERROR("ImageHeightmapSource: unsupported format {}", (int)format);

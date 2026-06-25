@@ -369,7 +369,7 @@ float alm::gfx::Heightmap::GetCellSize() const
 	}
 	else
 	{
-		return 1.f / m_PatchResolution;
+		return 1.f;// / m_PatchResolution;
 	}
 }
 

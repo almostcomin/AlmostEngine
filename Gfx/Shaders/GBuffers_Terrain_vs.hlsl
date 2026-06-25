@@ -17,7 +17,8 @@ struct VS_OUTPUT
     float3 debugConnectionColor : COLOR0;
 };
 
-void GetLocalSpaceNormalTangent(Texture2D<float> heightsTexture, uint2 textureRes, float2 uv, uint mipLevel, float cellSize, out float3 normal, out float4 tangent)
+void GetLocalSpaceNormalTangent(Texture2D<float> heightsTexture, uint2 textureRes, float2 uv, uint mipLevel, float cellScale,
+    out float3 normal, out float4 tangent)
 {
     uint texWidth = textureRes.x >> mipLevel;
     uint texHeight = textureRes.y >> mipLevel;
@@ -28,8 +29,8 @@ void GetLocalSpaceNormalTangent(Texture2D<float> heightsTexture, uint2 textureRe
     float hD = heightsTexture.SampleLevel(linearClampSampler, uv + float2(0, -texelSize.y), mipLevel).r;
     float hU = heightsTexture.SampleLevel(linearClampSampler, uv + float2(0, texelSize.y), mipLevel).r;
 
-    float dx = 2.0 * cellSize * (1u << mipLevel);
-    float dy = 2.0 * cellSize * (1u << mipLevel);
+    float dx = 2.0 * cellScale * (1u << mipLevel);
+    float dy = 2.0 * cellScale * (1u << mipLevel);
     float dHdU = (hR - hL) / dx;
     float dHdV = (hU - hD) / dy;
 
@@ -76,8 +77,8 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     // Normal & Tangent
     float3 normal;
     float4 tangent;
-    GetLocalSpaceNormalTangent(heightsTexture, patchData.TextureResolution, uv,
-        patchData.MipLevel + GetHeightmapMipBias(pos2, patchData.EdgeMask), patchData.CellSize, normal, tangent);
+    GetLocalSpaceNormalTangent(heightsTexture, patchData.TextureResolution, uv, patchData.MipLevel + GetHeightmapMipBias(pos2, patchData.EdgeMask),
+        patchData.CellUVScale, normal, tangent);
             
     // Transform
     float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));

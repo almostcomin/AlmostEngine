@@ -63,7 +63,8 @@ alm::fw::App::App(const std::string& name, RenderStageSetMode renderStageSetMode
 	m_FrameworkUI{ nullptr },
 	m_Window{ nullptr },
 	m_Name{ name },
-	m_RenderStageSetMode{ renderStageSetMode }
+	m_RenderStageSetMode{ renderStageSetMode },
+	m_ArrowMeshScale{ 1.f }
 {}
 
 alm::fw::App::~App()
@@ -326,7 +327,7 @@ void alm::fw::App::ShowNormal(const uint2& screenPos)
 		gfx::Transform transform;
 		transform.SetTranslation(worldPos);
 		transform.SetRotation(glm::rotation(float3{ 0.f, 1.f, 0.f }, normal));
-		transform.SetScale(float3{ 0.1f, 0.1f, 0.1f });
+		transform.SetScale(float3{ m_ArrowMeshScale });
 
 		ShowArrow(transform);
 	}
@@ -600,14 +601,35 @@ void alm::fw::App::MainLoop()
 		}
 
 		// Input
+		const bool* keyboardState = SDL_GetKeyboardState(nullptr);
+		const bool ctrlPressed = keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL];
+
+		float mouseX, mouseY;
+		SDL_MouseButtonFlags mouseButtonFlags = SDL_GetMouseState(&mouseX, &mouseY) & SDL_BUTTON_LEFT;
+		const bool mouseLeftPressed = mouseButtonFlags & SDL_BUTTON_LEFT;
+		const bool mouseRightPressed = mouseButtonFlags & SDL_BUTTON_RIGHT;
+
+		const bool requestShowNormal = ctrlPressed && mouseLeftPressed;
+
+		bool forwardEvent = true;
+		forwardEvent &= !requestShowNormal;
+
 		SDL_Event event;
 		while (SDL_PollEvent(&event))
 		{
 			ImGui_ImplSDL3_ProcessEvent(&event);
-			bool forwardEvent = true;
 
 			switch (event.type)
 			{
+			case SDL_EVENT_MOUSE_WHEEL:
+				if (requestShowNormal)
+				{
+					float magnitude = powf(10.f, floorf(log10f(m_ArrowMeshScale)));
+					m_ArrowMeshScale += event.wheel.y * magnitude;
+					m_ArrowMeshScale = std::max(m_ArrowMeshScale, 0.01f);
+				};
+				break;
+
 			case SDL_EVENT_QUIT:
 				requestQuit = true;
 				forwardEvent = false;
@@ -631,21 +653,13 @@ void alm::fw::App::MainLoop()
 			}
 		}
 
+		if (requestShowNormal)
 		{
-			float mouseX, mouseY;
-			bool leftPressed = SDL_GetMouseState(&mouseX, &mouseY) & SDL_BUTTON_LEFT;
-
-			const bool* keyboardState = SDL_GetKeyboardState(nullptr);
-			bool ctrlPressed = keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL];
-
-			if (leftPressed && ctrlPressed)
-			{
-				ShowNormal({ mouseX, mouseY });
-			}
-			else
-			{
-				HideNormal();
-			}
+			ShowNormal({ mouseX, mouseY });
+		}
+		else
+		{
+			HideNormal();
 		}
 
 		if (Update(elapsedSec) == false)

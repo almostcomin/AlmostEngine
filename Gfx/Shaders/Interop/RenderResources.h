@@ -163,8 +163,8 @@ namespace interop
         float4x4 InverseHeightmapMatrix;    // offset 20
         uint EdgeMask;                      // bits: bit0=N Low?, bit1=S Low?, bit2=E Low?, bit3=W Low?
         float CellSize;
+        float CellUVScale;
         TextureSampledViewIndex HeightmapTextureDI; 
-        uint _padding;
     }; // size 40 * 4 = 160 bytes
 
     // Warning! can't use _padding[2] since in a constant buffer each array element consumes 4 bytes:
