@@ -22,8 +22,8 @@ public:
 	// Can be called before Init to get a list of available adapters.
 	bool EnumerateAdapters(std::vector<AdapterInfo>& outAdapters) override;
 
-	uint64_t BeginFrame() override;
-	bool Present() override;
+	uint64_t BeginFrame(uint32_t* opt_microSec) override;
+	bool Present(uint32_t* opt_microSec) override;
 
 	glm::ivec2 GetWindowDimensions() const override;
 

@@ -303,103 +303,106 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, m_TexturesState);
 		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, m_BuffersState, m_TexturesState);
 
+
+		stageCommandList->BeginMarker(rs->renderStage->GetDebugName());
+
+		// GPU time query
+		const int timeQueryIndex = m_DeviceManager->GetFrameIndex() % rs->timerQueries.size();
+		rs->timerQueries[timeQueryIndex]->Reset();
+		stageCommandList->BeginTimerQuery(rs->timerQueries[timeQueryIndex].get());
+
+		// Entry barriers
+		{
+			std::vector<rhi::Barrier> barriers;
+			auto getTextureBarriers = [&barriers, this](const std::vector<TextureDependency>& deps)
+			{
+				for (const auto& dep : deps)
+				{
+					auto state_it = m_TexturesState.find(dep.handle);
+					if (state_it != m_TexturesState.end() && state_it->second != dep.inputState)
+					{
+						barriers.push_back(rhi::Barrier::Texture(
+							GetTexture(dep.handle).get(), state_it->second, dep.inputState));
+						state_it->second = dep.inputState;
+					}
+				}
+			};
+			auto getBufferBarriers = [&barriers, this](const std::vector<BufferDependency>& deps)
+			{
+				for (const auto& dep : deps)
+				{
+					auto state_it = m_BuffersState.find(dep.handle);
+					if (state_it != m_BuffersState.end() && state_it->second != dep.inputState)
+					{
+						barriers.push_back(rhi::Barrier::Buffer(
+							GetBuffer(dep.handle).get(), state_it->second, dep.inputState));
+						state_it->second = dep.inputState;
+					}
+				}
+			};
+			getTextureBarriers(rs->textureReads);
+			getTextureBarriers(rs->textureWrites);
+			getBufferBarriers(rs->bufferReads);
+			getBufferBarriers(rs->bufferWrites);
+
+			if (!barriers.empty())
+			{
+				std::string markerName = rs->renderStage->GetDebugName();
+				markerName.append(" - Entry barriers");
+				stageCommandList->BeginMarker(markerName.c_str());
+				stageCommandList->PushBarriers(barriers);
+				stageCommandList->EndMarker();
+			}
+		} // end entry barriers
+
+		// Render
 		if (rs->renderStage->IsEnabled())
 		{
-			stageCommandList->BeginMarker(rs->renderStage->GetDebugName());
+			std::chrono::steady_clock::time_point tbegin = std::chrono::steady_clock::now();
 
-			// GPU time query
-			const int timeQueryIndex = m_DeviceManager->GetFrameIndex() % rs->timerQueries.size();
-			rs->timerQueries[timeQueryIndex]->Reset();
-			stageCommandList->BeginTimerQuery(rs->timerQueries[timeQueryIndex].get());
+			rs->renderStage->Render(GetCommandList());
 
-			// Entry barriers
+			std::chrono::steady_clock::time_point tend = std::chrono::steady_clock::now();
+			float ms = std::chrono::duration<float, std::milli>(tend - tbegin).count();
+			rs->cpuElapsed[m_DeviceManager->GetFrameIndex() % rs->cpuElapsed.size()] = ms;
+		}
+		else
+		{
+			rs->cpuElapsed[m_DeviceManager->GetFrameIndex() % rs->cpuElapsed.size()] = 0.f;
+		}
+
+		stageCommandList->EndTimerQuery(rs->timerQueries[timeQueryIndex].get());
+		stageCommandList->EndMarker();
+
+		// Update the resource states
+		{
+			auto updateTextureStates = [this](const std::vector<TextureDependency>& deps)
 			{
-				std::vector<rhi::Barrier> barriers;
-				auto getTextureBarriers = [&barriers, this](const std::vector<TextureDependency>& deps)
+				for (const auto& dep : deps)
 				{
-					for (const auto& dep : deps)
+					auto state_it = m_TexturesState.find(dep.handle);
+					if (state_it != m_TexturesState.end() && state_it->second != dep.outputState)
 					{
-						auto state_it = m_TexturesState.find(dep.handle);
-						if (state_it != m_TexturesState.end() && state_it->second != dep.inputState)
-						{
-							barriers.push_back(rhi::Barrier::Texture(
-								GetTexture(dep.handle).get(), state_it->second, dep.inputState));
-							state_it->second = dep.inputState;
-						}
+						state_it->second = dep.outputState;
 					}
-				};
-				auto getBufferBarriers = [&barriers, this](const std::vector<BufferDependency>& deps)
-				{
-					for (const auto& dep : deps)
-					{
-						auto state_it = m_BuffersState.find(dep.handle);
-						if (state_it != m_BuffersState.end() && state_it->second != dep.inputState)
-						{
-							barriers.push_back(rhi::Barrier::Buffer(
-								GetBuffer(dep.handle).get(), state_it->second, dep.inputState));
-							state_it->second = dep.inputState;
-						}
-					}
-				};
-				getTextureBarriers(rs->textureReads);
-				getTextureBarriers(rs->textureWrites);
-				getBufferBarriers(rs->bufferReads);
-				getBufferBarriers(rs->bufferWrites);
-
-				if (!barriers.empty())
-				{
-					std::string markerName = rs->renderStage->GetDebugName();
-					markerName.append(" - Entry barriers");
-					stageCommandList->BeginMarker(markerName.c_str());
-					stageCommandList->PushBarriers(barriers);
-					stageCommandList->EndMarker();
 				}
-			} // end entry barriers
-
-			// Render
+			};
+			auto updateBufferStates = [this](const std::vector<BufferDependency>& deps)
 			{
-				std::chrono::steady_clock::time_point tbegin = std::chrono::steady_clock::now();
-
-				rs->renderStage->Render(GetCommandList());
-
-				std::chrono::steady_clock::time_point tend = std::chrono::steady_clock::now();
-				float ms = std::chrono::duration<float, std::milli>(tend - tbegin).count();
-				rs->cpuElapsed[m_DeviceManager->GetFrameIndex() % rs->cpuElapsed.size()] = ms;
-			}
-
-			stageCommandList->EndTimerQuery(rs->timerQueries[timeQueryIndex].get());
-			stageCommandList->EndMarker();
-
-			// Update the resource states
-			{
-				auto updateTextureStates = [this](const std::vector<TextureDependency>& deps)
+				for (const auto& dep : deps)
 				{
-					for (const auto& dep : deps)
+					auto state_it = m_BuffersState.find(dep.handle);
+					if (state_it != m_BuffersState.end() && state_it->second != dep.outputState)
 					{
-						auto state_it = m_TexturesState.find(dep.handle);
-						if (state_it != m_TexturesState.end() && state_it->second != dep.outputState)
-						{
-							state_it->second = dep.outputState;
-						}
+						state_it->second = dep.outputState;
 					}
-				};
-				auto updateBufferStates = [this](const std::vector<BufferDependency>& deps)
-				{
-					for (const auto& dep : deps)
-					{
-						auto state_it = m_BuffersState.find(dep.handle);
-						if (state_it != m_BuffersState.end() && state_it->second != dep.outputState)
-						{
-							state_it->second = dep.outputState;
-						}
-					}
-				};
-				updateTextureStates(rs->textureReads);
-				updateTextureStates(rs->textureWrites);
-				updateBufferStates(rs->bufferReads);
-				updateBufferStates(rs->bufferWrites);
-			}
-		} // if (rs->renderStage->IsEnabled())
+				}
+			};
+			updateTextureStates(rs->textureReads);
+			updateTextureStates(rs->textureWrites);
+			updateBufferStates(rs->bufferReads);
+			updateBufferStates(rs->bufferWrites);
+		}
 
 		// Update view of writes
 		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, m_TexturesState);

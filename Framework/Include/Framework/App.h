@@ -85,8 +85,9 @@ protected:
 
     RenderStageSetMode m_RenderStageSetMode;
 
-    float m_CPUTime;
-    float m_GPUTime;
+    float m_CPUTimeMilliSec;
+    float m_CPUIdleTimeMilliSec;
+    float m_GPUTimeMilliSec;
     float m_FPS;
 
     AppArgs m_StartupArgs;

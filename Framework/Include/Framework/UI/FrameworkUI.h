@@ -99,7 +99,7 @@ public:
 	void ShowBottomBar(bool b) { m_ShowBottomBar = b; }
 	void AddBottomBarText(const std::string& text);
 
-	void SetRenderStats(float fps, float cpuTime, float gpuTime);
+	void SetRenderStats(float fps, float cpuTime, float cpuIdleTime, float gpuTime);
 
 	void AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture);
 
@@ -209,6 +209,7 @@ private:
 
 	float m_FPS = 0.f;
 	float m_CPUTime = 0.f;
+	float m_CPUIdleTime = 0.f;
 	float m_GPUTime = 0.f;
 
 	bool m_ShowMainMenu = true;

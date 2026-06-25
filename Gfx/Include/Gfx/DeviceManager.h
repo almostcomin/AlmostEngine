@@ -103,8 +103,8 @@ public:
     // Begin frame checks for the completion of the next frame index and waits for it if needed
     // It does not update frameCount. That is done after present.
     // Returns the frame index completed.
-    virtual uint64_t BeginFrame() = 0;
-    virtual bool Present() = 0;
+    virtual uint64_t BeginFrame(uint32_t* opt_microSec = nullptr) = 0;
+    virtual bool Present(uint32_t* opt_microSec = nullptr) = 0;
 
     virtual void ReportLiveObjects() = 0;
 
@@ -129,7 +129,7 @@ public:
     // New window size can be obtained calling GetWindowDimensions
     bool UpdateWindowSize();
 
-    void Render(std::function<void(void)> cb);
+    void Render(std::function<void(void)> cb, uint32_t& out_cpuIdleMicroSec);
 
     alm::gfx::ShaderFactory*        GetShaderFactory()          { return m_ShaderFactory.get(); }
     alm::gfx::DataUploader*         GetDataUploader()           { return m_DataUploader.get(); }
@@ -145,7 +145,7 @@ public:
     virtual rhi::ColorSpace GetColorSpace() const = 0;
     virtual const std::string& GetBackEndHWName() const = 0;
 
-    float GetGPUFrameTime();
+    float GetGPUFrameTime(); // Millisec
 
     alm::rhi::Device* GetDevice() { return m_Device.get(); }
 

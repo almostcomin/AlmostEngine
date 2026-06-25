@@ -127,15 +127,22 @@ bool alm::gfx::dx12::DeviceManager::EnumerateAdapters(std::vector<AdapterInfo>& 
     return true;
 }
 
-uint64_t alm::gfx::dx12::DeviceManager::BeginFrame()
+uint64_t alm::gfx::dx12::DeviceManager::BeginFrame(uint32_t* opt_microSec)
 {
     auto bufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
-    WaitForSingleObject(m_FrameFenceEvents[bufferIndex].first, INFINITE);
 
+    const auto t0 = std::chrono::steady_clock::now();
+    WaitForSingleObject(m_FrameFenceEvents[bufferIndex].first, INFINITE);
+    const auto t1 = std::chrono::steady_clock::now();
+
+    if (opt_microSec)
+    {
+        *opt_microSec = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    }
     return m_FrameFenceEvents[bufferIndex].second;
 }
 
-bool alm::gfx::dx12::DeviceManager::Present()
+bool alm::gfx::dx12::DeviceManager::Present(uint32_t* opt_microSec)
 {
     auto bufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
@@ -143,7 +150,10 @@ bool alm::gfx::dx12::DeviceManager::Present()
     if (!m_DeviceParams.VSyncEnabled && m_FullScreenDesc.Windowed && m_TearingSupported)
         presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
 
+    const auto t0 = std::chrono::steady_clock::now();
     HRESULT result = m_SwapChain->Present(m_DeviceParams.VSyncEnabled ? 1 : 0, presentFlags);
+    const auto t1 = std::chrono::steady_clock::now();
+
     if (FAILED(result))
     {
         rhi::dx12::CheckDRED(m_Device->GetNativeDevice());
@@ -160,6 +170,10 @@ bool alm::gfx::dx12::DeviceManager::Present()
     m_FrameIndex++; // Next frame
     m_Device->NextFrame();
 
+    if (opt_microSec)
+    {
+        *opt_microSec = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    }
     return SUCCEEDED(result);
 }
 

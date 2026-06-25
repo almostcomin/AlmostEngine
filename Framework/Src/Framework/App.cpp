@@ -572,6 +572,7 @@ void alm::fw::App::MainLoop()
 	auto lastTime = appStartTime;
 	auto fpsLastTime = appStartTime;
 	uint32_t fpsFrameCount = 0;
+	uint32_t cpuIdleUSec = 0;
 
 	while (!requestQuit)
 	{
@@ -584,8 +585,10 @@ void alm::fw::App::MainLoop()
 
 		// Update timers
 		{
-			m_CPUTime = elapsedSec * 1000;
-			m_GPUTime = (std::max)(m_DeviceManager->GetGPUFrameTime(), 0.f);
+			m_CPUTimeMilliSec = elapsedSec * 1000;
+			m_CPUIdleTimeMilliSec = (float)cpuIdleUSec / 1000;
+
+			m_GPUTimeMilliSec = (std::max)(m_DeviceManager->GetGPUFrameTime(), 0.f);
 
 			std::chrono::duration<float> fpsElapsed = currentTime - fpsLastTime;
 			if (fpsElapsed.count() > 1.0f)
@@ -656,7 +659,7 @@ void alm::fw::App::MainLoop()
 		// Update UI
 		if (m_FrameworkUI)
 		{
-			m_FrameworkUI->SetRenderStats(m_FPS, m_CPUTime, m_GPUTime);
+			m_FrameworkUI->SetRenderStats(m_FPS, m_CPUTimeMilliSec, m_CPUIdleTimeMilliSec, m_GPUTimeMilliSec);
 		}
 
 		if (m_DeviceManager->UpdateWindowSize())
@@ -678,7 +681,7 @@ void alm::fw::App::MainLoop()
 			};
 
 			m_MainRenderView->Render(totalSec, elapsedSec, mouseState);
-		});
+		}, cpuIdleUSec);
 
 		// Apply UI settings
 		{

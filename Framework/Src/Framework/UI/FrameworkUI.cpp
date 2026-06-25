@@ -566,10 +566,11 @@ void alm::fw::FrameworkUI::RegisterMainMenuItem(const std::string& name, std::fu
     m_MainMenuAdditionalItems.emplace_back(name, item);
 }
 
-void alm::fw::FrameworkUI::SetRenderStats(float fps, float cpuTime, float gpuTime)
+void alm::fw::FrameworkUI::SetRenderStats(float fps, float cpuTime, float cpuIdleTime, float gpuTime)
 {
     m_FPS = fps;
     m_CPUTime = cpuTime;
+    m_CPUIdleTime = cpuIdleTime;
     m_GPUTime = gpuTime;
 }
 
@@ -749,27 +750,32 @@ void alm::fw::FrameworkUI::BuildBottomBar()
         ImGui::SetCursorPosX(cursorX);
         ImGui::SetCursorPosY(cursorY);
 
-        ImGui::Text(" FPS: %1.3f", m_FPS);
-        cursorX = 160.f;
+        ImGui::Text(" FPS: %1.1f", m_FPS);
+        cursorX = 100.f;
 
         ImGui::SameLine();
         ImGui::SetCursorPosX(cursorX);
-        ImGui::Text("| Draw calls: %d", renderStats.DrawCalls);
-        cursorX += 160.f;
+        ImGui::Text("| Frame time: %1.2f ms", m_CPUTime);
+        cursorX += 180.f;
 
         ImGui::SameLine();
         ImGui::SetCursorPosX(cursorX);
-        ImGui::Text("| Primitives: %d", renderStats.PrimitiveCount);
-        cursorX += 200.f;
+        ImGui::Text("| CPU: %1.2f ms", m_CPUTime - m_CPUIdleTime);
+        cursorX += 140.f;
 
         ImGui::SameLine();
         ImGui::SetCursorPosX(cursorX);
         ImGui::Text("| GPU: %1.2f ms", m_GPUTime);
-        cursorX += 160.f;
+        cursorX += 140.f;
 
         ImGui::SameLine();
         ImGui::SetCursorPosX(cursorX);
-        ImGui::Text("| CPU: %1.2f ms", m_CPUTime);
+        ImGui::Text("| Draw calls: %d", renderStats.DrawCalls);
+        cursorX += 140.f;
+
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(cursorX);
+        ImGui::Text("| Primitives: %d", renderStats.PrimitiveCount);
 
         // Right aligned user texts
         cursorX = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;

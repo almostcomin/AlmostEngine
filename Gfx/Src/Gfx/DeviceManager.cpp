@@ -150,11 +150,15 @@ bool alm::gfx::DeviceManager::UpdateWindowSize()
 	return false;
 }
 
-void alm::gfx::DeviceManager::Render(std::function<void(void)> cb)
+void alm::gfx::DeviceManager::Render(std::function<void(void)> cb, uint32_t& out_cpuIdleMicroSec)
 {
+	out_cpuIdleMicroSec = 0;
+	uint32_t beginFrameIdleUSec = 0;
+	uint32_t presentIdleUSec = 0;
+
 	if (IsWindowVisible())
 	{
-		uint64_t completedFrameIdx = BeginFrame();
+		uint64_t completedFrameIdx = BeginFrame(&beginFrameIdleUSec);
 		if (completedFrameIdx != 0) // FrameIndex 0 is a fake frame
 		{
 			m_UploadBuffer->OnFrameCompleted(completedFrameIdx);
@@ -215,18 +219,24 @@ void alm::gfx::DeviceManager::Render(std::function<void(void)> cb)
 			}
 			else
 			{
+				const auto t0 = std::chrono::steady_clock::now();
 				std::this_thread::sleep_until(nextFrameTime);
+				const auto t1 = std::chrono::steady_clock::now();
+
 				nextFrameTime += frameDuration;
+				out_cpuIdleMicroSec += std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
 			}
 		}
 
-		bool presentOk = Present();
+		bool presentOk = Present(&presentIdleUSec);
 		assert(presentOk);
 
 		m_UploadBuffer->OnNextFrame(m_FrameIndex);
 	}
 
-	m_TextureCache->Update(); 
+	m_TextureCache->Update();
+
+	out_cpuIdleMicroSec += beginFrameIdleUSec + presentIdleUSec;
 }
 
 uint32_t alm::gfx::DeviceManager::GetFrameModuleIndex() const
