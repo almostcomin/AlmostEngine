@@ -291,15 +291,18 @@ void alm::fw::App::ShowNormal(const uint2& screenPos)
 			gBufferData += screenPos.x * sizeof(short4);
 
 			ushort4 pixelData = *(ushort4*)gBufferData;
-
-			float2 encodedNormal = { HalfToFloat(pixelData.x), HalfToFloat(pixelData.y) };
-			normal = DecodeNormal(encodedNormal);
-			float4x4 invCamViewMatrix = glm::inverse(m_MainRenderView->GetCamera()->GetViewMatrix());
-			normal = invCamViewMatrix * float4{ normal.x, normal.y, normal.z, 0.f };
-			normal = glm::normalize(normal);
-
 			gBuffer2Buffer->Unmap();
-			validNormal = true;
+			
+			if (pixelData.x != 0 || pixelData.y != 0)
+			{
+				float2 encodedNormal = { HalfToFloat(pixelData.x), HalfToFloat(pixelData.y) };
+				normal = DecodeNormal(encodedNormal);
+				float4x4 invCamViewMatrix = glm::inverse(m_MainRenderView->GetCamera()->GetViewMatrix());
+				normal = invCamViewMatrix * float4{ normal.x, normal.y, normal.z, 0.f };
+				normal = glm::normalize(normal);
+
+				validNormal = true;
+			}
 		}
 
 		// Get world pos
@@ -311,13 +314,13 @@ void alm::fw::App::ShowNormal(const uint2& screenPos)
 			linearDepthData += copyReq.offset;
 			linearDepthData += screenPos.y * copyReq.rowStride;
 			linearDepthData += screenPos.x * sizeof(float);
+			linearDepthBuffer->Unmap();
 
 			float depth = *(float*)linearDepthData;
 
 			worldPos = m_MainRenderView->GetCamera()->ScreenToWorld(
 				screenPos, depth, uint2{ linearDepthTexDesc.width, linearDepthTexDesc.height });
 
-			linearDepthBuffer->Unmap();
 			validPos = true;
 		}
 	}
@@ -332,8 +335,8 @@ void alm::fw::App::ShowNormal(const uint2& screenPos)
 		ShowArrow(transform);
 	}
 
-	m_FrameworkUI->AddBottomBarText(std::format("Normal: {{{:1.3f}, {:1.3f}, {:1.3f}}}", normal.x, normal.y, normal.z));
-	m_FrameworkUI->AddBottomBarText(std::format("Pos: {{{:1.3f}, {:1.3f}, {:1.3f}}}", worldPos.x, worldPos.y, worldPos.z));
+	m_FrameworkUI->AddBottomBarText(std::format("Normal: {{{:1.1f}, {:1.1f}, {:1.1f}}}", normal.x, normal.y, normal.z));
+	m_FrameworkUI->AddBottomBarText(std::format("Pos: {{{:1.1f}, {:1.1f}, {:1.1f}}}", worldPos.x, worldPos.y, worldPos.z));
 }
 
 void alm::fw::App::HideNormal()

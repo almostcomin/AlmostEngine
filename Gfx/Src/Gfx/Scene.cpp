@@ -83,8 +83,9 @@ void alm::gfx::Scene::DetachRenderView(alm::weak<RenderView> renderView)
 	}
 }
 
-const alm::aabox3f alm::gfx::Scene::GetWorldBounds(SceneContentType type) const
+const alm::aabox3f alm::gfx::Scene::GetWorldBounds(SceneContentType type)
 {
+	Update();
 	if (m_SceneGraph && m_SceneGraph->GetRoot() && has_any_flag(m_SceneGraph->GetRoot()->GetContentFlags(), ToFlag(type)))
 	{
 		return m_SceneGraph->GetRoot()->GetWorldBounds(type);
@@ -96,7 +97,6 @@ void alm::gfx::Scene::Update()
 {
 	if (m_SceneGraph)
 	{
-		// TODO: Maybe we should merge results to allow multiple updated on single draw.
 		m_SceneGraph->Update();
 	}
 }

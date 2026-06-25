@@ -90,7 +90,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     float3 normalView = normalize(mul((float3x3)sceneData.camViewMatrix, normalWorld));
     
     // Tangent
-    float3 tangentWorld = normalize(mul(instanceData.modelMatrix, float4(tangent.xyz, 0.0)).xyz);
+    float3 tangentWorld = normalize(mul(normalMatrix, tangent.xyz));
     float3 tangentView = normalize(mul((float3x3)sceneData.camViewMatrix, tangentWorld));
             
     // Output

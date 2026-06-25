@@ -95,9 +95,9 @@ public:
 				auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
 					alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
 				//bool sourceOk = imageSource->Load("SpainHeightmap.png", 1.f, 1.f / 64);
-				bool sourceOk = imageSource->Load("SpainHeightmap.png", 164.f, 1.f);
+				//bool sourceOk = imageSource->Load("SpainHeightmap.png", 164.f, 1.f);
 				//bool sourceOk = imageSource->Load("_heightmaps/Stromboli/Stromboli_20250702_for_OT.hdr");
-				//bool sourceOk = imageSource->Load("_heightmaps/Badlands Range Sharp 1/Badlands Range Sharp 1.hdr");
+				bool sourceOk = imageSource->Load("_heightmaps/Badlands Range Sharp 1/Badlands Range Sharp 1.hdr");
 				assert(sourceOk);
 
 				dataSource = imageSource;
@@ -111,7 +111,8 @@ public:
 
 				// Ground Color
 				loadResult = textureCache->Load(
-					"Textures/Ground037/Ground037_1K-PNG_Color.png",
+					//"Textures/Ground037/Ground037_1K-PNG_Color.png",
+					"Textures/Ground054/Ground054_1K-PNG_Color.png",
 					alm::gfx::TextureCache::Flags::ForceSRGB | alm::gfx::TextureCache::Flags::GenerateMips);
 				if (loadResult)
 				{
@@ -119,7 +120,8 @@ public:
 				}
 				// Ground Normal
 				loadResult = textureCache->Load(
-					"Textures/Ground037/Ground037_1K-PNG_NormalGL.png",
+					//"Textures/Ground037/Ground037_1K-PNG_NormalGL.png",
+					"Textures/Ground054/Ground054_1K-PNG_NormalGL.png",
 					alm::gfx::TextureCache::Flags::IsNormalMap | alm::gfx::TextureCache::Flags::GenerateMips);
 				if (loadResult)
 				{
@@ -127,7 +129,8 @@ public:
 				}
 				// Ground ORM
 				loadResult = textureCache->Load(
-					"Textures/Ground037/Ground037_1K-PNG_ORM.png",
+					//"Textures/Ground037/Ground037_1K-PNG_ORM.png",
+					"Textures/Ground054/Ground054_1K-PNG_ORM.png",
 					alm::gfx::TextureCache::Flags::GenerateMips);
 				if (loadResult)
 				{
@@ -209,19 +212,6 @@ public:
 			graphNode->SetName("Heightmap");
 			graphNode->SetLeaf(std::move(sceneHeightmapUnique));
 
-			if (dataSource->HasCellSize())
-			{
-				float factor = (float)heightmap->GetPatchResolution() * dataSource->GetCellSize();
-				//graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ factor, 1.f, factor }));
-			}
-			else
-			{
-				//graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 1.f, 0.1f, 1.f }));
-			}
-
-			//graphNode->SetLocalTransform(alm::gfx::Transform().SetTranslation(kEarthPos));
-			//graphNode->SetLocalTransform(alm::gfx::Transform().SetScale({ 12.f, 0.3f, 12.f }));
-
 			// Attach to scene
 			auto sceneGraph = m_Scene->GetSceneGraph();
 			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
@@ -295,6 +285,21 @@ public:
 			RefreshUIData();
 		}
 
+		// Camera initial position
+		{
+			alm::aabox3f bbox = m_Scene->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
+			float3 center = bbox.center();
+			float3 diagonal = bbox.diagonal();
+
+			m_MainCamera->LookAt(center);
+			m_MainCamera->SetPosition(center + float3{ -2.f, 1.f, 2.f });
+
+			bbox.min = center - diagonal / 4.f;
+			bbox.max = center + diagonal / 4.f;
+
+			m_MainCamera->Fit(bbox);
+		}
+
 		return true;
 	}
 
@@ -304,12 +309,6 @@ public:
 		m_CameraController.Update(deltaTime);
 
 		// Update UI
-		m_UI->AddBottomBarText(std::format("X: {:1.3f}, Y: {:1.3f}, Z: {:1.3f}",
-			m_MainCamera->GetPosition().x, m_MainCamera->GetPosition().y, m_MainCamera->GetPosition().z));
-		
-		float altutide = glm::distance(m_MainCamera->GetPosition(), kEarthPos) - kEarthRadius;
-		m_UI->AddBottomBarText(std::format("Altitude: {:1.3f}", altutide));
-
 		m_UI->AddBottomBarText(std::format("Camera speed: {:1.1f}", m_CameraController.GetSpeed()));
 
 		return true;

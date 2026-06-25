@@ -58,7 +58,7 @@ namespace alm::gfx
 		void AttachRenderView(alm::weak<RenderView> renderView);
 		void DetachRenderView(alm::weak<RenderView> renderView);
 
-		const aabox3f GetWorldBounds(SceneContentType type) const;
+		const aabox3f GetWorldBounds(SceneContentType type);
 
 		const AmbientParams& GetAmbientParams() const { return m_AmbientParams; }
 		void SetAmbientParams(const AmbientParams& v) { m_AmbientParams = v; }
