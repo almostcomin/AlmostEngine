@@ -56,6 +56,18 @@ struct aabox
         return max - min;
     }
 
+    vec_t extent() const
+    {
+        return (max - min) / T(2);
+    }
+
+    // Returns the closest point on (or inside) the box to the given point.
+    // Each component is clamped to [min, max].
+    vec_t closestPoint(const vec_t& p) const
+    {
+        return glm::clamp(p, min, max);
+    }
+
     aabox& merge(const vec_t& vec)
     {
         min = glm::min(min, vec);

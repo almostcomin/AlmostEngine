@@ -1,7 +1,6 @@
 #include "Gfx/GfxPCH.h"
 #include "Gfx/HeightmapInstance.h"
 #include "Gfx/SceneHeightmap.h"
-#include "Gfx/Heightmap.h"
 #include "Gfx/HeightmapSource.h"
 #include "Gfx/Camera.h"
 #include "Gfx/GpuSceneBuffers.h"
@@ -118,17 +117,10 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSi
 	{
 		Heightmap::PatchEdgeConfig edgeConfig;
 
-		edgeConfig.North = FindNeighbourLevel(leafSet, coord, Axis::North) < coord.Level ?
-			Heightmap::EdgeMode::Low : Heightmap::EdgeMode::Normal;
-
-		edgeConfig.South = FindNeighbourLevel(leafSet, coord, Axis::South) < coord.Level ?
-			Heightmap::EdgeMode::Low : Heightmap::EdgeMode::Normal;
-
-		edgeConfig.East  = FindNeighbourLevel(leafSet, coord, Axis::East)  < coord.Level ?
-			Heightmap::EdgeMode::Low : Heightmap::EdgeMode::Normal;
-
-		edgeConfig.West  = FindNeighbourLevel(leafSet, coord, Axis::West)  < coord.Level ?
-			Heightmap::EdgeMode::Low : Heightmap::EdgeMode::Normal;
+		edgeConfig.North = GetEdgeMode(leafSet, coord, Axis::North);
+		edgeConfig.South = GetEdgeMode(leafSet, coord, Axis::South);
+		edgeConfig.East = GetEdgeMode(leafSet, coord, Axis::East);
+		edgeConfig.West = GetEdgeMode(leafSet, coord, Axis::West);
 
 		coord.patchVariantIdx = Heightmap::EdgeConfigToVariantIndex(edgeConfig);  // 0..15
 
@@ -231,41 +223,48 @@ std::string alm::gfx::HeightmapInstance::DumpTesselationInfo() const
 	return ss.str();
 }
 
-std::vector<alm::aabox3f> alm::gfx::HeightmapInstance::CollectAABBoxes() const
+alm::aabox3f alm::gfx::HeightmapInstance::GetAABoxWorldSpace(const QuadNodeCoord& node) const
 {
-	std::vector<alm::aabox3f> result;
 	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 
-	for (const auto& coord : m_LeafNodes)
-	{
-		float2 heightRange = heightmap->GetPatchHeightRange(coord.Level, coord.CellIndex);
+	float2 heightRange = heightmap->GetPatchHeightRange(node.Level, node.CellIndex);
 
-		aabox3f localBounds = coord.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
-		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
+	aabox3f localBounds = node.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
+	aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 
-		result.push_back(worldBounds);
-	}
-
-	return result;
+	return worldBounds;
 }
 
-bool alm::gfx::HeightmapInstance::ShouldSubdivide(const QuadNodeCoord& coord, const aabox3f& worldBounds,
-	const Camera* camera, const uint2& fbSize)
-{	
+bool alm::gfx::HeightmapInstance::ShouldSubdivide(const QuadNodeCoord& coord, const Camera* camera, const uint2& fbSize)
+{
 	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 
 	const float errWorld = heightmap->GetPatchErrorValue(coord.Level, coord.CellIndex);
-/*	
-	const float3 worldCenter = worldBounds.center();
-	const float depth = glm::dot(worldCenter - camera->GetPosition(), camera->GetForward());
+#if 0
+	return errWorld > 0.001f;
+#else
+	// Distance to the closest point of the AABB projected onto the camera forward.
+	const float3 camPos = camera->GetPosition();
+	const float3 camForward = camera->GetForward();
+	const aabox3f worldBounds = GetAABoxWorldSpace(coord);
+	const float3 closest = worldBounds.closestPoint(camPos);
+
+	constexpr float kMinDepth = 0.1f;
+	const float depth = std::max(kMinDepth, glm::dot(closest - camPos, camForward));
 
 	const float focalPixels = ((float)fbSize.y / 2) / std::tan(camera->GetVerticalFOV() / 2);
 
 	const float errScreen = errWorld * focalPixels / depth;
 
-	return errScreen > m_LODDistanceFactor;
-*/
-	return errWorld > 0.001f;
+	// Hysteresis: penalize subdividing less when we are already a leaf (so we don't
+	// immediately collapse back) and benefit subdividing more when we are not a leaf.
+	// Values around 0.7 / 1.3 work well in practice; tune if popping persists.
+	//const bool isLeaf = std::find(m_LeafNodes.begin(), m_LeafNodes.end(), coord) != m_LeafNodes.end();
+	//const float hysteresis = isLeaf ? 0.7f : 1.3f;
+	const float hysteresis = 1.f;
+
+	return errScreen * hysteresis > m_LODDistanceFactor;
+#endif
 }
 
 bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoord& coord, Axis axis, const Camera* camera, const uint2& fbSize)
@@ -289,14 +288,8 @@ bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoor
 	QuadNodeCoord neighbor{ coord.Level, { (uint32_t)nx, (uint32_t)ny } };
 
 	// If neighbour doesn't want to subdivide we have finished
-	{
-		float2 heightRange = heightmap->GetPatchHeightRange(neighbor.Level, neighbor.CellIndex);
-		aabox3f localBounds = neighbor.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
-		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
-
-		if (!ShouldSubdivide(neighbor, worldBounds, camera, fbSize))
-			return false;
-	}
+	if (!ShouldSubdivide(neighbor, camera, fbSize))
+		return false;
 
     int borderChildren[2];
     switch (axis) {
@@ -307,16 +300,10 @@ bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoor
     }
 
 	// Any of his grandchildren wants?
-	for (int i = 0; i < 4; ++i)
+	for (int b : borderChildren)
 	{
-		QuadNodeCoord child = neighbor.Child(i);
-
-		float2 heightRange = heightmap->GetPatchHeightRange(child.Level, child.CellIndex);
-
-		aabox3f localBounds = child.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
-		aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
-
-		if (ShouldSubdivide(child, worldBounds, camera, fbSize))
+		QuadNodeCoord child = neighbor.Child(b);
+		if (ShouldSubdivide(child, camera, fbSize))
 			return true;
 	}
 
@@ -337,15 +324,21 @@ void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& lea
 			return;
 	}
 
-	// Check frustum
-	const float2 heightRange = dataSource->GetHeightRange();
-	aabox3f localBounds = coord.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
+	if (coord.CellIndex.x == 0 && coord.CellIndex.y == 2 && coord.Level == 2)
+	{
+		puts("hola");
+	}
+	if (coord.CellIndex.x == 0 && coord.CellIndex.y == 3 && coord.Level == 2)
+	{
+		puts("hola");
+	}
 
-	aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
+	// Check frustum
+	aabox3f worldBounds = GetAABoxWorldSpace(coord);
 	if (!camera->GetFrustum().test(worldBounds))
 		return;
 
-	bool shouldSubdivide = coord.Level < m_MaxLevel && ShouldSubdivide(coord, worldBounds, camera, fbSize);
+	bool shouldSubdivide = coord.Level < m_MaxLevel && ShouldSubdivide(coord, camera, fbSize);
 	if (!shouldSubdivide && coord.Level < m_MaxLevel)
 	{
 		for (Axis axis : { Axis::North, Axis::South, Axis::East, Axis::West })
@@ -371,10 +364,10 @@ void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& lea
 	}
 }
 
-uint32_t alm::gfx::HeightmapInstance::FindNeighbourLevel(const std::unordered_set<QuadNodeCoord, QuadNodeCoordHash>& leafSet,
+alm::gfx::Heightmap::EdgeMode alm::gfx::HeightmapInstance::GetEdgeMode(const std::unordered_set<QuadNodeCoord, QuadNodeCoordHash>& leafSet,
 	const QuadNodeCoord& coord, Axis axis)
 {
-	// 1. Calcular coords del vecino al mismo nivel
+	// 1. Calc neightbour coords of the same level than coord
 	int32_t nx = (int32_t)coord.CellIndex.x;
 	int32_t ny = (int32_t)coord.CellIndex.y;
 	switch (axis) 
@@ -385,33 +378,30 @@ uint32_t alm::gfx::HeightmapInstance::FindNeighbourLevel(const std::unordered_se
 	case Axis::North: ny += 1; break;
 	}
 
-	// 2. Si está fuera del rango del nivel, es borde del mundo.
+	// 2. Check if it is outside world border
 	const int32_t cellsPerSide = 1 << coord.Level;
 	if (nx < 0 || nx >= cellsPerSide || ny < 0 || ny >= cellsPerSide)
-		return UINT32_MAX;
+		return Heightmap::EdgeMode::Normal;
 
 	QuadNodeCoord neighbor{
 		.Level = coord.Level,
 		.CellIndex = { (uint32_t)nx, (uint32_t)ny }
 	};
 
-	// 3. Probar primero a nuestro nivel
+	// 3. Check if neightbour exists as a leaf
 	if (leafSet.count(neighbor) > 0)
-		return coord.Level;
+		return Heightmap::EdgeMode::Normal;
 
-	// 4. Si no, probar al nivel del padre (restricted quadtree garantiza
-	//    que no hay diferencia > 1).
-	if (coord.Level > 0) {
+	// 4. Check parent level (restricted quadtree guarantees diff is not higher than 1).
+	if (coord.Level > 0)
+	{
 		QuadNodeCoord parent = neighbor.Parent();
 		if (leafSet.count(parent) > 0)
-			return parent.Level;
+			return Heightmap::EdgeMode::Low;
 	}
 
-	// 5. No encontrado a ningún nivel relevante. Esto NO debería pasar si el
-	//    restricted quadtree funcionó correctamente, salvo casos extraordinarios.
-	//    Si pasa, asumimos "no vecino" o asertamos.
-	//assert(false && "Neighbor not found at expected levels — restricted quadtree violation?");
-	return UINT32_MAX;
+	// 5. No neightbour leaf found with the same level or parent's level.
+	return Heightmap::EdgeMode::Normal;
 }
 
 void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)

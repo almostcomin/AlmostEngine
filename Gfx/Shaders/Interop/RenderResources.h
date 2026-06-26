@@ -487,6 +487,16 @@ namespace interop
         BufferUniformIndex cloudsDataDI; // CloudsData
         float time;
     };
+
+    struct HeightmapDebugConstants
+    {
+        TextureStorageViewIndex inputTextureDI;
+        TextureStorageViewIndex outputTextureDI;
+        float2 screenPos;
+        uint2 coords;
+        uint level;
+        uint _padding;
+    };
 }
 
 #endif // __SHADERS_INTEROP_RENDERRESOURCES_H__

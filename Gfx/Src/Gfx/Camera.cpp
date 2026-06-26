@@ -97,13 +97,13 @@ const float4x4& alm::gfx::Camera::GetViewMatrix() const
 	return m_ViewMatrix;
 }
 
-const float4x4& alm::gfx::Camera::GetProjectionMatrix()
+const float4x4& alm::gfx::Camera::GetProjectionMatrix() const
 {
 	UpdateMatrices();
 	return m_ProjectionMatrix;
 }
 
-float4x4 alm::gfx::Camera::GetViewProjectionMatrix()
+float4x4 alm::gfx::Camera::GetViewProjectionMatrix() const
 {
 	UpdateMatrices();
 	return m_ProjectionMatrix * m_ViewMatrix;
@@ -183,7 +183,7 @@ void alm::gfx::Camera::SetRoll(float roll)
 	SetUpRef(newUp);
 }
 
-float3 alm::gfx::Camera::ScreenToWorld(const uint2& pixelPos, float linearDepth, const uint2& viewportSize)
+float3 alm::gfx::Camera::ScreenToWorld(const uint2& pixelPos, float linearDepth, const uint2& viewportSize) const
 {
 	UpdateMatrices();
 
@@ -207,6 +207,40 @@ float3 alm::gfx::Camera::ScreenToWorld(const uint2& pixelPos, float linearDepth,
 	worldPos /= worldPos.w;
 
 	return float3(worldPos.x, worldPos.y, worldPos.z);
+}
+
+float4 alm::gfx::Camera::WorldToNDC(const float3& worldPos) const
+{
+	const float4x4 vp = GetViewProjectionMatrix();	
+	const float4 worldH{ worldPos.x, worldPos.y, worldPos.z, 1.f };
+
+	const float4 clip = vp * worldH; // column-major glm: vp * world
+	
+	// Si w <= 0, el punto está behind the near plane
+	if (clip.w <= 0.f)
+		return float4(0.f, 0.f, 0.f, clip.w);
+	
+	const float invW = 1.f / clip.w;
+	return float4(clip.x * invW, clip.y * invW, clip.z * invW, clip.w);	
+}
+
+std::pair<bool, uint2> alm::gfx::Camera::WorldToPixel(const float3& worldPos, const uint2& viewportSize) const
+ {
+	const float4 ndc = WorldToNDC(worldPos);
+	
+	// NDC [-1, +1] -> UV [0, 1] (Y axis flip)
+	const float u = ndc.x * 0.5f + 0.5f;
+	const float v = -ndc.y * 0.5f + 0.5f;
+
+	uint2 pixel;
+	pixel.x = (uint32_t)(u * (float)viewportSize.x);
+	pixel.y = (uint32_t)(v * (float)viewportSize.y);
+
+	bool visible = (ndc.w > 0.f) &&
+				   (ndc.x >= -1.f && ndc.x <= 1.f) &&
+				   (ndc.y >= -1.f && ndc.y <= 1.f);
+	
+	return { visible, pixel };
 }
 
 void alm::gfx::Camera::UpdateMatrices() const

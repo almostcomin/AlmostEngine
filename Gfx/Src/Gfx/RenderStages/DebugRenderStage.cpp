@@ -7,8 +7,8 @@
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneHeightmap.h"
-#include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/HeightmapInstance.h"
+#include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/Camera.h"
 #include "Interop/RenderResources.h"
 
@@ -38,18 +38,21 @@ void alm::gfx::DebugRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	RenderBBoxes(commandList);
 	//RenderS2H(commandList);
+	RenderHeightmapDebug(commandList);
 };
 
 void alm::gfx::DebugRenderStage::OnAttached()
 {
 	CreateBBoxPSO();
 	CreateS2HPSO();
+	CreatemHeightmapResources();
 }
 
 void alm::gfx::DebugRenderStage::OnDetached()
 {
 	m_BBoxRenderResources = {};
 	m_S2HRenderResources = {};
+	m_HeightmapResources = {};
 }
 
 void alm::gfx::DebugRenderStage::OnBackbufferResize()
@@ -165,6 +168,25 @@ void alm::gfx::DebugRenderStage::CreateS2HPSO()
 	}
 }
 
+void alm::gfx::DebugRenderStage::CreatemHeightmapResources()
+{
+	if (!m_HeightmapResources.CS)
+	{
+		m_HeightmapResources.CS = GetDeviceManager()->GetShaderFactory()->LoadShader(
+			"HeightmapDebug_cs", rhi::ShaderType::Compute);
+	}
+
+	// Create PSO
+	{
+		rhi::ComputePipelineStateDesc desc{
+			.CS = m_HeightmapResources.CS.get_weak()
+		};
+
+		m_HeightmapResources.PSO = GetDeviceManager()->GetDevice()->CreateComputePipelineState(
+			desc, "HeightmapDebugPSO");
+	}
+}
+
 void alm::gfx::DebugRenderStage::RenderBBoxes(alm::rhi::CommandListHandle commandList)
 {
 	const auto* scene = GetScene();
@@ -202,10 +224,30 @@ void alm::gfx::DebugRenderStage::RenderBBoxes(alm::rhi::CommandListHandle comman
 
 	if (m_RenderHeightmapBBoxes)
 	{
-		for (const auto* sceneHeightmap : scene->GetSceneGraph()->GetSceneHeightmaps())
+		const auto& sceneHeightmaps = scene->GetSceneGraph()->GetSceneHeightmaps();
+		if (sceneHeightmaps.empty())
+			return;
+
+		auto tex = m_RenderGraph->GetTexture(m_TonemappedTexture);
+
+		commandList->PushBarrier(rhi::Barrier::Texture(tex.get(),
+			rhi::ResourceState::RENDERTARGET, rhi::ResourceState::UNORDERED_ACCESS));
+
+		for (const auto* sceneHeightmap : sceneHeightmaps)
 		{
 			alm::gfx::HeightmapInstance* heightmapInstance = GetRenderView()->GetHeightmapInstance(sceneHeightmap);
-			std::vector<alm::aabox3f> bboxes = heightmapInstance->CollectAABBoxes();
+			const auto& leafs = heightmapInstance->GetLeafNodes();
+
+			if (leafs.empty())
+				continue;
+
+			std::vector<alm::aabox3f> bboxes;
+			bboxes.reserve(leafs.size());
+
+			for (const auto& node : leafs)
+			{
+				bboxes.push_back(heightmapInstance->GetAABoxWorldSpace(node));
+			}
 
 			auto [bboxBufferDI, bboxCount] = FillBuffer(bboxes);
 			if (bboxCount == 0)
@@ -246,6 +288,59 @@ void alm::gfx::DebugRenderStage::RenderS2H(alm::rhi::CommandListHandle commandLi
 	commandList->PushComputeConstants(0, shaderConstants);
 
 	commandList->Dispatch(DivRoundUp(texDesc.width, 8u), DivRoundUp(texDesc.height, 8u), 1);
+
+	commandList->PushBarrier(rhi::Barrier::Texture(tex.get(),
+		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::RENDERTARGET));
+}
+
+void alm::gfx::DebugRenderStage::RenderHeightmapDebug(alm::rhi::CommandListHandle commandList)
+{
+	if (!m_HeightmapDebug)
+		return;
+
+	const auto* scene = GetScene();
+	if (!scene)
+		return;
+
+	const auto& sceneHeightmaps = scene->GetSceneGraph()->GetSceneHeightmaps();
+	if (sceneHeightmaps.empty())
+		return;
+
+	const auto* renderView = GetRenderView();
+	const auto* camera = GetCamera();
+	auto tex = m_RenderGraph->GetTexture(m_TonemappedTexture);
+	const auto& texDesc = tex->GetDesc();
+
+	commandList->PushBarrier(rhi::Barrier::Texture(tex.get(),
+		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::UNORDERED_ACCESS));
+
+	commandList->SetPipelineState(m_HeightmapResources.PSO.get());
+
+	for (const auto* sceneHeightmap : sceneHeightmaps)
+	{
+		alm::gfx::HeightmapInstance* heightmapInstance = renderView->GetHeightmapInstance(sceneHeightmap);
+		const auto& leafs = heightmapInstance->GetLeafNodes();
+		for (const auto& node : leafs)
+		{
+			auto bbox = heightmapInstance->GetAABoxWorldSpace(node);
+			float3 worldCenter = bbox.center();
+
+			auto [visible, pixel] = camera->WorldToPixel(worldCenter, uint2{ texDesc.width, texDesc.height });
+			if (!visible)
+				continue;
+
+			interop::HeightmapDebugConstants shaderConstants;
+			shaderConstants.inputTextureDI = tex->GetStorageView();
+			shaderConstants.outputTextureDI = tex->GetStorageView();
+			shaderConstants.screenPos = float2{ pixel.x, pixel.y };
+			shaderConstants.coords = uint2{ node.CellIndex.x, node.CellIndex.y };
+			shaderConstants.level = node.Level;			
+
+			commandList->PushComputeConstants(0, shaderConstants);
+
+			commandList->Dispatch(DivRoundUp(texDesc.width, 8u), DivRoundUp(texDesc.height, 8u), 1);
+		}
+	}
 
 	commandList->PushBarrier(rhi::Barrier::Texture(tex.get(),
 		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::RENDERTARGET));

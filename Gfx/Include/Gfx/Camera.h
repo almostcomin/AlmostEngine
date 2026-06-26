@@ -44,8 +44,8 @@ public:
 	float GetZNear() const { return m_zNear; }
 
 	const float4x4& GetViewMatrix() const;
-	const float4x4& GetProjectionMatrix();
-	float4x4 GetViewProjectionMatrix();
+	const float4x4& GetProjectionMatrix() const;
+	float4x4 GetViewProjectionMatrix() const;
 	
 	// Inverse view-projection matrix but removing view translation
 	float4x4 GetClipToTranslatedWorldMatrix();
@@ -60,7 +60,14 @@ public:
 	void SetPitch(float pich);
 	void SetRoll(float roll);
 
-	float3 ScreenToWorld(const uint2& pixelPos, float linearDepth, const uint2& viewportSize);
+	float3 ScreenToWorld(const uint2& pixelPos, float linearDepth, const uint2& viewportSize) const;
+
+	// World -> NDC (D3D/Vulkan). ndc.xy E [-1, +1], ndc.z E [0,1] (standard) o [1,0] (reverse-Z).
+	// The returned .w component is pre-division. If w <= 0 point is behind near plane
+	float4 WorldToNDC(const float3& worldPos) const;
+
+	// Returns <visible, pixel_coords>
+	std::pair<bool, uint2> WorldToPixel(const float3& worldPos, const uint2& viewportSize) const;
 
 private:
 

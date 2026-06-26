@@ -200,7 +200,7 @@ public:
 			// Heightmap
 			heightmap = std::make_shared<alm::gfx::Heightmap>(m_DeviceManager.get());
 			heightmap->Init(dataSource, mat,
-				dataSource->InfiniteDataResolution() ? uint2{ 1024, 1042 } : dataSource->GetDataResolution());
+				dataSource->InfiniteDataResolution() ? uint2{ 1024, 1042 } : dataSource->GetDataResolution(), 16);
 
 			// Leaf
 			auto sceneHeightmapUnique = alm::make_unique_with_weak<alm::gfx::SceneHeightmap>();

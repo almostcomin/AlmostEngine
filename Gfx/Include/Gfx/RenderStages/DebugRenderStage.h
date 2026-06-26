@@ -27,6 +27,7 @@ public:
 
 	void ShowRenderBBoxes(SceneContentType boundsType, bool b);
 	void ShowHeightmapsBBoxes(bool b) { m_RenderHeightmapBBoxes = b; }
+	void RenderHeightmapDebug(bool b) { m_HeightmapDebug = b; }
 
 private:
 
@@ -41,9 +42,11 @@ private:
 
 	void CreateBBoxPSO();
 	void CreateS2HPSO();
+	void CreatemHeightmapResources();
 
 	void RenderBBoxes(alm::rhi::CommandListHandle commandList);
 	void RenderS2H(alm::rhi::CommandListHandle commandList);
+	void RenderHeightmapDebug(alm::rhi::CommandListHandle commandList);
 
 private:
 
@@ -65,8 +68,16 @@ private:
 		rhi::ShaderOwner CS;
 	} m_S2HRenderResources;
 
+	struct
+	{
+		rhi::ComputePipelineStateOwner PSO;
+		rhi::ShaderOwner CS;
+	} m_HeightmapResources;
+
 	std::array<bool, (int)SceneContentType::_Size> m_RenderBBoxes;
 	bool m_RenderHeightmapBBoxes = false;
+
+	bool m_HeightmapDebug = false;
 };
 
 } // namespace st::gfx
