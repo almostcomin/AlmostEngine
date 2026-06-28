@@ -15,6 +15,14 @@ class HeightmapInstance
 {
 public:
 
+	enum class Axis
+	{
+		North,
+		South,
+		East,
+		West
+	};
+
 	struct QuadNodeCoord
 	{
 		uint32_t Level;		// 0 = root
@@ -23,7 +31,8 @@ public:
 		uint32_t edgeMask;
 
 		QuadNodeCoord Child(int i) const;	// i [0, 3]
-		QuadNodeCoord Parent() const;
+		bool Parent(QuadNodeCoord& out_parent) const;
+		bool Neighbour(Axis axis, QuadNodeCoord& out_neighbour) const;
 
 		float SizeUV() const;
 		float2 MinUV() const;
@@ -74,23 +83,28 @@ public:
 
 private:
 
-	enum class Axis
+	struct SubdivideCacheElement
 	{
-		North,
-		South,
-		East,
-		West
+		bool cached = false;
+		bool subdivide = false;
 	};
 
 private:
 
-	bool ShouldSubdivide(const QuadNodeCoord& coord, const Camera* camera, const uint2& fbSize);
-	bool NeighborWouldForceSubdivide(const QuadNodeCoord& coord, Axis axis, const Camera* camera, const uint2& fbSize);
+	bool ShouldSubdivideMetric(const QuadNodeCoord& coord, const Camera* camera, const uint2& fbSize);
+
+	bool WouldSubdivide(const QuadNodeCoord& coord) const;
 	Heightmap::EdgeMode GetEdgeMode(const std::unordered_set<QuadNodeCoord, QuadNodeCoordHash>& leafSet, const QuadNodeCoord& coord, Axis axis);
 
-	void SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& coord, const Camera* camera, const uint2& fbSize);
+	// Iterative Breadth-First search
+	void BuildSubdivisionBFS(const Camera* camera, const uint2& fbSize);
+	void IterateQuadTreeForMetric(const Camera* camera, const uint2& fbSize, std::vector<QuadNodeCoord>& queue);
+
+	void SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& node, const Camera* camera, const uint2& fbSize);
 
 	void FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle);
+
+	uint32_t GetNodeIndex(const QuadNodeCoord& coord) const;
 
 private:
 
@@ -103,6 +117,9 @@ private:
 
 	uint32_t m_InstancesAllocBaseIdx;
 	uint32_t m_PatchesAllocBaseIndex;
+
+	std::vector<SubdivideCacheElement> m_SubdivideCache;
+	std::vector<bool> m_SubdivideVisiting;
 
 	bool m_Frozen = false;
 };

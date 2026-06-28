@@ -373,15 +373,15 @@ float alm::gfx::Heightmap::GetCellSize() const
 	}
 }
 
-float alm::gfx::Heightmap::GetPatchErrorValue(uint32_t level, const uint2& c)
+float alm::gfx::Heightmap::GetPatchErrorValue(uint32_t level, const uint2& c) const
 {
-	const auto patchIndex = GetErrorPyramidIndex(level, c);
+	const auto patchIndex = GetNodeIndex(level, c);
 	return m_ErrorPyramid[patchIndex];
 }
 
-const float2& alm::gfx::Heightmap::GetPatchHeightRange(uint32_t level, const uint2& c)
+const float2& alm::gfx::Heightmap::GetPatchHeightRange(uint32_t level, const uint2& c) const
 {
-	const auto patchIndex = GetErrorPyramidIndex(level, c);
+	const auto patchIndex = GetNodeIndex(level, c);
 	return m_HeightRange[patchIndex];
 }
 
@@ -725,7 +725,7 @@ void alm::gfx::Heightmap::BuildErrorPyramid()
 	{
 		for (int patchY = 0; patchY < m_BottomLevelPatchesCount; ++patchY)
 		{
-			const auto patchIndex = GetErrorPyramidIndex(m_MaxDepthLevel, { patchX, patchY });
+			const auto patchIndex = GetNodeIndex(m_MaxDepthLevel, { patchX, patchY });
 
 			// Cache samples
 			std::vector<float> samples;
@@ -778,14 +778,14 @@ void alm::gfx::Heightmap::BuildErrorPyramid()
 				float maxDev = 0.f;
 				for (int childIdx = 0; childIdx < 4; ++childIdx)
 				{
-					const auto childPatchIndex = GetErrorPyramidIndex(level + 1,
+					const auto childPatchIndex = GetNodeIndex(level + 1,
 						{ patchX * 2 + childIdx % 2,
 						  patchY * 2 + childIdx / 2 });
 
 					maxDev = std::max(maxDev, m_ErrorPyramid[childPatchIndex]);
 				}
 
-				const auto patchIndex = GetErrorPyramidIndex(level, { patchX, patchY });
+				const auto patchIndex = GetNodeIndex(level, { patchX, patchY });
 				m_ErrorPyramid[patchIndex] = maxDev;
 			}
 		}
@@ -823,7 +823,7 @@ void alm::gfx::Heightmap::CalcHeightRanges()
 				}
 			}
 
-			const auto patchIndex = GetHeightRangeIndex(m_MaxDepthLevel, { patchX, patchY });
+			const auto patchIndex = GetNodeIndex(m_MaxDepthLevel, { patchX, patchY });
 			if (min > max)
 			{
 				m_HeightRange[patchIndex] = float2{ 0.f };
@@ -850,7 +850,7 @@ void alm::gfx::Heightmap::CalcHeightRanges()
 				float2 minmax = { FLT_MAX, -FLT_MAX };
 				for (int childIdx = 0; childIdx < 4; ++childIdx)
 				{
-					const auto childPatchIndex = GetHeightRangeIndex(level + 1,
+					const auto childPatchIndex = GetNodeIndex(level + 1,
 						{ patchX * 2 + childIdx % 2,
 						  patchY * 2 + childIdx / 2 });
 
@@ -858,22 +858,14 @@ void alm::gfx::Heightmap::CalcHeightRanges()
 					minmax.y = std::max(minmax.y, m_HeightRange[childPatchIndex].y);
 				}
 
-				const auto patchIndex = GetHeightRangeIndex(level, { patchX, patchY });
+				const auto patchIndex = GetNodeIndex(level, { patchX, patchY });
 				m_HeightRange[patchIndex] = minmax;
 			}
 		}
 	}
 }
 
-uint32_t alm::gfx::Heightmap::GetErrorPyramidIndex(uint32_t level, const uint2& coords)
-{
-	const uint64_t offset = (square(m_BottomLevelPatchesCount >> (m_MaxDepthLevel - level)) - 1) / 3;
-	const uint64_t stride = m_BottomLevelPatchesCount >> (m_MaxDepthLevel - level);
-
-	return offset + coords.y * stride + coords.x;
-}
-
-uint32_t alm::gfx::Heightmap::GetHeightRangeIndex(uint32_t level, const uint2& coords)
+uint32_t alm::gfx::Heightmap::GetNodeIndex(uint32_t level, const uint2& coords) const
 {
 	const uint64_t offset = (square(m_BottomLevelPatchesCount >> (m_MaxDepthLevel - level)) - 1) / 3;
 	const uint64_t stride = m_BottomLevelPatchesCount >> (m_MaxDepthLevel - level);

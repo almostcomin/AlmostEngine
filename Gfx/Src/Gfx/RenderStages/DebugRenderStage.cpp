@@ -8,6 +8,7 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneHeightmap.h"
 #include "Gfx/HeightmapInstance.h"
+#include "Gfx/Heightmap.h"
 #include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/Camera.h"
 #include "Interop/RenderResources.h"
@@ -318,7 +319,9 @@ void alm::gfx::DebugRenderStage::RenderHeightmapDebug(alm::rhi::CommandListHandl
 
 	for (const auto* sceneHeightmap : sceneHeightmaps)
 	{
-		alm::gfx::HeightmapInstance* heightmapInstance = renderView->GetHeightmapInstance(sceneHeightmap);
+		const alm::gfx::HeightmapInstance* heightmapInstance = renderView->GetHeightmapInstance(sceneHeightmap);
+		const alm::gfx::Heightmap* heightmap = sceneHeightmap->GetHeightmap().get();
+
 		const auto& leafs = heightmapInstance->GetLeafNodes();
 		for (const auto& node : leafs)
 		{
@@ -334,7 +337,8 @@ void alm::gfx::DebugRenderStage::RenderHeightmapDebug(alm::rhi::CommandListHandl
 			shaderConstants.outputTextureDI = tex->GetStorageView();
 			shaderConstants.screenPos = float2{ pixel.x, pixel.y };
 			shaderConstants.coords = uint2{ node.CellIndex.x, node.CellIndex.y };
-			shaderConstants.level = node.Level;			
+			shaderConstants.level = node.Level;
+			shaderConstants.errWorld = heightmap->GetPatchErrorValue(node.Level, node.CellIndex);
 
 			commandList->PushComputeConstants(0, shaderConstants);
 

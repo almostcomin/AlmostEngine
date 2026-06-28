@@ -67,8 +67,10 @@ public:
 	// Returns the cell size, size of a patch quad
 	float GetCellSize() const;
 
-	float GetPatchErrorValue(uint32_t level, const uint2& c);
-	const float2& GetPatchHeightRange(uint32_t level, const uint2& c);
+	float GetPatchErrorValue(uint32_t level, const uint2& c) const;
+	const float2& GetPatchHeightRange(uint32_t level, const uint2& c) const;
+
+	uint32_t GetBottomLevelPatchesCount() const { return m_BottomLevelPatchesCount; }
 
 	// 0..15
 	static uint32_t EdgeConfigToVariantIndex(const PatchEdgeConfig& config);
@@ -89,8 +91,7 @@ private:
 	void BuildErrorPyramid();
 	void CalcHeightRanges();
 
-	uint32_t GetErrorPyramidIndex(uint32_t level, const uint2& coords);
-	uint32_t GetHeightRangeIndex(uint32_t level, const uint2& coords);
+	uint32_t GetNodeIndex(uint32_t level, const uint2& coords) const;
 
 private:
 

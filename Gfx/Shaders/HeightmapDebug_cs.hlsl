@@ -28,9 +28,16 @@ void main(uint2 DTid : SV_DispatchThreadID)
     s2h_printInt(ui, Constants.coords.y);
     
     s2h_printLF(ui);
+    
     s2h_printTxt(ui, _L, _e, _v, _e, _l);
     s2h_printTxt(ui, _COLON, _SPACE);
     s2h_printInt(ui, Constants.level);
+    
+    s2h_printLF(ui);
+    
+    s2h_printTxt(ui, _E, _r, _r, _W);
+    s2h_printTxt(ui, _COLON, _SPACE);
+    s2h_printFloat(ui, Constants.errWorld);
         
     float4 fragColor = bgColor * (1.0 - ui.dstColor.a) + ui.dstColor;    
     outputTex[DTid] = fragColor;

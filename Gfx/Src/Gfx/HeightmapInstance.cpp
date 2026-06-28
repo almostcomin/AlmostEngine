@@ -39,16 +39,36 @@ alm::gfx::HeightmapInstance::QuadNodeCoord alm::gfx::HeightmapInstance::QuadNode
 	return result;
 }
 
-alm::gfx::HeightmapInstance::QuadNodeCoord alm::gfx::HeightmapInstance::QuadNodeCoord::Parent() const
+bool alm::gfx::HeightmapInstance::QuadNodeCoord::Parent(QuadNodeCoord& out_parent) const
 {
-	assert(Level > 0);
+	if (Level == 0)
+		return false;
 
-	QuadNodeCoord result;
-	result.Level = Level - 1;
-	result.CellIndex.x = CellIndex.x >> 1;
-	result.CellIndex.y = CellIndex.y >> 1;
+	out_parent = QuadNodeCoord{ Level - 1, { CellIndex.x >> 1, CellIndex.y >> 1 }};
 
-	return result;
+	return true;
+}
+
+bool alm::gfx::HeightmapInstance::QuadNodeCoord::Neighbour(Axis axis, QuadNodeCoord& out_neighbour) const
+{
+	const int32_t cellsPerSide = 1 << Level;
+	int nx = CellIndex.x;
+	int ny = CellIndex.y;
+
+	switch (axis)
+	{
+	case Axis::West:  nx -= 1; break;
+	case Axis::East:  nx += 1; break;
+	case Axis::South: ny -= 1; break;
+	case Axis::North: ny += 1; break;
+	default:
+		assert(0);
+	}
+	if (nx < 0 || nx >= cellsPerSide || ny < 0 || ny >= cellsPerSide)
+		return false;
+
+	out_neighbour = QuadNodeCoord{ Level, { (uint32_t)nx, (uint32_t)ny } };
+	return true;
 }
 
 float alm::gfx::HeightmapInstance::QuadNodeCoord::SizeUV() const
@@ -86,6 +106,15 @@ alm::gfx::HeightmapInstance::HeightmapInstance(const SceneHeightmap* sceneHeight
 {
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	m_MaxLevel = heightmap->GetMaxDepthLevel();
+
+	size_t size = 0;
+	for (int i = 0; i < m_MaxLevel; ++i) // skip bottom level
+	{
+		const int32_t cellsPerSide = 1 << i;
+		size += square(cellsPerSide);
+	}
+	m_SubdivideCache.resize(size);
+	m_SubdivideVisiting.resize(size);
 }
 
 alm::gfx::HeightmapInstance::~HeightmapInstance()
@@ -93,16 +122,20 @@ alm::gfx::HeightmapInstance::~HeightmapInstance()
 
 void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSize, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
+	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+
 	if (m_Frozen)
 	{
 		FillGpuBuffers(gpuSceneBuffers, gpuBuffersHandle);
 		return;
 	}
 
-	m_LeafNodes.clear();
-	QuadNodeCoord root{
-		.Level = 0, .CellIndex{0, 0} };
+	// Pre-pass
+	BuildSubdivisionBFS(camera, fbSize);
 
+	// Select leafs
+	m_LeafNodes.clear();
+	QuadNodeCoord root{ .Level = 0, .CellIndex{0, 0} };
 	SelectLODNodes(m_LeafNodes, root, camera, fbSize);
 	if (m_LeafNodes.empty())
 		return;
@@ -145,7 +178,8 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSi
 
 				if (coord.Level > 0)
 				{
-					QuadNodeCoord parent = cornerCoord.Parent();
+					QuadNodeCoord parent;
+					cornerCoord.Parent(parent);
 					if (leafSet.count(parent) > 0)
 						return parent.Level;
 				}
@@ -225,7 +259,7 @@ std::string alm::gfx::HeightmapInstance::DumpTesselationInfo() const
 
 alm::aabox3f alm::gfx::HeightmapInstance::GetAABoxWorldSpace(const QuadNodeCoord& node) const
 {
-	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 
 	float2 heightRange = heightmap->GetPatchHeightRange(node.Level, node.CellIndex);
 
@@ -235,7 +269,7 @@ alm::aabox3f alm::gfx::HeightmapInstance::GetAABoxWorldSpace(const QuadNodeCoord
 	return worldBounds;
 }
 
-bool alm::gfx::HeightmapInstance::ShouldSubdivide(const QuadNodeCoord& coord, const Camera* camera, const uint2& fbSize)
+bool alm::gfx::HeightmapInstance::ShouldSubdivideMetric(const QuadNodeCoord& coord, const Camera* camera, const uint2& fbSize)
 {
 	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 
@@ -267,100 +301,169 @@ bool alm::gfx::HeightmapInstance::ShouldSubdivide(const QuadNodeCoord& coord, co
 #endif
 }
 
-bool alm::gfx::HeightmapInstance::NeighborWouldForceSubdivide(const QuadNodeCoord& coord, Axis axis, const Camera* camera, const uint2& fbSize)
+bool alm::gfx::HeightmapInstance::WouldSubdivide(const QuadNodeCoord& coord) const
 {
-	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
-
-	// Find same level neighbour coords
-	int32_t nx = (int32_t)coord.CellIndex.x;
-	int32_t ny = (int32_t)coord.CellIndex.y;
-	switch (axis)
-	{
-	case Axis::West:  nx -= 1; break;
-	case Axis::East:  nx += 1; break;
-	case Axis::South: ny -= 1; break;
-	case Axis::North: ny += 1; break;
-	}
-	const int32_t cellsPerSide = 1 << coord.Level;
-	if (nx < 0 || nx >= cellsPerSide || ny < 0 || ny >= cellsPerSide)
-		return false;  // at world's edge
-
-	QuadNodeCoord neighbor{ coord.Level, { (uint32_t)nx, (uint32_t)ny } };
-
-	// If neighbour doesn't want to subdivide we have finished
-	if (!ShouldSubdivide(neighbor, camera, fbSize))
+	if (coord.Level >= m_MaxLevel)
 		return false;
 
-    int borderChildren[2];
-    switch (axis) {
-        case Axis::West:  borderChildren[0] = 1; borderChildren[1] = 3; break;
-        case Axis::East:  borderChildren[0] = 0; borderChildren[1] = 2; break;
-        case Axis::South: borderChildren[0] = 2; borderChildren[1] = 3; break;
-        case Axis::North: borderChildren[0] = 0; borderChildren[1] = 1; break;
-    }
+	const uint32_t nodeIdx = GetNodeIndex(coord);
+	assert(nodeIdx < m_SubdivideCache.size());
 
-	// Any of his grandchildren wants?
-	for (int b : borderChildren)
-	{
-		QuadNodeCoord child = neighbor.Child(b);
-		if (ShouldSubdivide(child, camera, fbSize))
-			return true;
-	}
-
-	return false;
+	return m_SubdivideCache[nodeIdx].subdivide;
 }
 
-void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& coord,
-	const Camera* camera, const uint2& fbSize)
+void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, const uint2& fbSize)
 {
-	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
-	const auto& dataSource = heightmap->GetSource();
+	// Reset cache
+	std::ranges::fill(m_SubdivideCache, SubdivideCacheElement{ false, false });
+	std::ranges::fill(m_SubdivideVisiting, false);
 
-	// Data out of range (not tileable only)
-	if (!dataSource->IsTileable())
-	{
-		float2 minUV = coord.MinUV() * heightmap->GetUVScale();
-		if (minUV.x >= 1.f || minUV.y > 1.f)
-			return;
-	}
+	// 1. Calc metric for all nodes in frustum and queue those that have to subdivide my metric
 
-	if (coord.CellIndex.x == 0 && coord.CellIndex.y == 2 && coord.Level == 2)
-	{
-		puts("hola");
-	}
-	if (coord.CellIndex.x == 0 && coord.CellIndex.y == 3 && coord.Level == 2)
-	{
-		puts("hola");
-	}
+	std::vector<QuadNodeCoord> queue;
+	queue.reserve(m_SubdivideCache.size());
 
-	// Check frustum
-	aabox3f worldBounds = GetAABoxWorldSpace(coord);
-	if (!camera->GetFrustum().test(worldBounds))
-		return;
+	IterateQuadTreeForMetric(camera, fbSize, queue);
 
-	bool shouldSubdivide = coord.Level < m_MaxLevel && ShouldSubdivide(coord, camera, fbSize);
-	if (!shouldSubdivide && coord.Level < m_MaxLevel)
+	// 2. BFS. Propagate neightbour subdivision
+	size_t head = 0;
+	while (head < queue.size())
 	{
+		const QuadNodeCoord& node = queue[head++];
+		uint32_t nodeIndex = GetNodeIndex(node);
+		m_SubdivideVisiting[nodeIndex] = false;
+
 		for (Axis axis : { Axis::North, Axis::South, Axis::East, Axis::West })
 		{
-			if (NeighborWouldForceSubdivide(coord, axis, camera, fbSize))
+			QuadNodeCoord neighbour;
+			if (!node.Neighbour(axis, neighbour))
+				continue;
+
+			const uint32_t neighbourIndex = GetNodeIndex(neighbour);
+			if (m_SubdivideCache[neighbourIndex].subdivide)
+				continue;  // Already subdividing
+
+			// Maybe neightbour parent is not subdivided. We have to subdivide it
+			if (neighbour.Level > 0)
 			{
-				shouldSubdivide = true;
-				break;
+				QuadNodeCoord parent;
+				neighbour.Parent(parent);
+				do
+				{
+					const uint32_t parentIndex = GetNodeIndex(parent);
+					if (m_SubdivideCache[parentIndex].subdivide)
+						break;
+
+					m_SubdivideCache[parentIndex] = { true, true };
+					if (!m_SubdivideVisiting[parentIndex])
+					{
+						m_SubdivideVisiting[parentIndex] = true;
+						queue.push_back(parent);
+					}
+				} while (parent.Parent(parent));
+			}
+
+			// No need to check children. They are already at max level so they can subdivide anymore.
+			if (node.Level == m_MaxLevel - 1)
+				continue;
+
+			// Any of the children in the border wants to subdivide?
+			int borderChildren[2];
+			switch (axis)
+			{
+				case Axis::West:  borderChildren[0] = 0; borderChildren[1] = 2; break;
+				case Axis::East:  borderChildren[0] = 1; borderChildren[1] = 3; break;
+				case Axis::South: borderChildren[0] = 0; borderChildren[1] = 1; break;
+				case Axis::North: borderChildren[0] = 2; borderChildren[1] = 3; break;
+			}
+
+			for (int b : borderChildren)
+			{
+				QuadNodeCoord child = node.Child(b);
+				const uint32_t childIndex = GetNodeIndex(child);
+				if (m_SubdivideCache[childIndex].subdivide)
+				{
+					// We are forced to subdivide
+					m_SubdivideCache[neighbourIndex] = { true, true };
+					if (!m_SubdivideVisiting[neighbourIndex])
+					{
+						m_SubdivideVisiting[neighbourIndex] = true;  // in queue
+						queue.push_back(neighbour);
+					}
+					break;
+				}
 			}
 		}
 	}
+}
 
-	if (shouldSubdivide)
+void alm::gfx::HeightmapInstance::IterateQuadTreeForMetric(const Camera* camera, const uint2& fbSize,
+	std::vector<QuadNodeCoord>& queue)
+{
+	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+	const float2 uvScale = heightmap->GetUVScale();
+
+	std::vector<QuadNodeCoord> stack;
+	stack.reserve(m_SubdivideCache.size());
+	
+	QuadNodeCoord root{ .Level = 0, .CellIndex{0, 0} };
+	stack.push_back(root);
+
+	while (!stack.empty())
+	{
+		QuadNodeCoord node = stack.back();
+		stack.pop_back();
+
+		// 1. Max level
+		if (node.Level == m_MaxLevel)
+			continue;
+
+		// 2. Data out of range
+		{
+			float2 minUV = node.MinUV() * uvScale;
+			if (minUV.x >= 1.f || minUV.y >= 1.f)
+				continue;
+		}
+
+		// 3. Frustum cull
+		{
+			aabox3f worldBounds = GetAABoxWorldSpace(node);
+			if (!camera->GetFrustum().test(worldBounds))
+				continue;
+		}
+
+		// 4. Metric check
+		if (!ShouldSubdivideMetric(node, camera, fbSize))
+		{
+			continue;
+		}
+
+		// 5. Mark node and add it to the queue
+		const uint32_t idx = GetNodeIndex(node);
+		m_SubdivideCache[idx] = { true, true };
+		m_SubdivideVisiting[idx] = true;
+		queue.push_back(node);
+
+		// 6. Push children in REVERSE order so we process them in the natural order
+		for (int i = 3; i >= 0; --i)
+		{
+			stack.push_back(node.Child(i));
+		}
+	}
+}
+
+void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& node,
+	const Camera* camera, const uint2& fbSize)
+{
+	// Check BFS
+	if (WouldSubdivide(node))
 	{
 		for (int i = 0; i < 4; ++i)
-		{
-			SelectLODNodes(leafNodes, coord.Child(i), camera, fbSize);
-		}
+			SelectLODNodes(leafNodes, node.Child(i), camera, fbSize);
 	}
 	else
 	{
-		leafNodes.push_back(coord);
+		leafNodes.push_back(node);
 	}
 }
 
@@ -395,7 +498,8 @@ alm::gfx::Heightmap::EdgeMode alm::gfx::HeightmapInstance::GetEdgeMode(const std
 	// 4. Check parent level (restricted quadtree guarantees diff is not higher than 1).
 	if (coord.Level > 0)
 	{
-		QuadNodeCoord parent = neighbor.Parent();
+		QuadNodeCoord parent;
+		neighbor.Parent(parent);
 		if (leafSet.count(parent) > 0)
 			return Heightmap::EdgeMode::Low;
 	}
@@ -406,7 +510,7 @@ alm::gfx::Heightmap::EdgeMode alm::gfx::HeightmapInstance::GetEdgeMode(const std
 
 void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
-	Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	const auto& dataSource = heightmap->GetSource();
 	rhi::TextureSampledView textureView = heightmap->GetHeightsTexture()->GetSampledView();
 	const rhi::TextureDesc& texDesc = heightmap->GetHeightsTexture()->GetDesc();
@@ -456,4 +560,15 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 	}
 	m_InstancesAllocBaseIdx = alloc.InstancesBaseIndex;
 	m_PatchesAllocBaseIndex = alloc.PatchesBaseIndex;
+}
+
+uint32_t alm::gfx::HeightmapInstance::GetNodeIndex(const QuadNodeCoord& coord) const
+{
+	const int32_t cellsPerSide = 1 << m_MaxLevel;
+	const uint64_t offset = (square(cellsPerSide >> (m_MaxLevel - coord.Level)) - 1) / 3;
+	const uint64_t stride = cellsPerSide >> (m_MaxLevel - coord.Level);
+	
+	const uint32_t nodeIdx = offset + coord.CellIndex.y * stride + coord.CellIndex.x;
+
+	return nodeIdx;
 }

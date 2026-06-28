@@ -495,7 +495,7 @@ namespace interop
         float2 screenPos;
         uint2 coords;
         uint level;
-        uint _padding;
+        float errWorld;
     };
 }
 
