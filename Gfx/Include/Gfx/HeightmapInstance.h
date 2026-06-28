@@ -27,8 +27,12 @@ public:
 	{
 		uint32_t Level;		// 0 = root
 		uint2 CellIndex;	// index of the cell inside level, [0, 2^level]
-		uint32_t patchVariantIdx; // index of mesh variant [0, 15]
-		uint32_t edgeMask;
+
+		// index of mesh variant 16 (0..15) bits
+		// edge mask 8 (16..24) bits
+		//		bits 0-3 edge mode:		bit0 = N Low?,  bit1 = S Low?,  bit2 = E Low?,  bit3 = W Low?
+		//		bits 4-7 corner mode:	bit4 = NE Low?, bit5 = NW Low?, bit6 = SE Low?, bit7 = SW Low?
+		uint32_t patchVariantIdxAndEdgeMask; 
 
 		QuadNodeCoord Child(int i) const;	// i [0, 3]
 		bool Parent(QuadNodeCoord& out_parent) const;
@@ -39,6 +43,9 @@ public:
 		float2 MaxUV() const;
 		float2 CenterUV() const;
 		aabox3f Bounds(float sizeFactor, float minY, float maxY) const;
+
+		uint32_t GetMeshVariantIndex() const { return patchVariantIdxAndEdgeMask & 0xff; }
+		uint32_t GetEdgeMask() const { return patchVariantIdxAndEdgeMask >> 16; }
 
 		bool operator==(const QuadNodeCoord& other) const
 		{
@@ -85,8 +92,8 @@ private:
 
 	struct SubdivideCacheElement
 	{
-		bool cached = false;
-		bool subdivide = false;
+		bool cached : 1;
+		bool subdivide : 1;
 	};
 
 private:
@@ -105,6 +112,7 @@ private:
 	void FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle);
 
 	uint32_t GetNodeIndex(const QuadNodeCoord& coord) const;
+	QuadNodeCoord GetNodeFromIndex(uint32_t idx) const;
 
 private:
 
@@ -119,7 +127,7 @@ private:
 	uint32_t m_PatchesAllocBaseIndex;
 
 	std::vector<SubdivideCacheElement> m_SubdivideCache;
-	std::vector<bool> m_SubdivideVisiting;
+	std::vector<bool> m_InQueue;
 
 	bool m_Frozen = false;
 };

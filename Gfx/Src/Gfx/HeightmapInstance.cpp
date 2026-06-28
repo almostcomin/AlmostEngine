@@ -114,7 +114,7 @@ alm::gfx::HeightmapInstance::HeightmapInstance(const SceneHeightmap* sceneHeight
 		size += square(cellsPerSide);
 	}
 	m_SubdivideCache.resize(size);
-	m_SubdivideVisiting.resize(size);
+	m_InQueue.resize(size);
 }
 
 alm::gfx::HeightmapInstance::~HeightmapInstance()
@@ -146,40 +146,40 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSi
 	for (const auto& c : m_LeafNodes)
 		leafSet.insert(c);
 
-	for (QuadNodeCoord& coord : m_LeafNodes)
+	for (QuadNodeCoord& node : m_LeafNodes)
 	{
 		Heightmap::PatchEdgeConfig edgeConfig;
 
-		edgeConfig.North = GetEdgeMode(leafSet, coord, Axis::North);
-		edgeConfig.South = GetEdgeMode(leafSet, coord, Axis::South);
-		edgeConfig.East = GetEdgeMode(leafSet, coord, Axis::East);
-		edgeConfig.West = GetEdgeMode(leafSet, coord, Axis::West);
+		edgeConfig.North = GetEdgeMode(leafSet, node, Axis::North);
+		edgeConfig.South = GetEdgeMode(leafSet, node, Axis::South);
+		edgeConfig.East = GetEdgeMode(leafSet, node, Axis::East);
+		edgeConfig.West = GetEdgeMode(leafSet, node, Axis::West);
 
-		coord.patchVariantIdx = Heightmap::EdgeConfigToVariantIndex(edgeConfig);  // 0..15
+		node.patchVariantIdxAndEdgeMask = Heightmap::EdgeConfigToVariantIndex(edgeConfig) & 0xff;  // 0..15
 
 		// EdgeMask:
 		{
-			// Corners: coord is (L, x, y)
+			// Corners: node is (L, x, y)
 			//			NE is (L, x+1, y+1)
 			//			NW is (L, x-1, y+1)
 			//			SE is (L, x+1, y-1)
 			//			SW is (L, x-1, y-1)
 			auto findCornerNeighbourLevel = [&](int dx, int dy) -> uint32_t
 			{
-				int32_t nx = (int32_t)coord.CellIndex.x + dx;
-				int32_t ny = (int32_t)coord.CellIndex.y + dy;
-				const int32_t cellsPerSide = 1 << coord.Level;
+				int32_t nx = (int32_t)node.CellIndex.x + dx;
+				int32_t ny = (int32_t)node.CellIndex.y + dy;
+				const int32_t cellsPerSide = 1 << node.Level;
 				if (nx < 0 || nx >= cellsPerSide || ny < 0 || ny >= cellsPerSide)
 					return UINT32_MAX;
 
-				QuadNodeCoord cornerCoord{ coord.Level, { (uint32_t)nx, (uint32_t)ny } };
-				if (leafSet.count(cornerCoord) > 0)
-					return coord.Level;
+				QuadNodeCoord cornerNode{ node.Level, { (uint32_t)nx, (uint32_t)ny } };
+				if (leafSet.count(cornerNode) > 0)
+					return node.Level;
 
-				if (coord.Level > 0)
+				if (node.Level > 0)
 				{
 					QuadNodeCoord parent;
-					cornerCoord.Parent(parent);
+					cornerNode.Parent(parent);
 					if (leafSet.count(parent) > 0)
 						return parent.Level;
 				}
@@ -193,22 +193,23 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSi
 
 			// bits 0-3 edge mode:		bit0 = N Low?,  bit1 = S Low?,  bit2 = E Low?,  bit3 = W Low?
 			// bits 4-7 corner mode:	bit4 = NE Low?, bit5 = NW Low?, bit6 = SE Low?, bit7 = SW Low?
-			coord.edgeMask = 0;
-			coord.edgeMask |= (edgeConfig.North == Heightmap::EdgeMode::Low) ? (1u << 0) : 0u;
-			coord.edgeMask |= (edgeConfig.South == Heightmap::EdgeMode::Low) ? (1u << 1) : 0u;
-			coord.edgeMask |= (edgeConfig.East  == Heightmap::EdgeMode::Low) ? (1u << 2) : 0u;
-			coord.edgeMask |= (edgeConfig.West  == Heightmap::EdgeMode::Low) ? (1u << 3) : 0u;
-			coord.edgeMask |= (levelNE < coord.Level) ? (1u << 4) : 0u;
-			coord.edgeMask |= (levelNW < coord.Level) ? (1u << 5) : 0u;
-			coord.edgeMask |= (levelSE < coord.Level) ? (1u << 6) : 0u;
-			coord.edgeMask |= (levelSW < coord.Level) ? (1u << 7) : 0u;
+			uint32_t edgeMask = 0;
+			edgeMask |= (edgeConfig.North == Heightmap::EdgeMode::Low) ? (1u << 0) : 0u;
+			edgeMask |= (edgeConfig.South == Heightmap::EdgeMode::Low) ? (1u << 1) : 0u;
+			edgeMask |= (edgeConfig.East  == Heightmap::EdgeMode::Low) ? (1u << 2) : 0u;
+			edgeMask |= (edgeConfig.West  == Heightmap::EdgeMode::Low) ? (1u << 3) : 0u;
+			edgeMask |= (levelNE < node.Level) ? (1u << 4) : 0u;
+			edgeMask |= (levelNW < node.Level) ? (1u << 5) : 0u;
+			edgeMask |= (levelSE < node.Level) ? (1u << 6) : 0u;
+			edgeMask |= (levelSW < node.Level) ? (1u << 7) : 0u;
+			node.patchVariantIdxAndEdgeMask |= edgeMask << 16;
 		}
 	}	
 
 	// We have to sort by variant so patches with the same variant (mesh) are consecutive
 	// in the gpu buffers
 	std::ranges::sort(m_LeafNodes, [](const QuadNodeCoord& l, const QuadNodeCoord& r) 
-		{ return l.patchVariantIdx < r.patchVariantIdx; });
+		{ return (l.patchVariantIdxAndEdgeMask & 0xff) < (r.patchVariantIdxAndEdgeMask & 0xff); });
 
 	FillGpuBuffers(gpuSceneBuffers, gpuBuffersHandle);
 }
@@ -217,7 +218,7 @@ void alm::gfx::HeightmapInstance::CollectDrawInfos(const GpuSceneBuffers* gpuSce
 {
 	for (int i = 0; i < m_LeafNodes.size(); ++i)
 	{
-		const uint32_t meshIndex = m_SceneHeightmap->GetPatchMeshGpuIndex(m_LeafNodes[i].patchVariantIdx);
+		const uint32_t meshIndex = m_SceneHeightmap->GetPatchMeshGpuIndex(m_LeafNodes[i].GetMeshVariantIndex());
 
 		out.push_back(RenderableDrawInfo{
 			.MaterialDomain = MaterialDomain::Terrain,
@@ -227,7 +228,7 @@ void alm::gfx::HeightmapInstance::CollectDrawInfos(const GpuSceneBuffers* gpuSce
 			.MeshIndex = meshIndex,
 			.MaterialIndex = gpuSceneBuffers->GetMaterialIndexFromMeshIdx(meshIndex).Index,
 			.TransientBaseIndex = m_PatchesAllocBaseIndex + i,
-			.IndexCount = m_SceneHeightmap->GetHeightmap()->GetPatchIndicesCount(m_LeafNodes[i].patchVariantIdx) });
+			.IndexCount = m_SceneHeightmap->GetHeightmap()->GetPatchIndicesCount(meshIndex) });
 	}
 }
 
@@ -316,7 +317,7 @@ void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, cons
 {
 	// Reset cache
 	std::ranges::fill(m_SubdivideCache, SubdivideCacheElement{ false, false });
-	std::ranges::fill(m_SubdivideVisiting, false);
+	std::ranges::fill(m_InQueue, false);
 
 	// 1. Calc metric for all nodes in frustum and queue those that have to subdivide my metric
 
@@ -331,7 +332,7 @@ void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, cons
 	{
 		const QuadNodeCoord& node = queue[head++];
 		uint32_t nodeIndex = GetNodeIndex(node);
-		m_SubdivideVisiting[nodeIndex] = false;
+		m_InQueue[nodeIndex] = false;
 
 		for (Axis axis : { Axis::North, Axis::South, Axis::East, Axis::West })
 		{
@@ -355,15 +356,15 @@ void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, cons
 						break;
 
 					m_SubdivideCache[parentIndex] = { true, true };
-					if (!m_SubdivideVisiting[parentIndex])
+					if (!m_InQueue[parentIndex])
 					{
-						m_SubdivideVisiting[parentIndex] = true;
+						m_InQueue[parentIndex] = true;
 						queue.push_back(parent);
 					}
 				} while (parent.Parent(parent));
 			}
 
-			// No need to check children. They are already at max level so they can subdivide anymore.
+			// Node is at penultimate level. Its children are at max level and can't subdivide, so border children check would always be false
 			if (node.Level == m_MaxLevel - 1)
 				continue;
 
@@ -385,9 +386,9 @@ void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, cons
 				{
 					// We are forced to subdivide
 					m_SubdivideCache[neighbourIndex] = { true, true };
-					if (!m_SubdivideVisiting[neighbourIndex])
+					if (!m_InQueue[neighbourIndex])
 					{
-						m_SubdivideVisiting[neighbourIndex] = true;  // in queue
+						m_InQueue[neighbourIndex] = true;  // in queue
 						queue.push_back(neighbour);
 					}
 					break;
@@ -441,7 +442,7 @@ void alm::gfx::HeightmapInstance::IterateQuadTreeForMetric(const Camera* camera,
 		// 5. Mark node and add it to the queue
 		const uint32_t idx = GetNodeIndex(node);
 		m_SubdivideCache[idx] = { true, true };
-		m_SubdivideVisiting[idx] = true;
+		m_InQueue[idx] = true;
 		queue.push_back(node);
 
 		// 6. Push children in REVERSE order so we process them in the natural order
@@ -553,7 +554,7 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 		alloc.HeightmapPatchesPtr[i].NormalMatrixCol1 = float4{ nodeNormalMatrix[1], 0.0 };
 		alloc.HeightmapPatchesPtr[i].NormalMatrixCol2 = float4{ nodeNormalMatrix[2], 0.0 };
 		alloc.HeightmapPatchesPtr[i].InverseHeightmapMatrix = inverseHeightmapMatrix;
-		alloc.HeightmapPatchesPtr[i].EdgeMask = coord.edgeMask;
+		alloc.HeightmapPatchesPtr[i].EdgeMask = coord.GetEdgeMask();
 		alloc.HeightmapPatchesPtr[i].CellSize = heightmap->GetCellSize();
 		alloc.HeightmapPatchesPtr[i].CellUVScale = heightmap->GetCellSize() / (sizeUV * heightmap->GetVirtualSize());
 		alloc.HeightmapPatchesPtr[i].HeightmapTextureDI = textureView;
@@ -571,4 +572,33 @@ uint32_t alm::gfx::HeightmapInstance::GetNodeIndex(const QuadNodeCoord& coord) c
 	const uint32_t nodeIdx = offset + coord.CellIndex.y * stride + coord.CellIndex.x;
 
 	return nodeIdx;
+}
+
+alm::gfx::HeightmapInstance::QuadNodeCoord alm::gfx::HeightmapInstance::GetNodeFromIndex(uint32_t idx) const
+{
+	const uint32_t cellsPerSide = 1 << m_MaxLevel;
+	uint32_t offset = 0;
+	int foundLevel = 0;
+
+	for (int level = 0; level <= m_MaxLevel; ++level)
+	{
+		const int shift = m_MaxLevel - level;
+		const int32_t cells = cellsPerSide >> shift;
+		const uint32_t count = square(cells); // nodos en este nivel
+
+		if (idx >= offset && idx < offset + count)
+			break;
+
+		offset += count; // pasar al siguiente nivel
+	}
+
+	const uint32_t relIdx = idx - offset;
+	const int32_t stride = cellsPerSide >> (m_MaxLevel - foundLevel);
+
+	QuadNodeCoord coord;
+	coord.Level = foundLevel;
+	coord.CellIndex.x = static_cast<int32_t>(relIdx % stride);
+	coord.CellIndex.y = static_cast<int32_t>(relIdx / stride);
+
+	return coord;
 }
