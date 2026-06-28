@@ -462,6 +462,8 @@ bool alm::fw::App::InitInternal()
 		}
 	}
 
+	m_DeviceManager->RegisterRenderView(m_MainRenderView.get_weak());
+
 	return true;
 }
 
@@ -687,18 +689,13 @@ void alm::fw::App::MainLoop()
 			m_MainRenderView->OnWindowSizeChanged();
 		}
 
-		m_DeviceManager->Render([&]()
-		{
-			float2 mousePos;
-			SDL_MouseButtonFlags mouseButtonFlags = SDL_GetMouseState(&mousePos.x, &mousePos.y);
-			gfx::RenderView::MouseState mouseState{
-				.pos = mousePos,
-				.leftButton = mouseButtonFlags & SDL_BUTTON_LEFT ? true : false,
-				.rightButton = mouseButtonFlags & SDL_BUTTON_RIGHT ? true : false
-			};
+		gfx::MouseState mouseState{
+			.pos = { mouseX, mouseY },
+			.leftButton = mouseButtonFlags & SDL_BUTTON_LEFT ? true : false,
+			.rightButton = mouseButtonFlags & SDL_BUTTON_RIGHT ? true : false
+		};
 
-			m_MainRenderView->Render(totalSec, elapsedSec, mouseState);
-		}, cpuIdleUSec);
+		auto renderResult = m_DeviceManager->Render(totalSec, elapsedSec, mouseState);
 
 		// Apply UI settings
 		{

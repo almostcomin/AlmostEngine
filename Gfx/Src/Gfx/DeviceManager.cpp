@@ -9,6 +9,7 @@
 #include "Gfx/CommonResources.h"
 #include "Gfx/UploadBuffer.h"
 #include "Gfx/GpuSceneBuffers.h"
+#include "Gfx/RenderView.h"
 #include "RHI/Device.h"
 #include "RHI/TimerQuery.h"
 #include <imgui/imgui.h>
@@ -43,12 +44,6 @@ bool alm::gfx::DeviceManager::Init(const DeviceParams& params)
 		m_UploadBuffer = std::make_unique<alm::gfx::UploadBuffer>(m_FrameIndex, MiB(8), m_Device.get());		
 		m_GpuSceneBuffers = std::make_unique<alm::gfx::GpuSceneBuffers>(m_Device.get());
 
-		for (uint32_t i = 0; i < QueuedFramesCount; ++i)
-		{
-			m_FrameTimers[i] = GetDevice()->CreateTimerQuery("FrameTimerQuery");
-		}
-		m_NextTimerToUse = 0;
-
 		m_BeginCommandLists.resize(params.SwapChainBufferCount);
 		m_EndCommandLists.resize(params.SwapChainBufferCount);
 		for (uint32_t i = 0; i < params.SwapChainBufferCount; ++i)
@@ -79,11 +74,6 @@ void alm::gfx::DeviceManager::Shutdown()
 	for (auto& commandList : m_EndCommandLists)
 	{
 		m_Device->ReleaseImmediately(std::move(commandList));
-	}
-
-	for (auto& timerQuery : m_FrameTimers)
-	{
-		m_Device->ReleaseImmediately(std::move(timerQuery));
 	}
 
 	m_GpuSceneBuffers.reset();
@@ -150,9 +140,11 @@ bool alm::gfx::DeviceManager::UpdateWindowSize()
 	return false;
 }
 
-void alm::gfx::DeviceManager::Render(std::function<void(void)> cb, uint32_t& out_cpuIdleMicroSec)
+alm::gfx::DeviceManager::RenderResult alm::gfx::DeviceManager::Render(float totalSec, float elapsedSec, gfx::MouseState mouseState)
 {
-	out_cpuIdleMicroSec = 0;
+	RenderResult result;
+	result.cpuIdleMs = 0.f;
+
 	uint32_t beginFrameIdleUSec = 0;
 	uint32_t presentIdleUSec = 0;
 
@@ -168,10 +160,6 @@ void alm::gfx::DeviceManager::Render(std::function<void(void)> cb, uint32_t& out
 		{
 			auto& commandList = m_BeginCommandLists[GetFrameModuleIndex()];
 			commandList->Open();
-
-			// Timer query
-			m_FrameTimers[m_NextTimerToUse]->Reset();
-			commandList->BeginTimerQuery(m_FrameTimers[m_NextTimerToUse].get());
 			
 			// Update gpu buffers. TODO: Use a dedicated upload commandlist?
 			m_GpuSceneBuffers->UpdateGpuBuffers(commandList.get());
@@ -182,7 +170,10 @@ void alm::gfx::DeviceManager::Render(std::function<void(void)> cb, uint32_t& out
 		}
 
 		// Render callback
-		cb();
+		for (auto& renderView : m_RenderViews)
+		{
+			renderView->Render(totalSec, elapsedSec, mouseState);
+		}
 
 		// Update and Render of additional ImGui viewports
 		ImGuiIO& io = ImGui::GetIO();
@@ -196,10 +187,6 @@ void alm::gfx::DeviceManager::Render(std::function<void(void)> cb, uint32_t& out
 		{
 			auto& commandList = m_EndCommandLists[GetFrameModuleIndex()];
 			commandList->Open();
-
-			// End time query
-			commandList->EndTimerQuery(m_FrameTimers[m_NextTimerToUse].get());
-			m_NextTimerToUse = (m_NextTimerToUse + 1) % QueuedFramesCount;
 
 			// Done
 			commandList->Close();
@@ -224,7 +211,7 @@ void alm::gfx::DeviceManager::Render(std::function<void(void)> cb, uint32_t& out
 				const auto t1 = std::chrono::steady_clock::now();
 
 				nextFrameTime += frameDuration;
-				out_cpuIdleMicroSec += std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+				result.cpuIdleMs += (float)std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() / 1000.f;
 			}
 		}
 
@@ -236,7 +223,19 @@ void alm::gfx::DeviceManager::Render(std::function<void(void)> cb, uint32_t& out
 
 	m_TextureCache->Update();
 
-	out_cpuIdleMicroSec += beginFrameIdleUSec + presentIdleUSec;
+	result.cpuIdleMs += (float)(beginFrameIdleUSec + presentIdleUSec) / 1000.f;
+
+	return result;
+}
+
+void alm::gfx::DeviceManager::RegisterRenderView(alm::weak<alm::gfx::RenderView> renderView)
+{
+	m_RenderViews.insert(renderView);
+}
+
+void alm::gfx::DeviceManager::UnregisterRenderView(alm::weak<alm::gfx::RenderView> renderView)
+{
+	m_RenderViews.fast_erase(renderView);
 }
 
 uint32_t alm::gfx::DeviceManager::GetFrameModuleIndex() const
@@ -246,16 +245,12 @@ uint32_t alm::gfx::DeviceManager::GetFrameModuleIndex() const
 
 float alm::gfx::DeviceManager::GetGPUFrameTime()
 {
-	for (int i = m_NextTimerToUse - 1; i >= 0; i--)
+	float result = 0.f;
+
+	for (const auto& it : m_RenderViews)
 	{
-		if (m_FrameTimers[i]->Poll())
-			return m_FrameTimers[i]->GetQueryTimeMs();
+		result += it->GetGpuFrameTime();
 	}
 
-	for (int i = QueuedFramesCount - 1; i > m_NextTimerToUse; i--)
-	{
-		if (m_FrameTimers[i]->Poll())
-			return m_FrameTimers[i]->GetQueryTimeMs();
-	}
-	return -1.0f;
+	return result;
 }

@@ -7,6 +7,7 @@
 #include "RHI/Format.h"
 #include "RHI/Framebuffer.h"
 #include "Gfx/ViewportSwapChain.h"
+#include "Gfx/MouseState.h"
 
 struct SDL_Window;
 
@@ -18,6 +19,7 @@ namespace alm::gfx
     class CommonResources;
     class UploadBuffer;
     class GpuSceneBuffers;
+    class RenderView;
 }
 
 namespace alm::rhi
@@ -87,6 +89,11 @@ public:
         int AdapterIndex = -1;              // -1 Get default adapter (first in the list)
     };
 
+    struct RenderResult
+    {
+        float cpuIdleMs;
+    };
+
     static DeviceManager* Create(alm::gfx::GraphicsAPI api);
 
     virtual ~DeviceManager();
@@ -129,7 +136,10 @@ public:
     // New window size can be obtained calling GetWindowDimensions
     bool UpdateWindowSize();
 
-    void Render(std::function<void(void)> cb, uint32_t& out_cpuIdleMicroSec);
+    RenderResult Render(float totalSec, float elapsedSec, gfx::MouseState mouseState);
+
+    void RegisterRenderView(alm::weak<alm::gfx::RenderView> renderView);
+    void UnregisterRenderView(alm::weak<alm::gfx::RenderView> renderView);
 
     alm::gfx::ShaderFactory*        GetShaderFactory()          { return m_ShaderFactory.get(); }
     alm::gfx::DataUploader*         GetDataUploader()           { return m_DataUploader.get(); }
@@ -181,9 +191,7 @@ private:
     std::unique_ptr<alm::gfx::UploadBuffer> m_UploadBuffer;
     std::unique_ptr<alm::gfx::GpuSceneBuffers> m_GpuSceneBuffers;
 
-    static const uint32_t QueuedFramesCount = 6;
-    rhi::TimerQueryOwner m_FrameTimers[QueuedFramesCount];
-    int m_NextTimerToUse = 0;
+    alm::unique_vector<alm::weak<RenderView>> m_RenderViews;
 
     // Begin & End command lists
     std::vector<rhi::CommandListOwner> m_BeginCommandLists;

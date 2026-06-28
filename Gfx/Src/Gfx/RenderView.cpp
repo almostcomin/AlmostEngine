@@ -257,6 +257,11 @@ alm::gfx::HeightmapInstance* alm::gfx::RenderView::GetHeightmapInstance(const Sc
 	return nullptr;
 }
 
+float alm::gfx::RenderView::GetGpuFrameTime() const
+{
+	return m_RenderGraph->GetAggregatedGPUTimeMs();
+}
+
 void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 {
 	interop::SceneConstants* sceneShaderConstant = (interop::SceneConstants*)m_SceneConstants.Map();

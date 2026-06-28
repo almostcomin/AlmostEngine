@@ -26,6 +26,8 @@ class weak
     template<class U, class V>
     friend alm::weak<U> checked_pointer_cast(const alm::weak<V>& r) noexcept;
 
+    friend struct std::hash<weak<T>>;
+
 public:
     weak() : ptr(nullptr) {};
     weak(std::nullptr_t) : ptr(nullptr) {}
@@ -322,3 +324,17 @@ alm::unique<T> adopt_unique(alm::unique<U>&& r) noexcept
 }
 
 } // namespace st
+
+
+namespace std
+{
+    // To be able to use Handles in std maps & sets
+    template<typename T>
+    struct hash<alm::weak<T>>
+    {
+        size_t operator()(const alm::weak<T>& h) const
+        {
+            return std::hash<void*>{}(h.ptr);
+        }
+    };
+} // namespace std

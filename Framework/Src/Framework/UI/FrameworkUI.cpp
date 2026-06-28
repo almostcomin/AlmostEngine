@@ -1461,31 +1461,15 @@ void alm::fw::FrameworkUI::BuildRenderStagesWindow()
 
             ImGui::SeparatorText("Stats");
             {
-                // find a resolved timer query
+                float gpuTimeMs = renderGraph->GetStageGPUTimeMs(rs->renderStage->GetType());
+                float cpuTimeMs = renderGraph->GetStageCPUTimeMs(rs->renderStage->GetType());
 
-                float gpuTimeMs = 0.f;
-                int valid = 0;
-                for (int i = 0; i < rs->timerQueries.size(); ++i)
-                {
-                    if (rs->timerQueries[i]->Poll())
-                    {
-                        gpuTimeMs += rs->timerQueries[i]->GetQueryTimeMs();
-                        ++valid;
-                    }
-                }
-
-                if (valid > 0)
-                {
-                    gpuTimeMs /= valid;
-                }
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 
-                float cpuTime = std::accumulate(rs->cpuElapsed.begin(), rs->cpuElapsed.end(), 0.0f) / rs->cpuElapsed.size();
-
-
-                ImGui::Text("CPU time: %1.3fms", cpuTime);
+                ImGui::Text("CPU time: %1.3fms", cpuTimeMs);
                 ImGui::SameLine();
                 TextRightAligned("GPU time: %1.3fms", gpuTimeMs);
+
                 ImGui::PopStyleColor();
             }
         }

@@ -15,6 +15,7 @@
 #include "Gfx/MaterialDomain.h"
 #include "Gfx/RenderSet.h"
 #include "Gfx/SceneFlags.h"
+#include "Gfx/MouseState.h"
 
 namespace interop
 {
@@ -37,13 +38,6 @@ namespace alm::gfx
 class RenderView : public alm::enable_weak_from_this<RenderView>, private alm::noncopyable_nonmovable
 {
 public:
-
-	struct MouseState
-	{
-		float2 pos;
-		bool leftButton;
-		bool rightButton;
-	};
 
 	RenderView(DeviceManager* deviceManager, const char* debugName);
 	RenderView(ViewportSwapChainId, DeviceManager* deviceManager, const char* debugName);
@@ -86,6 +80,8 @@ public:
 	const MouseState& GetMouseState() const { return m_MouseState; }
 
 	HeightmapInstance* GetHeightmapInstance(const SceneHeightmap* sceneHeightmap) const;
+
+	float GetGpuFrameTime() const;
 
 	std::string GetName() const { return m_DebugName; }
 	DeviceManager* GetDeviceManager() const { return m_DeviceManager; }

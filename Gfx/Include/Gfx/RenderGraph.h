@@ -131,6 +131,11 @@ public:
 		return ptr ? std::dynamic_pointer_cast<T>(ptr) : nullptr;
 	}
 
+	float GetStageGPUTimeMs(RenderStageTypeID id) const;
+	float GetStageCPUTimeMs(RenderStageTypeID id) const;
+
+	float GetAggregatedGPUTimeMs() const;
+
 	RGTextureViewTicket RequestTextureView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle);
 	RGBufferViewTicket RequestBufferView(RenderStageTypeID rsId, AccessMode accessMode, RGBufferHandle handle);
 	RGBufferViewTicket RequestBufferView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle);

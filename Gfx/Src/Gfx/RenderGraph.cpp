@@ -803,6 +803,52 @@ std::shared_ptr<alm::gfx::RenderStage> alm::gfx::RenderGraph::GetRenderStage(Ren
 	return nullptr;
 }
 
+float alm::gfx::RenderGraph::GetStageGPUTimeMs(RenderStageTypeID id) const
+{
+	float result = 0.f;
+
+	auto it = std::ranges::find_if(m_RenderStages, [id](const std::unique_ptr<StageData>& stageDataPtr)
+	{
+		return stageDataPtr->renderStage->GetType() == id;
+	});
+
+	if (it != m_RenderStages.end() && (*it)->renderStage->IsEnabled())
+	{
+		int valid = 0;
+		for (int i = 0; i < (*it)->timerQueries.size(); ++i)
+		{
+			if ((*it)->timerQueries[i]->Poll())
+			{
+				result += (*it)->timerQueries[i]->GetQueryTimeMs();
+				++valid;
+			}
+		}
+
+		if (valid > 0)
+		{
+			result /= valid;
+		}
+	}
+	return result;
+}
+
+float alm::gfx::RenderGraph::GetStageCPUTimeMs(RenderStageTypeID id) const
+{
+	float result = 0.f;
+
+	auto it = std::ranges::find_if(m_RenderStages, [id](const std::unique_ptr<StageData>& stageDataPtr)
+	{
+		return stageDataPtr->renderStage->GetType() == id;
+	});
+
+	if (it != m_RenderStages.end() && (*it)->renderStage->IsEnabled())
+	{
+		result = std::accumulate((*it)->cpuElapsed.begin(), (*it)->cpuElapsed.end(), 0.0f) / (*it)->cpuElapsed.size();
+	}
+
+	return result;
+}
+
 alm::gfx::RGTextureViewTicket alm::gfx::RenderGraph::RequestTextureView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle)
 {
 	for (auto& entry : m_TexViewRequests)
@@ -817,6 +863,33 @@ alm::gfx::RGTextureViewTicket alm::gfx::RenderGraph::RequestTextureView(RenderSt
 	auto* ticket = new TextureViewRequest{ rsId, accessMode, handle, 1, rhi::TextureOwner{} };
 	m_TexViewRequests.push_back(ticket);
 	return RGTextureViewTicket{ ticket };
+}
+
+float alm::gfx::RenderGraph::GetAggregatedGPUTimeMs() const
+{
+	float result = 0.f;
+
+	for (const auto& it : m_RenderStages)
+	{
+		float rsTime = 0.f;
+		int valid = 0;
+		for (int i = 0; i < it->timerQueries.size(); ++i)
+		{
+			if (it->timerQueries[i]->Poll())
+			{
+				rsTime += it->timerQueries[i]->GetQueryTimeMs();
+				++valid;
+			}
+		}
+
+		if (valid > 0)
+		{
+			rsTime /= valid;
+			result += rsTime;
+		}
+	}
+
+	return result;
 }
 
 alm::gfx::RGBufferViewTicket alm::gfx::RenderGraph::RequestBufferView(RenderStageTypeID rsId, AccessMode accessMode, RGBufferHandle handle)
