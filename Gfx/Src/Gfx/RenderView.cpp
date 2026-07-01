@@ -353,6 +353,8 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 
 void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList)
 {
+	ZoneScoped;
+
 	m_CameraVisibleSet.Elements.clear();
 	m_CameraVisibleBounds.reset();
 	m_ShadowCastersCameraVisibleBounds.reset();
@@ -373,6 +375,8 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 
 bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 {
+	ZoneScoped;
+
 	m_ShadowMapVisibleSet.Elements.clear();
 	m_ShadowMapWoldToClipMatrix = {};
 	m_ViewToShadowMapClipMatrix = {};
@@ -482,6 +486,8 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 void alm::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList)
 {
+	ZoneScoped;
+
 	m_DirLightsVisibleCount = 0;
 
 	if (!m_Scene || !m_Scene->GetSceneGraph())
@@ -527,6 +533,8 @@ void alm::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* comma
 
 void alm::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList)
 {
+	ZoneScoped;
+
 	m_PointLightsVisibleCount = 0;
 
 	if (!m_Scene || !m_Scene->GetSceneGraph())
@@ -607,6 +615,8 @@ void alm::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* com
 
 void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList)
 {
+	ZoneScoped;
+
 	m_SpotLightsVisibleCount = 0;
 
 	if (!m_Scene || !m_Scene->GetSceneGraph())
@@ -690,6 +700,8 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 
 void alm::gfx::RenderView::UpdateHeightmaps(const uint2& frameBufferSize, rhi::ICommandList* commandList)
 {
+	ZoneScoped;
+
 	commandList->BeginMarker("Heightmaps");
 
 	if (m_Camera)
@@ -706,6 +718,8 @@ void alm::gfx::RenderView::UpdateHeightmaps(const uint2& frameBufferSize, rhi::I
 void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType primaryType,
 	RenderSet& out_renderSet, aabox3f* opt_outPrimaryBounds,  SceneContentType secondaryType, aabox3f* opt_outSecondaryBounds) const
 {
+	ZoneScoped;
+
 	assert(HasRenderableCategory(primaryType));
 	const auto* gpuSceneBuffers = m_DeviceManager->GetGpuSceneBuffers();
 

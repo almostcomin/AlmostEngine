@@ -109,6 +109,7 @@ private:
 
 	void SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& node, const Camera* camera, const uint2& fbSize);
 
+	void SetMeshVariantsAndEdgeMask();
 	void FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle);
 
 	uint32_t GetNodeIndex(const QuadNodeCoord& coord) const;

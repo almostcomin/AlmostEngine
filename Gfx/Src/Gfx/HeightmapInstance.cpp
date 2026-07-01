@@ -143,70 +143,7 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSi
 		return;
 
 	// Calc mesh variant
-	std::unordered_set<QuadNodeCoord, QuadNodeCoordHash> leafSet;
-	leafSet.reserve(m_LeafNodes.size());
-	for (const auto& c : m_LeafNodes)
-		leafSet.insert(c);
-
-	for (QuadNodeCoord& node : m_LeafNodes)
-	{
-		Heightmap::PatchEdgeConfig edgeConfig;
-
-		edgeConfig.North = GetEdgeMode(leafSet, node, Axis::North);
-		edgeConfig.South = GetEdgeMode(leafSet, node, Axis::South);
-		edgeConfig.East = GetEdgeMode(leafSet, node, Axis::East);
-		edgeConfig.West = GetEdgeMode(leafSet, node, Axis::West);
-
-		node.patchVariantIdxAndEdgeMask = Heightmap::EdgeConfigToVariantIndex(edgeConfig) & 0xff;  // 0..15
-
-		// EdgeMask:
-		{
-			// Corners: node is (L, x, y)
-			//			NE is (L, x+1, y+1)
-			//			NW is (L, x-1, y+1)
-			//			SE is (L, x+1, y-1)
-			//			SW is (L, x-1, y-1)
-			auto findCornerNeighbourLevel = [&](int dx, int dy) -> uint32_t
-			{
-				int32_t nx = (int32_t)node.CellIndex.x + dx;
-				int32_t ny = (int32_t)node.CellIndex.y + dy;
-				const int32_t cellsPerSide = 1 << node.Level;
-				if (nx < 0 || nx >= cellsPerSide || ny < 0 || ny >= cellsPerSide)
-					return UINT32_MAX;
-
-				QuadNodeCoord cornerNode{ node.Level, { (uint32_t)nx, (uint32_t)ny } };
-				if (leafSet.count(cornerNode) > 0)
-					return node.Level;
-
-				if (node.Level > 0)
-				{
-					QuadNodeCoord parent;
-					cornerNode.Parent(parent);
-					if (leafSet.count(parent) > 0)
-						return parent.Level;
-				}
-				return UINT32_MAX;
-			};
-
-			uint32_t levelNE = findCornerNeighbourLevel( 1,  1);
-			uint32_t levelNW = findCornerNeighbourLevel(-1,  1);
-			uint32_t levelSE = findCornerNeighbourLevel( 1, -1);
-			uint32_t levelSW = findCornerNeighbourLevel(-1, -1);
-
-			// bits 0-3 edge mode:		bit0 = N Low?,  bit1 = S Low?,  bit2 = E Low?,  bit3 = W Low?
-			// bits 4-7 corner mode:	bit4 = NE Low?, bit5 = NW Low?, bit6 = SE Low?, bit7 = SW Low?
-			uint32_t edgeMask = 0;
-			edgeMask |= (edgeConfig.North == Heightmap::EdgeMode::Low) ? (1u << 0) : 0u;
-			edgeMask |= (edgeConfig.South == Heightmap::EdgeMode::Low) ? (1u << 1) : 0u;
-			edgeMask |= (edgeConfig.East  == Heightmap::EdgeMode::Low) ? (1u << 2) : 0u;
-			edgeMask |= (edgeConfig.West  == Heightmap::EdgeMode::Low) ? (1u << 3) : 0u;
-			edgeMask |= (levelNE < node.Level) ? (1u << 4) : 0u;
-			edgeMask |= (levelNW < node.Level) ? (1u << 5) : 0u;
-			edgeMask |= (levelSE < node.Level) ? (1u << 6) : 0u;
-			edgeMask |= (levelSW < node.Level) ? (1u << 7) : 0u;
-			node.patchVariantIdxAndEdgeMask |= edgeMask << 16;
-		}
-	}	
+	SetMeshVariantsAndEdgeMask();
 
 	// We have to sort by variant so patches with the same variant (mesh) are consecutive
 	// in the gpu buffers
@@ -515,9 +452,79 @@ alm::gfx::Heightmap::EdgeMode alm::gfx::HeightmapInstance::GetEdgeMode(const std
 	return Heightmap::EdgeMode::Normal;
 }
 
+void alm::gfx::HeightmapInstance::SetMeshVariantsAndEdgeMask()
+{
+	ZoneScoped;
+
+	std::unordered_set<QuadNodeCoord, QuadNodeCoordHash> leafSet;
+	leafSet.reserve(m_LeafNodes.size());
+	for (const auto& c : m_LeafNodes)
+		leafSet.insert(c);
+
+	for (QuadNodeCoord& node : m_LeafNodes)
+	{
+		Heightmap::PatchEdgeConfig edgeConfig;
+
+		edgeConfig.North = GetEdgeMode(leafSet, node, Axis::North);
+		edgeConfig.South = GetEdgeMode(leafSet, node, Axis::South);
+		edgeConfig.East = GetEdgeMode(leafSet, node, Axis::East);
+		edgeConfig.West = GetEdgeMode(leafSet, node, Axis::West);
+
+		node.patchVariantIdxAndEdgeMask = Heightmap::EdgeConfigToVariantIndex(edgeConfig) & 0xff;  // 0..15
+
+		// EdgeMask:
+		{
+			// Corners: node is (L, x, y)
+			//			NE is (L, x+1, y+1)
+			//			NW is (L, x-1, y+1)
+			//			SE is (L, x+1, y-1)
+			//			SW is (L, x-1, y-1)
+			auto findCornerNeighbourLevel = [&](int dx, int dy) -> uint32_t
+			{
+				int32_t nx = (int32_t)node.CellIndex.x + dx;
+				int32_t ny = (int32_t)node.CellIndex.y + dy;
+				const int32_t cellsPerSide = 1 << node.Level;
+				if (nx < 0 || nx >= cellsPerSide || ny < 0 || ny >= cellsPerSide)
+					return UINT32_MAX;
+
+				QuadNodeCoord cornerNode{ node.Level, { (uint32_t)nx, (uint32_t)ny } };
+				if (leafSet.count(cornerNode) > 0)
+					return node.Level;
+
+				if (node.Level > 0)
+				{
+					QuadNodeCoord parent;
+					cornerNode.Parent(parent);
+					if (leafSet.count(parent) > 0)
+						return parent.Level;
+				}
+				return UINT32_MAX;
+			};
+
+			uint32_t levelNE = findCornerNeighbourLevel(1, 1);
+			uint32_t levelNW = findCornerNeighbourLevel(-1, 1);
+			uint32_t levelSE = findCornerNeighbourLevel(1, -1);
+			uint32_t levelSW = findCornerNeighbourLevel(-1, -1);
+
+			// bits 0-3 edge mode:		bit0 = N Low?,  bit1 = S Low?,  bit2 = E Low?,  bit3 = W Low?
+			// bits 4-7 corner mode:	bit4 = NE Low?, bit5 = NW Low?, bit6 = SE Low?, bit7 = SW Low?
+			uint32_t edgeMask = 0;
+			edgeMask |= (edgeConfig.North == Heightmap::EdgeMode::Low) ? (1u << 0) : 0u;
+			edgeMask |= (edgeConfig.South == Heightmap::EdgeMode::Low) ? (1u << 1) : 0u;
+			edgeMask |= (edgeConfig.East == Heightmap::EdgeMode::Low) ? (1u << 2) : 0u;
+			edgeMask |= (edgeConfig.West == Heightmap::EdgeMode::Low) ? (1u << 3) : 0u;
+			edgeMask |= (levelNE < node.Level) ? (1u << 4) : 0u;
+			edgeMask |= (levelNW < node.Level) ? (1u << 5) : 0u;
+			edgeMask |= (levelSE < node.Level) ? (1u << 6) : 0u;
+			edgeMask |= (levelSW < node.Level) ? (1u << 7) : 0u;
+			node.patchVariantIdxAndEdgeMask |= edgeMask << 16;
+		}
+	}
+}
+
 void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
-	ZoneScoped
+	ZoneScoped;
 
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	const auto& dataSource = heightmap->GetSource();

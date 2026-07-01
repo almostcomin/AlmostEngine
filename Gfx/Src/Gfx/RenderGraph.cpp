@@ -262,6 +262,8 @@ bool alm::gfx::RenderGraph::EndRender(rhi::ICommandList* commandList)
 
 void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 {
+	ZoneScoped;
+
 	// Get render mode
 	if (m_RenderModes.empty() || m_CurrentRenderMode.empty())
 	{
