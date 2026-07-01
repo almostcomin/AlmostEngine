@@ -19,3 +19,6 @@
 [submodule "3rdParty/Sources/DirectX-Headers"]
 	path = 3rdParty/Sources/DirectX-Headers
 	url = https://github.com/microsoft/DirectX-Headers.git
+[submodule "3rdParty/Sources/tracy"]
+	path = 3rdParty/Sources/tracy
+	url = https://github.com/wolfpld/tracy.git

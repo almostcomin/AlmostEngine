@@ -13,7 +13,7 @@ from buildutils import run_cmake_build
 VALID_CONFIGS = ["Debug", "Release", "RelWithDebInfo"]
 ALL_CONFIGS = VALID_CONFIGS
 
-def build_project(name, source_rel, build_base_rel, install_base_rel, default_args=None, extra_args_func=None):
+def build_project(name, source_rel, build_base_rel, install_base_rel, default_args=None, extra_args_func=None, post_install_func=None):
     """
     Generic function to build a CMake project.
     
@@ -24,6 +24,8 @@ def build_project(name, source_rel, build_base_rel, install_base_rel, default_ar
         install_base_rel: Relative path from this script to install base directory
         default_args: List of default CMake arguments
         extra_args_func: Optional callable that takes (target, config) and returns additional args
+        post_install_func: Optional callable invoked after each successful install.
+            Signature: post_install_func(target, config, source_dir, install_dir, build_dir).
     """
     parser = argparse.ArgumentParser(description=f"Build {name}")
     parser.add_argument("--target", choices=["win-dx12-clang", "win-dx12-msvc", "linux-vk-clang"], required=True)
@@ -62,4 +64,8 @@ def build_project(name, source_rel, build_base_rel, install_base_rel, default_ar
             do_build=True,
             do_install=True,
         )
+
+        if post_install_func is not None:
+            post_install_func(args.target, config_name, source_dir, install_dir, build_dir)
+
         print(f"\n✅ {name} built for {args.target} ({config_name})")

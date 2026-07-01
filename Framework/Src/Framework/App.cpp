@@ -782,6 +782,8 @@ void alm::fw::App::MainLoop()
 		}
 
 		fpsFrameCount++;
+
+		FrameMark;
 		std::this_thread::yield();
 	}
 }

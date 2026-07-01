@@ -20,10 +20,17 @@ target_include_directories(Core
         "${CMAKE_CURRENT_SOURCE_DIR}/Src"
 )
 
-# Third-party (GLM)
+# Third-party GLM
 target_include_directories(Core PUBLIC
     "${THIRDPARTY_ROOT}/Sources/glm"
 )
+
+# Third-party tracy
+target_include_directories(Core PUBLIC 
+    "${THIRDPARTY_ROOT}/tracy/${ALMOSTENGINE_TARGET}/$<CONFIG>/include")
+target_link_directories(Core PUBLIC 
+    "${THIRDPARTY_ROOT}/tracy/${ALMOSTENGINE_TARGET}/$<CONFIG>/lib")
+target_link_libraries(Core PUBLIC TracyClient)
 
 # PCH
 setup_pch(Core

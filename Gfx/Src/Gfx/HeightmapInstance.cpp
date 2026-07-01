@@ -122,6 +122,8 @@ alm::gfx::HeightmapInstance::~HeightmapInstance()
 
 void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSize, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
+	ZoneScoped
+
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 
 	if (m_Frozen)
@@ -315,6 +317,8 @@ bool alm::gfx::HeightmapInstance::WouldSubdivide(const QuadNodeCoord& coord) con
 
 void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, const uint2& fbSize)
 {
+	ZoneScoped
+
 	// Reset cache
 	std::ranges::fill(m_SubdivideCache, SubdivideCacheElement{ false, false });
 	std::ranges::fill(m_InQueue, false);
@@ -456,6 +460,8 @@ void alm::gfx::HeightmapInstance::IterateQuadTreeForMetric(const Camera* camera,
 void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& node,
 	const Camera* camera, const uint2& fbSize)
 {
+	ZoneScoped
+
 	// Check BFS
 	if (WouldSubdivide(node))
 	{
@@ -511,6 +517,8 @@ alm::gfx::Heightmap::EdgeMode alm::gfx::HeightmapInstance::GetEdgeMode(const std
 
 void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
 {
+	ZoneScoped
+
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	const auto& dataSource = heightmap->GetSource();
 	rhi::TextureSampledView textureView = heightmap->GetHeightsTexture()->GetSampledView();

@@ -28,6 +28,7 @@ COMPATIBILITY = {
     "Build_SDL.py":             "all",
     "Build_imgui.py":           "all",
     "Build_stb.py":             "all",
+    "Build_tracy.py":           "all",
 }
 
 # Explicit build order (respects dependencies)
@@ -37,6 +38,7 @@ BUILD_ORDER = [
     "Build_stb.py",             # Header-only, no deps
     "Build_DirectX-Headers.py", # Only for Windows
     "Build_DirectXTex.py",      # Only for Windows
+    "Build_tracy.py"
 ]
 
 # Directory containing all build scripts (same as this script's directory)

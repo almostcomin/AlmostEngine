@@ -161,6 +161,8 @@ void alm::gfx::RenderView::OnWindowSizeChanged()
 
 void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec, const MouseState& mouseState)
 {
+	ZoneScoped
+
 	alm::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
 	if (!frameBuffer)
 	{
