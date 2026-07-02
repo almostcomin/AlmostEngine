@@ -382,9 +382,9 @@ bool alm::fw::App::InitInternal()
 
 		SDL_ShowWindow(m_Window);
 	}
-	LOG_INFO("Creating SDL Window...");
+	LOG_INFO("Creating SDL Window: Done");
 
-	LOG_INFO("Parsing startup arguments: Done");
+	LOG_INFO("Parsing startup arguments...");
 
 	const bool vSync = GetStartupArgBool("vsync").value_or(true);
 	const int fpsCap = GetStartupArgInt("fps_cap").value_or(0);
@@ -397,7 +397,6 @@ bool alm::fw::App::InitInternal()
 	LOG_INFO("   fps_cap:       {}", fpsCap);
 	LOG_INFO("   gd:            {}", graphicsDebug);
 	LOG_INFO("   shaders_debug: {}", shadersDebug);
-
 
 	LOG_INFO("Init device manager...");
 	{

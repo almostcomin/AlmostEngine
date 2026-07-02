@@ -241,23 +241,27 @@ bool alm::gfx::HeightmapInstance::ShouldSubdivideMetric(const QuadNodeCoord& coo
 #endif
 }
 
-bool alm::gfx::HeightmapInstance::WouldSubdivide(const QuadNodeCoord& coord) const
+const alm::gfx::HeightmapInstance::SubdivideCacheElement* alm::gfx::HeightmapInstance::GetCachedNodeData(const QuadNodeCoord& coord) const
 {
+	assert(coord.Level < m_MaxLevel);
 	if (coord.Level >= m_MaxLevel)
-		return false;
+		return nullptr;
 
 	const uint32_t nodeIdx = GetNodeIndex(coord);
 	assert(nodeIdx < m_SubdivideCache.size());
 
-	return m_SubdivideCache[nodeIdx].subdivide;
+	return &(m_SubdivideCache[nodeIdx]);
 }
 
 void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, const uint2& fbSize)
 {
 	ZoneScoped
 
+	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+	const float2 uvScale = heightmap->GetUVScale();
+
 	// Reset cache
-	std::ranges::fill(m_SubdivideCache, SubdivideCacheElement{ false, false });
+	std::ranges::fill(m_SubdivideCache, SubdivideCacheElement{ false, false, false });
 	std::ranges::fill(m_InQueue, false);
 
 	// 1. Calc metric for all nodes in frustum and queue those that have to subdivide my metric
@@ -281,6 +285,11 @@ void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, cons
 			if (!node.Neighbour(axis, neighbour))
 				continue;
 
+			// Data out of range
+			float2 minUV = neighbour.MinUV() * uvScale;
+			if (minUV.x >= 1.f || minUV.y >= 1.f)
+				continue;
+
 			const uint32_t neighbourIndex = GetNodeIndex(neighbour);
 			if (m_SubdivideCache[neighbourIndex].subdivide)
 				continue;  // Already subdividing
@@ -296,7 +305,8 @@ void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, cons
 					if (m_SubdivideCache[parentIndex].subdivide)
 						break;
 
-					m_SubdivideCache[parentIndex] = { true, true };
+					m_SubdivideCache[parentIndex].subdivide = true;
+
 					if (!m_InQueue[parentIndex])
 					{
 						m_InQueue[parentIndex] = true;
@@ -326,7 +336,7 @@ void alm::gfx::HeightmapInstance::BuildSubdivisionBFS(const Camera* camera, cons
 				if (m_SubdivideCache[childIndex].subdivide)
 				{
 					// We are forced to subdivide
-					m_SubdivideCache[neighbourIndex] = { true, true };
+					m_SubdivideCache[neighbourIndex].subdivide = true;
 					if (!m_InQueue[neighbourIndex])
 					{
 						m_InQueue[neighbourIndex] = true;  // in queue
@@ -368,9 +378,13 @@ void alm::gfx::HeightmapInstance::IterateQuadTreeForMetric(const Camera* camera,
 		}
 
 		// 3. Frustum cull
+		const uint32_t nodeIdx = GetNodeIndex(node);
 		{
 			aabox3f worldBounds = GetAABoxWorldSpace(node);
-			if (!camera->GetFrustum().test(worldBounds))
+
+			m_SubdivideCache[nodeIdx].tested = true;
+			m_SubdivideCache[nodeIdx].visible = camera->GetFrustum().test(worldBounds);
+			if (!m_SubdivideCache[nodeIdx].visible)
 				continue;
 		}
 
@@ -381,9 +395,8 @@ void alm::gfx::HeightmapInstance::IterateQuadTreeForMetric(const Camera* camera,
 		}
 
 		// 5. Mark node and add it to the queue
-		const uint32_t idx = GetNodeIndex(node);
-		m_SubdivideCache[idx] = { true, true };
-		m_InQueue[idx] = true;
+		m_SubdivideCache[nodeIdx].subdivide = true;
+		m_InQueue[nodeIdx] = true;
 		queue.push_back(node);
 
 		// 6. Push children in REVERSE order so we process them in the natural order
@@ -399,8 +412,32 @@ void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& lea
 {
 	ZoneScoped
 
-	// Check BFS
-	if (WouldSubdivide(node))
+	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
+	const float2 uvScale = heightmap->GetUVScale();
+
+	// Data out of range
+	float2 minUV = node.MinUV() * uvScale;
+	if (minUV.x >= 1.f || minUV.y >= 1.f)
+		return;
+
+	// Check visibility
+	// Nodes with highest level have not cached data. So, we have to test frustum here.
+	const bool lastLevel = (node.Level == m_MaxLevel);
+	const SubdivideCacheElement* cachedData = !lastLevel ? GetCachedNodeData(node) : nullptr;
+
+	if (cachedData && cachedData->tested)
+	{
+		if (!cachedData->visible)
+			return;
+	}
+	else
+	{
+		aabox3f worldBounds = GetAABoxWorldSpace(node);
+		if (!camera->GetFrustum().test(worldBounds))
+			return;
+	}
+
+	if (cachedData && cachedData->subdivide)
 	{
 		for (int i = 0; i < 4; ++i)
 			SelectLODNodes(leafNodes, node.Child(i), camera, fbSize);

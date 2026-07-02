@@ -92,7 +92,8 @@ private:
 
 	struct SubdivideCacheElement
 	{
-		bool cached : 1;
+		bool tested : 1;
+		bool visible : 1;
 		bool subdivide : 1;
 	};
 
@@ -100,7 +101,7 @@ private:
 
 	bool ShouldSubdivideMetric(const QuadNodeCoord& coord, const Camera* camera, const uint2& fbSize);
 
-	bool WouldSubdivide(const QuadNodeCoord& coord) const;
+	const SubdivideCacheElement* GetCachedNodeData(const QuadNodeCoord& coord) const;
 	Heightmap::EdgeMode GetEdgeMode(const std::unordered_set<QuadNodeCoord, QuadNodeCoordHash>& leafSet, const QuadNodeCoord& coord, Axis axis);
 
 	// Iterative Breadth-First search

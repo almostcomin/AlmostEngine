@@ -309,7 +309,9 @@ public:
 		m_CameraController.Update(deltaTime);
 
 		// Update UI
-		m_UI->AddBottomBarText(std::format("Camera speed: {:1.1f}", m_CameraController.GetSpeed()));
+		m_UI->AddBottomBarText(std::format("Cam speed: {:1.1f}", m_CameraController.GetSpeed()));
+		m_UI->AddBottomBarText(std::format("Cam pos: {{{:1.1f}, {:1.1f}, {:1.1f}}}",
+			m_MainCamera->GetPosition().x, m_MainCamera->GetPosition().y, m_MainCamera->GetPosition().z));
 
 		return true;
 	}
