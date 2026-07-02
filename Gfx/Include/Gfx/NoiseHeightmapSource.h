@@ -18,7 +18,8 @@ public:
 
 public:
 
-    NoiseHeightmapSource(const Params& params, const std::string& name) : m_Params{ params }, m_Name{ name }
+    NoiseHeightmapSource(const Params& params, float scaleH, float cellSize, const std::string& name) : 
+        m_Params{ params }, m_ScaleH{ scaleH }, m_CellSize{ cellSize }, m_Name{ name }
     {}
 
     const Params& GetParams() const { return m_Params; }
@@ -29,13 +30,13 @@ public:
 
     bool IsTileable() const override { return true; }
     float2 GetNormalizedSize() const override { return float2{ 1.f, 1.f }; }
-    float2 GetHeightRange() const override { return float2{ 0.f, 1.f }; }
+    float2 GetHeightRange() const override { return float2{ 0.f, m_ScaleH }; }
 
     bool InfiniteDataResolution() const override { return true; }
     uint2 GetDataResolution() const override { return { UINT32_MAX, UINT32_MAX }; }
 
-    bool HasCellSize() const override { return false; }
-    float GetCellSize() const override { return 0.f; }
+    bool HasCellSize() const override { return true; }
+    float GetCellSize() const override { return m_CellSize; }
 
     Type GetType() const override { return Type::Noise; }
     const std::string& GetName() const override { return m_Name; }
@@ -43,6 +44,10 @@ public:
 private:
 
     Params m_Params;
+
+    float m_ScaleH;
+    float m_CellSize;
+
     std::string m_Name;
 };
 }

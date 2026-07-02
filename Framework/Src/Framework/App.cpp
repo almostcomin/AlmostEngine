@@ -365,12 +365,22 @@ bool alm::fw::App::InitInternal()
 	LOG_INFO("Creating SDL Window...");
 	{
 		// Create a window
-		m_Window = SDL_CreateWindow(m_Name.c_str(), 1920, 1080, SDL_WINDOW_RESIZABLE);
+		m_Window = SDL_CreateWindow(m_Name.c_str(), 1920, 1080, SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
 		if (!m_Window)
 		{
 			SDL_Quit();
 			return false; // Window creation failed
 		}
+
+		// Assign icon		
+		SDL_Surface* iconSurface = SDL_LoadPNG("icon.png");
+		if (iconSurface)
+		{
+			SDL_SetWindowIcon(m_Window, iconSurface);
+			SDL_DestroySurface(iconSurface);
+		}
+
+		SDL_ShowWindow(m_Window);
 	}
 	LOG_INFO("Creating SDL Window...");
 

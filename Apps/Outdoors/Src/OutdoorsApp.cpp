@@ -89,14 +89,14 @@ public:
 					.Frequency = 8.f,
 					.Octaves = 6 };
 
-				auto noiseSource = std::make_shared<alm::gfx::NoiseHeightmapSource>(params, "NoiseHeightmap");
+				auto noiseSource = std::make_shared<alm::gfx::NoiseHeightmapSource>(params, 100.0f, 1.f, "NoiseHeightmap");
 				dataSource = noiseSource;					
 #else
 				auto imageSource = std::make_shared<alm::gfx::ImageHeightmapSource>(
 					alm::gfx::ImageHeightmapSource::EdgeMode::Clamp);
 				//bool sourceOk = imageSource->Load("SpainHeightmap.png", 1.f, 1.f / 64);
-				//bool sourceOk = imageSource->Load("SpainHeightmap.png", 164.f, 1.f);
-				bool sourceOk = imageSource->Load("_heightmaps/Stromboli/Stromboli_20250702_for_OT.hdr");
+				bool sourceOk = imageSource->Load("SpainHeightmap.png", 98.f, 1.f);
+				//bool sourceOk = imageSource->Load("_heightmaps/Stromboli/Stromboli_20250702_for_OT.hdr");
 				//bool sourceOk = imageSource->Load("_heightmaps/Badlands Range Sharp 1/Badlands Range Sharp 1.hdr");
 				assert(sourceOk);
 
