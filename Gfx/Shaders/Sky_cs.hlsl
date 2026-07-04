@@ -79,8 +79,14 @@ ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, Co
     if (tEnd <= tStart)
         return result;
 
-    float L  = tEnd - tStart;                    // Total raymarch length
-    float dL = L / float(skyData.NumSteps);      // Step size
+    float L = tEnd - tStart; // Total raymarch length
+
+    // Adaptive step count scaled by the actual atmosphere thickness so it
+    // works at any planet size. skyData.NumSteps is the full-traversal budget.
+    const uint kMinOuterSteps = 8u;
+    float atmosThickness = max(skyData.AtmosRadius - skyData.EarthRadius, 1.0);
+    uint effectiveSteps = clamp((uint)ceil(float(skyData.NumSteps) * (L / atmosThickness)), kMinOuterSteps, skyData.NumSteps);
+    float dL = L / float(effectiveSteps);
 
     float3 accumR = 0.0; // Accumulated Rayleigh in-scattering (float3: per RGB channel)
     float3 accumM = 0.0; // Accumulated Mie in-scattering (float3: per RGB channel)
@@ -88,11 +94,11 @@ ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, Co
     float  depthM = 0.0; // Mie optical depth from camera to current sample point
 
     // --- Outer raymarch: integrate scattering along the view ray ---
-    for (uint i = 0; i < skyData.NumSteps; ++i)
+    for (uint i = 0; i < effectiveSteps; ++i)
     {
         // Sample at the center of each segment for better numerical accuracy
         // (avoids bias toward the start of each step)
-        float  t = tStart + dL * (i + 0.5);
+        float t = tStart + dL * (i + 0.5);
         float3 p = rayOrigin + rayDir * t;
 
         // Altitude of this sample point above the Earth surface (in meters)
@@ -123,21 +129,39 @@ ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, Co
 
         // --- Inner raymarch: integrate optical depth from p toward the sun ---
         // Computes how much sunlight is attenuated by the atmosphere before reaching p.
-        // lightAtmosHit.y is the distance from p to the top of the atmosphere along the sun ray.
+
         float2 lightAtmosHit = RaySphereIntersection(p, skyData.ToSunDirection, float3(0, 0, 0), skyData.AtmosRadius);
-        float  dLs   = lightAtmosHit.y / float(skyData.NumLightSteps);
-        float  depthRs = 0.0; // Rayleigh optical depth from p to top of atmosphere (sun ray)
-        float  depthMs = 0.0; // Mie optical depth from p to top of atmosphere (sun ray)
+        float Ls = lightAtmosHit.y; // Total length of the sun-ray segment through the atmosphere.
 
-        for (uint j = 0; j < skyData.NumLightSteps; ++j)
+        // Exponential bias toward p where scattering density peaks.
+        // f(u) = (1 - exp(-alpha*u)) / (1 - exp(-alpha)) on u in [0, 1].
+        // Tune alpha in [1, 5]: higher clusters samples tighter near p.
+        const float kSunStepBias = 2.5;
+        const float kExpNorm = 1.0 / (1.0 - exp(-kSunStepBias));
+
+        float depthRs = 0.0; // Rayleigh optical depth from p to top of atmosphere (sun ray)
+        float depthMs = 0.0; // Mie optical depth from p to top of atmosphere (sun ray)
+
+        uint N = max(skyData.NumLightSteps, 1u);
+        const float invN = 1.0 / float(N);
+        for (uint j = 0; j < N; ++j)
         {
-            // Sample at center of each light ray segment
-            float  ts = dLs * (j + 0.5);
-            float3 ps = p + skyData.ToSunDirection * ts;
-            float hs = max(length(ps) - skyData.EarthRadius, 0.0);
+            // Normalized midpoint and segment boundaries in [0, 1].
+            float uMid = (float(j) + 0.5) * invN;
+            float uLo  = float(j) * invN;
+            float uHi  = float(j + 1) * invN;
 
-            depthRs += exp(-hs / skyData.Hr) * dLs;
-            depthMs += exp(-hs / skyData.Hm) * dLs;
+            // Biased sample distance and its segment width.
+            float ts = Ls * (1.0 - exp(-kSunStepBias * uMid)) * kExpNorm;
+            float seg = Ls * (exp(-kSunStepBias * uLo) - exp(-kSunStepBias * uHi)) * kExpNorm;
+
+            // World-space sample point and altitude above the surface.
+            float3 ps = p + skyData.ToSunDirection * ts;
+            float  hs = max(length(ps) - skyData.EarthRadius, 0.0);
+
+            // Per-step optical depth contribution for each scatterer.
+            depthRs += exp(-hs / skyData.Hr) * seg;
+            depthMs += exp(-hs / skyData.Hm) * seg;
         }
 
         // Total transmittance from the sun to the camera passing through point p.
@@ -198,7 +222,7 @@ ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, Co
         // This is a deliberate artistic approximation -- not physically correct.
         // At zenith (sunElevation = 1): horizonBoost = 1 (real angular size)
         // At horizon (sunElevation = 0): horizonBoost = 10 (10x larger)
-        float sunElevation       = skyData.ToSunDirection.y;
+        float sunElevation       = saturate(skyData.ToSunDirection.y);
         float horizonBoost       = 1.0 + 9.0 * pow(saturate(1.0 - sunElevation), 8.0);
         float effectiveRadius    = skyData.SunAngularRadius * horizonBoost;
         float effectiveRadiusCos = cos(effectiveRadius);
@@ -214,7 +238,8 @@ ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, Co
             // muSun: cosine of the angle from the disk center, derived from diskPos.
             // Equivalent to projecting diskPos onto the surface of a unit hemisphere --
             // the same geometry used in limb darkening models for stellar surfaces.
-            float muSun = sqrt(1.0 - square(diskPos));
+            //float muSun = cos(angle);
+            float muSun = mu;
 
             // Quadratic limb darkening model.
             // Models the apparent brightness variation across the solar disk:

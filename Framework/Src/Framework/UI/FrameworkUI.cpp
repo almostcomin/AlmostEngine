@@ -1276,6 +1276,16 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
         if (ImGui::CollapsingHeader("Sky"))
         {
             ImGui::Checkbox("Enabled##Sky", &FrameworkData.SkyEnabled);
+
+            ImGui::SameLine();
+            ImGui::Separator();
+            ImGui::SameLine();
+
+            float gpuMs = m_RenderViewUI->GetRenderGraph()->GetStageGPUTimeMs(alm::gfx::SkyRenderStage::StaticType());
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+            TextRightAligned("GPU: %1.2f ms", gpuMs);
+            ImGui::PopStyleColor();
+
             ImGui::InputFloat("Earth radius", &FrameworkData.SkyParams.EarthRadius);
             ImGui::InputFloat("Atmospheric depth", &FrameworkData.SkyParams.AtmosHeight);
             ImGui::InputFloat3("Rayleigh Wave Lengths", &FrameworkData.SkyParams.RayleighWaveLengths.x, "%.1f");

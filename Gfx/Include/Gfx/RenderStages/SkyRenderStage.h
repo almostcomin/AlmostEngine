@@ -31,8 +31,8 @@ public:
         float3 RayleighWaveLengths = kRefRayleighWaveLengths;
         float Turbidity = 1.f;
         float MieAnisotropy = 0.76f;
-        uint32_t NumSteps = 64;
-        uint32_t NumLightSteps = 8;
+        uint32_t NumSteps = 32;
+        uint32_t NumLightSteps = 3;
 	};
 
 public:
