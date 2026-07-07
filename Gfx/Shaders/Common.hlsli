@@ -155,7 +155,6 @@ float RayPlaneIntersection(float3 rayOrigin, float3 dir, float planeY)
 }
 
 // Generic ray-sphere intersection
-// Sphere centered at (0,0,0) with given radius
 // Returns (tNear, tFar). Negative values mean no intersection or behind the ray
 float2 RaySphereIntersection(float3 rayOrigin, float3 rayDir, float3 sphereCenter, float sphereRadius)
 {
@@ -177,6 +176,11 @@ float4 CheckerEffect(float2 uv, float squareSize, float4 color0, float4 color1)
     
     float checker = fmod(cell.x + cell.y, 2.0);
     return lerp(color0, color1, checker);
+}
+
+float InterleavedGradientNoise(float2 pos)
+{
+    return frac(52.9829189 * frac(0.06711056 * pos.x + 0.00583715 * pos.y));
 }
 
 #endif // __COMMON_HLSLI__

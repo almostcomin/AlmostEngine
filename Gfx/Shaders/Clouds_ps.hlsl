@@ -15,8 +15,9 @@ struct CloudResult
 {
     float3 color;
     float transmittance;
-    float nearDistance; // Distance to the first point with density > 0
     float weightedDistance; // Density-weighted average distance
+    float tEntry;
+    float tExit;
 };
 
 float IntersectCloudSphere(float3 rd, float r, float earthRadius)
@@ -26,8 +27,12 @@ float IntersectCloudSphere(float3 rd, float r, float earthRadius)
     return -b + sqrt(d);
 }
 
-float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, ConstantBuffer<interop::CloudsData> cloudsData)
+float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, ConstantBuffer<interop:: CloudsData> cloudsData)
 {    
+    // Si norY está fuera del rango válido [0,1], no hay densidad
+    if (norY < 0.0 || norY > 1.0)
+        return 0.0;
+
     float3 uvw1;
     uvw1.xy = pos.xz * cloudsData.cloudsScale;
     uvw1.xy += cloudsData.windOffset;
@@ -38,7 +43,7 @@ float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Consta
     uvw2.z = frac(norY + 0.5);
         
     float4 noise1 = cloudsTexture.SampleLevel(linearWrapSampler, uvw1, 0.0);
-    float4 noise2 = noise1;//cloudsTexture.SampleLevel(linearWrapSampler, uvw2, 0.0);
+    float4 noise2 = cloudsTexture.SampleLevel(linearWrapSampler, uvw2, 0.0);
     float4 noise = lerp(noise1, noise2, 0.3);
 
     float perlinWorley = noise.r;
@@ -59,68 +64,124 @@ float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Consta
     return coverage;
 }
 
-float VolumetricShadow(float3 from, Texture3D cloudsTexture, ConstantBuffer<interop:: CloudsData> cloudsData)
+float VolumetricShadow(float3 from, float shadowJitter, Texture3D cloudsTexture, ConstantBuffer<interop:: CloudsData> cloudsData)
 {
-    float dd = 10.0; // Initial step size in meters
-    float d = dd * 0.5;
+    // Proportional step size
+    float layerThickness = cloudsData.cloudLayerMax - cloudsData.cloudLayerMin;
+    float shadowStepSize = layerThickness / (float)cloudsData.lightSteps;
+
+    float shadowD = shadowJitter * shadowStepSize; // [0, shadowStepSize)
     float shadow = 1.0;
 
     for(int i = 0; i < cloudsData.lightSteps; ++i)
     {
-        float3 pos = from + cloudsData.toSunDirection * d;
+        float3 pos = from + cloudsData.toSunDirection * shadowD;
         float altitude = length(pos) - cloudsData.earthRadius;
         float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
-        if(norY > 1.0)
-            return shadow;
+        if (norY > 1.0 || norY < 0.0)
+            break;
 
         float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsData);
-        shadow *= exp(-density * dd * cloudsData.absorptionCoeff);
+        shadow *= exp(-density * shadowStepSize * cloudsData.absorptionCoeff);
         
-        dd *= 1.3f;
-        d += dd;
+        shadowD += shadowStepSize;
     }
     return shadow;
 }
 
-CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture3D cloudsTexture, ConstantBuffer<interop::CloudsData> cloudsData,
-    float sceneDist, float2 uv)
+bool GetCloudsLayerIntersectionPoints(
+    float3 rayOrigin,
+    float3 rayDir,
+    float earthRadius,          // Solid Earth radius
+    float innerSphereRadius,    // Cloud base altitude (earthRadius + cloudMinHeight)
+    float outerSphereRadius,    // Cloud top altitude (earthRadius + cloudMaxHeight)
+    float tMax,                 // Additional solid occluder (e.g., depth buffer for mountains/buildings)
+    out float tEntry,
+    out float tExit)
+{
+    tEntry = 0.0;
+    tExit = 0.0;
+
+    // Intersections with cloud layer boundaries
+    float2 innerHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), innerSphereRadius);
+    float2 outerHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), outerSphereRadius);
+
+    // If the outer sphere is entirely behind the origin or misses it, no clouds ahead
+    if (outerHit.y < 0.0) 
+        return false;
+
+    // Entry: start at outerHit.x or 0 if inside, or innerHit.y if inside inner sphere
+    tEntry = max(max(outerHit.x, 0.0), (innerHit.x < 0.0 && innerHit.y > 0.0) ? innerHit.y : 0.0);
+
+    // Exit: always go to outer boundary, let density be zero inside inner sphere
+    tExit = outerHit.y;
+
+    // Solid Earth occlusion
+    float2 earthHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), earthRadius);
+    if (length(rayOrigin) >= earthRadius)
+    {
+        if (earthHit.x > 0.0)
+            tExit = min(tExit, earthHit.x);
+    }
+    else
+    {
+        if (earthHit.y > 0.0)
+            tEntry = max(tEntry, earthHit.y);
+        else
+            return false;
+    }
+
+    // Solid geometry occlusion
+    tExit = min(tExit, tMax);
+
+    if (tEntry >= tExit)
+        return false;
+
+    return true;
+}
+
+// rayOriginLocal: camera position in world space
+// rayDir:         normalized ray direction in world space
+CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture3D cloudsTexture, ConstantBuffer<interop:: CloudsData> cloudsData,
+    float sceneDist, float mainJitter, float shadowJitter)
 {
     CloudResult result;
     result.color = 0.0;
     result.transmittance = 1.0;
-    result.nearDistance = cloudsData.earthRadius * 2.0f;
     result.weightedDistance = 0.0;
+    result.tEntry = 0.0;
+    result.tExit = 0.0;
     
-    // Remap ray origin
+    // Translate ray origin to Earth-centered coordinates.
     float3 rayOrigin = rayOriginLocal - cloudsData.earthCenter;
     
-    float tEntry = IntersectCloudSphere(rayDir, cloudsData.cloudLayerMin, cloudsData.earthRadius);
-    float tExit = IntersectCloudSphere(rayDir, cloudsData.cloudLayerMax, cloudsData.earthRadius);
-    if (tEntry < 0.0 || tEntry > tExit)
+    float tEntry, tExit;
+    if (!GetCloudsLayerIntersectionPoints(rayOrigin, rayDir, cloudsData.earthRadius, cloudsData.earthRadius + cloudsData.cloudLayerMin,
+        cloudsData.earthRadius + cloudsData.cloudLayerMax, sceneDist, tEntry, tExit))
+    {
         return result;
-    if (tEntry > sceneDist)
-        return result;
-    tExit = min(tExit, sceneDist);
-    
+    }
+            
     float stepSize = (tExit - tEntry) / cloudsData.maxSteps;
-    float weightPerStep = cloudsData.absorptionCoeff * stepSize;
-    float jitter = hash(rayDir + frac(Constants.time));
-    //float jitter = hash(uv + float2(Constants.time * 60.0, Constants.time * 73.0));
-    jitter -= 0.5;
-    float t = tEntry + jitter * stepSize;        
+        
+    float t = tEntry + mainJitter * stepSize;
     float totalDensity = 0.0;
     
     for (uint step = 0; step < cloudsData.maxSteps; ++step)
     {
         float3 pos = rayOrigin + rayDir * t;
         float altitude = length(pos) - cloudsData.earthRadius;
-        float norY = saturate((altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness);
+        float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
 
         float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsData);
+        
+        float fadeFactor = saturate(1.0 - pow(t / cloudsData.cloudFadeDistance, 2.0));
+        density *= fadeFactor;
+        
         if (density > 0.0)
         {
             float absorption = exp(-density * stepSize * cloudsData.absorptionCoeff);
-            float lightEnergy = VolumetricShadow(pos, cloudsTexture, cloudsData);
+            float lightEnergy = VolumetricShadow(pos, shadowJitter, cloudsTexture, cloudsData);
             lightEnergy += 0.2; // ambient
 
             float3 S = lightEnergy * density;
@@ -129,7 +190,6 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
             
             result.color += result.transmittance * Sint;
             result.transmittance *= dTrans;
-            result.nearDistance = min(result.nearDistance, t);
             result.weightedDistance += t * density;
 
             totalDensity += density;
@@ -139,7 +199,10 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         
         t += stepSize;
     }    
+    
     result.weightedDistance /= max(totalDensity, 0.0001f);
+    result.tEntry = tEntry;
+    result.tExit = tExit;
 
     return result;
 }
@@ -151,76 +214,72 @@ float4 main(PS_INPUT input) : SV_Target
     Texture3D<float4> baseTexture = ResourceDescriptorHeap[cloudsData.cloudBaseShapeTexture];
     Texture2D<float> linearDepthTex = ResourceDescriptorHeap[cloudsData.linearDepthTexDI];
     
+    // Reconstruct world-space ray direction from clip-space coordinates.
+    // matClipToTranslatedWorld transforms from clip space to world space
+    // with the camera at the origin (translated world), so no camera translation
+    // is baked into the matrix -- avoids floating point precision issues at large distances.
     float4 clipPos;
     clipPos.x = input.uv.x * 2.0 - 1.0;
-    clipPos.y = 1.0 - input.uv.y * 2.0;
+    clipPos.y = 1.0 - input.uv.y * 2.0; // flip Y: UV origin is top-left, clip space origin is bottom-left
     clipPos.z = 1.0;
     clipPos.w = 1.0;
-    
-    float4 rayDirH = mul(Constants.matClipToTranslatedWorld, clipPos); // homogeneous ray direction
+
+    float4 rayDirH = mul(Constants.matClipToTranslatedWorld, clipPos);
     float3 rayDir = normalize(rayDirH.xyz);
 
+    // Read linear depth (distance along the camera forward axis) and convert to scene distance along the ray direction.
+    // viewZ: depth along camera forward vector (Z component in view space)
+    // sceneDist: actual distance along rayDir to the geometry
     float viewZ = linearDepthTex.SampleLevel(pointClampSampler, input.uv, 0.0);
     float cosAngle = dot(rayDir, cloudsData.cameraForward);
     float sceneDist = viewZ / max(cosAngle, 0.0001);
-        
-    CloudResult clouds = GetCloudsColorRayMarch(
-        Constants.cameraPosition, rayDir, baseTexture, cloudsData, sceneDist, input.position.xy);
     
-    // hit in world space
-    float3 hitPosWorld = Constants.cameraPosition + rayDir * clouds.nearDistance;
-    //float3 hitPosWorld = Constants.cameraPosition + rayDir * clouds.weightedDistance;
+    // Calc jitter
+    float2 pixelPos = input.uv * Constants.viewportSize;
+    float mainJitter = InterleavedGradientNoise(pixelPos);
+    float shadowJitter = InterleavedGradientNoise(pixelPos + float2(0.5, 0.5));
+    //float jitter = InterleavedGradientNoise(pixelPos + float2(Constants.frameIndex * 5.588238f, Constants.frameIndex * 3.424234f));
+    
+    CloudResult clouds = GetCloudsColorRayMarch(
+        Constants.cameraPosition, rayDir, baseTexture, cloudsData, sceneDist, mainJitter, shadowJitter);
+    
+    // Punto estable: centro del segmento atravesado por el rayo dentro de la capa.
+    // Es EXACTO para este rayo (no depende del muestreo) y NO SALTA con jitter.
+    float hit_t = 0.5f * (clouds.tEntry + clouds.tExit);
+    float blendToMass = saturate((1.0f - clouds.transmittance) * (1.0f - clouds.transmittance));
+    hit_t = lerp(hit_t, clouds.weightedDistance, blendToMass);
+    
+    float3 hitPosWorld = Constants.cameraPosition + rayDir * hit_t;
+    
     // hit in prev frame
     float4 prevClipPos = mul(cloudsData.matPrevFrameViewProj, float4(hitPosWorld, 1.0));
     prevClipPos.xyz /= prevClipPos.w;
     // Convert NDC to uv
     float2 prevUv = prevClipPos.xy * float2(0.5, -0.5) + 0.5;
-    bool prevUvValid = all(prevUv > 0.0) && all(prevUv < 1.0) && prevClipPos.w > 0.0;
-    //bool hasHit = clouds.nearDistance < (cloudsData.earthRadius * 2.0);
-    bool hasHit = clouds.transmittance < 0.99;
+    bool prevUvValid = all(prevUv > 0.0) && all(prevUv < 1.0)
+                       && prevClipPos.w > 0.0
+                       && abs(prevClipPos.z) <= prevClipPos.w;;
+
+    bool hasHit = clouds.transmittance < 0.999;
     
     float4 currentColor = float4(clouds.color, clouds.transmittance);
     float4 finalColor = currentColor;
     
-    //if (prevUvValid && hasHit)
+    if (prevUvValid && hasHit)
     {
         Texture2D<float4> prevCloudsTex = ResourceDescriptorHeap[cloudsData.prevCloudsTexDI];
         float4 prevColor = prevCloudsTex.SampleLevel(linearClampSampler, prevUv, 0.0);
         
-        float colorDiff = length(prevColor.rgb - currentColor.rgb);
-        float alphaDiff = abs(prevColor.a - currentColor.a);
-        float totalDiff = colorDiff + alphaDiff * 2.0;
-        float blendFactor = saturate(0.05 + totalDiff * 2.0);
-        //float blendFactor = 0.05;
-        
-        finalColor = lerp(prevColor, currentColor, blendFactor);
+        bool historyHadCloud = prevColor.a < 0.999;
+        if (historyHadCloud)
+        {
+            finalColor = lerp(prevColor, currentColor, 0.75);
+        }
+        else
+        {
+            finalColor = currentColor;
+        }
     }
     
     return finalColor;
-    
-#if 0
-    // Horizon mask
-    //float horizonMask = saturate((worldDir.y - CLOUD_FADE_START) / CLOUD_FADE_RANGE);
-    //cloudsColor *= pow(horizonMask, CLOUD_FADE_POW);
-    
-    // Sun direction
-    //float3 sunDir = normalize(cloudsData.toSunDirection);
-    //float sunDot = max(0.0f, dot(worldDir, sunDir));
-    //float sunScatter = pow(sunDot, SUN_SCATTER_POW);
-
-    // Sky gradient: zenith-to-horizon + directional sun scatter
-    float3 skyZenith = float3(0.08f, 0.39f, 0.84f);
-    float3 skyHorizon = float3(0.50f, 0.61f, 0.80f);
-    float3 sunColor = float3(1.00f, 0.75f, 0.45f); // warm scatter near sun
-
-    float3 skyGradient = lerp(skyHorizon, skyZenith, pow(saturate(rayDir.y), 0.5));
-    //skyGradient = lerp(skyGradient, sunColor, sunScatter * 0.35f);
-
-    float distFade = 1.0 - saturate(clouds.weightedDistance / cloudsData.cloudFadeDistance);
-    float3 cloudColor = clouds.color * float3(1.0f, 0.95f, 0.9f);
-    float3 color = skyGradient * clouds.transmittance + cloudColor;
-    color = lerp(skyGradient, color, distFade);
-            
-    return float4(color, clouds.transmittance);
-#endif
 }

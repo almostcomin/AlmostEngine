@@ -15,6 +15,15 @@
 alm::gfx::CloudsRenderStage::CloudsRenderStage() : m_CloudsTextureIdx{ -1 }
 {}
 
+void alm::gfx::CloudsRenderStage::SetEarthRadius(float r, float atmosRelScale)
+{
+	float scaleFactor = r / kEarthRefRadius;
+	m_Params.EarthRadius = r;
+	m_Params.CloudsLayerMin = kCloadsLayerHStart * scaleFactor;
+	m_Params.CloudsLayerMax = kCloadsLayerHEnd * scaleFactor;
+	m_Params.CloudsFadeDistance = kCloudsFadeDistance * scaleFactor;
+}
+
 std::expected<std::pair<alm::rhi::TextureOwner, alm::SignalListener>, std::string>
 alm::gfx::CloudsRenderStage::CreateCloudsShapeTexture(alm::gfx::DeviceManager* deviceManager)
 {
@@ -89,8 +98,6 @@ void alm::gfx::CloudsRenderStage::Setup(RenderGraphBuilder& builder)
 
 void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
-	return;
-
 	if (!GetScene())
 		return;
 	if (!GetCamera())
@@ -176,7 +183,7 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->toSunDirection = -glm::normalize(alm::ElevationAzimuthRadToDir(
 			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg)));
 		cloudsData->absorptionCoeff = m_Params.AbsorptionCoeff;
-		cloudsData->earthCenter = float3(0.f, -m_Params.EarthRadius, 0.f);// GetCamera()->GetPosition() + float3(0.f, -m_Params.EarthRadius, 0.f);
+		cloudsData->earthCenter = m_Params.EarthCenter;
 		cloudsData->earthRadius = m_Params.EarthRadius;
 		cloudsData->invCloudLayerThickness = 1.f / (m_Params.CloudsLayerMax - m_Params.CloudsLayerMin);
 		cloudsData->maxSteps = m_Params.CloudRaymarchIterations;
@@ -190,7 +197,9 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
 		cloudsConstants.cameraPosition = GetCamera()->GetPosition();
 		cloudsConstants.cloudsDataDI = m_CloudsCB.GetUniformView();
-		cloudsConstants.time = GetRenderView()->GetTime() * 1.0;
+		cloudsConstants.viewportSize = { m_CloudsFB[m_CloudsTextureIdx]->GetFramebufferInfo().width,
+			m_CloudsFB[m_CloudsTextureIdx]->GetFramebufferInfo().height };
+		cloudsConstants.frameCounter = m_RenderGraph->GetDeviceManager()->GetFrameIndex();
 
 		commandList->PushGraphicsConstants(0, cloudsConstants);
 

@@ -475,9 +475,9 @@ namespace interop
         uint maxSteps;              
         uint lightSteps;
         TextureSampledViewIndex linearDepthTexDI;
-        float3 cameraForward;
+        float3 cameraForward;           // offset 20
         TextureSampledViewIndex prevCloudsTexDI;
-        float4x4 matPrevFrameViewProj;
+        float4x4 matPrevFrameViewProj;  // offset 24
     };
 
     struct CloudsConstants
@@ -485,7 +485,8 @@ namespace interop
         float4x4 matClipToTranslatedWorld;
         float3 cameraPosition;
         BufferUniformIndex cloudsDataDI; // CloudsData
-        float time;
+        uint2 viewportSize;
+        uint frameCounter;
     };
 
     struct HeightmapDebugConstants

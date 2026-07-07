@@ -15,16 +15,22 @@ class CloudsRenderStage : public RenderStage
 
 public:
 
+    static constexpr float kEarthRefRadius = 6360000.f;
+    static constexpr float kCloadsLayerHStart = 2000.f;
+    static constexpr float kCloadsLayerHEnd = 7000.f;
+    static constexpr float kCloudsFadeDistance = 50000.f;
+
 	struct CloudsParams
 	{
         float2 WindVelocity = { 0.001f, 0.0005f };
         float CloudsScale = 0.0001f;
         float CloudsCoverage = 0.3f;
         float AbsorptionCoeff = 0.1f;
-        float CloudsLayerMin = 1350.f;// 2000.f;
-        float CloudsLayerMax = 2350.f;// 7000.f;
-        float CloudsFadeDistance = 50000.f;
-        float EarthRadius = 1500000.f; // 6360000.0.f;
+        float CloudsLayerMin = kCloadsLayerHStart;
+        float CloudsLayerMax = kCloadsLayerHEnd;
+        float CloudsFadeDistance = kCloudsFadeDistance;
+        float EarthRadius = kEarthRefRadius;
+        float3 EarthCenter = float3{ 0.f };
         uint32_t CloudRaymarchIterations = 16;
         uint32_t LightRaymarchIterations = 8;
 	};
@@ -36,6 +42,9 @@ public:
 
     const CloudsParams& GetCloudsParams() const { return m_Params; }
     void SetCloudsParams(const CloudsParams& params) { m_Params = params; }
+
+    void SetEarthCenter(const float3& c) { m_Params.EarthCenter = c; }
+    void SetEarthRadius(float r, float atmosRelScale = 1.f);
 
     void SetCloudsShapeTexture(rhi::TextureOwner&& texture) { m_CloudsShapeTexture = std::move(texture); }
     rhi::TextureHandle GetCloudsShapeTexture() const { return m_CloudsShapeTexture.get_weak(); }

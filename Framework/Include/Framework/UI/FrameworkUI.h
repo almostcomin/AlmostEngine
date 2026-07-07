@@ -53,6 +53,7 @@ public:
 		bool SkyEnabled = true;
 
 		alm::gfx::CloudsRenderStage::CloudsParams CloudsParams;
+		bool CloudsEnabled = true;
 
 		alm::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
 
@@ -205,19 +206,19 @@ protected:
 	alm::weak<alm::gfx::RenderView> m_RenderViewUI;
 	CameraController* m_CameraController;
 
-private:
-
-	float m_FPS = 0.f;
-	float m_CPUTime = 0.f;
-	float m_CPUIdleTime = 0.f;
-	float m_GPUTime = 0.f;
-
 	bool m_ShowMainMenu = true;
 	bool m_ShowBottomBar = true;
 
 	bool m_ShowSettings = false;
 	bool m_ShowSceneGraphWindow = false;
 	bool m_ShowRenderStages = false;
+
+private:
+
+	float m_FPS = 0.f;
+	float m_CPUTime = 0.f;
+	float m_CPUIdleTime = 0.f;
+	float m_GPUTime = 0.f;
 
 	std::vector<RenderStageTextureView> m_RSTextureViews;
 	std::vector<RenderStageBufferView> m_RSBufferViews;

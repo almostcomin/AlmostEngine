@@ -755,7 +755,10 @@ void alm::fw::App::MainLoop()
 			}
 
 			if (cloudsRS)
+			{
+				cloudsRS->SetEnabled(data.CloudsEnabled);
 				cloudsRS->SetCloudsParams(data.CloudsParams);
+			}
 
 			lightingRS->SetMaterialChannel(data.MatChannel);
 

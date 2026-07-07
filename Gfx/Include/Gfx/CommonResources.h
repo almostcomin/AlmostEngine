@@ -44,6 +44,9 @@ public:
 	// slices: vertical subdivisions (longitude segments), >= 3
 	std::shared_ptr<alm::gfx::Mesh> CreateUVSphere(float radius, uint32_t stacks, uint32_t slices, alm::gfx::DataUploader* dataUploader, const std::string& name);
 
+	// Blue noise texture: 64x64 single channel
+	//rhi::TextureHandle GetBlueNoise_HDR_64x64_L() const;
+
 private:
 
 	ShaderFactory* m_ShaderFactory;

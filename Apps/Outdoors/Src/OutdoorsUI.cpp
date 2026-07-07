@@ -20,6 +20,8 @@ void OutdoorsUI::Init(SDL_Window* window, alm::weak<alm::gfx::Scene> scene, alm:
 	FrameworkUI::Init(window, scene, renderView, cameraController);
 	
 	RegisterMainMenuItem("Heightmap", [this]() { BuildHeightmapMenuItem(); });
+
+	m_ShowSettings = true;
 }
 
 void OutdoorsUI::BuildUI()

@@ -273,13 +273,12 @@ ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, Co
 [numthreads(8, 8, 1)]
 void main(uint3 dispatchID : SV_DispatchThreadID)
 {
-    ConstantBuffer<interop::SkyData> skyData    = ResourceDescriptorHeap[Constants.SkyDataDI];
-    Texture2D<float>     linearDepthTex         = ResourceDescriptorHeap[skyData.LinearDepthTexDI];
-    RWTexture2D<float4>  colorTex               = ResourceDescriptorHeap[skyData.SceneColorDI];
+    ConstantBuffer<interop::SkyData> skyData = ResourceDescriptorHeap[Constants.SkyDataDI];
+    Texture2D<float> linearDepthTex = ResourceDescriptorHeap[skyData.LinearDepthTexDI];
+    RWTexture2D<float4> colorTex = ResourceDescriptorHeap[skyData.SceneColorDI];
 
+    // Bounds check: discard threads outside the render target dimensions    
     uint2 pixelPos = dispatchID.xy;
-
-    // Bounds check: discard threads outside the render target dimensions
     if (any(pixelPos >= skyData.SceneColorTexSize))
         return;
 

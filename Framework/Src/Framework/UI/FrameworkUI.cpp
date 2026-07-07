@@ -1278,13 +1278,12 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
             ImGui::Checkbox("Enabled##Sky", &FrameworkData.SkyEnabled);
 
             ImGui::SameLine();
-            ImGui::Separator();
-            ImGui::SameLine();
-
             float gpuMs = m_RenderViewUI->GetRenderGraph()->GetStageGPUTimeMs(alm::gfx::SkyRenderStage::StaticType());
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
             TextRightAligned("GPU: %1.2f ms", gpuMs);
             ImGui::PopStyleColor();
+
+            ImGui::Spacing();
 
             ImGui::InputFloat("Earth radius", &FrameworkData.SkyParams.EarthRadius);
             ImGui::InputFloat("Atmospheric depth", &FrameworkData.SkyParams.AtmosHeight);
@@ -1302,6 +1301,16 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
     auto cloudsRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CloudsRenderStage>();
     if(cloudsRS && ImGui::CollapsingHeader("Clouds"))
     {
+        ImGui::Checkbox("Enabled##Clouds", &FrameworkData.CloudsEnabled);
+
+        ImGui::SameLine();
+        float gpuMs = m_RenderViewUI->GetRenderGraph()->GetStageGPUTimeMs(alm::gfx::CloudsRenderStage::StaticType());
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+        TextRightAligned("GPU: %1.2f ms", gpuMs);
+        ImGui::PopStyleColor();
+
+        ImGui::Spacing();
+
         float2 velDir = FrameworkData.CloudsParams.WindVelocity;
         float velMag = glm::length(velDir);
         float velYaw = 0.f;
