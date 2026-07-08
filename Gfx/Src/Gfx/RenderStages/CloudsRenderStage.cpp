@@ -29,11 +29,12 @@ alm::gfx::CloudsRenderStage::CreateCloudsShapeTexture(alm::gfx::DeviceManager* d
 {
 	auto* device = deviceManager->GetDevice();
 	auto* dataUploader = deviceManager->GetDataUploader();
+	constexpr int SIZE = 128;
 
 	rhi::TextureDesc desc{
-		.width = 128,
-		.height = 128,
-		.depth = 128,
+		.width = SIZE,
+		.height = SIZE,
+		.depth = SIZE,
 		.format = rhi::Format::RGBA8_UNORM,
 		.dimension = rhi::TextureDimension::Texture3D,
 		.shaderUsage = rhi::TextureShaderUsage::Sampled };
@@ -43,17 +44,20 @@ alm::gfx::CloudsRenderStage::CreateCloudsShapeTexture(alm::gfx::DeviceManager* d
 	auto requestResult = dataUploader->RequestUploadTicket(desc, rhi::AllSubresources);
 	assert(requestResult);
 	auto& ticket = *requestResult;
-	assert(ticket.GetSize() == 128 * 128 * 128 * 4);
 
-	for (int z = 0; z < 128; ++z)
+	const auto copyReq = device->GetSubresourceCopyableRequirements(desc, 0, 0);
+	const uint32_t layerSize = copyReq.rowStride * copyReq.numRows;
+
+	for (int z = 0; z < SIZE; ++z)
 	{
-		uint32_t* data = (uint32_t*)ticket.GetPtr();
-		data += 128 * 128 * z;
-		for (int y = 0; y < 128; ++y)
+		char* layerStart = (char*)ticket.GetPtr() + copyReq.offset + (z * layerSize);
+
+		for (int y = 0; y < SIZE; ++y)
 		{
-			for (int x = 0; x < 128; ++x)
+			uint32_t* data = (uint32_t*)(layerStart + (y * copyReq.rowStride));
+			for (int x = 0; x < SIZE; ++x)
 			{
-				float3 st = float3{ x, y, z } / 128.f;
+				float3 st = float3{ x, y, z } / (float)SIZE;
 				float3 stG = st;
 				float3 stB = st + float3(0.5f, 0.5f, 0.5f);
 				float3 stA = st + float3(0.25f, 0.75f, 0.5f);
@@ -83,6 +87,59 @@ alm::gfx::CloudsRenderStage::CreateCloudsShapeTexture(alm::gfx::DeviceManager* d
 	}
 
 	return std::make_pair(std::move(texture), *commitResult);
+}
+
+std::expected<std::pair<alm::rhi::TextureOwner, alm::SignalListener>, std::string>
+alm::gfx::CloudsRenderStage::CreateCloudsDetailTexture(alm::gfx::DeviceManager* deviceManager)
+{
+    auto* device = deviceManager->GetDevice();
+    auto* dataUploader = deviceManager->GetDataUploader();
+
+    constexpr int SIZE = 32;
+    rhi::TextureDesc desc{
+        .width = SIZE, .height = SIZE, .depth = SIZE,
+        .format = rhi::Format::RGBA8_UNORM,
+        .dimension = rhi::TextureDimension::Texture3D,
+        .shaderUsage = rhi::TextureShaderUsage::Sampled };
+
+    alm::rhi::TextureOwner texture = device->CreateTexture(desc,
+        rhi::ResourceState::COPY_DST, "CloudsDetailTexture");
+
+    auto requestResult = dataUploader->RequestUploadTicket(desc, rhi::AllSubresources);
+    assert(requestResult);
+    auto& ticket = *requestResult;
+	
+	const auto copyReq = device->GetSubresourceCopyableRequirements(desc, 0, 0);
+	const uint32_t layerSize = copyReq.rowStride * copyReq.numRows;
+
+    for (int z = 0; z < SIZE; ++z)
+    {
+		char* layerStart = (char*)ticket.GetPtr() + copyReq.offset + (z * layerSize);
+
+        for (int y = 0; y < SIZE; ++y)
+        {
+			uint32_t* data = (uint32_t*)(layerStart + (y * copyReq.rowStride));
+            for (int x = 0; x < SIZE; ++x)
+            {
+                float3 st = float3{ x, y, z } / (float)SIZE;
+
+                float r = WorleyNoise(st * 8.f, 8.f);
+                float g = WorleyNoise(st * 14.f, 14.f);
+                float b = WorleyNoise(st * 22.f, 22.f);
+
+                // Alpha to 1 (placeholder)
+                *data = MakeRGBA(r * 255.f, g * 255.f, b * 255.f, 255);
+                ++data;
+            }
+        }
+    }
+
+    auto commitResult = dataUploader->CommitUploadTextureTicket(std::move(ticket), texture.get_weak(),
+        rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
+    if (!commitResult)
+        return std::unexpected(commitResult.error());
+
+    return std::make_pair(std::move(texture), *commitResult);
 }
 
 void alm::gfx::CloudsRenderStage::Setup(RenderGraphBuilder& builder)
@@ -173,7 +230,8 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		// Fill shader constants
 		auto* cloudsData = (interop::CloudsData*)m_CloudsCB.Map();
 
-		cloudsData->cloudBaseShapeTexture = m_CloudsShapeTexture->GetSampledView();
+		cloudsData->cloudsBaseShapeTexture = m_CloudsShapeTexture->GetSampledView();
+		cloudsData->cloudsDetailTexture = m_CloudsDetailTexture->GetSampledView();
 		cloudsData->cloudsScale = m_Params.CloudsScale;
 		cloudsData->coverage = m_Params.CloudsCoverage;
 		cloudsData->cloudFadeDistance = m_Params.CloudsFadeDistance;
@@ -191,6 +249,8 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->linearDepthTexDI = m_RenderGraph->GetTextureSampledView(m_LinearDepthTexture);
 		cloudsData->cameraForward = GetCamera()->GetForward();
 		cloudsData->prevCloudsTexDI = m_CloudsTexture[cloudsOtherIdx]->GetSampledView();
+		cloudsData->detailScale = m_Params.DetailScale;
+		cloudsData->detailErosionStrength = m_Params.DetailErosionStrength;
 		cloudsData->matPrevFrameViewProj = GetRenderView()->GetPrevFrameViewProjMatrix();
 
 		interop::CloudsConstants cloudsConstants;

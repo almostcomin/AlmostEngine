@@ -1333,6 +1333,8 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
             ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("Coverage##Clouds", &FrameworkData.CloudsParams.CloudsCoverage, 0.f, 1.f);
         ImGui::SliderFloat("Absorption##Clouds", &FrameworkData.CloudsParams.AbsorptionCoeff, 0.f, 1.f);
+        ImGui::InputFloat("Detail Scale##Clouds", &FrameworkData.CloudsParams.DetailScale);
+        ImGui::SliderFloat("Detail Erosion Strength##Clouds", &FrameworkData.CloudsParams.DetailErosionStrength, 0.f, 1.f);
         ImGui::InputFloat("Clouds Bottom##Clouds", &FrameworkData.CloudsParams.CloudsLayerMin);
         ImGui::InputFloat("Clouds Top##Clouds", &FrameworkData.CloudsParams.CloudsLayerMax);
         ImGui::InputFloat("Fade Distance##Clouds", &FrameworkData.CloudsParams.CloudsFadeDistance);
@@ -1343,6 +1345,12 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         if (ImGui::Button("Open Shape Texture"))
         {
             auto tex = cloudsRS->GetCloudsShapeTexture();
+            AddTextureWindow(tex->GetDebugName(), tex);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Open Detail Texture"))
+        {
+            auto tex = cloudsRS->GetCloudsDetailTexture();
             AddTextureWindow(tex->GetDebugName(), tex);
         }
     }

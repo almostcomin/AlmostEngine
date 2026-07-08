@@ -460,24 +460,28 @@ namespace interop
 
     struct CloudsData
     {
-        TextureSampledViewIndex cloudBaseShapeTexture;
+        TextureSampledViewIndex cloudsBaseShapeTexture;
+        TextureSampledViewIndex cloudsDetailTexture;
+        TextureSampledViewIndex linearDepthTexDI;
+        TextureSampledViewIndex prevCloudsTexDI;
+        float2 windOffset;              // offset 4
         float cloudsScale;
         float coverage;
-        float cloudFadeDistance;
-        float2 windOffset;              // offset 4
-        float cloudLayerMin;
-        float cloudLayerMax;
         float3 toSunDirection;          // offset 8
-        float absorptionCoeff;
+        float cloudFadeDistance;
         float3 earthCenter;             // offset 12
-        float earthRadius;
-        float invCloudLayerThickness;   // offset 16  
-        uint maxSteps;              
-        uint lightSteps;
-        TextureSampledViewIndex linearDepthTexDI;
+        float cloudLayerMin;
+        float cloudLayerMax;            // offset 16
+        float absorptionCoeff;
+        float earthRadius;              
+        float invCloudLayerThickness;   
         float3 cameraForward;           // offset 20
-        TextureSampledViewIndex prevCloudsTexDI;
-        float4x4 matPrevFrameViewProj;  // offset 24
+        uint maxSteps;
+        uint lightSteps;                // offset 24
+        float detailScale;
+        float detailErosionStrength;
+        uint _padding;         
+        float4x4 matPrevFrameViewProj;  // offset 28
     };
 
     struct CloudsConstants

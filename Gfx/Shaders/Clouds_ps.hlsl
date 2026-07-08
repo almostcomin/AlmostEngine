@@ -1,4 +1,4 @@
-#include "Interop/RenderResources.h"
+﻿#include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 #include "Noise.hlsli"
 #include "Common.hlsli"
@@ -27,11 +27,14 @@ float IntersectCloudSphere(float3 rd, float r, float earthRadius)
     return -b + sqrt(d);
 }
 
-float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, ConstantBuffer<interop:: CloudsData> cloudsData)
+float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
+    ConstantBuffer <interop::CloudsData> cloudsData)
 {    
-    // Si norY est� fuera del rango v�lido [0,1], no hay densidad
+    // Si norY está fuera del rango válido [0,1], no hay densidad
     if (norY < 0.0 || norY > 1.0)
         return 0.0;
+
+    // --- BASE SHAPE
 
     float3 uvw1;
     uvw1.xy = pos.xz * cloudsData.cloudsScale;
@@ -53,18 +56,43 @@ float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Consta
     float wfbm = worley.r * 0.625 + worley.g * 0.25 + worley.b * 0.125;
     float coverage = remap(perlinWorley, wfbm - 1.0, 1.0, 0.0, 1.0);
     coverage = remap(coverage, 1.0 - cloudsData.coverage, 1.0, 0.0, 1.0);
+
+    if (coverage <= 0.0)
+        return 0.0;
+
     coverage = saturate(coverage);
     //coverage = pow(coverage, 2.0f);
 
-    // Gradiente de densidad vertical � nubes m�s densas en el centro de la capa
+    // Gradiente de densidad vertical — nubes más densas en el centro de la capa
     //float heightGradient = saturate(remap(uvw.z, 0.0f, 0.1f, 0.0f, 1.0f))   // fade inferior
     //                     * saturate(remap(uvw.z, 0.6f, 1.0f, 1.0f, 0.0f));  // fade superior
     //coverage *= heightGradient;
     
-    return coverage;
+    // -- DETAIL EROSION
+
+    float3 detailUVW;
+    detailUVW.xy = pos.xz * cloudsData.cloudsScale * cloudsData.detailScale;
+    detailUVW.xy += cloudsData.windOffset * cloudsData.detailScale;
+    detailUVW.z  = norY;
+
+    float3 detail = cloudsDetailTexture.SampleLevel(linearWrapSampler, detailUVW, 0.0).rgb;
+    float hfbm = detail.r * 0.625 + detail.g * 0.25 + detail.b * 0.125;
+
+    // Truco paper: en la mitad baja (cerca del suelo de la capa),
+    // invertir la worley → bordes wispy/transparentes.
+    // norY ∈ [0,1]: bajo = wispy, alto = billowy (cumulus).
+    hfbm = lerp(1.0 - hfbm, hfbm, smoothstep(0.0, 0.5, norY));
+
+    // Threshold móvil controlado por detail strength.
+    // Empuja las densidades por debajo de `hfbm*strength` a 0.
+    float threshold = hfbm * cloudsData.detailErosionStrength;
+    float eroded = remap(coverage, threshold, 1.0, 0.0, 1.0);
+
+    return saturate(eroded);
 }
 
-float VolumetricShadow(float3 from, float shadowJitter, Texture3D cloudsTexture, ConstantBuffer<interop:: CloudsData> cloudsData)
+float VolumetricShadow(float3 from, float shadowJitter, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
+    ConstantBuffer <interop::CloudsData> cloudsData)
 {
     // Proportional step size
     float layerThickness = cloudsData.cloudLayerMax - cloudsData.cloudLayerMin;
@@ -81,7 +109,7 @@ float VolumetricShadow(float3 from, float shadowJitter, Texture3D cloudsTexture,
         if (norY > 1.0 || norY < 0.0)
             break;
 
-        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsData);
+        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
         shadow *= exp(-density * shadowStepSize * cloudsData.absorptionCoeff);
         
         shadowD += shadowStepSize;
@@ -142,8 +170,8 @@ bool GetCloudsLayerIntersectionPoints(
 
 // rayOriginLocal: camera position in world space
 // rayDir:         normalized ray direction in world space
-CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture3D cloudsTexture, ConstantBuffer<interop:: CloudsData> cloudsData,
-    float sceneDist, float mainJitter, float shadowJitter)
+CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
+    ConstantBuffer<interop::CloudsData> cloudsData, float sceneDist, float mainJitter, float shadowJitter)
 {
     CloudResult result;
     result.color = 0.0;
@@ -173,7 +201,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         float altitude = length(pos) - cloudsData.earthRadius;
         float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
 
-        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsData);
+        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
         
         float fadeFactor = saturate(1.0 - pow(t / cloudsData.cloudFadeDistance, 2.0));
         density *= fadeFactor;
@@ -181,7 +209,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         if (density > 0.0)
         {
             float absorption = exp(-density * stepSize * cloudsData.absorptionCoeff);
-            float lightEnergy = VolumetricShadow(pos, shadowJitter, cloudsTexture, cloudsData);
+            float lightEnergy = VolumetricShadow(pos, shadowJitter, cloudsTexture, cloudsDetailTexture, cloudsData);
             lightEnergy += 0.2; // ambient
 
             float3 S = lightEnergy * density;
@@ -211,7 +239,8 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
 float4 main(PS_INPUT input) : SV_Target
 {
     ConstantBuffer<interop::CloudsData> cloudsData = ResourceDescriptorHeap[Constants.cloudsDataDI];    
-    Texture3D<float4> baseTexture = ResourceDescriptorHeap[cloudsData.cloudBaseShapeTexture];
+    Texture3D<float4> baseTexture = ResourceDescriptorHeap[cloudsData.cloudsBaseShapeTexture];
+    Texture3D<float4> detailTexture = ResourceDescriptorHeap[cloudsData.cloudsDetailTexture];
     Texture2D<float> linearDepthTex = ResourceDescriptorHeap[cloudsData.linearDepthTexDI];
     
     // Reconstruct world-space ray direction from clip-space coordinates.
@@ -241,7 +270,7 @@ float4 main(PS_INPUT input) : SV_Target
     //float jitter = InterleavedGradientNoise(pixelPos + float2(Constants.frameIndex * 5.588238f, Constants.frameIndex * 3.424234f));
     
     CloudResult clouds = GetCloudsColorRayMarch(
-        Constants.cameraPosition, rayDir, baseTexture, cloudsData, sceneDist, mainJitter, shadowJitter);
+        Constants.cameraPosition, rayDir, baseTexture, detailTexture, cloudsData, sceneDist, mainJitter, shadowJitter);
     
     // Punto estable: centro del segmento atravesado por el rayo dentro de la capa.
     // Es EXACTO para este rayo (no depende del muestreo) y NO SALTA con jitter.
