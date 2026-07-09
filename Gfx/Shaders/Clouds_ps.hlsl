@@ -3,6 +3,9 @@
 #include "Noise.hlsli"
 #include "Common.hlsli"
 
+// Must be the lowest frequency of the detail texture
+static const float DETAIL_LOW_FREQ = 8.0;
+
 ConstantBuffer<interop::CloudsConstants> Constants : register(b0);
 
 struct PS_INPUT
@@ -25,6 +28,15 @@ float IntersectCloudSphere(float3 rd, float r, float earthRadius)
     float b = earthRadius * rd.y;
     float d = b * b + r * r + 2.0 * earthRadius * r;
     return -b + sqrt(d);
+}
+
+// Step-decorrelated jitter.
+// pixelPos in pixels, step = sample ID. Returns [0, 1].
+float StepJitter(float2 pixelPos, uint step, float salt)
+{
+    // Golden ratio breaks step-to-step correlation.
+    // Salt prevents main/shadow jitter periodicity conflicts.
+    return frac(InterleavedGradientNoise(pixelPos + float2(step, step * 1.61803398875)) + salt);
 }
 
 float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
@@ -78,31 +90,45 @@ float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Textur
     float3 detail = cloudsDetailTexture.SampleLevel(linearWrapSampler, detailUVW, 0.0).rgb;
     float hfbm = detail.r * 0.625 + detail.g * 0.25 + detail.b * 0.125;
 
-    // Truco paper: en la mitad baja (cerca del suelo de la capa),
-    // invertir la worley → bordes wispy/transparentes.
-    // norY ∈ [0,1]: bajo = wispy, alto = billowy (cumulus).
+    // Per paper: in the lower half (near the layer floor),
+    // Worley is inverted -> produces wispy/transparent edges.
+    // norY E [0,1]: lower values -> wispy, higher values -> billowy (cumulus-like).
     hfbm = lerp(1.0 - hfbm, hfbm, smoothstep(0.0, 0.5, norY));
 
-    // Threshold móvil controlado por detail strength.
-    // Empuja las densidades por debajo de `hfbm*strength` a 0.
+    // Dynamic threshold driven by detail strength.
+    // Any density value below `hfbm*strength` is clamped to zero.
     float threshold = hfbm * cloudsData.detailErosionStrength;
     float eroded = remap(coverage, threshold, 1.0, 0.0, 1.0);
 
     return saturate(eroded);
 }
 
-float VolumetricShadow(float3 from, float shadowJitter, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
+float VolumetricShadow(float3 from, float2 pixelPos, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
     ConstantBuffer <interop::CloudsData> cloudsData)
 {
-    // Proportional step size
-    float layerThickness = cloudsData.cloudLayerMax - cloudsData.cloudLayerMin;
-    float shadowStepSize = layerThickness / (float)cloudsData.lightSteps;
+    float3 sunDir = cloudsData.toSunDirection;
+    float2 sunHit = RaySphereIntersection(from, sunDir, float3(0, 0, 0), cloudsData.earthRadius + cloudsData.cloudLayerMax);
+    float shadowTMax = max(0.0, sunHit.y);
 
-    float shadowD = shadowJitter * shadowStepSize; // [0, shadowStepSize)
+    // Edge case: ray parallel to horizon, never enters the layer.
+    if (shadowTMax < 0.5)
+        return 1.0;
+
+    float detailSpatialFreq = cloudsData.cloudsScale * cloudsData.detailScale * DETAIL_LOW_FREQ;
+    float targetStepSize = (detailSpatialFreq > 0.0001) ? 1.0 / detailSpatialFreq : 1000.0;
+
+    // Dynamic steps, capped at lightSteps absolute.
+    uint effectiveLightSteps = (uint)clamp(ceil(shadowTMax / max(targetStepSize, 0.001)), 1.0, (float)cloudsData.lightSteps);
+    float shadowStepSize = shadowTMax / max(effectiveLightSteps, 1u);
+
+    float shadowD = 0.0;
     float shadow = 1.0;
 
-    for(int i = 0; i < cloudsData.lightSteps; ++i)
+    for(uint i = 0; i < effectiveLightSteps; ++i)
     {
+        float stepJ = StepJitter(pixelPos + float2(7.0, 13.0), i, 0.37);
+        float sampleD = shadowD + stepJ * shadowStepSize;
+
         float3 pos = from + cloudsData.toSunDirection * shadowD;
         float altitude = length(pos) - cloudsData.earthRadius;
         float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
@@ -171,7 +197,7 @@ bool GetCloudsLayerIntersectionPoints(
 // rayOriginLocal: camera position in world space
 // rayDir:         normalized ray direction in world space
 CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
-    ConstantBuffer<interop::CloudsData> cloudsData, float sceneDist, float mainJitter, float shadowJitter)
+    ConstantBuffer<interop::CloudsData> cloudsData, float sceneDist, float2 pixelPos)
 {
     CloudResult result;
     result.color = 0.0;
@@ -189,15 +215,26 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     {
         return result;
     }
-            
-    float stepSize = (tExit - tEntry) / cloudsData.maxSteps;
-        
-    float t = tEntry + mainJitter * stepSize;
+    float rayLength = min(tExit - tEntry, cloudsData.cloudFadeDistance);
+
+    // Resolution relative to freq of erosion detail.
+    float detailSpatialFreq = cloudsData.cloudsScale * cloudsData.detailScale * DETAIL_LOW_FREQ;
+    float targetStepSize = (detailSpatialFreq > 0.0001) ? 0.5 / detailSpatialFreq : 1000.0;
+    
+    // Dynamic steps, cap by maxSteps
+    uint effectiveSteps = (uint)ceil(rayLength / max(targetStepSize, 0.001));
+    effectiveSteps = clamp(effectiveSteps, 1u, (uint)cloudsData.maxSteps);
+
+    float stepSize = rayLength / max(effectiveSteps, 1u);
+    float t = tEntry;            
     float totalDensity = 0.0;
     
-    for (uint step = 0; step < cloudsData.maxSteps; ++step)
+    for (uint step = 0; step < effectiveSteps; ++step)
     {
-        float3 pos = rayOrigin + rayDir * t;
+        float stepJ = StepJitter(pixelPos, step, 0.0);
+        float sampleT = t + stepJ * stepSize;
+        
+        float3 pos = rayOrigin + rayDir * sampleT;
         float altitude = length(pos) - cloudsData.earthRadius;
         float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
 
@@ -209,7 +246,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         if (density > 0.0)
         {
             float absorption = exp(-density * stepSize * cloudsData.absorptionCoeff);
-            float lightEnergy = VolumetricShadow(pos, shadowJitter, cloudsTexture, cloudsDetailTexture, cloudsData);
+            float lightEnergy = VolumetricShadow(pos, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsData);
             lightEnergy += 0.2; // ambient
 
             float3 S = lightEnergy * density;
@@ -263,14 +300,10 @@ float4 main(PS_INPUT input) : SV_Target
     float cosAngle = dot(rayDir, cloudsData.cameraForward);
     float sceneDist = viewZ / max(cosAngle, 0.0001);
     
-    // Calc jitter
     float2 pixelPos = input.uv * Constants.viewportSize;
-    float mainJitter = InterleavedGradientNoise(pixelPos);
-    float shadowJitter = InterleavedGradientNoise(pixelPos + float2(0.5, 0.5));
-    //float jitter = InterleavedGradientNoise(pixelPos + float2(Constants.frameIndex * 5.588238f, Constants.frameIndex * 3.424234f));
     
     CloudResult clouds = GetCloudsColorRayMarch(
-        Constants.cameraPosition, rayDir, baseTexture, detailTexture, cloudsData, sceneDist, mainJitter, shadowJitter);
+        Constants.cameraPosition, rayDir, baseTexture, detailTexture, cloudsData, sceneDist, pixelPos);
     
     // Punto estable: centro del segmento atravesado por el rayo dentro de la capa.
     // Es EXACTO para este rayo (no depende del muestreo) y NO SALTA con jitter.

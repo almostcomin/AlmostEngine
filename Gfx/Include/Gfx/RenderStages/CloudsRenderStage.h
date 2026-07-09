@@ -18,12 +18,12 @@ public:
     static constexpr float kEarthRefRadius = 6360000.f;
     static constexpr float kCloadsLayerHStart = 1500.f;
     static constexpr float kCloadsLayerHEnd = 8000.f;
-    static constexpr float kCloudsFadeDistance = 50000.f;
+    static constexpr float kCloudsFadeDistance = 24000.f;
 
 	struct CloudsParams
 	{
         float2 WindVelocity = { 0.001f, 0.0005f };
-        float CloudsScale = 0.0005f;
+        float CloudsScale = 0.0004f;
         float CloudsCoverage = 0.36f;
         float AbsorptionCoeff = 0.3f;
         float CloudsLayerMin = kCloadsLayerHStart;
@@ -33,8 +33,8 @@ public:
         float3 EarthCenter = float3{ 0.f };
         float DetailScale = 8.f;
         float DetailErosionStrength = 0.2f;
-        uint32_t CloudRaymarchIterations = 16;
-        uint32_t LightRaymarchIterations = 8;
+        uint32_t CloudRaymarchIterations = 32;
+        uint32_t LightRaymarchIterations = 6;
 	};
 
 public:
