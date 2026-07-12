@@ -144,6 +144,8 @@ uint64_t alm::gfx::dx12::DeviceManager::BeginFrame(uint32_t* opt_microSec)
 
 bool alm::gfx::dx12::DeviceManager::Present(uint32_t* opt_microSec)
 {
+    ZoneScoped;
+
     auto bufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
     UINT presentFlags = 0;

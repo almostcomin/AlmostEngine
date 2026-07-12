@@ -305,7 +305,6 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, m_TexturesState);
 		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, m_BuffersState, m_TexturesState);
 
-
 		stageCommandList->BeginMarker(rs->renderStage->GetDebugName());
 
 		// GPU time query
@@ -360,6 +359,10 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 		// Render
 		if (rs->renderStage->IsEnabled())
 		{
+			ZoneScoped;
+			const char* name = rs->renderStage->GetDebugName();
+			ZoneText(name, strlen(name));
+
 			std::chrono::steady_clock::time_point tbegin = std::chrono::steady_clock::now();
 
 			rs->renderStage->Render(GetCommandList());
@@ -414,7 +417,6 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 	stageCommandList->EndMarker();
 	stageCommandList->Close();
 	m_DeviceManager->GetDevice()->ExecuteCommandList(stageCommandList, alm::rhi::QueueType::Graphics);
-
 }
 
 void alm::gfx::RenderGraph::OnSceneChanged()

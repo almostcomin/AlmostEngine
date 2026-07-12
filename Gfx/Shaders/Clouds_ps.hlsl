@@ -3,8 +3,8 @@
 #include "Noise.hlsli"
 #include "Common.hlsli"
 
-// Must be the lowest frequency of the detail texture
-static const float DETAIL_LOW_FREQ = 8.0;
+static const float DETAIL_LOW_FREQ = 8.0; // Must be the lowest frequency of the detail texture
+static const float CONE_HALF_ANGLE = 0.5; // ~30 deg cone (broad, captures ambient)
 
 ConstantBuffer<interop::CloudsConstants> Constants : register(b0);
 
@@ -23,11 +23,11 @@ struct CloudResult
     float tExit;
 };
 
-float IntersectCloudSphere(float3 rd, float r, float earthRadius)
+// Pseudo-random 2D offset in [-1, 1] using low-discrepancy sequence.
+float2 hash22(float2 p)
 {
-    float b = earthRadius * rd.y;
-    float d = b * b + r * r + 2.0 * earthRadius * r;
-    return -b + sqrt(d);
+    p = float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)));
+    return -1.0 + 2.0 * frac(sin(p) * 43758.5453);
 }
 
 // Step-decorrelated jitter.
@@ -37,6 +37,77 @@ float StepJitter(float2 pixelPos, uint step, float salt)
     // Golden ratio breaks step-to-step correlation.
     // Salt prevents main/shadow jitter periodicity conflicts.
     return frac(InterleavedGradientNoise(pixelPos + float2(step, step * 1.61803398875)) + salt);
+}
+
+// Stratus: thin band near base.
+float StratusProfile(float norY)
+{
+    float rampIn = smoothstep(0.05, 0.10, norY);
+    float rampOut = 1.0 - smoothstep(0.20, 0.25, norY);
+    return saturate(rampIn * rampOut);
+}
+
+// Cumulus: base lifts from 0.05 to 0.20, wispy top fade 0.55-0.85.
+float CumulusProfile(float norY)
+{
+    float rampIn = smoothstep(0.05, 0.20, norY);
+    float rampOut = 1.0 - smoothstep(0.55, 0.70, norY);
+    return saturate(rampIn * rampOut);
+}
+
+// Cumulonimbus: sharper base lift 0.05-0.15, top fade only at 0.90-1.00.
+float CumulonimbusProfile(float norY)
+{
+    float rampIn = smoothstep(0.05, 0.15, norY);
+    float rampOut = 1.0 - smoothstep(0.90, 1.00, norY);
+    return saturate(rampIn * rampOut);
+}
+
+// Weighted blend of the three profiles
+float CloudCoverageShape(float norY, float stratusWeight, float cumulusWeight, float cumulonimbusWeight)
+{
+    float s = StratusProfile(norY) * stratusWeight
+            + CumulusProfile(norY) * cumulusWeight
+            + CumulonimbusProfile(norY) * cumulonimbusWeight;
+    return saturate(s);
+}
+
+// Density 1 at the base, 0.3 at the top.
+float GlobalHeightGradient(float norY)
+{
+    return lerp(1.0, 0.3, smoothstep(0.0, 1.0, norY));
+}
+
+// Henyey-Greenstein phase function, forward-scattering anisotropy.
+// g in [-1, 1]: g > 0 favors forward scatter, g < 0 backward.
+// For water droplets g ~ 0.6-0.8 (very forward).
+float HenyeyGreenstein(float cosTheta, float g)
+{
+    float g2 = square(g);
+    float denom = 1.0 + g2 - 2.0 * g * cosTheta;
+    return (1.0 - g2) / (4.0 * M_PI * denom * sqrt(denom));
+}
+
+// Dual-lobe HG with directional weighting.
+// Forward lobe (g=0.8) dominates when looking AT the sun (cosTheta → 1).
+// Backward lobe (g=-0.2) dominates when looking AWAY from the sun (cosTheta → -1).
+// At side scatter (cosTheta = 0), it's a 50/50 blend.
+float DualLobeHG(float cosTheta)
+{
+    float forward  = HenyeyGreenstein(cosTheta, 0.8);
+    float backward = HenyeyGreenstein(cosTheta, -0.2);
+    // Directional weight: 1 at cosTheta=1 (forward), 0 at cosTheta=-1 (backward).
+    float forwardWeight = saturate(cosTheta * 0.5 + 0.5);
+    return forward * forwardWeight + backward * (1.0 - forwardWeight);
+}
+
+// Powder term: 0 at cloud edges (density=0), approaches 0.865 at density=1,
+// saturates to 1 at high density. This models the "dark edges facing the light"
+// and the in-scattering concentration in dense regions.
+// Powder(d) = 1 - exp(-2d)
+float PowderEffect(float density)
+{
+    return 1.0 - exp(-2.0 * density);
 }
 
 float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
@@ -72,14 +143,10 @@ float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Textur
     if (coverage <= 0.0)
         return 0.0;
 
+    coverage *= CloudCoverageShape(norY, cloudsData.stratusWeight, cloudsData.cumulusWeight, cloudsData.cumulonimbusWeight);
+    coverage *= GlobalHeightGradient(norY);
     coverage = saturate(coverage);
-    //coverage = pow(coverage, 2.0f);
 
-    // Gradiente de densidad vertical — nubes más densas en el centro de la capa
-    //float heightGradient = saturate(remap(uvw.z, 0.0f, 0.1f, 0.0f, 1.0f))   // fade inferior
-    //                     * saturate(remap(uvw.z, 0.6f, 1.0f, 1.0f, 0.0f));  // fade superior
-    //coverage *= heightGradient;
-    
     // -- DETAIL EROSION
 
     float3 detailUVW;
@@ -103,44 +170,77 @@ float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Textur
     return saturate(eroded);
 }
 
-float VolumetricShadow(float3 from, float2 pixelPos, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
-    ConstantBuffer <interop::CloudsData> cloudsData)
+float VolumetricShadow(float3 from, float3 rayDir, float2 pixelPos,
+                       Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
+                       ConstantBuffer<interop::CloudsData> cloudsData)
 {
-    float3 sunDir = cloudsData.toSunDirection;
-    float2 sunHit = RaySphereIntersection(from, sunDir, float3(0, 0, 0), cloudsData.earthRadius + cloudsData.cloudLayerMax);
-    float shadowTMax = max(0.0, sunHit.y);
+    // Distance to layer's outer surface along sun direction.
+    float2 hit = RaySphereIntersection(
+        from, cloudsData.toSunDirection, float3(0.0, 0.0, 0.0), cloudsData.earthRadius + cloudsData.cloudLayerMax);
+    float tMax = max(0.0, hit.y);
 
-    // Edge case: ray parallel to horizon, never enters the layer.
-    if (shadowTMax < 0.5)
-        return 1.0;
+    float totalInScatter = 0.0;
+    float totalWeight = 0.0;
 
-    float detailSpatialFreq = cloudsData.cloudsScale * cloudsData.detailScale * DETAIL_LOW_FREQ;
-    float targetStepSize = (detailSpatialFreq > 0.0001) ? 1.0 / detailSpatialFreq : 1000.0;
-
-    // Dynamic steps, capped at lightSteps absolute.
-    uint effectiveLightSteps = (uint)clamp(ceil(shadowTMax / max(targetStepSize, 0.001)), 1.0, (float)cloudsData.lightSteps);
-    float shadowStepSize = shadowTMax / max(effectiveLightSteps, 1u);
-
-    float shadowD = 0.0;
-    float shadow = 1.0;
-
-    for(uint i = 0; i < effectiveLightSteps; ++i)
+    for (int i = 0; i < cloudsData.coneRayCount; ++i)
     {
-        float stepJ = StepJitter(pixelPos + float2(7.0, 13.0), i, 0.37);
-        float sampleD = shadowD + stepJ * shadowStepSize;
+        // Direction slightly off the sun, on a cone of half-angle CONE_HALF_ANGLE.
+        // Random offset on the disk, deterministic per pixel+sample.
+        float2 off = hash22(pixelPos + float2((float)i * 1.337, (float)i * 0.713));
+        float r = length(off);
+        if (r > 1.0)
+            off /= r;
 
-        float3 pos = from + cloudsData.toSunDirection * shadowD;
-        float altitude = length(pos) - cloudsData.earthRadius;
-        float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
-        if (norY > 1.0 || norY < 0.0)
-            break;
+        float cosA = cos(CONE_HALF_ANGLE);
+        float sinA = sin(CONE_HALF_ANGLE);
+        float3 dir = cloudsData.toSunDirection * cosA
+                   + cloudsData.sunT * off.x * sinA
+                   + cloudsData.sunB * off.y * sinA;
+        dir = normalize(dir);
 
-        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
-        shadow *= exp(-density * shadowStepSize * cloudsData.absorptionCoeff);
-        
-        shadowD += shadowStepSize;
+        // March a few steps in this direction. The "in-scattering proxy" is
+        // the optical depth integrated along the ray, weighted by HG(view, dir).
+        // This is what gives the "ambient effect" without expensive multi-bounce.
+        float2 dirHit = RaySphereIntersection(
+            from, dir, float3(0.0, 0.0, 0.0), cloudsData.earthRadius + cloudsData.cloudLayerMax);
+        float dirTMax = max(0.0, dirHit.y);
+
+        // EARTH OCCLUSION: if the sun is below the horizon, the shadow ray
+        // would hit the Earth. Clamp tMax so the march stops at the Earth surface.
+        float2 earthHit = RaySphereIntersection(from, dir, float3(0.0, 0.0, 0.0), cloudsData.earthRadius);
+        if(earthHit.x > 0.0)
+            dirTMax = min(dirTMax, earthHit.x);
+
+        if (dirTMax < 0.5)
+            continue;
+
+        float step = dirTMax / (float)cloudsData.lightSteps;
+        float opticalDepth = 0.0;
+        for (int j = 0; j < cloudsData.lightSteps; ++j)
+        {
+            float stepJ = StepJitter(pixelPos + float2(7.0, 13.0) + (float)i, (uint)j, 0.37);
+            float sampleD = (float)j * step + stepJ * step;
+            float3 pos = from + dir * sampleD;
+            float alt = length(pos) - cloudsData.earthRadius;
+            float norY = (alt - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
+            if (norY > 1.0 || norY < 0.0)
+                break;
+
+            float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
+            opticalDepth += density * step;
+        }
+
+        // Weight this cone ray by HG between view direction and the cone direction.
+        // Forward-scattered light gets more weight, but the broad cone samples all
+        // directions so the average is robust.
+        float hgWeight = HenyeyGreenstein(dot(rayDir, dir), 0.6);
+        totalInScatter += opticalDepth * hgWeight;
+        totalWeight += hgWeight;
     }
-    return shadow;
+
+    // Final shadow: Beer-Lambert on the average weighted in-scattering depth.
+    float avgInScatter = totalInScatter / max(totalWeight, 0.001);
+    return exp(-avgInScatter * cloudsData.muT);
 }
 
 bool GetCloudsLayerIntersectionPoints(
@@ -220,7 +320,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     // Resolution relative to freq of erosion detail.
     float detailSpatialFreq = cloudsData.cloudsScale * cloudsData.detailScale * DETAIL_LOW_FREQ;
     float targetStepSize = (detailSpatialFreq > 0.0001) ? 0.5 / detailSpatialFreq : 1000.0;
-    
+        
     // Dynamic steps, cap by maxSteps
     uint effectiveSteps = (uint)ceil(rayLength / max(targetStepSize, 0.001));
     effectiveSteps = clamp(effectiveSteps, 1u, (uint)cloudsData.maxSteps);
@@ -228,7 +328,14 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     float stepSize = rayLength / max(effectiveSteps, 1u);
     float t = tEntry;            
     float totalDensity = 0.0;
+    float weightedHeight = 0.0; // density-weighted norY accumulator
+    float powderSum = 0.0;      // density-weighted powder accumulator
+    float powderWeight = 0.0;   // total weight (for averaging)    
     
+    float cosTheta = dot(rayDir, -cloudsData.toSunDirection);
+    float phase = DualLobeHG(cosTheta);
+    float skyWeight = saturate(-rayDir.y * 0.5 + 0.5);
+        
     for (uint step = 0; step < effectiveSteps; ++step)
     {
         float stepJ = StepJitter(pixelPos, step, 0.0);
@@ -237,33 +344,47 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         float3 pos = rayOrigin + rayDir * sampleT;
         float altitude = length(pos) - cloudsData.earthRadius;
         float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
-
         float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
         
-        float fadeFactor = saturate(1.0 - pow(t / cloudsData.cloudFadeDistance, 2.0));
+        float normT = t * cloudsData.invCloudFadeDistance;
+        float fadeFactor = saturate(1.0 - square(normT));
         density *= fadeFactor;
-        
+                
         if (density > 0.0)
-        {
-            float absorption = exp(-density * stepSize * cloudsData.absorptionCoeff);
-            float lightEnergy = VolumetricShadow(pos, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsData);
-            lightEnergy += 0.2; // ambient
-
-            float3 S = lightEnergy * density;
-            float dTrans = absorption;
-            float3 Sint = (S - S * dTrans) * (1.0f / max(density, 0.0001f)); // analytical integral
+        {            
+            float lightEnergy = VolumetricShadow(pos, rayDir, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsData);
+            float powder = PowderEffect(density);
             
-            result.color += result.transmittance * Sint;
+            // Source term
+            float3 S = cloudsData.scatteringCoeff * lightEnergy * phase * powder;
+            // Transmission
+            float dTrans = exp(-density * stepSize * cloudsData.muT);
+
+            result.color += result.transmittance * S * stepSize;
             result.transmittance *= dTrans;
             result.weightedDistance += t * density;
 
+            weightedHeight += norY * density;
             totalDensity += density;
+            powderSum += powder * density;
+            powderWeight += density;
+            
             if (result.transmittance < 0.001)
                 break;
         }
         
         t += stepSize;
     }    
+
+    float avgNorY = (totalDensity > 0.0) ? (weightedHeight / totalDensity) : 0.5;
+    float heightFactor = saturate(avgNorY);
+    float ambient = lerp(0.4, 0.9, skyWeight) * lerp(0.7, 1.0, heightFactor);
+    float avgPowder = (powderWeight > 0.0) ? (powderSum / powderWeight) : 0.0;    
+    //float multiScatterBoost = 1.0 / max(1.0 - cloudsData.albedo, 0.1);
+    float multiScatterBoost = 1.0 + 4.0 * square(cloudsData.albedo);
+    float ambientDarkening = pow(avgPowder, 0.4);
+    
+    result.color += ambient * multiScatterBoost * ambientDarkening * (1.0 - result.transmittance);
     
     result.weightedDistance /= max(totalDensity, 0.0001f);
     result.tEntry = tEntry;
@@ -335,7 +456,7 @@ float4 main(PS_INPUT input) : SV_Target
         bool historyHadCloud = prevColor.a < 0.999;
         if (historyHadCloud)
         {
-            finalColor = lerp(prevColor, currentColor, 0.75);
+            finalColor = lerp(prevColor, currentColor, 0.85);
         }
         else
         {

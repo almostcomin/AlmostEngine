@@ -142,6 +142,8 @@ bool alm::gfx::DeviceManager::UpdateWindowSize()
 
 alm::gfx::DeviceManager::RenderResult alm::gfx::DeviceManager::Render(float totalSec, float elapsedSec, gfx::MouseState mouseState)
 {
+	ZoneScoped;
+
 	RenderResult result;
 	result.cpuIdleMs = 0.f;
 
@@ -206,6 +208,8 @@ alm::gfx::DeviceManager::RenderResult alm::gfx::DeviceManager::Render(float tota
 			}
 			else
 			{
+				ZoneScopedN("FPS cap");
+
 				const auto t0 = std::chrono::steady_clock::now();
 				std::this_thread::sleep_until(nextFrameTime);
 				const auto t1 = std::chrono::steady_clock::now();

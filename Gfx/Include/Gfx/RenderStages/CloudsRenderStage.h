@@ -22,10 +22,14 @@ public:
 
 	struct CloudsParams
 	{
-        float2 WindVelocity = { 0.001f, 0.0005f };
+        float2 WindVelocity = { 0.002f, 0.001f };
+        float StratusWeight = 0.3f;
+        float CumulusWeight = 0.7f;
+        float CumulonimbusWeight = 0.f;
         float CloudsScale = 0.0004f;
-        float CloudsCoverage = 0.36f;
-        float AbsorptionCoeff = 0.3f;
+        float CloudsCoverage = 0.4f;
+        float AbsorptionCoeff = 0.02f;
+        float ScatteringCoeff = 0.8f;
         float CloudsLayerMin = kCloadsLayerHStart;
         float CloudsLayerMax = kCloadsLayerHEnd;
         float CloudsFadeDistance = kCloudsFadeDistance;
@@ -35,6 +39,7 @@ public:
         float DetailErosionStrength = 0.2f;
         uint32_t CloudRaymarchIterations = 32;
         uint32_t LightRaymarchIterations = 6;
+        uint32_t ConeRayCount = 6;
 	};
 
 public:

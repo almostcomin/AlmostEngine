@@ -136,11 +136,15 @@ void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSi
 	BuildSubdivisionBFS(camera, fbSize);
 
 	// Select leafs
-	m_LeafNodes.clear();
-	QuadNodeCoord root{ .Level = 0, .CellIndex{0, 0} };
-	SelectLODNodes(m_LeafNodes, root, camera, fbSize);
-	if (m_LeafNodes.empty())
-		return;
+	{
+		ZoneScopedN("SelectLODNodes");
+
+		m_LeafNodes.clear();
+		QuadNodeCoord root{ .Level = 0, .CellIndex{0, 0} };
+		SelectLODNodes(m_LeafNodes, root, camera, fbSize);
+		if (m_LeafNodes.empty())
+			return;
+	}
 
 	// Calc mesh variant
 	SetMeshVariantsAndEdgeMask();
@@ -410,8 +414,6 @@ void alm::gfx::HeightmapInstance::IterateQuadTreeForMetric(const Camera* camera,
 void alm::gfx::HeightmapInstance::SelectLODNodes(std::vector<QuadNodeCoord>& leafNodes, const QuadNodeCoord& node,
 	const Camera* camera, const uint2& fbSize)
 {
-	ZoneScoped
-
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	const float2 uvScale = heightmap->GetUVScale();
 

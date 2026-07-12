@@ -227,31 +227,45 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		// Update clouds position offset
 		m_CloudsOffset += m_Params.WindVelocity * GetRenderView()->GetTimeDelta();
 
+		const float3 toSunDirection = -glm::normalize(alm::ElevationAzimuthRadToDir(
+			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg)));
+		const float muT = m_Params.ScatteringCoeff + m_Params.AbsorptionCoeff;
+
 		// Fill shader constants
 		auto* cloudsData = (interop::CloudsData*)m_CloudsCB.Map();
 
 		cloudsData->cloudsBaseShapeTexture = m_CloudsShapeTexture->GetSampledView();
 		cloudsData->cloudsDetailTexture = m_CloudsDetailTexture->GetSampledView();
+		cloudsData->stratusWeight = m_Params.StratusWeight;
+		cloudsData->cumulusWeight = m_Params.CumulusWeight;
+		cloudsData->cumulonimbusWeight = m_Params.CumulonimbusWeight;
 		cloudsData->cloudsScale = m_Params.CloudsScale;
 		cloudsData->coverage = m_Params.CloudsCoverage;
 		cloudsData->cloudFadeDistance = m_Params.CloudsFadeDistance;
 		cloudsData->windOffset = m_CloudsOffset;
 		cloudsData->cloudLayerMin = m_Params.CloudsLayerMin;
 		cloudsData->cloudLayerMax = m_Params.CloudsLayerMax;
-		cloudsData->toSunDirection = -glm::normalize(alm::ElevationAzimuthRadToDir(
-			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg)));
-		cloudsData->absorptionCoeff = m_Params.AbsorptionCoeff;
+		cloudsData->toSunDirection = toSunDirection;
+		cloudsData->muT = muT;
+		cloudsData->scatteringCoeff = m_Params.ScatteringCoeff;
+		cloudsData->albedo = m_Params.ScatteringCoeff / std::max(muT, 0.001f);
 		cloudsData->earthCenter = m_Params.EarthCenter;
 		cloudsData->earthRadius = m_Params.EarthRadius;
 		cloudsData->invCloudLayerThickness = 1.f / (m_Params.CloudsLayerMax - m_Params.CloudsLayerMin);
-		cloudsData->maxSteps = m_Params.CloudRaymarchIterations;
-		cloudsData->lightSteps = m_Params.LightRaymarchIterations;
 		cloudsData->linearDepthTexDI = m_RenderGraph->GetTextureSampledView(m_LinearDepthTexture);
 		cloudsData->cameraForward = GetCamera()->GetForward();
 		cloudsData->prevCloudsTexDI = m_CloudsTexture[cloudsOtherIdx]->GetSampledView();
 		cloudsData->detailScale = m_Params.DetailScale;
 		cloudsData->detailErosionStrength = m_Params.DetailErosionStrength;
 		cloudsData->matPrevFrameViewProj = GetRenderView()->GetPrevFrameViewProjMatrix();
+		cloudsData->invCloudFadeDistance = 1.f / m_Params.CloudsFadeDistance;
+		cloudsData->maxSteps = m_Params.CloudRaymarchIterations;
+		cloudsData->lightSteps = m_Params.LightRaymarchIterations;
+		cloudsData->coneRayCount = m_Params.ConeRayCount;
+
+		const float3 up = abs(toSunDirection.y) < 0.99 ? float3(0.0, 1.0, 0.0) : float3(1.0, 0.0, 0.0);
+		cloudsData->sunT = normalize(cross(toSunDirection, up));
+		cloudsData->sunB = cross(toSunDirection, cloudsData->sunT);
 
 		interop::CloudsConstants cloudsConstants;
 		cloudsConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();

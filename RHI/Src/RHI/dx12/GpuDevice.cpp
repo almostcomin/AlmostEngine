@@ -820,6 +820,8 @@ void alm::rhi::dx12::GpuDevice::ReleaseBufferReadWriteView(BufferReadWriteView& 
 
 void alm::rhi::dx12::GpuDevice::ExecuteCommandLists(std::span<ICommandList* const> commandLists, QueueType type, IFence* signal, uint64_t value)
 {
+	ZoneScoped;
+
 	auto& queue = m_Queues[(int)type];
 	if (!queue.d3d12Queue)
 	{

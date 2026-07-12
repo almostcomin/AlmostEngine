@@ -472,7 +472,7 @@ namespace interop
         float3 earthCenter;             // offset 12
         float cloudLayerMin;
         float cloudLayerMax;            // offset 16
-        float absorptionCoeff;
+        float muT;
         float earthRadius;              
         float invCloudLayerThickness;   
         float3 cameraForward;           // offset 20
@@ -480,8 +480,16 @@ namespace interop
         uint lightSteps;                // offset 24
         float detailScale;
         float detailErosionStrength;
-        uint _padding;         
+        float scatteringCoeff;
         float4x4 matPrevFrameViewProj;  // offset 28
+        float stratusWeight;            // offset 44
+        float cumulusWeight;
+        float cumulonimbusWeight;
+        float invCloudFadeDistance;
+        float3 sunT;
+        uint coneRayCount;
+        float3 sunB;
+        float albedo;
     };
 
     struct CloudsConstants

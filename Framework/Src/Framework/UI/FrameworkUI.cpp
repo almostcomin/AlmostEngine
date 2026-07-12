@@ -1310,6 +1310,14 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::PopStyleColor();
 
         ImGui::Spacing();
+        ImGui::SeparatorText("Preset");
+        ImGui::Spacing();
+
+
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Velocity");
+        ImGui::Spacing();
 
         float2 velDir = FrameworkData.CloudsParams.WindVelocity;
         float velMag = glm::length(velDir);
@@ -1329,18 +1337,53 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
             FrameworkData.CloudsParams.WindVelocity *= velMag;
         }
 
+        ImGui::Spacing();
+        ImGui::SeparatorText("Shape");
+        ImGui::Spacing();
+
+        ImGui::SliderFloat("Stratus Weight##Clouds", &FrameworkData.CloudsParams.StratusWeight, 0.f, 1.f);
+        ImGui::SliderFloat("Cumulus Weight##Clouds", &FrameworkData.CloudsParams.CumulusWeight, 0.f, 1.f);
+        ImGui::SliderFloat("Cumulonimbus Weight##Clouds", &FrameworkData.CloudsParams.CumulonimbusWeight, 0.f, 1.f);
+
+        ImGui::Spacing();
+
         ImGui::SliderFloat("Scale##Clouds", &FrameworkData.CloudsParams.CloudsScale, 0.f, 1.f, "%.6f",
             ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+        ImGui::Spacing();
+
         ImGui::SliderFloat("Coverage##Clouds", &FrameworkData.CloudsParams.CloudsCoverage, 0.f, 1.f);
-        ImGui::SliderFloat("Absorption##Clouds", &FrameworkData.CloudsParams.AbsorptionCoeff, 0.f, 1.f);
+        ImGui::Spacing();
+
         ImGui::InputFloat("Detail Scale##Clouds", &FrameworkData.CloudsParams.DetailScale);
         ImGui::SliderFloat("Detail Erosion Strength##Clouds", &FrameworkData.CloudsParams.DetailErosionStrength, 0.f, 1.f);
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Lighting");
+        ImGui::Spacing();
+
+        ImGui::SliderFloat("Absorption Coeff##Clouds", &FrameworkData.CloudsParams.AbsorptionCoeff, 0.f, 1.f);
+        ImGui::SliderFloat("Scattering Coeff##Clouds", &FrameworkData.CloudsParams.ScatteringCoeff, 0.f, 1.f);
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Layer");
+        ImGui::Spacing();
+
         ImGui::InputFloat("Clouds Bottom##Clouds", &FrameworkData.CloudsParams.CloudsLayerMin);
         ImGui::InputFloat("Clouds Top##Clouds", &FrameworkData.CloudsParams.CloudsLayerMax);
+        ImGui::Spacing();
         ImGui::InputFloat("Fade Distance##Clouds", &FrameworkData.CloudsParams.CloudsFadeDistance);
+        ImGui::Spacing();
         ImGui::InputFloat("Earth Radius##Clouds", &FrameworkData.CloudsParams.EarthRadius);
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Simulation");
+        ImGui::Spacing();
+
         ImGui::InputScalar("Density interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.CloudRaymarchIterations);
+        ImGui::InputScalar("Light cone rays count##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.ConeRayCount);
         ImGui::InputScalar("Light interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.LightRaymarchIterations);
+
+        ImGui::Spacing();
 
         if (ImGui::Button("Open Shape Texture"))
         {

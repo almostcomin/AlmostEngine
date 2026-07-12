@@ -591,6 +591,8 @@ void alm::fw::App::MainLoop()
 
 	while (!requestQuit)
 	{
+		ZoneScopedN("Main Loop");
+
 		const auto currentTime = std::chrono::steady_clock::now();
 		const std::chrono::duration<double> totalDuration = currentTime - appStartTime;
 		const double totalSec = totalDuration.count();
