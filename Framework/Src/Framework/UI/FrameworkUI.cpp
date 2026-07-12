@@ -1313,7 +1313,24 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::SeparatorText("Preset");
         ImGui::Spacing();
 
+        if (ImGui::BeginCombo("Preset##Clouds", CloudsPresetToString(m_CloudsPreset)))
+        {
+            for (int i = 0; i < (int)CloudsPreset::_Size; ++i)
+            {
+                if (ImGui::Selectable(CloudsPresetToString((CloudsPreset)i), i == (int)m_CloudsPreset))
+                {
+                    m_CloudsPreset = (CloudsPreset)i;
+                }
+            }
+            ImGui::EndCombo();
+        }
 
+        ImGui::SameLine();
+
+        if (ImGui::Button("Apply##CloudsPreset"))
+        {
+            ApplyCloudsPreset(FrameworkData.CloudsParams, m_CloudsPreset);
+        }
 
         ImGui::Spacing();
         ImGui::SeparatorText("Velocity");

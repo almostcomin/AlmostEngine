@@ -8,6 +8,7 @@
 #include "Gfx/RenderStageFactory.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/Scene.h"
+#include "Framework/UI/CloudsPresets.h"
 
 struct MemoryEditor;
 
@@ -18,7 +19,6 @@ namespace alm::gfx
 
 namespace alm::fw
 {
-
 	class CameraController;
 
 class FrameworkUI : public alm::gfx::ImGuiRenderStage
@@ -236,6 +236,8 @@ private:
 	bool m_ShowLuminanceHistogram = false;
 	alm::gfx::RGBufferViewTicket m_LumHistogramBufferTicket;
 	int m_LumHistogramMode = 0;
+
+	CloudsPreset m_CloudsPreset = CloudsPreset::PartlyCloudy;
 
 	std::vector<std::pair<std::string, const std::function<void()>>> m_MainMenuAdditionalItems;
 };
