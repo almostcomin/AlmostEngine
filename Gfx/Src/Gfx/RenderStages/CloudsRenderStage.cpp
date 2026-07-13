@@ -249,6 +249,7 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->muT = muT;
 		cloudsData->scatteringCoeff = m_Params.ScatteringCoeff;
 		cloudsData->albedo = m_Params.ScatteringCoeff / std::max(muT, 0.001f);
+		cloudsData->ambientStrength = m_Params.AmbientStrength;
 		cloudsData->earthCenter = m_Params.EarthCenter;
 		cloudsData->earthRadius = m_Params.EarthRadius;
 		cloudsData->invCloudLayerThickness = 1.f / (m_Params.CloudsLayerMax - m_Params.CloudsLayerMin);

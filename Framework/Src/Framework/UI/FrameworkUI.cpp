@@ -1380,6 +1380,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 
         ImGui::SliderFloat("Absorption Coeff##Clouds", &FrameworkData.CloudsParams.AbsorptionCoeff, 0.f, 1.f);
         ImGui::SliderFloat("Scattering Coeff##Clouds", &FrameworkData.CloudsParams.ScatteringCoeff, 0.f, 1.f);
+        ImGui::SliderFloat("Ambient Strength##Clouds", &FrameworkData.CloudsParams.AmbientStrength, 0.f, 2.f);
 
         ImGui::Spacing();
         ImGui::SeparatorText("Layer");

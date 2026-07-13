@@ -486,10 +486,12 @@ namespace interop
         float cumulusWeight;
         float cumulonimbusWeight;
         float invCloudFadeDistance;
-        float3 sunT;
+        float3 sunT;                    // offset 48
         uint coneRayCount;
-        float3 sunB;
+        float3 sunB;                    // offset 52
         float albedo;
+        float ambientStrength;          // offset 56
+        uint3 _padding0;
     };
 
     struct CloudsConstants

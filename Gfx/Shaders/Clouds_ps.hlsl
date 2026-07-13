@@ -378,7 +378,11 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
 
     float avgNorY = (totalDensity > 0.0) ? (weightedHeight / totalDensity) : 0.5;
     float heightFactor = saturate(avgNorY);
-    float ambient = lerp(0.4, 0.9, skyWeight) * lerp(0.7, 1.0, heightFactor);
+    
+    // Sky/ground ratio (0.4 ground, 0.9 sky)
+    // Height attenuation (0.7 base, 1.0 top)
+    // Global strength is exposed for storm/bright presets.    
+    float ambient = lerp(0.4, 0.9, skyWeight) * lerp(0.7, 1.0, heightFactor) * cloudsData.ambientStrength;
     float avgPowder = (powderWeight > 0.0) ? (powderSum / powderWeight) : 0.0;    
     //float multiScatterBoost = 1.0 / max(1.0 - cloudsData.albedo, 0.1);
     float multiScatterBoost = 1.0 + 4.0 * square(cloudsData.albedo);

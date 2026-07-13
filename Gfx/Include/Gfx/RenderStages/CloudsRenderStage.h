@@ -30,6 +30,7 @@ public:
         float CloudsCoverage = 0.4f;
         float AbsorptionCoeff = 0.02f;
         float ScatteringCoeff = 0.8f;
+        float AmbientStrength = 1.f;
         float CloudsLayerMin = kCloadsLayerHStart;
         float CloudsLayerMax = kCloadsLayerHEnd;
         float CloudsFadeDistance = kCloudsFadeDistance;

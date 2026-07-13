@@ -237,7 +237,7 @@ private:
 	alm::gfx::RGBufferViewTicket m_LumHistogramBufferTicket;
 	int m_LumHistogramMode = 0;
 
-	CloudsPreset m_CloudsPreset = CloudsPreset::PartlyCloudy;
+	CloudsPreset m_CloudsPreset = CloudsPreset::FairWeather;
 
 	std::vector<std::pair<std::string, const std::function<void()>>> m_MainMenuAdditionalItems;
 };
