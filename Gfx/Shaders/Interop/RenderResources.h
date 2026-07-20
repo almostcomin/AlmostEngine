@@ -480,18 +480,20 @@ namespace interop
         uint lightSteps;                // offset 24
         float detailScale;
         float detailErosionStrength;
-        float scatteringCoeff;
+        float muS;
         float4x4 matPrevFrameViewProj;  // offset 28
         float stratusWeight;            // offset 44
         float cumulusWeight;
         float cumulonimbusWeight;
         float invCloudFadeDistance;
         float3 sunT;                    // offset 48
-        uint coneRayCount;
+        uint multiScatterOctaves;
         float3 sunB;                    // offset 52
         float albedo;
         float ambientStrength;          // offset 56
-        uint3 _padding0;
+        float multiScatterEccentricity;
+        float multiScatterContribution;
+        float multiScatterOcclusion;
     };
 
     struct CloudsConstants
@@ -501,6 +503,7 @@ namespace interop
         BufferUniformIndex cloudsDataDI; // CloudsData
         uint2 viewportSize;
         uint frameCounter;
+        uint debugChannel;
     };
 
     struct HeightmapDebugConstants

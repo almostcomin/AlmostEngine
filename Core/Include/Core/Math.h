@@ -66,4 +66,10 @@ inline T square(T v)
     return v * v;
 }
 
+template<class T>
+inline T saturate(T v)
+{
+    return std::clamp<T>(v, (T)0, (T)1);
+}
+
 } // namespace st

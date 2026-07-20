@@ -1380,7 +1380,14 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 
         ImGui::SliderFloat("Absorption Coeff##Clouds", &FrameworkData.CloudsParams.AbsorptionCoeff, 0.f, 1.f);
         ImGui::SliderFloat("Scattering Coeff##Clouds", &FrameworkData.CloudsParams.ScatteringCoeff, 0.f, 1.f);
-        ImGui::SliderFloat("Ambient Strength##Clouds", &FrameworkData.CloudsParams.AmbientStrength, 0.f, 2.f);
+
+        ImGui::Spacing();
+        ImGui::SliderFloat("MultiScatter Contribution##Clouds", &FrameworkData.CloudsParams.MultiScatterContribution, 0.f, 1.f);
+        ImGui::SliderFloat("MultiScatter Occlusion##Clouds", &FrameworkData.CloudsParams.MultiScatterOcclusion, 0.f, 1.f);
+        ImGui::SliderFloat("MultiScatter Eccentricity##Clouds", &FrameworkData.CloudsParams.MultiScatterEccentricity, 0.f, 1.f);
+
+        ImGui::Spacing();
+        ImGui::SliderFloat("Ambient Strength##Clouds", &FrameworkData.CloudsParams.AmbientStrength, 0.f, 1.f);
 
         ImGui::Spacing();
         ImGui::SeparatorText("Layer");
@@ -1398,8 +1405,18 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::Spacing();
 
         ImGui::InputScalar("Density interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.CloudRaymarchIterations);
-        ImGui::InputScalar("Light cone rays count##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.ConeRayCount);
         ImGui::InputScalar("Light interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.LightRaymarchIterations);
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Debug");
+        ImGui::Spacing();
+
+        if (ImGui::Combo("Channel##Debug", (int*)&m_CloudsDebugChannel,
+            "Disabled\0Transmittance\0\0"))
+        {
+            auto debugChannel = (alm::gfx::CloudsRenderStage::DebugChannel)m_CloudsDebugChannel;
+            cloudsRS->SetDebugChannel(debugChannel);
+        }
 
         ImGui::Spacing();
 
@@ -1408,7 +1425,9 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
             auto tex = cloudsRS->GetCloudsShapeTexture();
             AddTextureWindow(tex->GetDebugName(), tex);
         }
+
         ImGui::SameLine();
+
         if (ImGui::Button("Open Detail Texture"))
         {
             auto tex = cloudsRS->GetCloudsDetailTexture();
@@ -1723,6 +1742,9 @@ void alm::fw::FrameworkUI::BuildTextureWindows()
 
 bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
 {
+    if (!tw.texture || tw.texture.expired())
+        return false;
+
     bool isOpen = true;
     const auto& texDesc = tw.texture->GetDesc();
     ImVec2 imageSize{ tw.defaultImageWidth, tw.defaultImageWidth * texDesc.height / texDesc.width };

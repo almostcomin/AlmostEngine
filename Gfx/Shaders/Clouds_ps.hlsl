@@ -3,8 +3,11 @@
 #include "Noise.hlsli"
 #include "Common.hlsli"
 
-static const float DETAIL_LOW_FREQ = 8.0; // Must be the lowest frequency of the detail texture
-static const float CONE_HALF_ANGLE = 0.5; // ~30 deg cone (broad, captures ambient)
+// Keep in sync with alm::gfx::CloudsRenderStage::DebugChannel
+static const uint DebugChannel_Disabled = 0;
+static const uint DebugChannel_Clouds_Transmitance = 1;
+
+static const float DETAIL_LOW_FREQ = 8.0;   // Must be the lowest frequency of the detail texture
 
 ConstantBuffer<interop::CloudsConstants> Constants : register(b0);
 
@@ -12,6 +15,12 @@ struct PS_INPUT
 {
     float4 position : SV_Position;
     float2 uv : TEXCOORD0;
+};
+
+struct ShadowResult
+{
+    float lightEnergy;
+    float opticalDepth;
 };
 
 struct CloudResult
@@ -170,77 +179,49 @@ float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Textur
     return saturate(eroded);
 }
 
-float VolumetricShadow(float3 from, float3 rayDir, float2 pixelPos,
-                       Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
-                       ConstantBuffer<interop::CloudsData> cloudsData)
+ShadowResult VolumetricShadow(float3 from, float2 pixelPos,
+                              Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
+                              ConstantBuffer<interop::CloudsData> cloudsData)
 {
     // Distance to layer's outer surface along sun direction.
     float2 hit = RaySphereIntersection(
         from, cloudsData.toSunDirection, float3(0.0, 0.0, 0.0), cloudsData.earthRadius + cloudsData.cloudLayerMax);
     float tMax = max(0.0, hit.y);
 
-    float totalInScatter = 0.0;
-    float totalWeight = 0.0;
+    // EARTH OCCLUSION: if the sun is below the horizon, the shadow ray
+    // would hit the Earth. Clamp tMax so the march stops at the Earth surface.
+    float2 earthHit = RaySphereIntersection(from, cloudsData.toSunDirection, float3(0.0, 0.0, 0.0), cloudsData.earthRadius);
+    if(earthHit.x > 0.0)
+        tMax = min(tMax, earthHit.x);
 
-    for (int i = 0; i < cloudsData.coneRayCount; ++i)
+    if (tMax < 0.5)
     {
-        // Direction slightly off the sun, on a cone of half-angle CONE_HALF_ANGLE.
-        // Random offset on the disk, deterministic per pixel+sample.
-        float2 off = hash22(pixelPos + float2((float)i * 1.337, (float)i * 0.713));
-        float r = length(off);
-        if (r > 1.0)
-            off /= r;
-
-        float cosA = cos(CONE_HALF_ANGLE);
-        float sinA = sin(CONE_HALF_ANGLE);
-        float3 dir = cloudsData.toSunDirection * cosA
-                   + cloudsData.sunT * off.x * sinA
-                   + cloudsData.sunB * off.y * sinA;
-        dir = normalize(dir);
-
-        // March a few steps in this direction. The "in-scattering proxy" is
-        // the optical depth integrated along the ray, weighted by HG(view, dir).
-        // This is what gives the "ambient effect" without expensive multi-bounce.
-        float2 dirHit = RaySphereIntersection(
-            from, dir, float3(0.0, 0.0, 0.0), cloudsData.earthRadius + cloudsData.cloudLayerMax);
-        float dirTMax = max(0.0, dirHit.y);
-
-        // EARTH OCCLUSION: if the sun is below the horizon, the shadow ray
-        // would hit the Earth. Clamp tMax so the march stops at the Earth surface.
-        float2 earthHit = RaySphereIntersection(from, dir, float3(0.0, 0.0, 0.0), cloudsData.earthRadius);
-        if(earthHit.x > 0.0)
-            dirTMax = min(dirTMax, earthHit.x);
-
-        if (dirTMax < 0.5)
-            continue;
-
-        float step = dirTMax / (float)cloudsData.lightSteps;
-        float opticalDepth = 0.0;
-        for (int j = 0; j < cloudsData.lightSteps; ++j)
-        {
-            float stepJ = StepJitter(pixelPos + float2(7.0, 13.0) + (float)i, (uint)j, 0.37);
-            float sampleD = (float)j * step + stepJ * step;
-            float3 pos = from + dir * sampleD;
-            float alt = length(pos) - cloudsData.earthRadius;
-            float norY = (alt - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
-            if (norY > 1.0 || norY < 0.0)
-                break;
-
-            float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
-            opticalDepth += density * step;
-        }
-
-        // Weight this cone ray by HG between view direction and the cone direction.
-        // Forward-scattered light gets more weight, but the broad cone samples all
-        // directions so the average is robust.
-        float hgWeight = HenyeyGreenstein(dot(rayDir, dir), 0.6);
-        totalInScatter += opticalDepth * hgWeight;
-        totalWeight += hgWeight;
+        ShadowResult r;
+        r.lightEnergy = 0.0;
+        r.opticalDepth = 1e6;  // sun completely blocked
+        return r;
     }
 
-    // Final shadow: Beer-Lambert on the average weighted in-scattering depth.
-    float avgInScatter = totalInScatter / max(totalWeight, 0.001);
-    return exp(-avgInScatter * cloudsData.muT);
+    float step = tMax / (float)cloudsData.lightSteps;
+    float opticalDepth = 0.0;
+    for (int j = 0; j < cloudsData.lightSteps; ++j)
+    {
+        float stepJ = StepJitter(pixelPos + float2(7.0, 13.0), (uint)j, 0.37);
+        float sampleD = (float)j * step + stepJ * step;
+        float3 pos = from + cloudsData.toSunDirection * sampleD;
+        float alt = length(pos) - cloudsData.earthRadius;
+        float norY = (alt - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
+        if (norY > 1.0 || norY < 0.0)
+            break;
+
+        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
+        opticalDepth += density * step;
+    }
+
+    ShadowResult r;
+    r.lightEnergy = exp(-opticalDepth * cloudsData.muT);
+    r.opticalDepth = opticalDepth;   // weighted OD from the sun
+    return r;
 }
 
 bool GetCloudsLayerIntersectionPoints(
@@ -309,9 +290,13 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     // Translate ray origin to Earth-centered coordinates.
     float3 rayOrigin = rayOriginLocal - cloudsData.earthCenter;
     
+    float3 hitWorld = Constants.cameraPosition + rayDir * sceneDist;
+    float3 hitEarth = hitWorld - cloudsData.earthCenter;
+    float sceneDistEarth = length(hitEarth - rayOrigin);
+    
     float tEntry, tExit;
     if (!GetCloudsLayerIntersectionPoints(rayOrigin, rayDir, cloudsData.earthRadius, cloudsData.earthRadius + cloudsData.cloudLayerMin,
-        cloudsData.earthRadius + cloudsData.cloudLayerMax, sceneDist, tEntry, tExit))
+        cloudsData.earthRadius + cloudsData.cloudLayerMax, sceneDistEarth, tEntry, tExit))
     {
         return result;
     }
@@ -323,19 +308,16 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         
     // Dynamic steps, cap by maxSteps
     uint effectiveSteps = (uint)ceil(rayLength / max(targetStepSize, 0.001));
-    effectiveSteps = clamp(effectiveSteps, 1u, (uint)cloudsData.maxSteps);
+    effectiveSteps = clamp(effectiveSteps, cloudsData.maxSteps / 2, cloudsData.maxSteps);
 
     float stepSize = rayLength / max(effectiveSteps, 1u);
-    float t = tEntry;            
-    float totalDensity = 0.0;
-    float weightedHeight = 0.0; // density-weighted norY accumulator
-    float powderSum = 0.0;      // density-weighted powder accumulator
-    float powderWeight = 0.0;   // total weight (for averaging)    
-    
+    float t = tEntry;                
     float cosTheta = dot(rayDir, -cloudsData.toSunDirection);
     float phase = DualLobeHG(cosTheta);
-    float skyWeight = saturate(-rayDir.y * 0.5 + 0.5);
-        
+    float cosThetaNorm = saturate(cosTheta * 0.5 + 0.5); // Normalize cosTheta to [0..1] for LUT lookup.
+
+    float totalDensity = 0.0;
+    
     for (uint step = 0; step < effectiveSteps; ++step)
     {
         float stepJ = StepJitter(pixelPos, step, 0.0);
@@ -352,22 +334,51 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
                 
         if (density > 0.0)
         {            
-            float lightEnergy = VolumetricShadow(pos, rayDir, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsData);
+            ShadowResult shadowResult = VolumetricShadow(pos, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsData);
+            float lightEnergy = shadowResult.lightEnergy;
+            float sunOD = shadowResult.opticalDepth;
+
+            // Single scatter: HG phase + powder + Beer-Lambert on sun path.
             float powder = PowderEffect(density);
+            float3 S_direct = cloudsData.muS * lightEnergy * phase * powder;
+
+            // Multi-scatter
+            const float energyLostToScatter = 1.0 - exp(-sunOD * cloudsData.muT);
+            const float tau_sun = sunOD * cloudsData.muT;
+            const int numOctaves = 4;
+            const float msIntensity = 1.0;
+            const float baseG = 0.8; // Same G as DualLobeHG
             
-            // Source term
-            float3 S = cloudsData.scatteringCoeff * lightEnergy * phase * powder;
-            // Transmission
+            float currentEnergy = energyLostToScatter * cloudsData.albedo;
+            float3 S_ms_accum = 0.0;
+            
+            for (int octave = 0; octave < numOctaves; octave++)
+            {
+                // Occlusion: Light is attenuated in each rebound
+                float occlusionFactor = exp(-tau_sun * cloudsData.multiScatterOcclusion * (octave + 1));
+                float octaveEnergy = currentEnergy * occlusionFactor;
+                
+                // Octave's phase
+                float g_octave = baseG * pow(cloudsData.multiScatterEccentricity, octave);
+                //    La fase isotrópica es 1/(4π) ≈ 0.0796
+                //float phase_octave = HenyeyGreenstein(cosTheta, g_octave);
+                float phase_octave = lerp(0.08, 0.3, pow(cloudsData.multiScatterEccentricity, octave));
+                
+                // Adds octave contribution
+                S_ms_accum += octaveEnergy * cloudsData.multiScatterContribution * phase_octave;
+                
+                // Next octave
+                currentEnergy = octaveEnergy * cloudsData.albedo;
+            }            
+            float3 S_ms = cloudsData.muS * S_ms_accum * msIntensity;
+                        
             float dTrans = exp(-density * stepSize * cloudsData.muT);
 
-            result.color += result.transmittance * S * stepSize;
+            result.color += result.transmittance * (S_direct + S_ms);
             result.transmittance *= dTrans;
             result.weightedDistance += t * density;
 
-            weightedHeight += norY * density;
             totalDensity += density;
-            powderSum += powder * density;
-            powderWeight += density;
             
             if (result.transmittance < 0.001)
                 break;
@@ -375,20 +386,13 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         
         t += stepSize;
     }    
-
-    float avgNorY = (totalDensity > 0.0) ? (weightedHeight / totalDensity) : 0.5;
-    float heightFactor = saturate(avgNorY);
+        
+    float3 ambientUp = cloudsData.ambientStrength * float3(0.6, 0.7, 0.9); // cool zenith
+    float3 ambientDown = cloudsData.ambientStrength * float3(0.3, 0.25, 0.2); // warm ground bounce
+    float skyWeight = saturate(-rayDir.y * 0.5 + 0.5); // 0=looking down, 1=looking up
+    float3 ambient = lerp(ambientDown, ambientUp, skyWeight);
     
-    // Sky/ground ratio (0.4 ground, 0.9 sky)
-    // Height attenuation (0.7 base, 1.0 top)
-    // Global strength is exposed for storm/bright presets.    
-    float ambient = lerp(0.4, 0.9, skyWeight) * lerp(0.7, 1.0, heightFactor) * cloudsData.ambientStrength;
-    float avgPowder = (powderWeight > 0.0) ? (powderSum / powderWeight) : 0.0;    
-    //float multiScatterBoost = 1.0 / max(1.0 - cloudsData.albedo, 0.1);
-    float multiScatterBoost = 1.0 + 4.0 * square(cloudsData.albedo);
-    float ambientDarkening = pow(avgPowder, 0.4);
-    
-    result.color += ambient * multiScatterBoost * ambientDarkening * (1.0 - result.transmittance);
+    result.color += ambient * (1.0 - result.transmittance) * cloudsData.albedo;
     
     result.weightedDistance /= max(totalDensity, 0.0001f);
     result.tEntry = tEntry;
@@ -422,7 +426,7 @@ float4 main(PS_INPUT input) : SV_Target
     // viewZ: depth along camera forward vector (Z component in view space)
     // sceneDist: actual distance along rayDir to the geometry
     float viewZ = linearDepthTex.SampleLevel(pointClampSampler, input.uv, 0.0);
-    float cosAngle = dot(rayDir, cloudsData.cameraForward);
+    float cosAngle = saturate(dot(rayDir, cloudsData.cameraForward));
     float sceneDist = viewZ / max(cosAngle, 0.0001);
     
     float2 pixelPos = input.uv * Constants.viewportSize;
@@ -430,6 +434,11 @@ float4 main(PS_INPUT input) : SV_Target
     CloudResult clouds = GetCloudsColorRayMarch(
         Constants.cameraPosition, rayDir, baseTexture, detailTexture, cloudsData, sceneDist, pixelPos);
     
+    if (Constants.debugChannel == DebugChannel_Clouds_Transmitance)
+    {
+        return float4(clouds.transmittance.xxxx);
+    }
+        
     // Punto estable: centro del segmento atravesado por el rayo dentro de la capa.
     // Es EXACTO para este rayo (no depende del muestreo) y NO SALTA con jitter.
     float hit_t = 0.5f * (clouds.tEntry + clouds.tExit);
@@ -469,4 +478,6 @@ float4 main(PS_INPUT input) : SV_Target
     }
     
     return finalColor;
+    //return float4(clouds.color, 1.0);
+
 }

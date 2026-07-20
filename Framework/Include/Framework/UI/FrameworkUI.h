@@ -238,6 +238,7 @@ private:
 	int m_LumHistogramMode = 0;
 
 	CloudsPreset m_CloudsPreset = CloudsPreset::FairWeather;
+	alm::gfx::CloudsRenderStage::DebugChannel m_CloudsDebugChannel = alm::gfx::CloudsRenderStage::DebugChannel::Disabled;
 
 	std::vector<std::pair<std::string, const std::function<void()>>> m_MainMenuAdditionalItems;
 };

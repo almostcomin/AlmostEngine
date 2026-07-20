@@ -178,6 +178,7 @@ float4 CheckerEffect(float2 uv, float squareSize, float4 color0, float4 color1)
     return lerp(color0, color1, checker);
 }
 
+// Returns [0, 1]
 float InterleavedGradientNoise(float2 pos)
 {
     return frac(52.9829189 * frac(0.06711056 * pos.x + 0.00583715 * pos.y));

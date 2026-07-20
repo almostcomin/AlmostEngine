@@ -71,7 +71,7 @@ std::string alm::ToUtf8(const wchar_t* wide)
  * \param f  The input float.
  * \return   The converted half-precision value as a 16‑bit unsigned integer.
  */
-uint16_t FloatToHalf(float f)
+uint16_t alm::FloatToHalf(float f)
 {
     uint32_t i;
     memcpy(&i, &f, sizeof(f));

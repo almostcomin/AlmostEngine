@@ -15,6 +15,14 @@ class CloudsRenderStage : public RenderStage
 
 public:
 
+	enum class DebugChannel
+	{
+		Disabled,
+        Clouds_Transmitance
+	};
+
+public:
+
     static constexpr float kEarthRefRadius = 6360000.f;
     static constexpr float kCloadsLayerHStart = 1500.f;
     static constexpr float kCloadsLayerHEnd = 8000.f;
@@ -30,6 +38,9 @@ public:
         float CloudsCoverage = 0.4f;
         float AbsorptionCoeff = 0.02f;
         float ScatteringCoeff = 0.8f;
+        float MultiScatterContribution = 0.6f;
+        float MultiScatterOcclusion = 0.4f;
+        float MultiScatterEccentricity = 0.5f;
         float AmbientStrength = 1.f;
         float CloudsLayerMin = kCloadsLayerHStart;
         float CloudsLayerMax = kCloadsLayerHEnd;
@@ -38,9 +49,8 @@ public:
         float3 EarthCenter = float3{ 0.f };
         float DetailScale = 8.f;
         float DetailErosionStrength = 0.2f;
-        uint32_t CloudRaymarchIterations = 32;
-        uint32_t LightRaymarchIterations = 6;
-        uint32_t ConeRayCount = 6;
+        uint32_t CloudRaymarchIterations = 128;
+        uint32_t LightRaymarchIterations = 32;
 	};
 
 public:
@@ -65,6 +75,11 @@ public:
     
     static std::expected<std::pair<rhi::TextureOwner, alm::SignalListener>, std::string>
     CreateCloudsDetailTexture(DeviceManager* deviceManager);
+
+    std::expected<std::pair<alm::rhi::TextureOwner, alm::SignalListener>, std::string>
+    ComputeMultiScatterLUT(float mu_s, float mu_a);
+
+    void SetDebugChannel(DebugChannel c) { m_DebugChannel = c; }
 
 private:
 
@@ -98,6 +113,8 @@ private:
 
     CloudsParams m_Params;
     float2 m_CloudsOffset = { 0.f, 0.f };
+
+    DebugChannel m_DebugChannel;
 };
 
 } // namespace alm::gfx
