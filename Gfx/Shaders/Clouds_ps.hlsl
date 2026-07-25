@@ -32,13 +32,6 @@ struct CloudResult
     float tExit;
 };
 
-// Pseudo-random 2D offset in [-1, 1] using low-discrepancy sequence.
-float2 hash22(float2 p)
-{
-    p = float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)));
-    return -1.0 + 2.0 * frac(sin(p) * 43758.5453);
-}
-
 // Step-decorrelated jitter.
 // pixelPos in pixels, step = sample ID. Returns [0, 1].
 float StepJitter(float2 pixelPos, uint step, float salt)
@@ -98,25 +91,23 @@ float HenyeyGreenstein(float cosTheta, float g)
 }
 
 // Dual-lobe HG with directional weighting.
-// Forward lobe (g=0.8) dominates when looking AT the sun (cosTheta → 1).
-// Backward lobe (g=-0.2) dominates when looking AWAY from the sun (cosTheta → -1).
+// Forward lobe dominates when looking AT the sun (cosTheta → 1).
+// Backward lobe dominates when looking AWAY from the sun (cosTheta → -1).
 // At side scatter (cosTheta = 0), it's a 50/50 blend.
-float DualLobeHG(float cosTheta)
+float DualLobeHG(float cosTheta, float forwardG, float backwardG)
 {
-    float forward  = HenyeyGreenstein(cosTheta, 0.8);
-    float backward = HenyeyGreenstein(cosTheta, -0.2);
+    float forward = HenyeyGreenstein(cosTheta, forwardG);
+    float backward = HenyeyGreenstein(cosTheta, backwardG);
     // Directional weight: 1 at cosTheta=1 (forward), 0 at cosTheta=-1 (backward).
     float forwardWeight = saturate(cosTheta * 0.5 + 0.5);
     return forward * forwardWeight + backward * (1.0 - forwardWeight);
 }
 
-// Powder term: 0 at cloud edges (density=0), approaches 0.865 at density=1,
-// saturates to 1 at high density. This models the "dark edges facing the light"
-// and the in-scattering concentration in dense regions.
-// Powder(d) = 1 - exp(-2d)
-float PowderEffect(float density)
+// This models the "dark edges facing the light" and the in-scattering concentration in dense regions.
+float PowderEffect(float density, float width, float strength)
 {
-    return 1.0 - exp(-2.0 * density);
+    float edge = smoothstep(0.0, width, density);
+    return lerp(1.0, edge, strength);
 }
 
 float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
@@ -197,8 +188,8 @@ ShadowResult VolumetricShadow(float3 from, float2 pixelPos,
     if (tMax < 0.5)
     {
         ShadowResult r;
-        r.lightEnergy = 0.0;
-        r.opticalDepth = 1e6;  // sun completely blocked
+        r.lightEnergy = 1.0;
+        r.opticalDepth = 0.0;
         return r;
     }
 
@@ -212,7 +203,7 @@ ShadowResult VolumetricShadow(float3 from, float2 pixelPos,
         float alt = length(pos) - cloudsData.earthRadius;
         float norY = (alt - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
         if (norY > 1.0 || norY < 0.0)
-            break;
+            continue;
 
         float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
         opticalDepth += density * step;
@@ -300,7 +291,8 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     {
         return result;
     }
-    float rayLength = min(tExit - tEntry, cloudsData.cloudFadeDistance);
+    float marchExit = min(tExit, tEntry + cloudsData.cloudFadeDistance);
+    float rayLength = marchExit - tEntry;
 
     // Resolution relative to freq of erosion detail.
     float detailSpatialFreq = cloudsData.cloudsScale * cloudsData.detailScale * DETAIL_LOW_FREQ;
@@ -312,9 +304,8 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
 
     float stepSize = rayLength / max(effectiveSteps, 1u);
     float t = tEntry;                
-    float cosTheta = dot(rayDir, -cloudsData.toSunDirection);
-    float phase = DualLobeHG(cosTheta);
-    float cosThetaNorm = saturate(cosTheta * 0.5 + 0.5); // Normalize cosTheta to [0..1] for LUT lookup.
+    float cosTheta = dot(rayDir, cloudsData.toSunDirection);
+    float phase = DualLobeHG(cosTheta, cloudsData.phaseGForward, cloudsData.phaseGBackward);
 
     float totalDensity = 0.0;
     
@@ -328,7 +319,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
         float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
         
-        float normT = t * cloudsData.invCloudFadeDistance;
+        float normT = sampleT * cloudsData.invCloudFadeDistance;
         float fadeFactor = saturate(1.0 - square(normT));
         density *= fadeFactor;
                 
@@ -339,15 +330,14 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
             float sunOD = shadowResult.opticalDepth;
 
             // Single scatter: HG phase + powder + Beer-Lambert on sun path.
-            float powder = PowderEffect(density);
-            float3 S_direct = cloudsData.muS * lightEnergy * phase * powder;
+            float powder = PowderEffect(density, cloudsData.powderEdgeWidth, cloudsData.powderStrength);
+            float3 S_direct = cloudsData.sunRadiance * cloudsData.muS * lightEnergy * phase * powder;
 
             // Multi-scatter
             const float energyLostToScatter = 1.0 - exp(-sunOD * cloudsData.muT);
             const float tau_sun = sunOD * cloudsData.muT;
-            const int numOctaves = 4;
+            const int numOctaves = (int)cloudsData.multiScatterOctaves;
             const float msIntensity = 1.0;
-            const float baseG = 0.8; // Same G as DualLobeHG
             
             float currentEnergy = energyLostToScatter * cloudsData.albedo;
             float3 S_ms_accum = 0.0;
@@ -359,10 +349,9 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
                 float octaveEnergy = currentEnergy * occlusionFactor;
                 
                 // Octave's phase
-                float g_octave = baseG * pow(cloudsData.multiScatterEccentricity, octave);
+                float g_octave = cloudsData.multiScatterBaseG * pow(cloudsData.multiScatterEccentricity, octave);
                 //    La fase isotrópica es 1/(4π) ≈ 0.0796
-                //float phase_octave = HenyeyGreenstein(cosTheta, g_octave);
-                float phase_octave = lerp(0.08, 0.3, pow(cloudsData.multiScatterEccentricity, octave));
+                float phase_octave = HenyeyGreenstein(cosTheta, g_octave);
                 
                 // Adds octave contribution
                 S_ms_accum += octaveEnergy * cloudsData.multiScatterContribution * phase_octave;
@@ -370,13 +359,15 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
                 // Next octave
                 currentEnergy = octaveEnergy * cloudsData.albedo;
             }            
-            float3 S_ms = cloudsData.muS * S_ms_accum * msIntensity;
+            float3 S_ms = cloudsData.sunRadiance * cloudsData.muS * S_ms_accum * msIntensity;
                         
-            float dTrans = exp(-density * stepSize * cloudsData.muT);
+            float segmentTransmittance = exp(-density * stepSize * cloudsData.muT);            
+            float integrationWeight = cloudsData.muT > 0.0001 ? 
+                (1.0 - segmentTransmittance) / cloudsData.muT : density * stepSize;
 
-            result.color += result.transmittance * (S_direct + S_ms);
-            result.transmittance *= dTrans;
-            result.weightedDistance += t * density;
+            result.color += result.transmittance * (S_direct + S_ms) * integrationWeight;
+            result.transmittance *= segmentTransmittance;
+            result.weightedDistance += sampleT * density;
 
             totalDensity += density;
             
@@ -396,7 +387,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     
     result.weightedDistance /= max(totalDensity, 0.0001f);
     result.tEntry = tEntry;
-    result.tExit = tExit;
+    result.tExit = marchExit;
 
     return result;
 }
@@ -452,9 +443,13 @@ float4 main(PS_INPUT input) : SV_Target
     prevClipPos.xyz /= prevClipPos.w;
     // Convert NDC to uv
     float2 prevUv = prevClipPos.xy * float2(0.5, -0.5) + 0.5;
-    bool prevUvValid = all(prevUv > 0.0) && all(prevUv < 1.0)
-                       && prevClipPos.w > 0.0
-                       && abs(prevClipPos.z) <= prevClipPos.w;;
+    float prevViewZ = linearDepthTex.SampleLevel(pointClampSampler, prevUv, 0.0);
+    float depthDiff = abs(prevViewZ - viewZ) / max(viewZ, 1.0);
+    bool prevDepthValid = depthDiff < 0.05; // 5% of tolerance
+    
+    bool prevUvValid = prevDepthValid 
+                       && all(prevUv >= 0.0) && all(prevUv <= 1.0)
+                       && prevClipPos.z >= 0.0 && prevClipPos.z <= 1.0;
 
     bool hasHit = clouds.transmittance < 0.999;
     
@@ -464,7 +459,7 @@ float4 main(PS_INPUT input) : SV_Target
     if (prevUvValid && hasHit)
     {
         Texture2D<float4> prevCloudsTex = ResourceDescriptorHeap[cloudsData.prevCloudsTexDI];
-        float4 prevColor = prevCloudsTex.SampleLevel(linearClampSampler, prevUv, 0.0);
+        float4 prevColor = prevCloudsTex.SampleLevel(pointClampSampler, prevUv, 0.0);
         
         bool historyHadCloud = prevColor.a < 0.999;
         if (historyHadCloud)

@@ -24,9 +24,9 @@ public:
 public:
 
     static constexpr float kEarthRefRadius = 6360000.f;
-    static constexpr float kCloadsLayerHStart = 1500.f;
-    static constexpr float kCloadsLayerHEnd = 8000.f;
-    static constexpr float kCloudsFadeDistance = 24000.f;
+    static constexpr float kCloudsLayerHStart = 1500.f;
+    static constexpr float kCloudsLayerHEnd = 8000.f;
+    static constexpr float kCloudsFadeDistance = 48000.f;
 
 	struct CloudsParams
 	{
@@ -34,23 +34,31 @@ public:
         float StratusWeight = 0.3f;
         float CumulusWeight = 0.7f;
         float CumulonimbusWeight = 0.f;
-        float CloudsScale = 0.0004f;
+        float CloudsScale = 0.004f;
         float CloudsCoverage = 0.4f;
-        float AbsorptionCoeff = 0.02f;
-        float ScatteringCoeff = 0.8f;
-        float MultiScatterContribution = 0.6f;
-        float MultiScatterOcclusion = 0.4f;
+        float AbsorptionCoeff = 2.f / 1000;   // 1/m
+        float ScatteringCoeff = 9.f / 1000;   // 1/m        
+        float MultiScatterContribution = 0.1f;
+        float MultiScatterOcclusion = 0.5f;
         float MultiScatterEccentricity = 0.5f;
-        float AmbientStrength = 1.f;
-        float CloudsLayerMin = kCloadsLayerHStart;
-        float CloudsLayerMax = kCloadsLayerHEnd;
+        float PhaseGForward = 0.7f;
+        float PhaseGBackward = -0.3f;
+        float MultiScatterBaseG = 0.8f;
+        float PowderStrength = 0.7f;
+        float PowderEdgeWidth = 0.1f;
+        float3 AmbientTop = { 0.6, 0.7, 0.9 };
+        float3 AmbientBottom = { 0.3, 0.25, 0.2 };
+        float AmbientStrength = 0.f;
+        float CloudsLayerMin = kCloudsLayerHStart;
+        float CloudsLayerMax = kCloudsLayerHEnd;
         float CloudsFadeDistance = kCloudsFadeDistance;
         float EarthRadius = kEarthRefRadius;
         float3 EarthCenter = float3{ 0.f };
-        float DetailScale = 8.f;
+        float DetailScale = 80.f;
         float DetailErosionStrength = 0.2f;
         uint32_t CloudRaymarchIterations = 128;
         uint32_t LightRaymarchIterations = 32;
+        uint32_t MultiScatterOctaves = 2;
 	};
 
 public:
@@ -62,7 +70,7 @@ public:
     void SetCloudsParams(const CloudsParams& params) { m_Params = params; }
 
     void SetEarthCenter(const float3& c) { m_Params.EarthCenter = c; }
-    void SetEarthRadius(float r, float atmosRelScale = 1.f);
+    void SetEarthRadius(float r, bool keepRelativeScale);
 
     void SetCloudsShapeTexture(rhi::TextureOwner&& texture) { m_CloudsShapeTexture = std::move(texture); }
     rhi::TextureHandle GetCloudsShapeTexture() const { return m_CloudsShapeTexture.get_weak(); }
@@ -113,6 +121,7 @@ private:
 
     CloudsParams m_Params;
     float2 m_CloudsOffset = { 0.f, 0.f };
+    float m_ScaleFactor = 1.f;
 
     DebugChannel m_DebugChannel;
 };

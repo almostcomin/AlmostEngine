@@ -1378,8 +1378,13 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::SeparatorText("Lighting");
         ImGui::Spacing();
 
-        ImGui::SliderFloat("Absorption Coeff##Clouds", &FrameworkData.CloudsParams.AbsorptionCoeff, 0.f, 1.f);
-        ImGui::SliderFloat("Scattering Coeff##Clouds", &FrameworkData.CloudsParams.ScatteringCoeff, 0.f, 1.f);
+        float muA_Km = FrameworkData.CloudsParams.AbsorptionCoeff * 1000.f;
+        if (ImGui::SliderFloat("Absorption Coeff 1/km (norm)##Clouds", &muA_Km, 0.f, 10.f))
+            FrameworkData.CloudsParams.AbsorptionCoeff = muA_Km / 1000.f;
+
+        float muS_Km = FrameworkData.CloudsParams.ScatteringCoeff * 1000.f;
+        if(ImGui::SliderFloat("Scattering Coeff 1/km (norm)##Clouds", &muS_Km, 0.f, 10.f))
+            FrameworkData.CloudsParams.ScatteringCoeff = muS_Km / 1000.f;
 
         ImGui::Spacing();
         ImGui::SliderFloat("MultiScatter Contribution##Clouds", &FrameworkData.CloudsParams.MultiScatterContribution, 0.f, 1.f);
@@ -1387,6 +1392,18 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::SliderFloat("MultiScatter Eccentricity##Clouds", &FrameworkData.CloudsParams.MultiScatterEccentricity, 0.f, 1.f);
 
         ImGui::Spacing();
+        ImGui::SliderFloat("Phase G Forward##Clouds", &FrameworkData.CloudsParams.PhaseGForward, -1.f, 1.f);
+        ImGui::SliderFloat("Phase G Backward##Clouds", &FrameworkData.CloudsParams.PhaseGBackward, -1.f, 1.f);
+        ImGui::SliderFloat("Multiscatter Base G##Clouds", &FrameworkData.CloudsParams.MultiScatterBaseG, 0.f, 1.f);
+
+        ImGui::Spacing();
+        ImGui::SliderFloat("Powder Strength##Clouds", &FrameworkData.CloudsParams.PowderStrength, 0.f, 1.f);        
+        ImGui::SliderFloat("Powder Edge Width##Clouds", &FrameworkData.CloudsParams.PowderEdgeWidth, 0.f, 1.f);
+
+        ImGui::Spacing();
+        ImGui::ColorEdit3("Ambient Top Color", (float*)&(FrameworkData.CloudsParams.AmbientTop.x), ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("Ambient Bottom Color", (float*)&(FrameworkData.CloudsParams.AmbientBottom.x), ImGuiColorEditFlags_Float);
+
         ImGui::SliderFloat("Ambient Strength##Clouds", &FrameworkData.CloudsParams.AmbientStrength, 0.f, 1.f);
 
         ImGui::Spacing();
@@ -1406,6 +1423,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 
         ImGui::InputScalar("Density interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.CloudRaymarchIterations);
         ImGui::InputScalar("Light interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.LightRaymarchIterations);
+        ImGui::SliderInt("Multi scatter octaves##Clouds", (int*)&FrameworkData.CloudsParams.MultiScatterOctaves, 0, 8);
 
         ImGui::Spacing();
         ImGui::SeparatorText("Debug");

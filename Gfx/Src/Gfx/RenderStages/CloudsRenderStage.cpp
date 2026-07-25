@@ -21,13 +21,24 @@ static constexpr uint MAX_MS_OD = 16;
 alm::gfx::CloudsRenderStage::CloudsRenderStage() : m_CloudsTextureIdx{ -1 }, m_DebugChannel{ DebugChannel::Disabled }
 {}
 
-void alm::gfx::CloudsRenderStage::SetEarthRadius(float r, float atmosRelScale)
+void alm::gfx::CloudsRenderStage::SetEarthRadius(float r, bool keepRelativeScale)
 {
-	float scaleFactor = r / kEarthRefRadius;
 	m_Params.EarthRadius = r;
-	m_Params.CloudsLayerMin = kCloadsLayerHStart * scaleFactor;
-	m_Params.CloudsLayerMax = kCloadsLayerHEnd * scaleFactor;
-	m_Params.CloudsFadeDistance = kCloudsFadeDistance * scaleFactor;
+	if (keepRelativeScale)
+	{
+		const float prevScaleFactor = m_ScaleFactor;
+		m_ScaleFactor = r / kEarthRefRadius;
+		const float conversionFactor = m_ScaleFactor / prevScaleFactor;
+
+		m_Params.CloudsLayerMin *= conversionFactor;
+		m_Params.CloudsLayerMax *= conversionFactor;
+		m_Params.CloudsFadeDistance *= conversionFactor;
+		// Other params affected by scale are taken into account in the moment of bindind
+	}
+	else
+	{
+		m_ScaleFactor = 1.f;
+	}
 }
 
 std::expected<std::pair<alm::rhi::TextureOwner, alm::SignalListener>, std::string>
@@ -235,7 +246,13 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 
 		const float3 toSunDirection = -glm::normalize(alm::ElevationAzimuthRadToDir(
 			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg)));
-		const float muT = m_Params.ScatteringCoeff + m_Params.AbsorptionCoeff;
+		const float muS = m_Params.ScatteringCoeff / m_ScaleFactor;
+		const float muA = m_Params.AbsorptionCoeff / m_ScaleFactor;
+		const float muT = muS + muA;
+
+		//const float sunSolidAngle = 4.0f * PI * square(glm::sin(glm::radians(sunParams.AngularSizeDeg / 2.0f)));
+		//const float3 sunRadiance = sunParams.Color * sunParams.Irradiance / std::max(sunSolidAngle, 1e-6f);
+		const float3 sunRadiance = sunParams.Color * sunParams.Irradiance * 60.f;
 
 		// Fill shader constants
 		auto* cloudsData = (interop::CloudsData*)m_CloudsCB.Map();
@@ -248,7 +265,7 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->stratusWeight = m_Params.StratusWeight;
 		cloudsData->cumulusWeight = m_Params.CumulusWeight;
 		cloudsData->cumulonimbusWeight = m_Params.CumulonimbusWeight;
-		cloudsData->cloudsScale = m_Params.CloudsScale;
+		cloudsData->cloudsScale = m_Params.CloudsScale * m_ScaleFactor;
 		cloudsData->coverage = m_Params.CloudsCoverage;
 		cloudsData->cloudFadeDistance = m_Params.CloudsFadeDistance;
 		cloudsData->windOffset = m_CloudsOffset;
@@ -256,22 +273,30 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->cloudLayerMax = m_Params.CloudsLayerMax;
 		cloudsData->toSunDirection = toSunDirection;
 		cloudsData->muT = muT;
-		cloudsData->muS = m_Params.ScatteringCoeff;
+		cloudsData->muS = muS;
 		cloudsData->multiScatterContribution = m_Params.MultiScatterContribution;
 		cloudsData->multiScatterOcclusion = m_Params.MultiScatterOcclusion;
 		cloudsData->multiScatterEccentricity = m_Params.MultiScatterEccentricity;
-		cloudsData->albedo = m_Params.ScatteringCoeff / std::max(muT, 0.001f);
+		cloudsData->albedo = muS / std::max(muT, 1e-10f);
 		cloudsData->ambientStrength = m_Params.AmbientStrength;
 		cloudsData->earthCenter = m_Params.EarthCenter;
 		cloudsData->earthRadius = m_Params.EarthRadius;
 		cloudsData->invCloudLayerThickness = 1.f / (m_Params.CloudsLayerMax - m_Params.CloudsLayerMin);
 		cloudsData->cameraForward = GetCamera()->GetForward();
-		cloudsData->detailScale = m_Params.DetailScale;
+		cloudsData->detailScale = m_Params.DetailScale * m_ScaleFactor;
 		cloudsData->detailErosionStrength = m_Params.DetailErosionStrength;
 		cloudsData->matPrevFrameViewProj = GetRenderView()->GetPrevFrameViewProjMatrix();
 		cloudsData->invCloudFadeDistance = 1.f / m_Params.CloudsFadeDistance;
+		cloudsData->sunRadiance = sunRadiance;
+		cloudsData->sunIrradiance = float3{ 0.f }; // TODO
 		cloudsData->maxSteps = m_Params.CloudRaymarchIterations;
 		cloudsData->lightSteps = m_Params.LightRaymarchIterations;
+		cloudsData->multiScatterOctaves = m_Params.MultiScatterOctaves;
+		cloudsData->phaseGForward = m_Params.PhaseGForward;
+		cloudsData->phaseGBackward = m_Params.PhaseGBackward;
+		cloudsData->multiScatterBaseG = m_Params.MultiScatterBaseG;
+		cloudsData->powderStrength = m_Params.PowderStrength;
+		cloudsData->powderEdgeWidth = m_Params.PowderEdgeWidth;
 
 		const float3 up = abs(toSunDirection.y) < 0.99 ? float3(0.0, 1.0, 0.0) : float3(1.0, 0.0, 0.0);
 		cloudsData->sunT = normalize(cross(toSunDirection, up));

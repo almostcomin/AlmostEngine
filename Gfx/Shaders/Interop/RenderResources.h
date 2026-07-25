@@ -494,6 +494,14 @@ namespace interop
         float multiScatterEccentricity;
         float multiScatterContribution;
         float multiScatterOcclusion;
+        float3 sunRadiance;             // offset 60
+        float phaseGForward;
+        float3 sunIrradiance;
+        float phaseGBackward;
+        float multiScatterBaseG;        // offset 68
+        float powderStrength;
+        float powderEdgeWidth;
+        uint _padding;
     };
 
     struct CloudsConstants

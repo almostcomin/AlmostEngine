@@ -241,7 +241,7 @@ public:
 			m_SkyRS->SetEarthRadius(kEarthRadius, 1.f);
 
 			m_CloudsRS->SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
-			m_CloudsRS->SetEarthRadius(kEarthRadius, 1.f);
+			m_CloudsRS->SetEarthRadius(kEarthRadius, true);
 		}
 
 		// Set clouds texture
