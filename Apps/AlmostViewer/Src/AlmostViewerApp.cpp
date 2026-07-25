@@ -77,7 +77,7 @@ public:
 					m_MainCamera->SetZNear(radius * 0.05f);
 
 					m_MainCamera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
-					m_MainCamera->Fit(bounds);
+					m_MainCamera->Frame(bounds);
 
 					m_CameraController.SetSpeed(radius * 1.f);
 				}

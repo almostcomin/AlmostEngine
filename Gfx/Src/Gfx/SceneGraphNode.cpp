@@ -106,6 +106,12 @@ const float3& alm::gfx::SceneGraphNode::GetWorldPosition() const
 	return *(float3*)&m_WorldMatrix[3];
 }
 
+bool alm::gfx::SceneGraphNode::HasBounds(SceneContentType type) const
+{
+	assert(HasBoundsCategory(type));
+	return m_WorldBounds[(int)type].valid();
+}
+
 const alm::aabox3f& alm::gfx::SceneGraphNode::GetWorldBounds(SceneContentType type) const
 { 
 	assert(HasBoundsCategory(type));

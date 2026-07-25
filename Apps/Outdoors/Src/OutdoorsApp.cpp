@@ -331,7 +331,7 @@ public:
 			bbox.min = center - diagonal / 4.f;
 			bbox.max = center + diagonal / 4.f;
 
-			m_MainCamera->Fit(bbox);
+			m_MainCamera->Frame(bbox);
 		}
 
 		return true;

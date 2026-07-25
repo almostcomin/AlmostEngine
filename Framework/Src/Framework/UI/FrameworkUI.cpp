@@ -4,6 +4,7 @@
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/SceneHeightmap.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
 #include "Gfx/SceneLights.h"
@@ -446,6 +447,11 @@ namespace
         }
     }
 
+    void BuildHeightmapLeaf(const alm::gfx::SceneHeightmap*)
+    {
+        // TODO
+    }
+
     RSDepActionResult ShowRSDep(const char* label, const char* value, bool selected, int id)
     {
         RSDepActionResult ret;
@@ -874,6 +880,13 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
                 if (ImGui::IsItemFocused())
                     m_SelectedNode = node->weak_from_this();
 
+                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                {
+                    auto camera = m_RenderViewUI->GetCamera();
+                    const alm::aabox3f& bounds = m_SelectedNode->GetWorldBounds(gfx::SceneContentType::Meshes);
+                    camera->Frame(bounds);
+                }
+
                 int depth = 0;
                 if (node_open)
                     depth = walker.Next();
@@ -1021,6 +1034,9 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
                     break;
                 case alm::gfx::SceneGraphLeaf::Type::SpotLight:
                     BuildSpotLightLeaf(alm::checked_cast<const alm::gfx::SceneSpotLight*>(leaf));
+                    break;
+                case alm::gfx::SceneGraphLeaf::Type::Heightmap:
+                    BuildHeightmapLeaf(alm::checked_cast<const alm::gfx::SceneHeightmap*>(leaf));
                     break;
                 default:
                     assert(0);

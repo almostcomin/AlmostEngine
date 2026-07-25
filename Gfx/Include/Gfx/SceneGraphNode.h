@@ -60,6 +60,7 @@ public:
 	const float4x4& GetWorldTransform() const { return m_WorldMatrix; }
 	const float3& GetWorldPosition() const;
 	
+	bool HasBounds(SceneContentType type) const;
 	const alm::aabox3f& GetWorldBounds(SceneContentType type) const;
 
 	bool Test(SceneContentType boundsType, std::span<const plane3f> planes) const;

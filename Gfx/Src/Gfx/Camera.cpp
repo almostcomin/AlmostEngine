@@ -78,7 +78,7 @@ void alm::gfx::Camera::SetProjectionModel(alm::gfx::Camera::ProjectionModel mode
 	m_IsDirty = true;
 }
 
-void alm::gfx::Camera::Fit(const alm::aabox3f& bounds)
+void alm::gfx::Camera::Frame(const alm::aabox3f& bounds)
 {
 	const float3 targetPos = bounds.center();
 	const float radius = glm::length(bounds.diagonal()) / 2.f;

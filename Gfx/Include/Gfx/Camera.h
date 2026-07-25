@@ -33,7 +33,7 @@ public:
 
 	void SetProjectionModel(ProjectionModel model);
 
-	void Fit(const alm::aabox3f& bounds);
+	void Frame(const alm::aabox3f& bounds);
 
 	const float3& GetPosition() const { return m_Position; }
 	const float3& GetForward() const { return m_Forward; }
