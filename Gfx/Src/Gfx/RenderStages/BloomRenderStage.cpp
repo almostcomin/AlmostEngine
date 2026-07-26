@@ -9,10 +9,10 @@
 #include "RHI/Device.h"
 
 alm::gfx::BloomRenderStage::BloomRenderStage() : 
-	m_BloomEnabled{ true },
+	m_BloomEnabled{ false },
 	m_FilterRadius{ 0.005f },
 	m_Strength{ 0.04f },
-	m_MipChainLength { 4 }
+	m_MipChainLength { 7 }
 {}
 
 void alm::gfx::BloomRenderStage::SetMaxMipChainLenght(uint32_t v) 
@@ -58,65 +58,65 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	}
 
 	rhi::TextureHandle sceneColorTexture = m_RenderGraph->GetTexture(m_SceneColorTexture);
+	const auto sceneColorTexDesc = sceneColorTexture->GetDesc();
 
 	// Progressively downsample through the mip chain
 	commandList->BeginMarker("Downsample");
+	commandList->SetPipelineState(m_DownsamplePSO.get());
+
 	for (uint32_t i = 0; i < m_MipChain.size(); i++)
 	{
+		const bool firstDownsample = (i == 0);
+
+		rhi::ITexture* inputTex = firstDownsample ?
+			inputTex = sceneColorTexture.get() : m_MipChain[i - 1].get();
+		const auto& outputTexDesc = m_MipChain[i]->GetDesc();
+		const auto& inputTexDesc = inputTex->GetDesc();
+
 		interop::BloomDownsampleConstants shaderConstants;
-		if (i == 0)
+		shaderConstants.inputTextureDI = inputTex->GetSampledView();
+		shaderConstants.outputTextureDI = m_MipChain[i]->GetStorageView();
+		shaderConstants.outputTexResolution = uint2{ outputTexDesc.width, outputTexDesc.height };
+		shaderConstants.inputTexInvResolution = 1.f / float2{ inputTexDesc.width, inputTexDesc.height };
+
+		commandList->PushComputeConstants(0, shaderConstants);
+
+		if (!firstDownsample)
 		{
-			shaderConstants.inputTextureDI = sceneColorTexture->GetSampledView();
-			shaderConstants.invInputTexResolution = 1.f / float2{ sceneColorTexture->GetDesc().width, sceneColorTexture->GetDesc().height };
-		}
-		else
-		{
-			rhi::ITexture* srcTex = m_MipChain[i - 1].Texture.get();
-			shaderConstants.inputTextureDI = srcTex->GetSampledView();
-			shaderConstants.invInputTexResolution = 1.f / float2{ srcTex->GetDesc().width, srcTex->GetDesc().height };
-			commandList->PushBarrier(rhi::Barrier::Texture(srcTex, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE));
+			commandList->PushBarrier(rhi::Barrier::Texture(inputTex,
+				rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
 		}
 
-		commandList->BeginRenderPass(
-			m_MipChain[i].Framebuffer.get(),
-			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Discard, rhi::RenderPassOp::StoreOp::Store } },
-			{}, {}, rhi::RenderPassFlags::None);
-
-		commandList->SetPipelineState(m_MipChain[i].PSO.get());
-		commandList->PushGraphicsConstants(0, shaderConstants);
-
-		commandList->Draw(3);
-
-		commandList->EndRenderPass();
+		commandList->Dispatch(DivRoundUp(outputTexDesc.width, 16u), DivRoundUp(outputTexDesc.height, 16u), 1);
 	}
 	commandList->EndMarker();
 
 	// Upsample
 	commandList->BeginMarker("Upsample");
+	commandList->SetPipelineState(m_UpsamplePSO.get());
+
 	for (int i = m_MipChain.size() - 1; i > 0; --i)
 	{
+		const auto& outputTexDesc = m_MipChain[i - 1]->GetDesc();
+
 		std::vector<rhi::Barrier> barriers;
 		barriers.reserve(2);
 		barriers.push_back(rhi::Barrier::Texture(
-			m_MipChain[i].Texture.get(), rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE));
+			m_MipChain[i].get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
 		barriers.push_back(rhi::Barrier::Texture(
-			m_MipChain[i - 1].Texture.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::RENDERTARGET));
+			m_MipChain[i - 1].get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::UNORDERED_ACCESS));
 		commandList->PushBarriers(barriers);
 
-		commandList->BeginRenderPass(m_MipChain[i - 1].Framebuffer.get(),
-			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store } },
-			{}, {}, rhi::RenderPassFlags::None);
-
-		commandList->SetPipelineState(m_MipChain[i - 1].BlendPSO.get());
-
 		interop::BloomUpsampleConstants shaderConstants;
-		shaderConstants.inputTextureDI = m_MipChain[i].Texture->GetSampledView();
-		shaderConstants.filterRadius = m_FilterRadius;
-		commandList->PushGraphicsConstants(0, shaderConstants);
+		shaderConstants.inputTextureDI = m_MipChain[i]->GetSampledView();
+		shaderConstants.outputTextureDI = m_MipChain[i - 1]->GetStorageView();
+		shaderConstants.outputTexInvResolution = 1.f / float2{ outputTexDesc.width, outputTexDesc.height };
+		shaderConstants.outputTexResolution = uint2{ outputTexDesc.width, outputTexDesc.height };
+		shaderConstants.filterRadius = m_FilterRadius * (1080.f / sceneColorTexDesc.height);
 
-		commandList->Draw(3);
+		commandList->PushComputeConstants(0, shaderConstants);
 
-		commandList->EndRenderPass();		
+		commandList->Dispatch(DivRoundUp(outputTexDesc.width, 16u), DivRoundUp(outputTexDesc.height, 16u), 1);
 	}
 	commandList->EndMarker();
 
@@ -124,18 +124,19 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	commandList->BeginMarker("Mix");
 	{
 		commandList->PushBarrier(rhi::Barrier::Texture(
-			m_MipChain[0].Texture.get(), rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE));
+			m_MipChain[0].get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
 
 		commandList->BeginRenderPass(m_RenderGraph->GetFrameBuffer(m_FB).get(),
 			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Discard, rhi::RenderPassOp::StoreOp::Store } },
 			{}, {}, rhi::RenderPassFlags::None);
 
-		commandList->SetPipelineState(m_PSO.get());
+		commandList->SetPipelineState(m_MixPSO.get());
 
 		interop::BloomMixConstants shaderConstants;
 		shaderConstants.sceneTextureDI = sceneColorTexture->GetSampledView();
-		shaderConstants.bloomTextureDI = m_MipChain[0].Texture->GetSampledView();
+		shaderConstants.bloomTextureDI = m_MipChain[0]->GetSampledView();
 		shaderConstants.bloomStrength = m_Strength;
+
 		commandList->PushGraphicsConstants(0, shaderConstants);
 
 		commandList->Draw(3);
@@ -145,13 +146,13 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	commandList->EndMarker();
 
 	// After finished all mip textures are in SHADER_RESOURCE state
-	// We need to transit them to RENDERTARGET so they are ready for the next frame
+	// We need to transit them to UNORDERED_ACCESS so they are ready for the next frame
 	std::vector<rhi::Barrier> barriers;
 	barriers.reserve(m_MipChain.size());
 	for (int i = 0; i < m_MipChain.size(); ++i)
 	{
 		barriers.push_back(rhi::Barrier::Texture(
-			m_MipChain[i].Texture.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::RENDERTARGET));
+			m_MipChain[i].get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::UNORDERED_ACCESS));
 	}
 	commandList->PushBarriers(barriers);
 }
@@ -161,39 +162,31 @@ void alm::gfx::BloomRenderStage::OnAttached()
 	auto* deviceManager = m_RenderGraph->GetDeviceManager();
 	auto* commonResources = deviceManager->GetCommonResources();
 	auto* shaderFactory = deviceManager->GetShaderFactory();
+	auto* device = deviceManager->GetDevice();
 	rhi::TextureHandle sceneTex = m_RenderGraph->GetTexture(m_SceneColorTexture);
 	rhi::TextureHandle bloomTex = m_RenderGraph->GetTexture(m_BloomResultTexture);
 
 	// Create shaders
 	{
-		m_DownsampleShader = shaderFactory->LoadShader("BloomDownsample_ps", rhi::ShaderType::Pixel);
-		m_UpsampleShader = shaderFactory->LoadShader("BloomUpsample_ps", rhi::ShaderType::Pixel);
+		m_DownsampleShader = shaderFactory->LoadShader("BloomDownsample_cs", rhi::ShaderType::Compute);
+		m_UpsampleShader = shaderFactory->LoadShader("BloomUpsample_cs", rhi::ShaderType::Compute);
 		m_MixShader = shaderFactory->LoadShader("BloomMix_ps", rhi::ShaderType::Pixel);
 	}
 
-	// Create PSO desc
-	{
-		rhi::BlendState blendState;
-		blendState.renderTarget[0] = rhi::BlendState::RenderTargetBlendState{
-			.blendEnable = true,
-			.srcBlend = rhi::BlendFactor::One,
-			.destBlend = rhi::BlendFactor::One,
-			.blendOp = rhi::BlendOp::Add };
-
-		m_BlendPSODesc = rhi::GraphicsPipelineStateDesc{
-			.VS = commonResources->GetBlitVS(),
-			.PS = m_UpsampleShader.get_weak(),
-			.blendState = blendState };
-	}
-
-	// Create resources for main render target
+	// Create PSOs
 	{		
-		m_PSO = commonResources->CreateFullscreenPassPSO(
+		m_MixPSO = commonResources->CreateFullscreenPassPSO(
 			m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(),
 			m_MixShader.get_weak(), "BloomMixPSO");
+
+		m_DownsamplePSO = device->CreateComputePipelineState(
+			rhi::ComputePipelineStateDesc{ .CS = m_DownsampleShader.get_weak() }, "DownsamplePSO");
+
+		m_UpsamplePSO = device->CreateComputePipelineState(
+			rhi::ComputePipelineStateDesc{ .CS = m_UpsampleShader.get_weak() }, "UpsamplePSO");
 	}
 
-	// Create texture mips / framebuffers
+	// Create texture mips
 	ResetMipChain(false);
 }
 
@@ -201,9 +194,12 @@ void alm::gfx::BloomRenderStage::OnDetached()
 {
 	ReleaseMipChain(false);
 
-	m_BlendPSODesc = {};
-	m_PSO.reset();
-
+	m_UpsamplePSO = {};
+	m_DownsamplePSO = {};
+	m_MixPSO = {};
+	m_MixShader = {};
+	m_UpsampleShader = {};
+	m_DownsampleShader = {};
 }
 
 void alm::gfx::BloomRenderStage::OnBackbufferResize()
@@ -220,17 +216,11 @@ void alm::gfx::BloomRenderStage::ReleaseMipChain(bool immediate)
 	{
 		if (immediate)
 		{
-			device->ReleaseImmediately(std::move(mip.Texture));
-			device->ReleaseImmediately(std::move(mip.Framebuffer));
-			device->ReleaseImmediately(std::move(mip.PSO));
-			device->ReleaseImmediately(std::move(mip.BlendPSO));
+			device->ReleaseImmediately(std::move(mip));
 		}
 		else
 		{
-			device->ReleaseQueued(std::move(mip.Texture));
-			device->ReleaseQueued(std::move(mip.Framebuffer));
-			device->ReleaseQueued(std::move(mip.PSO));
-			device->ReleaseQueued(std::move(mip.BlendPSO));
+			device->ReleaseQueued(std::move(mip));
 		}
 	}
 	m_MipChain.clear();
@@ -255,20 +245,14 @@ void alm::gfx::BloomRenderStage::ResetMipChain(bool immediate)
 		if (width == 0 || height == 0)
 			break;
 
-		rhi::TextureDesc desc = sceneTexDesc;
+		rhi::TextureDesc desc = {};
 		desc.width = width;
 		desc.height = height;
+		desc.format = sceneTexDesc.format;
+		desc.shaderUsage = rhi::TextureShaderUsage::Sampled | rhi::TextureShaderUsage::Storage;
 
-		auto mipTex = device->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, std::format("BloomMip[{}]", i));
+		auto mipTex = device->CreateTexture(desc, rhi::ResourceState::UNORDERED_ACCESS, std::format("BloomMip[{}]", i));
 
-		auto fb = device->CreateFramebuffer(rhi::FramebufferDesc()
-			.AddColorAttachment(mipTex.get_weak()), std::format("BloomMipFramebuffer[{}]", i));
-
-		auto downPSO = commonResources->CreateFullscreenPassPSO(fb->GetFramebufferInfo(), m_DownsampleShader.get_weak(),
-			std::format("BloomMipDownsamplePSO[{}]", i));
-
-		auto upPSO = device->CreateGraphicsPipelineState(m_BlendPSODesc, fb->GetFramebufferInfo(), std::format("BloomMipUpsamplePSO[{}]", i));
-
-		m_MipChain.emplace_back(std::move(mipTex), std::move(fb), std::move(downPSO), std::move(upPSO));
+		m_MipChain.push_back(std::move(mipTex));
 	}
 }

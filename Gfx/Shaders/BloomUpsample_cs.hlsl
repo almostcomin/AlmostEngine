@@ -3,24 +3,25 @@
 
 // Based on https://learnopengl.com/Guest-Articles/2022/Phys.-Based-Bloom
 
+#define GROUP_SIZE 16
+
 ConstantBuffer<interop::BloomUpsampleConstants> Constants : register(b0);
 
-struct PS_INPUT
-{
-    float4 position : SV_Position;
-    float2 uv : TEXCOORD0;
-};
-
 [RootSignature(BindlessRootSignature)]
-float3 main(PS_INPUT input) : SV_Target
+[numthreads(GROUP_SIZE, GROUP_SIZE, 1)]
+void main(uint2 DTid : SV_DispatchThreadID)
 {
+    if (any(DTid >= Constants.outputTexResolution))
+        return;
+    
     Texture2D texture = ResourceDescriptorHeap[Constants.inputTextureDI];
     
     // The filter kernel is applied with a radius, specified in texture
     // coordinates, so that the radius will vary across mip resolutions.
     float x = Constants.filterRadius;
     float y = Constants.filterRadius;
-    float2 uv = input.uv;
+    
+    float2 uv = (DTid + 0.5) * Constants.outputTexInvResolution;
     
     // Take 9 samples around current texel:
     // a - b - c
@@ -47,6 +48,8 @@ float3 main(PS_INPUT input) : SV_Target
     upsample += (b + d + f + h) * 2.0;
     upsample += (a + c + g + i);
     upsample *= 1.0 / 16.0;
-    
-    return upsample;
+
+    RWTexture2D<float4> outputTex = ResourceDescriptorHeap[Constants.outputTextureDI];
+    float4 currentC = outputTex[DTid];
+    outputTex[DTid] = float4(currentC.rgb + upsample, 1.0);
 }

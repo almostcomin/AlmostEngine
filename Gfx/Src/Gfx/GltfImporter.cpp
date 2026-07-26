@@ -576,7 +576,7 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         const cgltf_material& srcMat = objects->materials[mat_idx];
         std::string path = loadCache.path.generic_string();
         std::shared_ptr<alm::gfx::Material> mat =
-            std::make_shared<alm::gfx::Material>((const char*)srcMat.name, path.c_str());
+            std::make_shared<alm::gfx::Material>(srcMat.name ? srcMat.name : "<noname>", path.c_str());
 
         if (srcMat.has_pbr_specular_glossiness)
         {

@@ -38,26 +38,19 @@ private:
 
 private:
 
-	struct MipEntry
-	{
-		rhi::TextureOwner Texture;
-		rhi::FramebufferOwner Framebuffer;
-		rhi::GraphicsPipelineStateOwner PSO;
-		rhi::GraphicsPipelineStateOwner BlendPSO;
-	};
-
 	RGTextureHandle m_SceneColorTexture;
 	RGTextureHandle m_BloomResultTexture;
 	RGFramebufferHandle m_FB;
 
-	rhi::GraphicsPipelineStateDesc m_BlendPSODesc;
-	rhi::GraphicsPipelineStateOwner m_PSO;
+	rhi::ComputePipelineStateOwner m_DownsamplePSO;
+	rhi::ComputePipelineStateOwner m_UpsamplePSO;
+	rhi::GraphicsPipelineStateOwner m_MixPSO;
 
 	rhi::ShaderOwner m_DownsampleShader;
 	rhi::ShaderOwner m_UpsampleShader;
 	rhi::ShaderOwner m_MixShader;
 
-	std::vector<MipEntry> m_MipChain;
+	std::vector<rhi::TextureOwner> m_MipChain;
 
 	bool m_BloomEnabled;
 	float m_FilterRadius;

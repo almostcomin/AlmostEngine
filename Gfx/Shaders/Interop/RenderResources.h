@@ -387,13 +387,20 @@ namespace interop
     struct BloomDownsampleConstants
     {
         TextureSampledViewIndex inputTextureDI;
-        float2 invInputTexResolution;
+        TextureStorageViewIndex outputTextureDI;
+        uint2 outputTexResolution;
+        float2 inputTexInvResolution;
+        uint2 _padding0;
     };
 
     struct BloomUpsampleConstants
     {
         TextureSampledViewIndex inputTextureDI;
+        TextureStorageViewIndex outputTextureDI;
+        float2 outputTexInvResolution;
+        uint2 outputTexResolution;
         float filterRadius;
+        uint _padding0;
     };
 
     struct BloomMixConstants
