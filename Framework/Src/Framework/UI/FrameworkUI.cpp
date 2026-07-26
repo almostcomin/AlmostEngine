@@ -1522,6 +1522,8 @@ void alm::fw::FrameworkUI::BuildBloomSettings(float availWidth)
         ImGui::Checkbox("Enabled##Bloom", &FrameworkData.Bloom.Enabled);
         ImGui::InputFloat("Radius##Bloom", &FrameworkData.Bloom.Radius);
         ImGui::InputFloat("Strength##Bloom", &FrameworkData.Bloom.Strength);
+        ImGui::InputFloat("Threshold##Bloom", &FrameworkData.Bloom.Threshold);
+        ImGui::InputFloat("Threshold Knee##Bloom", &FrameworkData.Bloom.ThresholdKnee);
 
         // Calc whats the max mip chain
         alm::rhi::TextureHandle tex = m_RenderViewUI->GetRenderGraph()->GetTexture("SceneColor");

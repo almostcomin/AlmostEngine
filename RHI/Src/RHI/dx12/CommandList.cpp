@@ -272,6 +272,12 @@ void alm::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers
 			break;
 
 		case Barrier::Type::TEXTURE:
+
+			if (barrier.texture.texture->GetDebugName() == "BloomPrefilter")
+			{
+				puts("hola");
+			}
+
 			d3d12Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 			d3d12Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 			d3d12Barrier.Transition.pResource = barrier.texture.texture->GetNativeResource();

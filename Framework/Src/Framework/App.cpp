@@ -157,6 +157,8 @@ void alm::fw::App::RefreshUIData()
 		data.Bloom.Radius = bloomRS->GetFilterRadius();
 		data.Bloom.Strength = bloomRS->GetStrength();
 		data.Bloom.MaxMip = bloomRS->GetMaxMipChainLenght();
+		data.Bloom.Threshold = bloomRS->GetThreshold();
+		data.Bloom.ThresholdKnee = bloomRS->GetThresholdKnee();
 	}
 
 	if (tonemappingRS && compositeRS)
@@ -779,6 +781,8 @@ void alm::fw::App::MainLoop()
 				bloomRS->SetBloomEnabled(data.Bloom.Enabled);
 				bloomRS->SetFilterRadius(data.Bloom.Radius);
 				bloomRS->SetStrength(data.Bloom.Strength);
+				bloomRS->SetThreshold(data.Bloom.Threshold);
+				bloomRS->SetThresholdKnee(data.Bloom.ThresholdKnee);
 				bloomRS->SetMaxMipChainLenght(data.Bloom.MaxMip);
 			}
 
