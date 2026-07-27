@@ -36,7 +36,7 @@ build_project(
     source_rel          = "../3rdParty/Sources/tracy",
     build_base_rel      = "../3rdParty/_build/tracy",
     install_base_rel    = "../3rdParty/tracy",
-    default_args        = ["-DTRACY_ENABLE=ON", "-DTRACY_ON_DEMAND=ON"],
+    default_args        = ["-DTRACY_ENABLE=ON"],
     extra_args_func     = tracy_extra_args,
     post_install_func   = patch_tracy_common_headers,
 )
