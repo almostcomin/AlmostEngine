@@ -14,7 +14,6 @@ enum class CloudsPreset
     SoftRain,
     DenseStorm,
     Fog,
-    Cirrus,
     Tropical,
     Hazy,
 

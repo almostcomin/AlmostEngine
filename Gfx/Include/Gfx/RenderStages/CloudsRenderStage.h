@@ -25,7 +25,7 @@ public:
 
     static constexpr float kEarthRefRadius = 6360000.f;
     static constexpr float kCloudsLayerHStart = 1500.f;
-    static constexpr float kCloudsLayerHEnd = 8000.f;
+    static constexpr float kCloudsLayerHEnd = 12000.f;
     static constexpr float kCloudsFadeDistance = 48000.f;
 
 	struct CloudsParams
@@ -35,9 +35,9 @@ public:
         float CumulusWeight = 0.7f;
         float CumulonimbusWeight = 0.f;
         float CloudsScale = 0.004f;
-        float CloudsCoverage = 0.4f;
-        float AbsorptionCoeff = 2.f / 1000;   // 1/m
-        float ScatteringCoeff = 9.f / 1000;   // 1/m        
+        float CloudsCoverage = 0.35f;
+        float AbsorptionCoeff = 0.8f / 1000;   // 1/m
+        float ScatteringCoeff = 3.f / 1000;   // 1/m        
         float MultiScatterContribution = 0.1f;
         float MultiScatterOcclusion = 0.5f;
         float MultiScatterEccentricity = 0.5f;
@@ -56,8 +56,8 @@ public:
         float3 EarthCenter = float3{ 0.f };
         float DetailScale = 80.f;
         float DetailErosionStrength = 0.2f;
-        uint32_t CloudRaymarchIterations = 128;
-        uint32_t LightRaymarchIterations = 32;
+        uint32_t CloudRaymarchIterations = 64;
+        uint32_t LightRaymarchIterations = 16;
         uint32_t MultiScatterOctaves = 2;
 	};
 

@@ -77,7 +77,7 @@ float CloudCoverageShape(float norY, float stratusWeight, float cumulusWeight, f
 // Density 1 at the base, 0.3 at the top.
 float GlobalHeightGradient(float norY)
 {
-    return lerp(1.0, 0.3, smoothstep(0.0, 1.0, norY));
+    return lerp(1.0, 0.55, smoothstep(0.0, 1.0, norY));
 }
 
 // Henyey-Greenstein phase function, forward-scattering anisotropy.
