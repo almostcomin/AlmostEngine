@@ -23,6 +23,7 @@ public:
 
 	static constexpr int c_BBSize = 0;
 	static constexpr int c_HalfBBSize = -1;
+	static constexpr int c_QuarterBBSize = -1;
 
 	enum TextureResourceType
 	{

@@ -518,7 +518,9 @@ namespace interop
         float multiScatterBaseG;        // offset 68
         float powderStrength;
         float powderEdgeWidth;
-        uint _padding;
+        uint volumetricShadows;
+        float depthThreshold;           // offet 72
+        float blendFactor;
     };
 
     struct CloudsConstants

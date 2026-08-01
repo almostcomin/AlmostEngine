@@ -254,6 +254,8 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		//const float3 sunRadiance = sunParams.Color * sunParams.Irradiance / std::max(sunSolidAngle, 1e-6f);
 		const float3 sunRadiance = sunParams.Color * sunParams.Irradiance * 60.f;
 
+		const float downscaleFactor = (float)m_RenderTargetDenom;
+
 		// Fill shader constants
 		auto* cloudsData = (interop::CloudsData*)m_CloudsCB.Map();
 
@@ -290,6 +292,7 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->sunRadiance = sunRadiance;
 		cloudsData->sunIrradiance = float3{ 0.f }; // TODO
 		cloudsData->maxSteps = m_Params.CloudRaymarchIterations;
+		cloudsData->volumetricShadows = (uint32_t)m_Params.VolumetricShadows;
 		cloudsData->lightSteps = m_Params.LightRaymarchIterations;
 		cloudsData->multiScatterOctaves = m_Params.MultiScatterOctaves;
 		cloudsData->phaseGForward = m_Params.PhaseGForward;
@@ -297,6 +300,8 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->multiScatterBaseG = m_Params.MultiScatterBaseG;
 		cloudsData->powderStrength = m_Params.PowderStrength;
 		cloudsData->powderEdgeWidth = m_Params.PowderEdgeWidth;
+		cloudsData->depthThreshold = 0.05f * downscaleFactor;
+		cloudsData->blendFactor = 0.4f / downscaleFactor;
 
 		const float3 up = abs(toSunDirection.y) < 0.99 ? float3(0.0, 1.0, 0.0) : float3(1.0, 0.0, 0.0);
 		cloudsData->sunT = normalize(cross(toSunDirection, up));
@@ -461,6 +466,15 @@ alm::gfx::CloudsRenderStage::ComputeMultiScatterLUT(float mu_s, float mu_a)
 	return std::make_pair(std::move(texture), *commitResult);
 }
 
+void alm::gfx::CloudsRenderStage::SetRenderTargetDenominator(int v)
+{
+	if (m_RenderTargetDenom == v)
+		return;
+
+	m_RenderTargetDenom = v;
+	ResetCloudsResources();
+}
+
 void alm::gfx::CloudsRenderStage::ResetCloudsResources()
 {
 	auto* deviceManager = m_RenderGraph->GetDeviceManager();
@@ -471,8 +485,8 @@ void alm::gfx::CloudsRenderStage::ResetCloudsResources()
 	// Textures and framebuffers
 	{
 		rhi::TextureDesc desc = {
-			.width = bbDesc.width,
-			.height = bbDesc.height,
+			.width = bbDesc.width / m_RenderTargetDenom,
+			.height = bbDesc.height / m_RenderTargetDenom,
 			.format = rhi::Format::RGBA16_FLOAT,
 			.shaderUsage = rhi::TextureShaderUsage::Sampled | rhi::TextureShaderUsage::ColorTarget };
 

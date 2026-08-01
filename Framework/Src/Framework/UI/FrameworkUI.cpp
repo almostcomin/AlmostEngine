@@ -1434,12 +1434,25 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::InputFloat("Earth Radius##Clouds", &FrameworkData.CloudsParams.EarthRadius);
 
         ImGui::Spacing();
-        ImGui::SeparatorText("Simulation");
+        ImGui::SeparatorText("Performance");
         ImGui::Spacing();
 
         ImGui::InputScalar("Density interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.CloudRaymarchIterations);
+        ImGui::Checkbox("Volumetric shadows##Clouds", &FrameworkData.CloudsParams.VolumetricShadows);
         ImGui::InputScalar("Light interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.LightRaymarchIterations);
         ImGui::SliderInt("Multi scatter octaves##Clouds", (int*)&FrameworkData.CloudsParams.MultiScatterOctaves, 0, 8);
+
+        ImGui::Spacing();
+
+        int rtDenom = cloudsRS->GetRenderTargetDenominator();
+        if (ImGui::RadioButton("Render Target 1/1##Clouds", rtDenom == 1))
+            cloudsRS->SetRenderTargetDenominator(1);
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Render Target 1/2##Clouds", rtDenom == 2))
+            cloudsRS->SetRenderTargetDenominator(2);
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Render Target 1/4##Clouds", rtDenom == 4))
+            cloudsRS->SetRenderTargetDenominator(4);
 
         ImGui::Spacing();
         ImGui::SeparatorText("Debug");

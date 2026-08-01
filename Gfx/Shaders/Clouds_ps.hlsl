@@ -193,11 +193,16 @@ ShadowResult VolumetricShadow(float3 from, float2 pixelPos,
         return r;
     }
 
+    float2 frameOffset = float2(
+        frac(Constants.frameCounter * 0.61803398875), // golden ratio
+        frac(Constants.frameCounter * 0.41421356237)  // silver ratio (sqrt(2)-1)
+    );
+
     float step = tMax / (float)cloudsData.lightSteps;
     float opticalDepth = 0.0;
     for (int j = 0; j < cloudsData.lightSteps; ++j)
     {
-        float stepJ = StepJitter(pixelPos + float2(7.0, 13.0), (uint)j, 0.37);
+        float stepJ = StepJitter(pixelPos + float2(7.0, 13.0) + frameOffset, (uint)j, 0.37);
         float sampleD = (float)j * step + stepJ * step;
         float3 pos = from + cloudsData.toSunDirection * sampleD;
         float alt = length(pos) - cloudsData.earthRadius;
@@ -307,11 +312,15 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     float cosTheta = dot(rayDir, cloudsData.toSunDirection);
     float phase = DualLobeHG(cosTheta, cloudsData.phaseGForward, cloudsData.phaseGBackward);
 
+    float2 frameOffset = float2(
+        frac(Constants.frameCounter * 0.61803398875), // golden ratio
+        frac(Constants.frameCounter * 0.41421356237) // silver ratio (sqrt(2)-1)
+    );
     float totalDensity = 0.0;
     
     for (uint step = 0; step < effectiveSteps; ++step)
     {
-        float stepJ = StepJitter(pixelPos, step, 0.0);
+        float stepJ = StepJitter(pixelPos + frameOffset, step, 0.0);
         float sampleT = t + stepJ * stepSize;
         
         float3 pos = rayOrigin + rayDir * sampleT;
@@ -324,10 +333,15 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         density *= fadeFactor;
                 
         if (density > 0.0)
-        {            
-            ShadowResult shadowResult = VolumetricShadow(pos, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsData);
-            float lightEnergy = shadowResult.lightEnergy;
-            float sunOD = shadowResult.opticalDepth;
+        {
+            float lightEnergy = 1.0;
+            float sunOD = 0.0;
+            if(cloudsData.volumetricShadows)
+            {
+                ShadowResult shadowResult = VolumetricShadow(pos, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsData);
+                lightEnergy = shadowResult.lightEnergy;
+                sunOD = shadowResult.opticalDepth;
+            }
 
             // Single scatter: HG phase + powder + Beer-Lambert on sun path.
             float powder = PowderEffect(density, cloudsData.powderEdgeWidth, cloudsData.powderStrength);
@@ -445,34 +459,30 @@ float4 main(PS_INPUT input) : SV_Target
     float2 prevUv = prevClipPos.xy * float2(0.5, -0.5) + 0.5;
     float prevViewZ = linearDepthTex.SampleLevel(pointClampSampler, prevUv, 0.0);
     float depthDiff = abs(prevViewZ - viewZ) / max(viewZ, 1.0);
-    bool prevDepthValid = depthDiff < 0.05; // 5% of tolerance
+    bool prevDepthValid = depthDiff < cloudsData.depthThreshold;
     
     bool prevUvValid = prevDepthValid 
                        && all(prevUv >= 0.0) && all(prevUv <= 1.0)
                        && prevClipPos.z >= 0.0 && prevClipPos.z <= 1.0;
-
-    bool hasHit = clouds.transmittance < 0.999;
     
     float4 currentColor = float4(clouds.color, clouds.transmittance);
     float4 finalColor = currentColor;
     
-    if (prevUvValid && hasHit)
-    {
+    if (prevUvValid)
+    {        
         Texture2D<float4> prevCloudsTex = ResourceDescriptorHeap[cloudsData.prevCloudsTexDI];
-        float4 prevColor = prevCloudsTex.SampleLevel(pointClampSampler, prevUv, 0.0);
+        float4 prevColor = prevCloudsTex.SampleLevel(pointClampSampler, prevUv, 0.0);        
         
         bool historyHadCloud = prevColor.a < 0.999;
-        if (historyHadCloud)
-        {
-            finalColor = lerp(prevColor, currentColor, 0.85);
-        }
-        else
-        {
+        bool hasHit = clouds.transmittance < 0.999;
+        
+        if (hasHit && historyHadCloud)
+            finalColor = lerp(prevColor, currentColor, cloudsData.blendFactor);
+        else if (hasHit)
             finalColor = currentColor;
-        }
+        else
+            finalColor = lerp(prevColor, float4(0, 0, 0, 1), cloudsData.blendFactor);
     }
     
     return finalColor;
-    //return float4(clouds.color, 1.0);
-
 }

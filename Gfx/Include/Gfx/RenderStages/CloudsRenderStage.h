@@ -56,7 +56,8 @@ public:
         float3 EarthCenter = float3{ 0.f };
         float DetailScale = 80.f;
         float DetailErosionStrength = 0.2f;
-        uint32_t CloudRaymarchIterations = 64;
+        bool VolumetricShadows = true;
+        uint32_t CloudRaymarchIterations = 128;
         uint32_t LightRaymarchIterations = 16;
         uint32_t MultiScatterOctaves = 2;
 	};
@@ -86,6 +87,9 @@ public:
 
     std::expected<std::pair<alm::rhi::TextureOwner, alm::SignalListener>, std::string>
     ComputeMultiScatterLUT(float mu_s, float mu_a);
+
+    void SetRenderTargetDenominator(int v);
+    int GetRenderTargetDenominator() const { return m_RenderTargetDenom; }
 
     void SetDebugChannel(DebugChannel c) { m_DebugChannel = c; }
 
@@ -123,6 +127,7 @@ private:
     float2 m_CloudsOffset = { 0.f, 0.f };
     float m_ScaleFactor = 1.f;
 
+    int m_RenderTargetDenom = 2;
     DebugChannel m_DebugChannel;
 };
 
