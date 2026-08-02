@@ -133,17 +133,22 @@ void alm::fw::App::RefreshUIData()
 	{
 		data.ShadowmapSize = shadowmapRS->GetSize();
 	}
-	data.SunParams = m_Scene->GetSunParams();
-	data.AmbientParams = m_Scene->GetAmbientParams();
+
+	const gfx::AtmosphereConfig& atmos = m_Scene->GetAtmosphereConfig();
+
+	data.SunParams = atmos.Sun;
+	data.AmbientParams = atmos.Ambient;
+	data.SkyParams = atmos.Sky;
+	data.CloudsParams = atmos.Clouds;
 
 	if (simpleSkyRS)
 		data.SimpleSkyParams = simpleSkyRS->GetSkyParams();
 
 	if (skyRS)
-		data.SkyParams = skyRS->GetSkyParams();
+		data.SkySimParams = skyRS->GetSkySimParams();
 
 	if (cloudsRS)
-		data.CloudsParams = cloudsRS->GetCloudsParams();
+		data.CloudsSimParams = cloudsRS->GetCloudsSimParams();
 
 	if (SSAORS)
 	{
@@ -738,16 +743,20 @@ void alm::fw::App::MainLoop()
 			if (shadowmapRS->GetSize() != data.ShadowmapSize)
 				shadowmapRS->SetSize(data.ShadowmapSize);
 
+			gfx::AtmosphereConfig& atmos = m_Scene->GetAtmosphereConfig();
+
 			if (data.SunParamsUpdated)
 			{
-				m_Scene->SetSunParams(data.SunParams);
+				atmos.Sun = data.SunParams;
 				data.SunParamsUpdated = false;
 			}
 			if (data.AmbientParamsUpdated)
 			{
-				m_Scene->SetAmbientParams(data.AmbientParams);
+				atmos.Ambient = data.AmbientParams;
 				data.AmbientParamsUpdated = false;
 			}
+			atmos.Sky = data.SkyParams;
+			atmos.Clouds = data.CloudsParams;
 
 			if (simpleSkyRS)
 				simpleSkyRS->SetSkyParams(data.SimpleSkyParams);
@@ -755,13 +764,13 @@ void alm::fw::App::MainLoop()
 			if (skyRS)
 			{
 				skyRS->SetEnabled(data.SkyEnabled);
-				skyRS->SetSkyParams(data.SkyParams);
+				skyRS->SetSkySimParams(data.SkySimParams);
 			}
 
 			if (cloudsRS)
 			{
 				cloudsRS->SetEnabled(data.CloudsEnabled);
-				cloudsRS->SetCloudsParams(data.CloudsParams);
+				cloudsRS->SetCloudsSimParams(data.CloudsSimParams);
 			}
 
 			lightingRS->SetMaterialChannel(data.MatChannel);

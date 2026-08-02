@@ -16,6 +16,7 @@
 #include "Gfx/RenderStages/BloomRenderStage.h"
 #include "Gfx/RenderStages/SkyRenderStage.h"
 #include "Gfx/RenderStages/CloudsRenderStage.h"
+#include "Gfx/RenderStages/CloudsShadowMapRenderStage.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
@@ -235,13 +236,11 @@ public:
 			}
 		}
 
-		// Set Sky params
+		// Set Atmos params
 		{
-			m_SkyRS->SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
-			m_SkyRS->SetEarthRadius(kEarthRadius, 1.f);
-
-			m_CloudsRS->SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
-			m_CloudsRS->SetEarthRadius(kEarthRadius, true);
+			alm::gfx::AtmosphereConfig& atmos = m_Scene->GetAtmosphereConfig();
+			atmos.SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
+			atmos.SetEarthRadius(kEarthRadius, true);
 		}
 
 		// Set clouds texture
@@ -419,6 +418,7 @@ public:
 		auto GBuffersRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::GBuffersRenderStage>();
 		auto deferredLightingRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::DeferredLightingRenderStage>();
 		auto skyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::SkyRenderStage>();
+		auto cloudsSMRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsShadowmapRenderStage>();
 		auto cloudsRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsRenderStage>();
 		auto WBOITAccumRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
 		auto WBOITResolveRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
@@ -438,6 +438,7 @@ public:
 			SSAORS,
 			deferredLightingRS,
 			skyRS,
+			cloudsSMRS,
 			cloudsRS,
 			WBOITAccumRS,
 			WBOITResolveRS,
@@ -457,6 +458,7 @@ public:
 			SSAORS.get(),
 			deferredLightingRS.get(),
 			skyRS.get(),
+			cloudsSMRS.get(),
 			cloudsRS.get(),
 			WBOITAccumRS.get(),
 			WBOITResolveRS.get(),
@@ -476,6 +478,7 @@ public:
 
 		m_UI = ImGuiRS;
 		m_SkyRS = skyRS;
+		m_CloudsSMRS = cloudsSMRS;
 		m_CloudsRS = cloudsRS;
 
 		toneMappingRS->SetTonemappingEnabled(false);
@@ -488,6 +491,7 @@ private:
 	alm::fw::CameraController m_CameraController;
 
 	std::shared_ptr<alm::gfx::SkyRenderStage> m_SkyRS;
+	std::shared_ptr<alm::gfx::CloudsShadowmapRenderStage> m_CloudsSMRS;
 	std::shared_ptr<alm::gfx::CloudsRenderStage> m_CloudsRS;
 	std::shared_ptr<OutdoorsUI> m_UI;
 

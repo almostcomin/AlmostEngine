@@ -533,6 +533,24 @@ namespace interop
         uint debugChannel;
     };
 
+    struct CloudsShadowmapData
+    {
+        TextureStorageViewIndex DstTextureDI;
+        TextureSampledViewIndex LinearDepthTexDI;
+        TextureSampledViewIndex CloudsBaseShapeTexture;
+        uint _padding0;
+        uint2 DstTextureSize;
+        uint2 _padding1;
+        float4x4 MatClipToTranslatedWorld;
+        float3 CameraForward;
+        uint _passing2;
+    };
+
+    struct CloudsShadowmapConstants
+    {
+        BufferUniformIndex CloudsShadowmapDataDI; // CloudsShadowmapData
+    };
+
     struct HeightmapDebugConstants
     {
         TextureStorageViewIndex inputTextureDI;

@@ -112,6 +112,7 @@ public:
 
 	rhi::TextureSampledView GetTextureSampledView(RGTextureHandle handle);
 	rhi::TextureStorageView GetTextureStorageView(RGTextureHandle handle);
+	uint2 GetTexture2dDimensions(RGTextureHandle handle);
 
 	rhi::BufferUniformView GetBufferUniformView(RGBufferHandle handle);
 	rhi::BufferReadOnlyView GetBufferReadOnlyView(RGBufferHandle handle);

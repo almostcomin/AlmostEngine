@@ -1301,21 +1301,22 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
 
             ImGui::Spacing();
 
-            ImGui::InputFloat("Earth radius", &FrameworkData.SkyParams.EarthRadius);
             ImGui::InputFloat("Atmospheric depth", &FrameworkData.SkyParams.AtmosHeight);
             ImGui::InputFloat3("Rayleigh Wave Lengths", &FrameworkData.SkyParams.RayleighWaveLengths.x, "%.1f");
             ImGui::InputFloat("Turbidity factor", &FrameworkData.SkyParams.Turbidity);
             ImGui::SliderFloat("Mie Anisotropy##Sky", &FrameworkData.SkyParams.MieAnisotropy, 0.f, 1.f);
-            ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &FrameworkData.SkyParams.NumSteps);
-            ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &FrameworkData.SkyParams.NumLightSteps);
+            ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &FrameworkData.SkySimParams.NumSteps);
+            ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &FrameworkData.SkySimParams.NumLightSteps);
         }
     }
 }
 
 void alm::fw::FrameworkUI::BuildsCloudsSettings()
 {
+    const auto& scene = GetScene();
     auto cloudsRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CloudsRenderStage>();
-    if(cloudsRS && ImGui::CollapsingHeader("Clouds"))
+
+    if(scene && cloudsRS && ImGui::CollapsingHeader("Clouds"))
     {
         ImGui::Checkbox("Enabled##Clouds", &FrameworkData.CloudsEnabled);
 
@@ -1352,7 +1353,8 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::SeparatorText("Velocity");
         ImGui::Spacing();
 
-        float2 velDir = FrameworkData.CloudsParams.WindVelocity;
+        gfx::AtmosphereConfig& atmos = scene->GetAtmosphereConfig();
+        float2 velDir = atmos.WindVelocity;
         float velMag = glm::length(velDir);
         float velYaw = 0.f;
         if (velMag > 0.0001f)
@@ -1365,9 +1367,9 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         windUpdated |= ImGui::InputFloat("Wind Magnitude", &velMag);
         if (windUpdated)
         {
-            FrameworkData.CloudsParams.WindVelocity.x = glm::sin(velYaw);
-            FrameworkData.CloudsParams.WindVelocity.y = glm::cos(velYaw);
-            FrameworkData.CloudsParams.WindVelocity *= velMag;
+            atmos.WindVelocity.x = glm::sin(velYaw);
+            atmos.WindVelocity.y = glm::cos(velYaw);
+            atmos.WindVelocity *= velMag;
         }
 
         ImGui::Spacing();
@@ -1430,17 +1432,15 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::InputFloat("Clouds Top##Clouds", &FrameworkData.CloudsParams.CloudsLayerMax);
         ImGui::Spacing();
         ImGui::InputFloat("Fade Distance##Clouds", &FrameworkData.CloudsParams.CloudsFadeDistance);
-        ImGui::Spacing();
-        ImGui::InputFloat("Earth Radius##Clouds", &FrameworkData.CloudsParams.EarthRadius);
 
         ImGui::Spacing();
         ImGui::SeparatorText("Performance");
         ImGui::Spacing();
 
-        ImGui::InputScalar("Density interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.CloudRaymarchIterations);
-        ImGui::Checkbox("Volumetric shadows##Clouds", &FrameworkData.CloudsParams.VolumetricShadows);
-        ImGui::InputScalar("Light interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsParams.LightRaymarchIterations);
-        ImGui::SliderInt("Multi scatter octaves##Clouds", (int*)&FrameworkData.CloudsParams.MultiScatterOctaves, 0, 8);
+        ImGui::InputScalar("Density interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsSimParams.CloudRaymarchIterations);
+        ImGui::Checkbox("Volumetric shadows##Clouds", &FrameworkData.CloudsSimParams.VolumetricShadows);
+        ImGui::InputScalar("Light interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsSimParams.LightRaymarchIterations);
+        ImGui::SliderInt("Multi scatter octaves##Clouds", (int*)&FrameworkData.CloudsSimParams.MultiScatterOctaves, 0, 8);
 
         ImGui::Spacing();
 

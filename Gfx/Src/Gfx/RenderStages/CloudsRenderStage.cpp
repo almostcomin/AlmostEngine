@@ -12,34 +12,8 @@
 #include "RHI/Device.h"
 #include "Core/Noise.h"
 
-static constexpr uint LUT_SIZE = 64;
-
-// Max Multi-Scatter optical depth. Anything beyond clamps to the last value.
-// Keep sinced with shader code side
-static constexpr uint MAX_MS_OD = 16;
-
 alm::gfx::CloudsRenderStage::CloudsRenderStage() : m_CloudsTextureIdx{ -1 }, m_DebugChannel{ DebugChannel::Disabled }
 {}
-
-void alm::gfx::CloudsRenderStage::SetEarthRadius(float r, bool keepRelativeScale)
-{
-	m_Params.EarthRadius = r;
-	if (keepRelativeScale)
-	{
-		const float prevScaleFactor = m_ScaleFactor;
-		m_ScaleFactor = r / kEarthRefRadius;
-		const float conversionFactor = m_ScaleFactor / prevScaleFactor;
-
-		m_Params.CloudsLayerMin *= conversionFactor;
-		m_Params.CloudsLayerMax *= conversionFactor;
-		m_Params.CloudsFadeDistance *= conversionFactor;
-		// Other params affected by scale are taken into account in the moment of bindind
-	}
-	else
-	{
-		m_ScaleFactor = 1.f;
-	}
-}
 
 std::expected<std::pair<alm::rhi::TextureOwner, alm::SignalListener>, std::string>
 alm::gfx::CloudsRenderStage::CreateCloudsShapeTexture(alm::gfx::DeviceManager* deviceManager)
@@ -182,7 +156,7 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		return;
 	}
 
-	const auto& sunParams = GetScene()->GetSunParams();
+	const gfx::AtmosphereConfig& atmos = GetScene()->GetAtmosphereConfig();
 
 	// Initialize buffers
 	bool clearCloudsTextures = false;
@@ -241,13 +215,16 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 
 		commandList->SetPipelineState(m_CloudsPSO.get());
 
+		const gfx::AtmosphereConfig::SunParams& sunParams = atmos.Sun;
+		const gfx::AtmosphereConfig::CloudsParams& cloudsParams = atmos.Clouds;
+
 		// Update clouds position offset
-		m_CloudsOffset += m_Params.WindVelocity * GetRenderView()->GetTimeDelta();
+		m_CloudsOffset += atmos.WindVelocity * GetRenderView()->GetTimeDelta();
 
 		const float3 toSunDirection = -glm::normalize(alm::ElevationAzimuthRadToDir(
 			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg)));
-		const float muS = m_Params.ScatteringCoeff / m_ScaleFactor;
-		const float muA = m_Params.AbsorptionCoeff / m_ScaleFactor;
+		const float muS = cloudsParams.ScatteringCoeff / atmos.EarthScaleFactor;
+		const float muA = cloudsParams.AbsorptionCoeff / atmos.EarthScaleFactor;
 		const float muT = muS + muA;
 
 		//const float sunSolidAngle = 4.0f * PI * square(glm::sin(glm::radians(sunParams.AngularSizeDeg / 2.0f)));
@@ -264,42 +241,42 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->linearDepthTexDI = m_RenderGraph->GetTextureSampledView(m_LinearDepthTexture);
 		cloudsData->prevCloudsTexDI = m_CloudsTexture[cloudsOtherIdx]->GetSampledView();
 
-		cloudsData->stratusWeight = m_Params.StratusWeight;
-		cloudsData->cumulusWeight = m_Params.CumulusWeight;
-		cloudsData->cumulonimbusWeight = m_Params.CumulonimbusWeight;
-		cloudsData->cloudsScale = m_Params.CloudsScale * m_ScaleFactor;
-		cloudsData->coverage = m_Params.CloudsCoverage;
-		cloudsData->cloudFadeDistance = m_Params.CloudsFadeDistance;
+		cloudsData->stratusWeight = cloudsParams.StratusWeight;
+		cloudsData->cumulusWeight = cloudsParams.CumulusWeight;
+		cloudsData->cumulonimbusWeight = cloudsParams.CumulonimbusWeight;
+		cloudsData->cloudsScale = cloudsParams.CloudsScale * atmos.EarthScaleFactor;
+		cloudsData->coverage = cloudsParams.CloudsCoverage;
+		cloudsData->cloudFadeDistance = cloudsParams.CloudsFadeDistance;
 		cloudsData->windOffset = m_CloudsOffset;
-		cloudsData->cloudLayerMin = m_Params.CloudsLayerMin;
-		cloudsData->cloudLayerMax = m_Params.CloudsLayerMax;
+		cloudsData->cloudLayerMin = cloudsParams.CloudsLayerMin;
+		cloudsData->cloudLayerMax = cloudsParams.CloudsLayerMax;
 		cloudsData->toSunDirection = toSunDirection;
 		cloudsData->muT = muT;
 		cloudsData->muS = muS;
-		cloudsData->multiScatterContribution = m_Params.MultiScatterContribution;
-		cloudsData->multiScatterOcclusion = m_Params.MultiScatterOcclusion;
-		cloudsData->multiScatterEccentricity = m_Params.MultiScatterEccentricity;
+		cloudsData->multiScatterContribution = cloudsParams.MultiScatterContribution;
+		cloudsData->multiScatterOcclusion = cloudsParams.MultiScatterOcclusion;
+		cloudsData->multiScatterEccentricity = cloudsParams.MultiScatterEccentricity;
 		cloudsData->albedo = muS / std::max(muT, 1e-10f);
-		cloudsData->ambientStrength = m_Params.AmbientStrength;
-		cloudsData->earthCenter = m_Params.EarthCenter;
-		cloudsData->earthRadius = m_Params.EarthRadius;
-		cloudsData->invCloudLayerThickness = 1.f / (m_Params.CloudsLayerMax - m_Params.CloudsLayerMin);
+		cloudsData->ambientStrength = cloudsParams.AmbientStrength;
+		cloudsData->earthCenter = atmos.EarthCenter;
+		cloudsData->earthRadius = atmos.EarthRadius;
+		cloudsData->invCloudLayerThickness = 1.f / (cloudsParams.CloudsLayerMax - cloudsParams.CloudsLayerMin);
 		cloudsData->cameraForward = GetCamera()->GetForward();
-		cloudsData->detailScale = m_Params.DetailScale * m_ScaleFactor;
-		cloudsData->detailErosionStrength = m_Params.DetailErosionStrength;
+		cloudsData->detailScale = cloudsParams.DetailScale * atmos.EarthScaleFactor;
+		cloudsData->detailErosionStrength = cloudsParams.DetailErosionStrength;
 		cloudsData->matPrevFrameViewProj = GetRenderView()->GetPrevFrameViewProjMatrix();
-		cloudsData->invCloudFadeDistance = 1.f / m_Params.CloudsFadeDistance;
+		cloudsData->invCloudFadeDistance = 1.f / cloudsParams.CloudsFadeDistance;
 		cloudsData->sunRadiance = sunRadiance;
 		cloudsData->sunIrradiance = float3{ 0.f }; // TODO
 		cloudsData->maxSteps = m_Params.CloudRaymarchIterations;
 		cloudsData->volumetricShadows = (uint32_t)m_Params.VolumetricShadows;
 		cloudsData->lightSteps = m_Params.LightRaymarchIterations;
 		cloudsData->multiScatterOctaves = m_Params.MultiScatterOctaves;
-		cloudsData->phaseGForward = m_Params.PhaseGForward;
-		cloudsData->phaseGBackward = m_Params.PhaseGBackward;
-		cloudsData->multiScatterBaseG = m_Params.MultiScatterBaseG;
-		cloudsData->powderStrength = m_Params.PowderStrength;
-		cloudsData->powderEdgeWidth = m_Params.PowderEdgeWidth;
+		cloudsData->phaseGForward = cloudsParams.PhaseGForward;
+		cloudsData->phaseGBackward = cloudsParams.PhaseGBackward;
+		cloudsData->multiScatterBaseG = cloudsParams.MultiScatterBaseG;
+		cloudsData->powderStrength = cloudsParams.PowderStrength;
+		cloudsData->powderEdgeWidth = cloudsParams.PowderEdgeWidth;
 		cloudsData->depthThreshold = 0.05f * downscaleFactor;
 		cloudsData->blendFactor = 0.4f / downscaleFactor;
 
@@ -392,78 +369,6 @@ void alm::gfx::CloudsRenderStage::OnDetached()
 void alm::gfx::CloudsRenderStage::OnBackbufferResize()
 {
 	ResetCloudsResources();
-}
-
-std::expected<std::pair<alm::rhi::TextureOwner, alm::SignalListener>, std::string>
-alm::gfx::CloudsRenderStage::ComputeMultiScatterLUT(float mu_s, float mu_a)
-{
-	auto* deviceManager = m_RenderGraph->GetDeviceManager();
-	auto* device = deviceManager->GetDevice();
-	auto* dataUploader = deviceManager->GetDataUploader();
-
-	const float albedo = mu_s / std::max(mu_s + mu_a, 0.0001f);
-	const float msGain = 1.0f / std::max(1.0f - albedo, 0.05f);
-
-	rhi::TextureDesc desc {
-		.width = LUT_SIZE,
-		.height = LUT_SIZE,
-		.format = rhi::Format::RGBA16_FLOAT,
-		.shaderUsage = rhi::TextureShaderUsage::Sampled };
-
-	rhi::TextureOwner texture = device->CreateTexture(desc, rhi::ResourceState::COPY_DST, "CloudsMultiScatterLUT");
-
-	auto requestResult = dataUploader->RequestUploadTicket(desc, rhi::AllSubresources);
-	assert(requestResult);
-	auto& ticket = *requestResult;
-
-	const auto copyReq = device->GetSubresourceCopyableRequirements(desc, 0, 0);
-	char* layerStart = (char*)ticket.GetPtr() + copyReq.offset;
-
-	for (int y = 0; y < LUT_SIZE; ++y)
-	{
-		uint16_t* pixelData = (uint16_t*)(layerStart + (y * copyReq.rowStride));
-		
-		// y -> v in shader (V axis). Map to cosTheta [-1..1].
-		float cosTheta = (float)y / (LUT_SIZE - 1) * 2.0f - 1.0f;
-		for (uint x = 0; x < LUT_SIZE; ++x)
-		{
-			// x -> u in shader (U axis). Map to optical depth [0..MAX_MS_OD].
-			float opticalDepth = (float)x / (LUT_SIZE - 1) * MAX_MS_OD;
-
-			// Hillaire 2016 multi-scattering (geometric series over bounces).
-			// Each bounce scatters `albedo` of the remaining energy, traverses OD
-			// with effective optical depth that grows with bounces (light spreads).
-			// Net result: rises with OD, saturates near `albedo / (1 - albedo)`.
-			float ms = 0.0f;
-			const int maxBounces = 8;
-			for (int bounce = 1; bounce <= maxBounces; ++bounce)
-			{
-				float bounceWeight = pow(albedo, (float)bounce);
-				// Effective OD for this bounce: at forward (cosTheta=1) the light
-				// exits easier, so effective OD is lower. At backward (cosTheta=-1),
-				// it has to traverse more, so effective OD is higher.
-				float effOD = opticalDepth * (0.75f - 0.25f * cosTheta);
-				ms += bounceWeight * (1.0f - exp(-effOD));
-			}
-			// Normalize by the asymptotic gain so the value is in [0..~1] range.
-			// This way the LUT output is "in addition to single scattering", not "multiplied by 10".
-			float msNormalized = alm::saturate(ms / msGain);
-			// Scale by mu_s so the LUT output has units of W/m^3 (matching S_direct).
-			float value = msNormalized * mu_s;
-			// R = G = B = white cloud color. A = total (same as R for compactness).
-			*pixelData++ = FloatToHalf(value);
-			*pixelData++ = FloatToHalf(value);
-			*pixelData++ = FloatToHalf(value);
-			*pixelData++ = FloatToHalf(value);
-		}
-	}
-
-	auto commitResult = dataUploader->CommitUploadTextureTicket(std::move(ticket), texture.get_weak(),
-		rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE);
-	if (!commitResult)
-		return std::unexpected(commitResult.error());
-
-	return std::make_pair(std::move(texture), *commitResult);
 }
 
 void alm::gfx::CloudsRenderStage::SetRenderTargetDenominator(int v)

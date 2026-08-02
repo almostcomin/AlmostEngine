@@ -14,7 +14,6 @@ class SkyRenderStage : public RenderStage
 
 public:
 
-    static constexpr float kEarthRefRadius = 6360000.f;
     static constexpr float kAtmosRefHeight = 60000.f;
 
     // Planet Earth defaults
@@ -23,25 +22,16 @@ public:
     static constexpr float kMieBase = 21e-6f;
     static constexpr float kRefMieScaleHeight = 1200.f;
 
-	struct SkyParams
+	struct SkySimParams
 	{
-        float3 EarthCenter = { 0.f, 0.f, 0.f };
-        float EarthRadius = kEarthRefRadius;
-        float AtmosHeight = kAtmosRefHeight;
-        float3 RayleighWaveLengths = kRefRayleighWaveLengths;
-        float Turbidity = 1.f;
-        float MieAnisotropy = 0.76f;
         uint32_t NumSteps = 32;
         uint32_t NumLightSteps = 3;
 	};
 
 public:
 
-    const SkyParams& GetSkyParams() const { return m_Params; }
-    void SetSkyParams(const SkyParams& params) { m_Params = params; }
-
-    void SetEarthCenter(const float3& pos);
-    void SetEarthRadius(float radius, float atmosRelScale = 1.f);
+    const SkySimParams& GetSkySimParams() const { return m_Params; }
+    void SetSkySimParams(const SkySimParams& params) { m_Params = params; }
 
 private:
 
@@ -60,7 +50,7 @@ private:
 
     gfx::MultiBuffer m_ShaderCB;
 
-    SkyParams m_Params;
+    SkySimParams m_Params;
 };
 
 } // namespace alm::gfx

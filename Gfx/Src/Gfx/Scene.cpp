@@ -19,20 +19,6 @@
 alm::gfx::Scene::Scene(const std::string& name, DeviceManager* deviceManager) : 
 	m_ResetGpuBuffers{ false }, m_Name{ name }, m_DeviceManager{ deviceManager }
 {
-	m_AmbientParams = AmbientParams{
-		.SkyColor = float3{ 0.17f, 0.37f, 0.65f },
-		.GroundColor = float3{ 0.62f, 0.58f, 0.55f },
-		.Intensity = 0.22f
-	};
-
-	m_SunParams = SunParams{
-		.ElevationDeg = 60.f,
-		.AzimuthDeg = -135.f,
-		.Irradiance = 1.f,
-		.AngularSizeDeg = 0.53f,
-		.Color = float3{ 1.f, 1.f, 1.f },
-	};
-
 	m_GpuBuffersHandle = m_DeviceManager->GetGpuSceneBuffers()->RequestSceneHandle(m_Name);
 
 	m_SceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>(m_GpuBuffersHandle, m_DeviceManager->GetGpuSceneBuffers());

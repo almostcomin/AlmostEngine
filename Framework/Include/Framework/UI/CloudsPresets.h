@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Gfx/RenderStages/CloudsRenderStage.h"
+#include "Gfx/AtmosphereConfig.h"
 
 namespace alm::fw
 {
@@ -21,6 +21,6 @@ enum class CloudsPreset
 };
 
 const char* CloudsPresetToString(CloudsPreset preset);
-void ApplyCloudsPreset(alm::gfx::CloudsRenderStage::CloudsParams& p, CloudsPreset preset);
+void ApplyCloudsPreset(alm::gfx::AtmosphereConfig::CloudsParams& p, CloudsPreset preset);
 
 } // namespace alm::fw

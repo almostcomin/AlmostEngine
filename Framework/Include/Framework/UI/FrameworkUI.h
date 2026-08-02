@@ -41,18 +41,20 @@ public:
 
 		int2 ShadowmapSize = { 0, 0 };
 
-		alm::gfx::Scene::SunParams SunParams;
+		alm::gfx::AtmosphereConfig::SunParams SunParams;
 		bool SunParamsUpdated = false;
 
-		alm::gfx::Scene::AmbientParams AmbientParams;
+		alm::gfx::AtmosphereConfig::AmbientParams AmbientParams;
 		bool AmbientParamsUpdated = false;
 
 		alm::gfx::SimpleSkyRenderStage::SkyParams SimpleSkyParams;
 
-		alm::gfx::SkyRenderStage::SkyParams SkyParams;
+		alm::gfx::AtmosphereConfig::SkyParams SkyParams;
+		alm::gfx::SkyRenderStage::SkySimParams SkySimParams;
 		bool SkyEnabled = true;
 
-		alm::gfx::CloudsRenderStage::CloudsParams CloudsParams;
+		alm::gfx::AtmosphereConfig::CloudsParams CloudsParams;
+		alm::gfx::CloudsRenderStage::CloudsSimParams CloudsSimParams;
 		bool CloudsEnabled = true;
 
 		alm::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;

@@ -37,7 +37,7 @@ void alm::gfx::SimpleSkyRenderStage::Render(alm::rhi::CommandListHandle commandL
 
 	interop::SimpleSkyData* skyData = (interop::SimpleSkyData*)m_ShaderCB.Map();
 	{
-		const Scene::SunParams& sunParams = scene->GetSunParams();
+		const gfx::AtmosphereConfig::SunParams& sunParams = scene->GetAtmosphereConfig().Sun;
 
 		float lightAngularSize = glm::radians(glm::clamp(sunParams.AngularSizeDeg, 0.1f, 90.f));
 		float lightSolidAngle = 4 * PI * square(sinf(lightAngularSize * 0.5f));

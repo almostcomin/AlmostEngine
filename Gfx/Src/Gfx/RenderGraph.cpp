@@ -741,6 +741,17 @@ alm::rhi::BufferUniformView alm::gfx::RenderGraph::GetBufferUniformView(RGBuffer
 	return buffer ? buffer->GetUniformView() : rhi::c_InvalidDescriptorIndex;
 }
 
+uint2 alm::gfx::RenderGraph::GetTexture2dDimensions(RGTextureHandle handle)
+{
+	auto tex = GetTexture(handle);
+	if (tex)
+	{
+		const auto& desc = tex->GetDesc();
+		return uint2{ desc.width, desc.height };
+	}
+	return uint2{ 0u, 0u };
+}
+
 alm::rhi::BufferReadOnlyView alm::gfx::RenderGraph::GetBufferReadOnlyView(RGBufferHandle handle)
 {
 	auto buffer = GetBuffer(handle);

@@ -20,7 +20,7 @@ const char* alm::fw::CloudsPresetToString(CloudsPreset preset)
     }
 }
 
-void alm::fw::ApplyCloudsPreset(alm::gfx::CloudsRenderStage::CloudsParams& p, CloudsPreset preset)
+void alm::fw::ApplyCloudsPreset(alm::gfx::AtmosphereConfig::CloudsParams& p, CloudsPreset preset)
 {
     switch (preset)
     {

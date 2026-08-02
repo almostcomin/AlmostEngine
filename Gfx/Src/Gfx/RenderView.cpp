@@ -306,6 +306,7 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 	// Scene data
 	if (m_Scene)
 	{
+		const AtmosphereConfig& atmos = m_Scene->GetAtmosphereConfig();
 		// ShadowMap matrices
 		{
 			sceneShaderConstant->shadowMapWorldToClipMatrix = m_ShadowMapWoldToClipMatrix;
@@ -314,21 +315,18 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 
 		// Ambient
 		{
-			const Scene::AmbientParams& ambientParams = m_Scene->GetAmbientParams();
-			sceneShaderConstant->ambientTop = float4{ ambientParams.SkyColor * ambientParams.Intensity, 0.f };
-			sceneShaderConstant->ambientBottom = float4{ ambientParams.GroundColor * ambientParams.Intensity, 0.f };
+			sceneShaderConstant->ambientTop = float4{ atmos.Ambient.SkyColor * atmos.Ambient.Intensity, 0.f };
+			sceneShaderConstant->ambientBottom = float4{ atmos.Ambient.GroundColor * atmos.Ambient.Intensity, 0.f };
 		}
 
 		// Lights
 		{
-			const Scene::SunParams& sunParams = m_Scene->GetSunParams();
-			const float3 sunDir = alm::ElevationAzimuthRadToDir(
-				glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
+			const float3 sunDir = atmos.GetSunDirection();
 
 			sceneShaderConstant->mainDirLight.viewSpaceDirection = m_Camera->GetViewMatrix() * float4 { sunDir, 0.f };
-			sceneShaderConstant->mainDirLight.irradiance = sunParams.Irradiance;
-			sceneShaderConstant->mainDirLight.color = sunParams.Color;
-			sceneShaderConstant->mainDirLight.halfAngularSize = glm::radians(sunParams.AngularSizeDeg) / 2.f;
+			sceneShaderConstant->mainDirLight.irradiance = atmos.Sun.Irradiance;
+			sceneShaderConstant->mainDirLight.color = atmos.Sun.Color;
+			sceneShaderConstant->mainDirLight.halfAngularSize = glm::radians(atmos.Sun.AngularSizeDeg) / 2.f;
 
 			sceneShaderConstant->dirLightCount = m_DirLightsVisibleCount;
 			sceneShaderConstant->dirLightsDataDI = m_DirLightsVisibleBuffer.GetReadOnlyView();
@@ -388,11 +386,10 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	if (!worldCasterBoundsF.valid())
 		return false;  // no shadow casters in the scene
 
-	const Scene::SunParams& sunParams = m_Scene->GetSunParams();
+	const AtmosphereConfig& atmos = m_Scene->GetAtmosphereConfig();
 
 	// sunDir in double for precision
-	const double3 sunDir = alm::ElevationAzimuthRadToDir(
-		glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg));
+	const double3 sunDir = atmos.GetSunDirection();
 	// Promote bounds to double for the precision-critical calculations
 	const aabox3d cameraVisibleBoundsD(m_CameraVisibleBounds);
 	const aabox3d worldCasterBoundsD(worldCasterBoundsF);

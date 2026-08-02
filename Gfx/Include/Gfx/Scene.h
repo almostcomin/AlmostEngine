@@ -6,6 +6,7 @@
 #include "RHI/Buffer.h"
 #include "Gfx/SceneFlags.h"
 #include "Gfx/GpuSceneBuffersHandle.h"
+#include "Gfx/AtmosphereConfig.h"
 #include <map>
 
 namespace alm::rhi
@@ -30,24 +31,6 @@ namespace alm::gfx
 	{
 	public:
 
-		struct AmbientParams
-		{
-			float3 SkyColor;
-			float3 GroundColor;
-			float Intensity;
-		};
-
-		struct SunParams
-		{
-			float ElevationDeg;
-			float AzimuthDeg;
-			float Irradiance;
-			float AngularSizeDeg;
-			float3 Color;
-		};
-
-	public:
-
 		Scene(const std::string& name, DeviceManager* deviceManager);
 		~Scene();
 
@@ -60,11 +43,7 @@ namespace alm::gfx
 
 		const aabox3f GetWorldBounds(SceneContentType type);
 
-		const AmbientParams& GetAmbientParams() const { return m_AmbientParams; }
-		void SetAmbientParams(const AmbientParams& v) { m_AmbientParams = v; }
-
-		const SunParams& GetSunParams() const { return m_SunParams; }
-		void SetSunParams(const SunParams& v) { m_SunParams = v; }
+		AtmosphereConfig& GetAtmosphereConfig() { return m_AtmosConfig; }
 
 		// Updates scene graph
 		void Update();
@@ -81,8 +60,7 @@ namespace alm::gfx
 		alm::unique<SceneGraph> m_SceneGraph;		
 		std::vector<alm::weak<RenderView>> m_RenderViews;
 
-		AmbientParams m_AmbientParams;
-		SunParams m_SunParams;
+		AtmosphereConfig m_AtmosConfig;
 
 		GpuSceneBuffersHandle m_GpuBuffersHandle;
 		bool m_ResetGpuBuffers;
