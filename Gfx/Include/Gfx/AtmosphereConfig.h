@@ -1,7 +1,11 @@
 ﻿#pragma once
 
+#include "RHI/ShaderViews.h"
+
 namespace alm::gfx
 {
+
+class DeviceManager;
 
 class AtmosphereConfig
 {
@@ -161,9 +165,18 @@ public:
     }
 
     void SetEarthCenter(const float3& c) { EarthCenter = c; }
-
     // Direction of light rays of the sun (from sun to camera)
     float3 GetSunDirection() const;
+
+    rhi::TextureHandle GetCloudsShapeTexture() const;
+    rhi::TextureHandle GetCloudsDetailTexture() const;
+
+    void InitCloudsTextures(bool forceNew, bool cache, alm::gfx::DeviceManager* deviceManager);
+
+private:
+
+    rhi::TextureOwner m_CloudsShapeTexture;
+    rhi::TextureOwner m_CloudsDetailTexture;
 };
 
 } // namespace alm::gfx

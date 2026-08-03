@@ -39,18 +39,6 @@ public:
     const CloudsSimParams& GetCloudsSimParams() const { return m_Params; }
     void SetCloudsSimParams(const CloudsSimParams& params) { m_Params = params; }
 
-    void SetCloudsShapeTexture(rhi::TextureOwner&& texture) { m_CloudsShapeTexture = std::move(texture); }
-    rhi::TextureHandle GetCloudsShapeTexture() const { return m_CloudsShapeTexture.get_weak(); }
-
-    void SetCloudsDetailTexture(rhi::TextureOwner&& texture) { m_CloudsDetailTexture = std::move(texture); }
-    rhi::TextureHandle GetCloudsDetailTexture() const { return m_CloudsDetailTexture.get_weak(); }
-
-    static std::expected<std::pair<rhi::TextureOwner, alm::SignalListener>, std::string>
-    CreateCloudsShapeTexture(DeviceManager* deviceManager);
-    
-    static std::expected<std::pair<rhi::TextureOwner, alm::SignalListener>, std::string>
-    CreateCloudsDetailTexture(DeviceManager* deviceManager);
-
     void SetRenderTargetDenominator(int v);
     int GetRenderTargetDenominator() const { return m_RenderTargetDenom; }
 
@@ -82,8 +70,6 @@ private:
 
     rhi::GraphicsPipelineStateOwner m_CompositePSO;
 
-    rhi::TextureOwner m_CloudsShapeTexture;
-    rhi::TextureOwner m_CloudsDetailTexture;
     gfx::MultiBuffer m_CloudsCB;
 
     CloudsSimParams m_Params;

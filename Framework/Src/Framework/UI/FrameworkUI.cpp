@@ -1469,7 +1469,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 
         if (ImGui::Button("Open Shape Texture"))
         {
-            auto tex = cloudsRS->GetCloudsShapeTexture();
+            auto tex = atmos.GetCloudsShapeTexture();
             AddTextureWindow(tex->GetDebugName(), tex);
         }
 
@@ -1477,7 +1477,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 
         if (ImGui::Button("Open Detail Texture"))
         {
-            auto tex = cloudsRS->GetCloudsDetailTexture();
+            auto tex = atmos.GetCloudsDetailTexture();
             AddTextureWindow(tex->GetDebugName(), tex);
         }
     }

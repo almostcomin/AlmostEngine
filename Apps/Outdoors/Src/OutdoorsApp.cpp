@@ -236,70 +236,12 @@ public:
 			}
 		}
 
-		// Set Atmos params
+		// Init Atmos params
 		{
 			alm::gfx::AtmosphereConfig& atmos = m_Scene->GetAtmosphereConfig();
 			atmos.SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
 			atmos.SetEarthRadius(kEarthRadius, true);
-		}
-
-		// Set clouds texture
-		{
-			if (std::filesystem::exists("_generated/CloudShape.dds"))
-			{
-				alm::gfx::TextureCache* txtrCache = m_DeviceManager->GetTextureCache();
-				auto loadResult = txtrCache->Load("_generated/CloudShape.dds", alm::gfx::TextureCache::Flags::None);
-				if (!loadResult)
-				{
-					LOG_ERROR("Failed loading CloudsShape.dds\n{}", loadResult.error());
-				}
-				else
-				{
-					loadResult->second.Wait();
-					alm::rhi::TextureOwner cloudsTexture = std::move(loadResult->first->texture);
-					m_CloudsRS->SetCloudsShapeTexture(std::move(cloudsTexture));
-				}
-			}
-			else
-			{
-				auto createResult = alm::gfx::CloudsRenderStage::CreateCloudsShapeTexture(m_DeviceManager.get());
-				assert(createResult);
-				createResult->second.Wait();
-				alm::rhi::TextureOwner& cloudsTexture = createResult->first;
-
-				alm::gfx::SaveDDSTexture(cloudsTexture.get_weak(), alm::rhi::ResourceState::SHADER_RESOURCE, alm::rhi::ResourceState::SHADER_RESOURCE,
-					m_DeviceManager->GetDevice(), "_generated/CloudShape.dds");
-
-				m_CloudsRS->SetCloudsShapeTexture(std::move(cloudsTexture));
-			}
-
-			if (std::filesystem::exists("_generated/CloudsDetail.dds"))
-			{
-				alm::gfx::TextureCache* txtrCache = m_DeviceManager->GetTextureCache();
-				auto loadResult = txtrCache->Load("_generated/CloudsDetail.dds", alm::gfx::TextureCache::Flags::None);
-				if (!loadResult)
-				{
-					LOG_ERROR("Failed loading CloudsDetail.dds\n{}", loadResult.error());
-				}
-				else
-				{
-					loadResult->second.Wait();
-					alm::rhi::TextureOwner cloudsTexture = std::move(loadResult->first->texture);
-					m_CloudsRS->SetCloudsDetailTexture(std::move(cloudsTexture));
-				}
-			}
-			else
-			{
-				auto createResult = alm::gfx::CloudsRenderStage::CreateCloudsDetailTexture(m_DeviceManager.get());
-				assert(createResult);
-				createResult->second.Wait();
-				alm::rhi::TextureOwner& cloudsTexture = createResult->first;
-
-				alm::gfx::SaveDDSTexture(cloudsTexture.get_weak(), alm::rhi::ResourceState::SHADER_RESOURCE, alm::rhi::ResourceState::SHADER_RESOURCE,
-					m_DeviceManager->GetDevice(), "_generated/CloudsDetail.dds");
-
-				m_CloudsRS->SetCloudsDetailTexture(std::move(cloudsTexture));
-			}
+			atmos.InitCloudsTextures(false, true, m_DeviceManager.get());
 		}
 
 		// Load axes model
