@@ -60,48 +60,33 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 	}
 	int cloudsOtherIdx = (m_CloudsTextureIdx + 1) % 2;
 
-	// Clear SRV texture if requested
+	// Clear texture if requested
 	if (clearCloudsTextures)
 	{
-		if (m_CloudsTextureState[cloudsOtherIdx] != rhi::ResourceState::RENDERTARGET)
-		{
-			commandList->PushBarrier(rhi::Barrier::Texture(
-				m_CloudsTexture[cloudsOtherIdx].get(), m_CloudsTextureState[cloudsOtherIdx], rhi::ResourceState::RENDERTARGET));
-			m_CloudsTextureState[cloudsOtherIdx] = rhi::ResourceState::RENDERTARGET;
-		}
+		auto* commonResources = GetDeviceManager()->GetCommonResources();
+		commandList->SetPipelineState(commonResources->GetClearTexturePSO().get());
 
-		commandList->ClearRenderTarget(m_CloudsFB[cloudsOtherIdx]->GetColorTargetView(0), float4{ 0.f, 0.f, 0.f, 1.f });
+		commandList->PushBarrier(rhi::Barrier::Texture(m_CloudsTexture[cloudsOtherIdx].get(),
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::UNORDERED_ACCESS));
+
+		interop::ClearTextureConstants shaderConstants;
+		shaderConstants.textureDI = m_CloudsTexture[cloudsOtherIdx]->GetStorageView();
+		shaderConstants.textureDim = float2{ m_CloudsTextureDims.x, m_CloudsTextureDims.y };
+		shaderConstants.clearValue = float4{ 0.f, 0.f, 0.f, 1.f };
+
+		commandList->PushComputeConstants(0, shaderConstants);
+		commandList->Dispatch(DivRoundUp(m_CloudsTextureDims.x, 16u), DivRoundUp(m_CloudsTextureDims.y, 16u), 1);
+
+		commandList->PushBarrier(rhi::Barrier::Texture(m_CloudsTexture[cloudsOtherIdx].get(),
+			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
 	}
 
-	// Do initial transitions
-	std::vector<rhi::Barrier> barriers;
-	barriers.reserve(2);
-
-	if (m_CloudsTextureState[m_CloudsTextureIdx] != rhi::ResourceState::RENDERTARGET)
-	{
-		barriers.push_back(rhi::Barrier::Texture(
-			m_CloudsTexture[m_CloudsTextureIdx].get(), m_CloudsTextureState[m_CloudsTextureIdx], rhi::ResourceState::RENDERTARGET));
-		m_CloudsTextureState[m_CloudsTextureIdx] = rhi::ResourceState::RENDERTARGET;
-	}
-	if (m_CloudsTextureState[cloudsOtherIdx] != rhi::ResourceState::SHADER_RESOURCE)
-	{
-		barriers.push_back(rhi::Barrier::Texture(
-			m_CloudsTexture[cloudsOtherIdx].get(), m_CloudsTextureState[cloudsOtherIdx], rhi::ResourceState::SHADER_RESOURCE));
-		m_CloudsTextureState[cloudsOtherIdx] = rhi::ResourceState::SHADER_RESOURCE;
-	}
-	if (!barriers.empty())
-	{
-		commandList->PushBarriers(barriers);
-	}
+	// Transitions
+	commandList->PushBarrier(rhi::Barrier::Texture(m_CloudsTexture[m_CloudsTextureIdx].get(),
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::UNORDERED_ACCESS));
 
 	// Render clouds pass
 	{
-		commandList->BeginRenderPass(
-			m_CloudsFB[m_CloudsTextureIdx].get(),
-			{ rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack() }},
-			rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::NoAccess },
-			{}, rhi::RenderPassFlags::None);
-
 		commandList->SetPipelineState(m_CloudsPSO.get());
 
 		const gfx::AtmosphereConfig::SunParams& sunParams = atmos->Sun;
@@ -121,6 +106,9 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 
 		// Fill shader constants
 		auto* cloudsData = (interop::CloudsData*)m_CloudsCB.Map();
+
+		cloudsData->DstTextureDI = m_CloudsTexture[m_CloudsTextureIdx]->GetStorageView();
+		cloudsData->DstTextureSize = m_CloudsTextureDims;
 
 		cloudsData->linearDepthTexDI = m_RenderGraph->GetTextureSampledView(m_LinearDepthTexture);
 		cloudsData->prevCloudsTexDI = m_CloudsTexture[cloudsOtherIdx]->GetSampledView();
@@ -164,22 +152,17 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
 		cloudsConstants.cameraPosition = GetCamera()->GetPosition();
 		cloudsConstants.cloudsDataDI = m_CloudsCB.GetUniformView();
-		cloudsConstants.viewportSize = { m_CloudsFB[m_CloudsTextureIdx]->GetFramebufferInfo().width,
-			m_CloudsFB[m_CloudsTextureIdx]->GetFramebufferInfo().height };
+		cloudsConstants.viewportSize = m_CloudsTextureDims;
 		cloudsConstants.frameCounter = m_RenderGraph->GetDeviceManager()->GetFrameIndex();
 		cloudsConstants.debugChannel = (uint32_t)m_DebugChannel;
 		cloudsConstants.cloudsShapeDataDI = atmos->GetCloudsShapeUniformView();
 
-		commandList->PushGraphicsConstants(0, cloudsConstants);
-
-		commandList->Draw(3);
-
-		commandList->EndRenderPass();
+		commandList->PushComputeConstants(0, cloudsConstants);
+		commandList->Dispatch(DivRoundUp(m_CloudsTextureDims.x, 16u), DivRoundUp(m_CloudsTextureDims.y, 16u), 1);
 	}
 
 	commandList->PushBarrier(rhi::Barrier::Texture(
-		m_CloudsTexture[m_CloudsTextureIdx].get(), rhi::ResourceState::RENDERTARGET, rhi::ResourceState::SHADER_RESOURCE));
-	m_CloudsTextureState[m_CloudsTextureIdx] = rhi::ResourceState::SHADER_RESOURCE;
+		m_CloudsTexture[m_CloudsTextureIdx].get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
 
 	// Composite pass
 	{
@@ -207,7 +190,7 @@ void alm::gfx::CloudsRenderStage::OnAttached()
 	auto* commonResources = deviceManager->GetCommonResources();
 	auto* shaderFactory = deviceManager->GetShaderFactory();
 
-	m_CloudsPS = shaderFactory->LoadShader("Clouds_ps", rhi::ShaderType::Pixel);
+	m_CloudsCS = shaderFactory->LoadShader("Clouds_cs", rhi::ShaderType::Compute);
 
 	ResetCloudsResources();
 
@@ -233,13 +216,11 @@ void alm::gfx::CloudsRenderStage::OnAttached()
 
 void alm::gfx::CloudsRenderStage::OnDetached()
 {
-	m_CloudsFB[0].reset();
-	m_CloudsFB[1].reset();
 	m_CloudsTexture[0].reset();
 	m_CloudsTexture[1].reset();
 	m_CloudsCB.Release();
 	m_CloudsPSO.reset();
-	m_CloudsPS.reset();
+	m_CloudsCS.reset();
 	m_CompositePSO.reset();
 }
 
@@ -266,35 +247,25 @@ void alm::gfx::CloudsRenderStage::ResetCloudsResources()
 
 	// Textures and framebuffers
 	{
+		m_CloudsTextureDims.x = bbDesc.width / m_RenderTargetDenom;
+		m_CloudsTextureDims.y = bbDesc.height / m_RenderTargetDenom;
+
 		rhi::TextureDesc desc = {
-			.width = bbDesc.width / m_RenderTargetDenom,
-			.height = bbDesc.height / m_RenderTargetDenom,
+			.width = m_CloudsTextureDims.x,
+			.height = m_CloudsTextureDims.y,
 			.format = rhi::Format::RGBA16_FLOAT,
-			.shaderUsage = rhi::TextureShaderUsage::Sampled | rhi::TextureShaderUsage::ColorTarget };
+			.shaderUsage = rhi::TextureShaderUsage::Sampled | rhi::TextureShaderUsage::Storage };
 
-		m_CloudsTexture[0] = device->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, "CloudsTexture[0]");
-		m_CloudsTextureState[0] = rhi::ResourceState::RENDERTARGET;
-		m_CloudsTexture[1] = device->CreateTexture(desc, rhi::ResourceState::RENDERTARGET, "CloudsTexture[1]");
-		m_CloudsTextureState[1] = rhi::ResourceState::RENDERTARGET;
-
-		m_CloudsFB[0] = device->CreateFramebuffer(rhi::FramebufferDesc()
-			.AddColorAttachment(m_CloudsTexture[0].get_weak()), "CloudsFB[0]");
-		m_CloudsFB[1] = device->CreateFramebuffer(rhi::FramebufferDesc()
-			.AddColorAttachment(m_CloudsTexture[1].get_weak()), "CloudsFB[1]");
+		m_CloudsTexture[0] = device->CreateTexture(desc, rhi::ResourceState::SHADER_RESOURCE, "CloudsTexture[0]");
+		m_CloudsTexture[1] = device->CreateTexture(desc, rhi::ResourceState::SHADER_RESOURCE, "CloudsTexture[1]");
 	}
 	m_CloudsTextureIdx = -1;
 
 	// Clouds PSO
 	{
-		rhi::DepthStencilState depthStencilState{
-			.depthTestEnable = false,
-			.depthFunc = rhi::ComparisonFunc::GreaterEqual };
+		rhi::ComputePipelineStateDesc psoDesc{
+			.CS = m_CloudsCS.get_weak() };
 
-		rhi::GraphicsPipelineStateDesc psoDesc{
-			.VS = commonResources->GetBlitVS(),
-			.PS = m_CloudsPS.get_weak(),
-			.depthStencilState = depthStencilState };
-
-		m_CloudsPSO = device->CreateGraphicsPipelineState(psoDesc, m_CloudsFB[0]->GetFramebufferInfo(), "CloudsRS");
+		m_CloudsPSO = device->CreateComputePipelineState(psoDesc, "CloudsRS");
 	}
 }

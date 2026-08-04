@@ -61,12 +61,11 @@ private:
     RGFramebufferHandle m_CompositeFB;
 
     rhi::TextureOwner m_CloudsTexture[2];
-    rhi::ResourceState m_CloudsTextureState[2];
-    rhi::FramebufferOwner m_CloudsFB[2];
+    uint2 m_CloudsTextureDims;
     int m_CloudsTextureIdx;
 
-    rhi::ShaderOwner m_CloudsPS;
-    rhi::GraphicsPipelineStateOwner m_CloudsPSO;
+    rhi::ShaderOwner m_CloudsCS;
+    rhi::ComputePipelineStateOwner m_CloudsPSO;
 
     rhi::GraphicsPipelineStateOwner m_CompositePSO;
 

@@ -15,7 +15,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
     Texture2D<float> linearDepthTex = ResourceDescriptorHeap[cloudsShadowmapData.LinearDepthTexDI];
     RWTexture2D<float> dstTexture = ResourceDescriptorHeap[cloudsShadowmapData.DstTextureDI];
     
-    float2 uv = DTid / float2(cloudsShadowmapData.DstTextureSize);
+    float2 uv = (float2(DTid) + 0.5) / float2(cloudsShadowmapData.DstTextureSize);
     
     // Reconstruct world-space ray direction from clip-space coordinates.
     // matClipToTranslatedWorld transforms from clip space to world space

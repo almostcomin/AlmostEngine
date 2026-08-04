@@ -20,7 +20,7 @@ namespace interop
     {
         TextureStorageViewIndex textureDI;
         uint2 textureDim;
-        uint2 _padding;
+        uint _padding0;
         float4 clearValue;
     };
 
@@ -492,6 +492,10 @@ namespace interop
 
     struct CloudsData
     {
+        TextureStorageViewIndex DstTextureDI;
+        uint2 DstTextureSize;
+        uint _padding0;
+
         TextureSampledViewIndex linearDepthTexDI;
         TextureSampledViewIndex prevCloudsTexDI;
         float cloudFadeDistance;
@@ -538,7 +542,7 @@ namespace interop
         uint volumetricShadows;
         float depthThreshold;
         float blendFactor;
-        uint _padding0;
+        uint _padding1;
     };
 
     struct CloudsConstants

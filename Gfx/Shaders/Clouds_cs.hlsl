@@ -12,12 +12,6 @@ static const float DETAIL_LOW_FREQ = 8.0;   // Must be the lowest frequency of t
 
 ConstantBuffer<interop::CloudsConstants> Constants : register(b0);
 
-struct PS_INPUT
-{
-    float4 position : SV_Position;
-    float2 uv : TEXCOORD0;
-};
-
 struct ShadowResult
 {
     float lightEnergy;
@@ -310,21 +304,28 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
 }
 
 [RootSignature(BindlessRootSignature)]
-float4 main(PS_INPUT input) : SV_Target
-{
+[numthreads(16, 16, 1)]
+void main(uint2 DTid : SV_DispatchThreadID)
+{    
     ConstantBuffer<interop:: CloudsShapeData> cloudsShape = ResourceDescriptorHeap[Constants.cloudsShapeDataDI];
     ConstantBuffer<interop::CloudsData> cloudsData = ResourceDescriptorHeap[Constants.cloudsDataDI];
     Texture3D<float4> baseTexture = ResourceDescriptorHeap[cloudsShape.BaseShapeTexture];
     Texture3D<float4> detailTexture = ResourceDescriptorHeap[cloudsShape.DetailTexture];
     Texture2D<float> linearDepthTex = ResourceDescriptorHeap[cloudsData.linearDepthTexDI];
+    RWTexture2D<float4> dstTexture = ResourceDescriptorHeap[cloudsData.DstTextureDI];
+ 
+    if (any(DTid >= cloudsData.DstTextureSize))
+        return;
+    
+    float2 uv = (float2(DTid) + 0.5) / float2(cloudsData.DstTextureSize);
     
     // Reconstruct world-space ray direction from clip-space coordinates.
     // matClipToTranslatedWorld transforms from clip space to world space
     // with the camera at the origin (translated world), so no camera translation
     // is baked into the matrix -- avoids floating point precision issues at large distances.
     float4 clipPos;
-    clipPos.x = input.uv.x * 2.0 - 1.0;
-    clipPos.y = 1.0 - input.uv.y * 2.0; // flip Y: UV origin is top-left, clip space origin is bottom-left
+    clipPos.x = uv.x * 2.0 - 1.0;
+    clipPos.y = 1.0 - uv.y * 2.0; // flip Y: UV origin is top-left, clip space origin is bottom-left
     clipPos.z = 1.0;
     clipPos.w = 1.0;
 
@@ -334,18 +335,19 @@ float4 main(PS_INPUT input) : SV_Target
     // Read linear depth (distance along the camera forward axis) and convert to scene distance along the ray direction.
     // viewZ: depth along camera forward vector (Z component in view space)
     // sceneDist: actual distance along rayDir to the geometry
-    float viewZ = linearDepthTex.SampleLevel(pointClampSampler, input.uv, 0.0);
+    float viewZ = linearDepthTex.SampleLevel(pointClampSampler, uv, 0.0);
     float cosAngle = saturate(dot(rayDir, cloudsData.cameraForward));
     float sceneDist = viewZ / max(cosAngle, 0.0001);
     
-    float2 pixelPos = input.uv * Constants.viewportSize;
+    float2 pixelPos = uv * Constants.viewportSize;
     
     CloudResult clouds = GetCloudsColorRayMarch(
         Constants.cameraPosition, rayDir, baseTexture, detailTexture, cloudsShape, cloudsData, sceneDist, pixelPos);
     
     if (Constants.debugChannel == DebugChannel_Clouds_Transmitance)
     {
-        return float4(clouds.transmittance.xxxx);
+        dstTexture[DTid] = float4(clouds.transmittance.xxxx);
+        return;
     }
         
     // Punto estable: centro del segmento atravesado por el rayo dentro de la capa.
@@ -388,5 +390,5 @@ float4 main(PS_INPUT input) : SV_Target
             finalColor = lerp(prevColor, float4(0, 0, 0, 1), cloudsData.blendFactor);
     }
     
-    return finalColor;
+    dstTexture[DTid] = finalColor;
 }
