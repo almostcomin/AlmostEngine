@@ -238,10 +238,10 @@ public:
 
 		// Init Atmos params
 		{
-			alm::gfx::AtmosphereConfig& atmos = m_Scene->GetAtmosphereConfig();
-			atmos.SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
-			atmos.SetEarthRadius(kEarthRadius, true);
-			atmos.InitCloudsTextures(false, true, m_DeviceManager.get());
+			alm::gfx::AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
+			atmos->InitCloudsSubsystem();
+			atmos->SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
+			atmos->SetEarthRadius(kEarthRadius, true);
 		}
 
 		// Load axes model

@@ -73,7 +73,6 @@ private:
     gfx::MultiBuffer m_CloudsCB;
 
     CloudsSimParams m_Params;
-    float2 m_CloudsOffset = { 0.f, 0.f };
 
     int m_RenderTargetDenom = 2;
     DebugChannel m_DebugChannel;

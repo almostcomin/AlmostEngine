@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "RHI/ShaderViews.h"
+#include "Gfx/MultiBuffer.h"
 
 namespace alm::gfx
 {
@@ -44,23 +45,29 @@ public:
         float3 Color = { 1.f, 1.f, 1.f };
     };
 
-    struct CloudsParams
+    struct CloudsShapeParams
     {
         // Weights and coverage (dimensionless)
-        float StratusWeight = 0.3f;
-        float CumulusWeight = 0.7f;
-        float CumulonimbusWeight = 0.f;
-        float CloudsCoverage = 0.35f;
+        float StratusWeight = 0.33f;
+        float CumulusWeight = 0.52f;
+        float CumulonimbusWeight = 0.54f;
+        float CloudsCoverage = 0.48f;
 
         // ---- Spatial frequencies (1/m) ----
         // MUST be divided by EarthScaleFactor at shader binding time.
-        float CloudsScale = 0.004f;
-        float DetailScale = 80.f;
+        float CloudsScale = 0.006f;
+        float DetailScale = 12.f;
 
+        // Noise detail (dimensionless)
+        float DetailErosionStrength = 0.25f;
+    };
+
+    struct CloudsParams
+    {
         // ---- Extinction/scattering densities (1/m) ----
         // MUST also be divided by EarthScaleFactor at binding time.
-        float AbsorptionCoeff = 0.8f / 1000.f;   // 1/m
-        float ScatteringCoeff = 3.f / 1000.f;    // 1/m
+        float AbsorptionCoeff = 0.1f / 1000.f;   // 1/m
+        float ScatteringCoeff = 2.9f / 1000.f;    // 1/m
 
         // Multi-scattering (dimensionless)
         float MultiScatterContribution = 0.1f;
@@ -71,16 +78,13 @@ public:
         float MultiScatterBaseG = 0.8f;
 
         // Powder effects (dimensionless)
-        float PowderStrength = 0.7f;
-        float PowderEdgeWidth = 0.1f;
+        float PowderStrength = 0.95f;
+        float PowderEdgeWidth = 0.18f;
 
         // Cloud ambient lighting (colors and a dimensionless strength)
         float3 AmbientTop = { 0.6f, 0.7f, 0.9f };
         float3 AmbientBottom = { 0.3f, 0.25f, 0.2f };
-        float  AmbientStrength = 0.f;
-
-        // Noise detail (dimensionless)
-        float DetailErosionStrength = 0.2f;
+        float  AmbientStrength = 0.5f;
 
         // ---- Cloud‑specific distances (meters) ----
         // Stored already scaled. Modify them directly or via ApplyEarthScale().
@@ -106,6 +110,7 @@ public:
     // ------------------------------------------------------------
     AmbientParams Ambient;
     SunParams     Sun;
+    CloudsShapeParams CloudsShape;
     CloudsParams  Clouds;
     SkyParams     Sky;
 
@@ -164,19 +169,34 @@ public:
         }
     }
 
+public:
+
+    void Init(gfx::DeviceManager* deviceManager, bool initClouds);
+    void InitCloudsSubsystem(bool forceNew = false, bool saveCache = true);
+
+    void Update(float elapsedSec);
+
     void SetEarthCenter(const float3& c) { EarthCenter = c; }
     // Direction of light rays of the sun (from sun to camera)
     float3 GetSunDirection() const;
 
+    bool CloudsSubsystemInitialized() const { return m_CloudsSubsystemInitialized; }
+
     rhi::TextureHandle GetCloudsShapeTexture() const;
     rhi::TextureHandle GetCloudsDetailTexture() const;
-
-    void InitCloudsTextures(bool forceNew, bool cache, alm::gfx::DeviceManager* deviceManager);
+    alm::rhi::BufferUniformView GetCloudsShapeUniformView() const;
 
 private:
 
+    bool m_CloudsSubsystemInitialized = false;
     rhi::TextureOwner m_CloudsShapeTexture;
     rhi::TextureOwner m_CloudsDetailTexture;
+
+    mutable gfx::MultiBuffer m_CloudsShapeCB;
+    float2 m_CloudsOffset = { 0.f, 0.f };
+    mutable bool m_CloudsShapeCBDirty = false;
+
+    gfx::DeviceManager* m_DeviceManager;
 };
 
 } // namespace alm::gfx

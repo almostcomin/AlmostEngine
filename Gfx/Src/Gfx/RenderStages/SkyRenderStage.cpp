@@ -7,6 +7,7 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/Scene.h"
 #include "Gfx/Camera.h"
+#include "Gfx/AtmosphereConfig.h"
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
@@ -59,15 +60,15 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 
 	commandList->SetPipelineState(m_PSO.get());
 
-	const AtmosphereConfig& atmos = scene->GetAtmosphereConfig();
+	const AtmosphereConfig* atmos = scene->GetAtmosphereConfig();
 
 	interop::SkyData* skyData = (interop::SkyData*)m_ShaderCB.Map();
 	{
 		const float3 sunDir = alm::ElevationAzimuthRadToDir(
-			glm::radians(atmos.Sun.ElevationDeg), glm::radians(atmos.Sun.AzimuthDeg));
+			glm::radians(atmos->Sun.ElevationDeg), glm::radians(atmos->Sun.AzimuthDeg));
 
-		const float atmosScale = atmos.Sky.AtmosHeight / kAtmosRefHeight;
-		const float sunAngularRadiusRad = glm::radians(atmos.Sun.AngularSizeDeg / 2.f);
+		const float atmosScale = atmos->Sky.AtmosHeight / kAtmosRefHeight;
+		const float sunAngularRadiusRad = glm::radians(atmos->Sun.AngularSizeDeg / 2.f);
 		const float sunSolidAngle = 4.0f * PI * square(glm::sin(sunAngularRadiusRad));		
 		
 		float verticalFOVRad = GetCamera()->GetVerticalFOV();
@@ -76,20 +77,20 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 
 		// The amount of scattering is inversely proportional to the 4th power of the wavelength
 		const float3 rayleighScatteringCoefficients = ComputeRayleighScattering(
-			atmos.Sky.RayleighWaveLengths);
+			atmos->Sky.RayleighWaveLengths);
 
 		skyData->ToSunDirection = -sunDir;
-		skyData->AtmosRadius = atmos.EarthRadius + atmos.Sky.AtmosHeight;
-		skyData->SunColor = atmos.Sun.Color;
-		skyData->SunIntensity = atmos.Sun.Irradiance * 22.f;
-		skyData->EarthCenter = atmos.EarthCenter;
-		skyData->EarthRadius = atmos.EarthRadius;
+		skyData->AtmosRadius = atmos->EarthRadius + atmos->Sky.AtmosHeight;
+		skyData->SunColor = atmos->Sun.Color;
+		skyData->SunIntensity = atmos->Sun.Irradiance * 22.f;
+		skyData->EarthCenter = atmos->EarthCenter;
+		skyData->EarthRadius = atmos->EarthRadius;
 		skyData->bR = rayleighScatteringCoefficients / atmosScale;
 		skyData->Hr = kRefRayleighScaleHeight * atmosScale;
-		skyData->bM = float3{ kMieBase / atmosScale * atmos.Sky.Turbidity };
+		skyData->bM = float3{ kMieBase / atmosScale * atmos->Sky.Turbidity };
 		skyData->Hm = kRefMieScaleHeight * atmosScale;
-		skyData->SunRadiance = atmos.Sun.Color * atmos.Sun.Irradiance / sunSolidAngle;
-		skyData->G = atmos.Sky.MieAnisotropy;
+		skyData->SunRadiance = atmos->Sun.Color * atmos->Sun.Irradiance / sunSolidAngle;
+		skyData->G = atmos->Sky.MieAnisotropy;
 		skyData->SunAngularRadius = sunAngularRadiusRad;
 		skyData->SunAngularRadiusCos = glm::cos(sunAngularRadiusRad);
 		skyData->SunEdgeAAFalloff = sunEdgeAAFalloff;

@@ -2,6 +2,7 @@
 #include "BindlessRS.hlsli"
 #include "Noise.hlsli"
 #include "Common.hlsli"
+#include "CloudsCommon.hlsli"
 
 // Keep in sync with alm::gfx::CloudsRenderStage::DebugChannel
 static const uint DebugChannel_Disabled = 0;
@@ -41,45 +42,6 @@ float StepJitter(float2 pixelPos, uint step, float salt)
     return frac(InterleavedGradientNoise(pixelPos + float2(step, step * 1.61803398875)) + salt);
 }
 
-// Stratus: thin band near base.
-float StratusProfile(float norY)
-{
-    float rampIn = smoothstep(0.05, 0.10, norY);
-    float rampOut = 1.0 - smoothstep(0.20, 0.25, norY);
-    return saturate(rampIn * rampOut);
-}
-
-// Cumulus: base lifts from 0.05 to 0.20, wispy top fade 0.55-0.85.
-float CumulusProfile(float norY)
-{
-    float rampIn = smoothstep(0.05, 0.20, norY);
-    float rampOut = 1.0 - smoothstep(0.55, 0.70, norY);
-    return saturate(rampIn * rampOut);
-}
-
-// Cumulonimbus: sharper base lift 0.05-0.15, top fade only at 0.90-1.00.
-float CumulonimbusProfile(float norY)
-{
-    float rampIn = smoothstep(0.05, 0.15, norY);
-    float rampOut = 1.0 - smoothstep(0.90, 1.00, norY);
-    return saturate(rampIn * rampOut);
-}
-
-// Weighted blend of the three profiles
-float CloudCoverageShape(float norY, float stratusWeight, float cumulusWeight, float cumulonimbusWeight)
-{
-    float s = StratusProfile(norY) * stratusWeight
-            + CumulusProfile(norY) * cumulusWeight
-            + CumulonimbusProfile(norY) * cumulonimbusWeight;
-    return saturate(s);
-}
-
-// Density 1 at the base, 0.3 at the top.
-float GlobalHeightGradient(float norY)
-{
-    return lerp(1.0, 0.55, smoothstep(0.0, 1.0, norY));
-}
-
 // Henyey-Greenstein phase function, forward-scattering anisotropy.
 // g in [-1, 1]: g > 0 favors forward scatter, g < 0 backward.
 // For water droplets g ~ 0.6-0.8 (very forward).
@@ -110,68 +72,9 @@ float PowderEffect(float density, float width, float strength)
     return lerp(1.0, edge, strength);
 }
 
-float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
-    ConstantBuffer <interop::CloudsData> cloudsData)
-{    
-    // Si norY está fuera del rango válido [0,1], no hay densidad
-    if (norY < 0.0 || norY > 1.0)
-        return 0.0;
-
-    // --- BASE SHAPE
-
-    float3 uvw1;
-    uvw1.xy = pos.xz * cloudsData.cloudsScale;
-    uvw1.xy += cloudsData.windOffset;
-    uvw1.z = norY;
-    float3 uvw2;
-    uvw2.xy = pos.xz * cloudsData.cloudsScale * 0.37; // prime number
-    uvw2.xy += cloudsData.windOffset * 0.73;
-    uvw2.z = frac(norY + 0.5);
-        
-    float4 noise1 = cloudsTexture.SampleLevel(linearWrapSampler, uvw1, 0.0);
-    float4 noise2 = cloudsTexture.SampleLevel(linearWrapSampler, uvw2, 0.0);
-    float4 noise = lerp(noise1, noise2, 0.3);
-
-    float perlinWorley = noise.r;
-    float3 worley = noise.gba;
-    
-    // cloud shape modeled after the GPU Pro 7 chapter
-    float wfbm = worley.r * 0.625 + worley.g * 0.25 + worley.b * 0.125;
-    float coverage = remap(perlinWorley, wfbm - 1.0, 1.0, 0.0, 1.0);
-    coverage = remap(coverage, 1.0 - cloudsData.coverage, 1.0, 0.0, 1.0);
-
-    if (coverage <= 0.0)
-        return 0.0;
-
-    coverage *= CloudCoverageShape(norY, cloudsData.stratusWeight, cloudsData.cumulusWeight, cloudsData.cumulonimbusWeight);
-    coverage *= GlobalHeightGradient(norY);
-    coverage = saturate(coverage);
-
-    // -- DETAIL EROSION
-
-    float3 detailUVW;
-    detailUVW.xy = pos.xz * cloudsData.cloudsScale * cloudsData.detailScale;
-    detailUVW.xy += cloudsData.windOffset * cloudsData.detailScale;
-    detailUVW.z  = norY;
-
-    float3 detail = cloudsDetailTexture.SampleLevel(linearWrapSampler, detailUVW, 0.0).rgb;
-    float hfbm = detail.r * 0.625 + detail.g * 0.25 + detail.b * 0.125;
-
-    // Per paper: in the lower half (near the layer floor),
-    // Worley is inverted -> produces wispy/transparent edges.
-    // norY E [0,1]: lower values -> wispy, higher values -> billowy (cumulus-like).
-    hfbm = lerp(1.0 - hfbm, hfbm, smoothstep(0.0, 0.5, norY));
-
-    // Dynamic threshold driven by detail strength.
-    // Any density value below `hfbm*strength` is clamped to zero.
-    float threshold = hfbm * cloudsData.detailErosionStrength;
-    float eroded = remap(coverage, threshold, 1.0, 0.0, 1.0);
-
-    return saturate(eroded);
-}
-
 ShadowResult VolumetricShadow(float3 from, float2 pixelPos,
                               Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
+                              ConstantBuffer<interop::CloudsShapeData> cloudsShape,
                               ConstantBuffer<interop::CloudsData> cloudsData)
 {
     // Distance to layer's outer surface along sun direction.
@@ -210,7 +113,7 @@ ShadowResult VolumetricShadow(float3 from, float2 pixelPos,
         if (norY > 1.0 || norY < 0.0)
             continue;
 
-        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
+        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsShape);
         opticalDepth += density * step;
     }
 
@@ -274,7 +177,7 @@ bool GetCloudsLayerIntersectionPoints(
 // rayOriginLocal: camera position in world space
 // rayDir:         normalized ray direction in world space
 CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
-    ConstantBuffer<interop::CloudsData> cloudsData, float sceneDist, float2 pixelPos)
+    ConstantBuffer<interop::CloudsShapeData> cloudsShape, ConstantBuffer<interop::CloudsData> cloudsData, float sceneDist, float2 pixelPos)
 {
     CloudResult result;
     result.color = 0.0;
@@ -300,7 +203,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     float rayLength = marchExit - tEntry;
 
     // Resolution relative to freq of erosion detail.
-    float detailSpatialFreq = cloudsData.cloudsScale * cloudsData.detailScale * DETAIL_LOW_FREQ;
+    float detailSpatialFreq = cloudsShape.ShapeScale * cloudsShape.DetailScale * DETAIL_LOW_FREQ;
     float targetStepSize = (detailSpatialFreq > 0.0001) ? 0.5 / detailSpatialFreq : 1000.0;
         
     // Dynamic steps, cap by maxSteps
@@ -326,7 +229,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         float3 pos = rayOrigin + rayDir * sampleT;
         float altitude = length(pos) - cloudsData.earthRadius;
         float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
-        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsData);
+        float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsShape);
         
         float normT = sampleT * cloudsData.invCloudFadeDistance;
         float fadeFactor = saturate(1.0 - square(normT));
@@ -338,7 +241,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
             float sunOD = 0.0;
             if(cloudsData.volumetricShadows)
             {
-                ShadowResult shadowResult = VolumetricShadow(pos, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsData);
+                ShadowResult shadowResult = VolumetricShadow(pos, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsShape, cloudsData);
                 lightEnergy = shadowResult.lightEnergy;
                 sunOD = shadowResult.opticalDepth;
             }
@@ -409,9 +312,10 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
 [RootSignature(BindlessRootSignature)]
 float4 main(PS_INPUT input) : SV_Target
 {
-    ConstantBuffer<interop::CloudsData> cloudsData = ResourceDescriptorHeap[Constants.cloudsDataDI];    
-    Texture3D<float4> baseTexture = ResourceDescriptorHeap[cloudsData.cloudsBaseShapeTexture];
-    Texture3D<float4> detailTexture = ResourceDescriptorHeap[cloudsData.cloudsDetailTexture];
+    ConstantBuffer<interop:: CloudsShapeData> cloudsShape = ResourceDescriptorHeap[Constants.cloudsShapeDataDI];
+    ConstantBuffer<interop::CloudsData> cloudsData = ResourceDescriptorHeap[Constants.cloudsDataDI];
+    Texture3D<float4> baseTexture = ResourceDescriptorHeap[cloudsShape.BaseShapeTexture];
+    Texture3D<float4> detailTexture = ResourceDescriptorHeap[cloudsShape.DetailTexture];
     Texture2D<float> linearDepthTex = ResourceDescriptorHeap[cloudsData.linearDepthTexDI];
     
     // Reconstruct world-space ray direction from clip-space coordinates.
@@ -437,7 +341,7 @@ float4 main(PS_INPUT input) : SV_Target
     float2 pixelPos = input.uv * Constants.viewportSize;
     
     CloudResult clouds = GetCloudsColorRayMarch(
-        Constants.cameraPosition, rayDir, baseTexture, detailTexture, cloudsData, sceneDist, pixelPos);
+        Constants.cameraPosition, rayDir, baseTexture, detailTexture, cloudsShape, cloudsData, sceneDist, pixelPos);
     
     if (Constants.debugChannel == DebugChannel_Clouds_Transmitance)
     {

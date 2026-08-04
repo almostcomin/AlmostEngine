@@ -11,6 +11,7 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/SceneHeightmap.h"
+#include "Gfx/AtmosphereConfig.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 #include "Core/unique_vector.h"
@@ -30,6 +31,9 @@ alm::gfx::Scene::Scene(const std::string& name, DeviceManager* deviceManager) :
 	{
 		OnLeafRemoved(leaf);
 	});
+
+	m_AtmosConfig = alm::make_unique_with_weak<gfx::AtmosphereConfig>();
+	m_AtmosConfig->Init(m_DeviceManager, false);
 }
 
 alm::gfx::Scene::~Scene()
@@ -71,15 +75,29 @@ void alm::gfx::Scene::DetachRenderView(alm::weak<RenderView> renderView)
 
 const alm::aabox3f alm::gfx::Scene::GetWorldBounds(SceneContentType type)
 {
-	Update();
-	if (m_SceneGraph && m_SceneGraph->GetRoot() && has_any_flag(m_SceneGraph->GetRoot()->GetContentFlags(), ToFlag(type)))
+	if (m_SceneGraph)
 	{
-		return m_SceneGraph->GetRoot()->GetWorldBounds(type);
+		m_SceneGraph->Update();
+
+		if (m_SceneGraph->GetRoot() && has_any_flag(m_SceneGraph->GetRoot()->GetContentFlags(), ToFlag(type)))
+		{
+			return m_SceneGraph->GetRoot()->GetWorldBounds(type);
+		}
 	}
+
 	return aabox3f::get_empty();
 }
 
-void alm::gfx::Scene::Update()
+void alm::gfx::Scene::Update(float elapsedSec)
+{
+	if(m_AtmosConfig)
+		m_AtmosConfig->Update(elapsedSec);
+
+	RefreshSceneGraph();
+
+}
+
+void alm::gfx::Scene::RefreshSceneGraph()
 {
 	if (m_SceneGraph)
 	{

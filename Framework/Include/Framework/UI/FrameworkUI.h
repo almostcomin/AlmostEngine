@@ -53,7 +53,6 @@ public:
 		alm::gfx::SkyRenderStage::SkySimParams SkySimParams;
 		bool SkyEnabled = true;
 
-		alm::gfx::AtmosphereConfig::CloudsParams CloudsParams;
 		alm::gfx::CloudsRenderStage::CloudsSimParams CloudsSimParams;
 		bool CloudsEnabled = true;
 

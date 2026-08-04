@@ -7,6 +7,7 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/Scene.h"
 #include "Gfx/Camera.h"
+#include "Gfx/AtmosphereConfig.h"
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
@@ -30,10 +31,16 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		return;
 	if (!GetCamera())
 		return;
+	
+	gfx::AtmosphereConfig* atmos = GetScene()->GetAtmosphereConfig();
+	if (!atmos->CloudsSubsystemInitialized())
+		return;
 
-	const gfx::AtmosphereConfig& atmos = GetScene()->GetAtmosphereConfig();
-	rhi::TextureHandle cloudsShape = atmos.GetCloudsShapeTexture();
-	rhi::TextureHandle cloudsDetail = atmos.GetCloudsDetailTexture();
+	if (!atmos)
+		return;
+
+	rhi::TextureHandle cloudsShape = atmos->GetCloudsShapeTexture();
+	rhi::TextureHandle cloudsDetail = atmos->GetCloudsDetailTexture();
 	if (!cloudsShape || !cloudsDetail)
 	{
 		LOG_WARNING("CloudsRenderStage: No clouds texture defined");
@@ -97,16 +104,13 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 
 		commandList->SetPipelineState(m_CloudsPSO.get());
 
-		const gfx::AtmosphereConfig::SunParams& sunParams = atmos.Sun;
-		const gfx::AtmosphereConfig::CloudsParams& cloudsParams = atmos.Clouds;
-
-		// Update clouds position offset
-		m_CloudsOffset += atmos.WindVelocity * GetRenderView()->GetTimeDelta();
+		const gfx::AtmosphereConfig::SunParams& sunParams = atmos->Sun;
+		const gfx::AtmosphereConfig::CloudsParams& cloudsParams = atmos->Clouds;
 
 		const float3 toSunDirection = -glm::normalize(alm::ElevationAzimuthRadToDir(
 			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg)));
-		const float muS = cloudsParams.ScatteringCoeff / atmos.EarthScaleFactor;
-		const float muA = cloudsParams.AbsorptionCoeff / atmos.EarthScaleFactor;
+		const float muS = cloudsParams.ScatteringCoeff / atmos->EarthScaleFactor;
+		const float muA = cloudsParams.AbsorptionCoeff / atmos->EarthScaleFactor;
 		const float muT = muS + muA;
 
 		//const float sunSolidAngle = 4.0f * PI * square(glm::sin(glm::radians(sunParams.AngularSizeDeg / 2.0f)));
@@ -118,18 +122,10 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		// Fill shader constants
 		auto* cloudsData = (interop::CloudsData*)m_CloudsCB.Map();
 
-		cloudsData->cloudsBaseShapeTexture = cloudsShape->GetSampledView();
-		cloudsData->cloudsDetailTexture = cloudsDetail->GetSampledView();
 		cloudsData->linearDepthTexDI = m_RenderGraph->GetTextureSampledView(m_LinearDepthTexture);
 		cloudsData->prevCloudsTexDI = m_CloudsTexture[cloudsOtherIdx]->GetSampledView();
 
-		cloudsData->stratusWeight = cloudsParams.StratusWeight;
-		cloudsData->cumulusWeight = cloudsParams.CumulusWeight;
-		cloudsData->cumulonimbusWeight = cloudsParams.CumulonimbusWeight;
-		cloudsData->cloudsScale = cloudsParams.CloudsScale * atmos.EarthScaleFactor;
-		cloudsData->coverage = cloudsParams.CloudsCoverage;
 		cloudsData->cloudFadeDistance = cloudsParams.CloudsFadeDistance;
-		cloudsData->windOffset = m_CloudsOffset;
 		cloudsData->cloudLayerMin = cloudsParams.CloudsLayerMin;
 		cloudsData->cloudLayerMax = cloudsParams.CloudsLayerMax;
 		cloudsData->toSunDirection = toSunDirection;
@@ -140,12 +136,10 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->multiScatterEccentricity = cloudsParams.MultiScatterEccentricity;
 		cloudsData->albedo = muS / std::max(muT, 1e-10f);
 		cloudsData->ambientStrength = cloudsParams.AmbientStrength;
-		cloudsData->earthCenter = atmos.EarthCenter;
-		cloudsData->earthRadius = atmos.EarthRadius;
+		cloudsData->earthCenter = atmos->EarthCenter;
+		cloudsData->earthRadius = atmos->EarthRadius;
 		cloudsData->invCloudLayerThickness = 1.f / (cloudsParams.CloudsLayerMax - cloudsParams.CloudsLayerMin);
 		cloudsData->cameraForward = GetCamera()->GetForward();
-		cloudsData->detailScale = cloudsParams.DetailScale * atmos.EarthScaleFactor;
-		cloudsData->detailErosionStrength = cloudsParams.DetailErosionStrength;
 		cloudsData->matPrevFrameViewProj = GetRenderView()->GetPrevFrameViewProjMatrix();
 		cloudsData->invCloudFadeDistance = 1.f / cloudsParams.CloudsFadeDistance;
 		cloudsData->sunRadiance = sunRadiance;
@@ -174,6 +168,7 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 			m_CloudsFB[m_CloudsTextureIdx]->GetFramebufferInfo().height };
 		cloudsConstants.frameCounter = m_RenderGraph->GetDeviceManager()->GetFrameIndex();
 		cloudsConstants.debugChannel = (uint32_t)m_DebugChannel;
+		cloudsConstants.cloudsShapeDataDI = atmos->GetCloudsShapeUniformView();
 
 		commandList->PushGraphicsConstants(0, cloudsConstants);
 

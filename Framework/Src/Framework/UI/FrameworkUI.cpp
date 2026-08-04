@@ -1315,8 +1315,9 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 {
     const auto& scene = GetScene();
     auto cloudsRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CloudsRenderStage>();
+    gfx::AtmosphereConfig* atmos = scene ? scene->GetAtmosphereConfig() : nullptr;
 
-    if(scene && cloudsRS && ImGui::CollapsingHeader("Clouds"))
+    if(atmos && atmos->CloudsSubsystemInitialized() && cloudsRS && ImGui::CollapsingHeader("Clouds"))
     {
         ImGui::Checkbox("Enabled##Clouds", &FrameworkData.CloudsEnabled);
 
@@ -1346,15 +1347,14 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 
         if (ImGui::Button("Apply##CloudsPreset"))
         {
-            ApplyCloudsPreset(FrameworkData.CloudsParams, m_CloudsPreset);
+            ApplyCloudsPreset(m_CloudsPreset, *atmos);
         }
 
         ImGui::Spacing();
         ImGui::SeparatorText("Velocity");
         ImGui::Spacing();
 
-        gfx::AtmosphereConfig& atmos = scene->GetAtmosphereConfig();
-        float2 velDir = atmos.WindVelocity;
+        float2 velDir = atmos->WindVelocity;
         float velMag = glm::length(velDir);
         float velYaw = 0.f;
         if (velMag > 0.0001f)
@@ -1367,71 +1367,71 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         windUpdated |= ImGui::InputFloat("Wind Magnitude", &velMag);
         if (windUpdated)
         {
-            atmos.WindVelocity.x = glm::sin(velYaw);
-            atmos.WindVelocity.y = glm::cos(velYaw);
-            atmos.WindVelocity *= velMag;
+            atmos->WindVelocity.x = glm::sin(velYaw);
+            atmos->WindVelocity.y = glm::cos(velYaw);
+            atmos->WindVelocity *= velMag;
         }
 
         ImGui::Spacing();
         ImGui::SeparatorText("Shape");
         ImGui::Spacing();
 
-        ImGui::SliderFloat("Stratus Weight##Clouds", &FrameworkData.CloudsParams.StratusWeight, 0.f, 1.f);
-        ImGui::SliderFloat("Cumulus Weight##Clouds", &FrameworkData.CloudsParams.CumulusWeight, 0.f, 1.f);
-        ImGui::SliderFloat("Cumulonimbus Weight##Clouds", &FrameworkData.CloudsParams.CumulonimbusWeight, 0.f, 1.f);
+        ImGui::SliderFloat("Stratus Weight##Clouds", &atmos->CloudsShape.StratusWeight, 0.f, 1.f);
+        ImGui::SliderFloat("Cumulus Weight##Clouds", &atmos->CloudsShape.CumulusWeight, 0.f, 1.f);
+        ImGui::SliderFloat("Cumulonimbus Weight##Clouds", &atmos->CloudsShape.CumulonimbusWeight, 0.f, 1.f);
 
         ImGui::Spacing();
 
-        ImGui::SliderFloat("Scale##Clouds", &FrameworkData.CloudsParams.CloudsScale, 0.f, 1.f, "%.6f",
+        ImGui::SliderFloat("Scale##Clouds", &atmos->CloudsShape.CloudsScale, 0.f, 1.f, "%.6f",
             ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
         ImGui::Spacing();
 
-        ImGui::SliderFloat("Coverage##Clouds", &FrameworkData.CloudsParams.CloudsCoverage, 0.f, 1.f);
+        ImGui::SliderFloat("Coverage##Clouds", &atmos->CloudsShape.CloudsCoverage, 0.f, 1.f);
         ImGui::Spacing();
 
-        ImGui::InputFloat("Detail Scale##Clouds", &FrameworkData.CloudsParams.DetailScale);
-        ImGui::SliderFloat("Detail Erosion Strength##Clouds", &FrameworkData.CloudsParams.DetailErosionStrength, 0.f, 1.f);
+        ImGui::InputFloat("Detail Scale##Clouds", &atmos->CloudsShape.DetailScale);
+        ImGui::SliderFloat("Detail Erosion Strength##Clouds", &atmos->CloudsShape.DetailErosionStrength, 0.f, 1.f);
 
         ImGui::Spacing();
         ImGui::SeparatorText("Lighting");
         ImGui::Spacing();
 
-        float muA_Km = FrameworkData.CloudsParams.AbsorptionCoeff * 1000.f;
+        float muA_Km = atmos->Clouds.AbsorptionCoeff * 1000.f;
         if (ImGui::SliderFloat("Absorption Coeff 1/km (norm)##Clouds", &muA_Km, 0.f, 10.f))
-            FrameworkData.CloudsParams.AbsorptionCoeff = muA_Km / 1000.f;
+            atmos->Clouds.AbsorptionCoeff = muA_Km / 1000.f;
 
-        float muS_Km = FrameworkData.CloudsParams.ScatteringCoeff * 1000.f;
+        float muS_Km = atmos->Clouds.ScatteringCoeff * 1000.f;
         if(ImGui::SliderFloat("Scattering Coeff 1/km (norm)##Clouds", &muS_Km, 0.f, 10.f))
-            FrameworkData.CloudsParams.ScatteringCoeff = muS_Km / 1000.f;
+            atmos->Clouds.ScatteringCoeff = muS_Km / 1000.f;
 
         ImGui::Spacing();
-        ImGui::SliderFloat("MultiScatter Contribution##Clouds", &FrameworkData.CloudsParams.MultiScatterContribution, 0.f, 1.f);
-        ImGui::SliderFloat("MultiScatter Occlusion##Clouds", &FrameworkData.CloudsParams.MultiScatterOcclusion, 0.f, 1.f);
-        ImGui::SliderFloat("MultiScatter Eccentricity##Clouds", &FrameworkData.CloudsParams.MultiScatterEccentricity, 0.f, 1.f);
+        ImGui::SliderFloat("MultiScatter Contribution##Clouds", &atmos->Clouds.MultiScatterContribution, 0.f, 1.f);
+        ImGui::SliderFloat("MultiScatter Occlusion##Clouds", &atmos->Clouds.MultiScatterOcclusion, 0.f, 1.f);
+        ImGui::SliderFloat("MultiScatter Eccentricity##Clouds", &atmos->Clouds.MultiScatterEccentricity, 0.f, 1.f);
 
         ImGui::Spacing();
-        ImGui::SliderFloat("Phase G Forward##Clouds", &FrameworkData.CloudsParams.PhaseGForward, -1.f, 1.f);
-        ImGui::SliderFloat("Phase G Backward##Clouds", &FrameworkData.CloudsParams.PhaseGBackward, -1.f, 1.f);
-        ImGui::SliderFloat("Multiscatter Base G##Clouds", &FrameworkData.CloudsParams.MultiScatterBaseG, 0.f, 1.f);
+        ImGui::SliderFloat("Phase G Forward##Clouds", &atmos->Clouds.PhaseGForward, -1.f, 1.f);
+        ImGui::SliderFloat("Phase G Backward##Clouds", &atmos->Clouds.PhaseGBackward, -1.f, 1.f);
+        ImGui::SliderFloat("Multiscatter Base G##Clouds", &atmos->Clouds.MultiScatterBaseG, 0.f, 1.f);
 
         ImGui::Spacing();
-        ImGui::SliderFloat("Powder Strength##Clouds", &FrameworkData.CloudsParams.PowderStrength, 0.f, 1.f);        
-        ImGui::SliderFloat("Powder Edge Width##Clouds", &FrameworkData.CloudsParams.PowderEdgeWidth, 0.f, 1.f);
+        ImGui::SliderFloat("Powder Strength##Clouds", &atmos->Clouds.PowderStrength, 0.f, 1.f);
+        ImGui::SliderFloat("Powder Edge Width##Clouds", &atmos->Clouds.PowderEdgeWidth, 0.f, 1.f);
 
         ImGui::Spacing();
-        ImGui::ColorEdit3("Ambient Top Color", (float*)&(FrameworkData.CloudsParams.AmbientTop.x), ImGuiColorEditFlags_Float);
-        ImGui::ColorEdit3("Ambient Bottom Color", (float*)&(FrameworkData.CloudsParams.AmbientBottom.x), ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("Ambient Top Color", (float*)&(atmos->Clouds.AmbientTop.x), ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("Ambient Bottom Color", (float*)&(atmos->Clouds.AmbientBottom.x), ImGuiColorEditFlags_Float);
 
-        ImGui::SliderFloat("Ambient Strength##Clouds", &FrameworkData.CloudsParams.AmbientStrength, 0.f, 1.f);
+        ImGui::SliderFloat("Ambient Strength##Clouds", &atmos->Clouds.AmbientStrength, 0.f, 1.f);
 
         ImGui::Spacing();
         ImGui::SeparatorText("Layer");
         ImGui::Spacing();
 
-        ImGui::InputFloat("Clouds Bottom##Clouds", &FrameworkData.CloudsParams.CloudsLayerMin);
-        ImGui::InputFloat("Clouds Top##Clouds", &FrameworkData.CloudsParams.CloudsLayerMax);
+        ImGui::InputFloat("Clouds Bottom##Clouds", &atmos->Clouds.CloudsLayerMin);
+        ImGui::InputFloat("Clouds Top##Clouds", &atmos->Clouds.CloudsLayerMax);
         ImGui::Spacing();
-        ImGui::InputFloat("Fade Distance##Clouds", &FrameworkData.CloudsParams.CloudsFadeDistance);
+        ImGui::InputFloat("Fade Distance##Clouds", &atmos->Clouds.CloudsFadeDistance);
 
         ImGui::Spacing();
         ImGui::SeparatorText("Performance");
@@ -1469,7 +1469,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 
         if (ImGui::Button("Open Shape Texture"))
         {
-            auto tex = atmos.GetCloudsShapeTexture();
+            auto tex = atmos->GetCloudsShapeTexture();
             AddTextureWindow(tex->GetDebugName(), tex);
         }
 
@@ -1477,7 +1477,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 
         if (ImGui::Button("Open Detail Texture"))
         {
-            auto tex = atmos.GetCloudsDetailTexture();
+            auto tex = atmos->GetCloudsDetailTexture();
             AddTextureWindow(tex->GetDebugName(), tex);
         }
     }

@@ -26,6 +26,7 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
+#include "Gfx/AtmosphereConfig.h"
 #include "RHI/Device.h"
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_init.h>
@@ -134,12 +135,11 @@ void alm::fw::App::RefreshUIData()
 		data.ShadowmapSize = shadowmapRS->GetSize();
 	}
 
-	const gfx::AtmosphereConfig& atmos = m_Scene->GetAtmosphereConfig();
+	const gfx::AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
 
-	data.SunParams = atmos.Sun;
-	data.AmbientParams = atmos.Ambient;
-	data.SkyParams = atmos.Sky;
-	data.CloudsParams = atmos.Clouds;
+	data.SunParams = atmos->Sun;
+	data.AmbientParams = atmos->Ambient;
+	data.SkyParams = atmos->Sky;
 
 	if (simpleSkyRS)
 		data.SimpleSkyParams = simpleSkyRS->GetSkyParams();
@@ -691,7 +691,7 @@ void alm::fw::App::MainLoop()
 		}
 
 		// Scene update
-		m_Scene->Update();
+		m_Scene->Update(elapsedSec);
 
 		// Update UI
 		if (m_FrameworkUI)
@@ -743,20 +743,19 @@ void alm::fw::App::MainLoop()
 			if (shadowmapRS->GetSize() != data.ShadowmapSize)
 				shadowmapRS->SetSize(data.ShadowmapSize);
 
-			gfx::AtmosphereConfig& atmos = m_Scene->GetAtmosphereConfig();
+			gfx::AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
 
 			if (data.SunParamsUpdated)
 			{
-				atmos.Sun = data.SunParams;
+				atmos->Sun = data.SunParams;
 				data.SunParamsUpdated = false;
 			}
 			if (data.AmbientParamsUpdated)
 			{
-				atmos.Ambient = data.AmbientParams;
+				atmos->Ambient = data.AmbientParams;
 				data.AmbientParamsUpdated = false;
 			}
-			atmos.Sky = data.SkyParams;
-			atmos.Clouds = data.CloudsParams;
+			atmos->Sky = data.SkyParams;
 
 			if (simpleSkyRS)
 				simpleSkyRS->SetSkyParams(data.SimpleSkyParams);

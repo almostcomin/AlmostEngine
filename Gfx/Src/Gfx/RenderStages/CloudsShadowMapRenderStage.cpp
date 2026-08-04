@@ -4,6 +4,8 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/Camera.h"
+#include "Gfx/AtmosphereConfig.h"
+#include "Gfx/Scene.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
@@ -30,6 +32,18 @@ void alm::gfx::CloudsShadowmapRenderStage::Render(alm::rhi::CommandListHandle co
 	if (!GetCamera())
 		return;
 
+	gfx::AtmosphereConfig* atmos = GetScene()->GetAtmosphereConfig();
+	if (!atmos->CloudsSubsystemInitialized())
+		return;
+
+	rhi::TextureHandle cloudsShape = atmos->GetCloudsShapeTexture();
+	rhi::TextureHandle cloudsDetail = atmos->GetCloudsDetailTexture();
+	if (!cloudsShape || !cloudsDetail)
+	{
+		LOG_WARNING("CloudsRenderStage: No clouds texture defined");
+		return;
+	}
+
 	uint2 dstTextureSize = m_RenderGraph->GetTexture2dDimensions(m_CloudsShadowmapTexture);
 
 	commandList->BeginMarker("CloudsShadowmap");
@@ -40,7 +54,8 @@ void alm::gfx::CloudsShadowmapRenderStage::Render(alm::rhi::CommandListHandle co
 
 	cloudsShadowmapData->DstTextureDI = m_RenderGraph->GetTextureStorageView(m_CloudsShadowmapTexture);
 	cloudsShadowmapData->LinearDepthTexDI = m_RenderGraph->GetTextureSampledView(m_LinearDepthTexture);
-	//cloudsShadowmapData->CloudsBaseShapeTexture = ...
+	cloudsShadowmapData->CloudsBaseShapeTexture = cloudsShape->GetSampledView();
+	cloudsShadowmapData->CloudsDetailTexture = cloudsDetail->GetSampledView();
 	cloudsShadowmapData->DstTextureSize = dstTextureSize;
 	cloudsShadowmapData->MatClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
 	cloudsShadowmapData->CameraForward = GetCamera()->GetForward();

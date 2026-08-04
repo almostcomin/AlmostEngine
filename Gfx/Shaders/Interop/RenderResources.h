@@ -475,52 +475,70 @@ namespace interop
         BufferUniformIndex SkyDataDI;  // SkyData
     };
 
+    struct CloudsShapeData
+    {
+        TextureSampledViewIndex BaseShapeTexture;
+        TextureSampledViewIndex DetailTexture;
+        float2 WindOffset;
+        float ShapeScale;
+        float DetailScale;
+        float DetailErosionStrength;
+        float Coverage;
+        float StratusWeight;
+        float CumulusWeight;
+        float CumulonimbusWeight;
+        uint _padding0;
+    };
+
     struct CloudsData
     {
-        TextureSampledViewIndex cloudsBaseShapeTexture;
-        TextureSampledViewIndex cloudsDetailTexture;
         TextureSampledViewIndex linearDepthTexDI;
         TextureSampledViewIndex prevCloudsTexDI;
-        float2 windOffset;              // offset 4
-        float cloudsScale;
-        float coverage;
-        float3 toSunDirection;          // offset 8
         float cloudFadeDistance;
-        float3 earthCenter;             // offset 12
+        float earthRadius;
+
+        float3 toSunDirection;
         float cloudLayerMin;
-        float cloudLayerMax;            // offset 16
+
+        float3 earthCenter;
+        float cloudLayerMax;
+
+        float3 cameraForward;
         float muT;
-        float earthRadius;              
+
         float invCloudLayerThickness;   
-        float3 cameraForward;           // offset 20
         uint maxSteps;
-        uint lightSteps;                // offset 24
-        float detailScale;
-        float detailErosionStrength;
+        uint lightSteps;
         float muS;
-        float4x4 matPrevFrameViewProj;  // offset 28
-        float stratusWeight;            // offset 44
-        float cumulusWeight;
-        float cumulonimbusWeight;
+
+        float4x4 matPrevFrameViewProj;
+
+        float3 sunT;
         float invCloudFadeDistance;
-        float3 sunT;                    // offset 48
+
+        float3 sunB;
         uint multiScatterOctaves;
-        float3 sunB;                    // offset 52
+
         float albedo;
-        float ambientStrength;          // offset 56
+        float ambientStrength;
         float multiScatterEccentricity;
         float multiScatterContribution;
+
+        float3 sunRadiance;
         float multiScatterOcclusion;
-        float3 sunRadiance;             // offset 60
-        float phaseGForward;
+
         float3 sunIrradiance;
+        float phaseGForward;
+
         float phaseGBackward;
-        float multiScatterBaseG;        // offset 68
+        float multiScatterBaseG;
         float powderStrength;
         float powderEdgeWidth;
+
         uint volumetricShadows;
-        float depthThreshold;           // offet 72
+        float depthThreshold;
         float blendFactor;
+        uint _padding0;
     };
 
     struct CloudsConstants
@@ -531,6 +549,7 @@ namespace interop
         uint2 viewportSize;
         uint frameCounter;
         uint debugChannel;
+        BufferUniformIndex cloudsShapeDataDI;  // CloudsData
     };
 
     struct CloudsShadowmapData
@@ -538,7 +557,7 @@ namespace interop
         TextureStorageViewIndex DstTextureDI;
         TextureSampledViewIndex LinearDepthTexDI;
         TextureSampledViewIndex CloudsBaseShapeTexture;
-        uint _padding0;
+        TextureSampledViewIndex CloudsDetailTexture;
         uint2 DstTextureSize;
         uint2 _padding1;
         float4x4 MatClipToTranslatedWorld;

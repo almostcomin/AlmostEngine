@@ -68,7 +68,7 @@ public:
 				}
 				m_Scene->GetSceneGraph()->GetRoot()->AddChild(std::move(*importResult));
 
-				m_Scene->Update(); // For bounds
+				m_Scene->RefreshSceneGraph(); // For bounds
 
 				const alm::aabox3f& bounds = m_Scene->GetSceneGraph()->GetRoot()->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
 				if (bounds.valid())

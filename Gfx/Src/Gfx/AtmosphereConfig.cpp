@@ -7,6 +7,7 @@
 #include "Gfx/TextureLoader.h"
 #include "RHI/Texture.h"
 #include "RHI/Device.h"
+#include "Interop/RenderResources.h"
 #include "Core/Noise.h"
 
 std::expected<std::pair<alm::rhi::TextureOwner, alm::SignalListener>, std::string>
@@ -127,6 +128,90 @@ static CreateCloudsDetailTexture(alm::gfx::DeviceManager* deviceManager)
 	return std::make_pair(std::move(texture), *commitResult);
 }
 
+void alm::gfx::AtmosphereConfig::Init(gfx::DeviceManager* deviceManager, bool initClouds)
+{
+	m_DeviceManager = deviceManager;
+	
+	if (initClouds)
+	{
+		InitCloudsSubsystem(false, true);
+	}
+}
+
+void alm::gfx::AtmosphereConfig::InitCloudsSubsystem(bool forceNew, bool saveCache)
+{
+	if (!forceNew && std::filesystem::exists("_generated/CloudShape.dds"))
+	{
+		alm::gfx::TextureCache* textureCache = m_DeviceManager->GetTextureCache();
+		auto loadResult = textureCache->Load("_generated/CloudShape.dds", alm::gfx::TextureCache::Flags::None);
+		if (!loadResult)
+		{
+			LOG_ERROR("Failed loading CloudsShape.dds\n{}", loadResult.error());
+		}
+		else
+		{
+			loadResult->second.Wait();
+			m_CloudsShapeTexture = std::move(loadResult->first->texture);
+		}
+	}
+	else
+	{
+		auto createResult = CreateCloudsShapeTexture(m_DeviceManager);
+		assert(createResult);
+		createResult->second.Wait();
+		alm::rhi::TextureOwner& cloudsTexture = createResult->first;
+
+		if (saveCache)
+		{
+			alm::gfx::SaveDDSTexture(cloudsTexture.get_weak(), alm::rhi::ResourceState::SHADER_RESOURCE, alm::rhi::ResourceState::SHADER_RESOURCE,
+				m_DeviceManager->GetDevice(), "_generated/CloudShape.dds");
+		}
+
+		m_CloudsShapeTexture = std::move(cloudsTexture);
+	}
+
+	if (!forceNew && std::filesystem::exists("_generated/CloudsDetail.dds"))
+	{
+		alm::gfx::TextureCache* textureCache = m_DeviceManager->GetTextureCache();
+		auto loadResult = textureCache->Load("_generated/CloudsDetail.dds", alm::gfx::TextureCache::Flags::None);
+		if (!loadResult)
+		{
+			LOG_ERROR("Failed loading CloudsDetail.dds\n{}", loadResult.error());
+		}
+		else
+		{
+			loadResult->second.Wait();
+			m_CloudsDetailTexture = std::move(loadResult->first->texture);
+		}
+	}
+	else
+	{
+		auto createResult = CreateCloudsDetailTexture(m_DeviceManager);
+		assert(createResult);
+		createResult->second.Wait();
+		alm::rhi::TextureOwner& cloudsTexture = createResult->first;
+
+		if (saveCache)
+		{
+			alm::gfx::SaveDDSTexture(cloudsTexture.get_weak(), alm::rhi::ResourceState::SHADER_RESOURCE, alm::rhi::ResourceState::SHADER_RESOURCE,
+				m_DeviceManager->GetDevice(), "_generated/CloudsDetail.dds");
+		}
+
+		m_CloudsDetailTexture = std::move(cloudsTexture);
+	}
+
+	m_CloudsShapeCB.InitUniformBuffer(sizeof(interop::CloudsShapeData), m_DeviceManager, "CloudsConstantBuffer");
+	
+	m_CloudsSubsystemInitialized = true;
+}
+
+void alm::gfx::AtmosphereConfig::Update(float elapsedSec)
+{
+	m_CloudsOffset += WindVelocity * elapsedSec;
+	
+	m_CloudsShapeCBDirty = true;
+}
+
 float3 alm::gfx::AtmosphereConfig::GetSunDirection() const
 {
 	const float3 sunDir = alm::ElevationAzimuthRadToDir(
@@ -145,59 +230,26 @@ alm::rhi::TextureHandle alm::gfx::AtmosphereConfig::GetCloudsDetailTexture() con
 	return m_CloudsDetailTexture.valid() ? m_CloudsDetailTexture.get_weak() : nullptr;
 }
 
-void alm::gfx::AtmosphereConfig::InitCloudsTextures(bool forceNew, bool cache, alm::gfx::DeviceManager* deviceManager)
+alm::rhi::BufferUniformView alm::gfx::AtmosphereConfig::GetCloudsShapeUniformView() const
 {
-	if (std::filesystem::exists("_generated/CloudShape.dds"))
+	if (m_CloudsShapeCBDirty)
 	{
-		alm::gfx::TextureCache* textureCache = deviceManager->GetTextureCache();
-		auto loadResult = textureCache->Load("_generated/CloudShape.dds", alm::gfx::TextureCache::Flags::None);
-		if (!loadResult)
-		{
-			LOG_ERROR("Failed loading CloudsShape.dds\n{}", loadResult.error());
-		}
-		else
-		{
-			loadResult->second.Wait();
-			m_CloudsShapeTexture = std::move(loadResult->first->texture);
-		}
-	}
-	else
-	{
-		auto createResult = CreateCloudsShapeTexture(deviceManager);
-		assert(createResult);
-		createResult->second.Wait();
-		alm::rhi::TextureOwner& cloudsTexture = createResult->first;
+		auto* data = (interop::CloudsShapeData*)m_CloudsShapeCB.Map();
 
-		alm::gfx::SaveDDSTexture(cloudsTexture.get_weak(), alm::rhi::ResourceState::SHADER_RESOURCE, alm::rhi::ResourceState::SHADER_RESOURCE,
-			deviceManager->GetDevice(), "_generated/CloudShape.dds");
+		data->BaseShapeTexture = m_CloudsShapeTexture->GetSampledView();
+		data->DetailTexture = m_CloudsDetailTexture->GetSampledView();
+		data->WindOffset = m_CloudsOffset;
+		data->ShapeScale = CloudsShape.CloudsScale * EarthScaleFactor;
+		data->DetailScale = CloudsShape.DetailScale * EarthScaleFactor;
+		data->DetailErosionStrength = CloudsShape.DetailErosionStrength;
+		data->Coverage = CloudsShape.CloudsCoverage;
+		data->StratusWeight = CloudsShape.StratusWeight;
+		data->CumulusWeight = CloudsShape.CumulusWeight;
+		data->CumulonimbusWeight = CloudsShape.CumulonimbusWeight;
 
-		m_CloudsShapeTexture = std::move(cloudsTexture);
+		m_CloudsShapeCB.Unmap();
+		m_CloudsShapeCBDirty = false;
 	}
 
-	if (std::filesystem::exists("_generated/CloudsDetail.dds"))
-	{
-		alm::gfx::TextureCache* textureCache = deviceManager->GetTextureCache();
-		auto loadResult = textureCache->Load("_generated/CloudsDetail.dds", alm::gfx::TextureCache::Flags::None);
-		if (!loadResult)
-		{
-			LOG_ERROR("Failed loading CloudsDetail.dds\n{}", loadResult.error());
-		}
-		else
-		{
-			loadResult->second.Wait();
-			m_CloudsDetailTexture = std::move(loadResult->first->texture);
-		}
-	}
-	else
-	{
-		auto createResult = CreateCloudsDetailTexture(deviceManager);
-		assert(createResult);
-		createResult->second.Wait();
-		alm::rhi::TextureOwner& cloudsTexture = createResult->first;
-
-		alm::gfx::SaveDDSTexture(cloudsTexture.get_weak(), alm::rhi::ResourceState::SHADER_RESOURCE, alm::rhi::ResourceState::SHADER_RESOURCE,
-			deviceManager->GetDevice(), "_generated/CloudsDetail.dds");
-
-		m_CloudsDetailTexture = std::move(cloudsTexture);
-	}
+	return m_CloudsShapeCB.GetUniformView();
 }

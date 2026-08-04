@@ -21,6 +21,6 @@ enum class CloudsPreset
 };
 
 const char* CloudsPresetToString(CloudsPreset preset);
-void ApplyCloudsPreset(alm::gfx::AtmosphereConfig::CloudsParams& p, CloudsPreset preset);
+void ApplyCloudsPreset(CloudsPreset preset, alm::gfx::AtmosphereConfig& atmos);
 
 } // namespace alm::fw

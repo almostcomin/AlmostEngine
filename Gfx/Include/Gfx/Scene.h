@@ -6,7 +6,6 @@
 #include "RHI/Buffer.h"
 #include "Gfx/SceneFlags.h"
 #include "Gfx/GpuSceneBuffersHandle.h"
-#include "Gfx/AtmosphereConfig.h"
 #include <map>
 
 namespace alm::rhi
@@ -22,6 +21,7 @@ namespace alm::gfx
 	class Mesh;
 	class RenderView;
 	class SceneGraphLeaf;
+	class AtmosphereConfig;
 }
 
 namespace alm::gfx
@@ -34,6 +34,8 @@ namespace alm::gfx
 		Scene(const std::string& name, DeviceManager* deviceManager);
 		~Scene();
 
+		AtmosphereConfig* GetAtmosphereConfig() { return m_AtmosConfig.get(); }
+
 		alm::weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
 		
 		GpuSceneBuffersHandle GetGpuSceneBuffersHandle() const { return m_GpuBuffersHandle; }
@@ -43,11 +45,10 @@ namespace alm::gfx
 
 		const aabox3f GetWorldBounds(SceneContentType type);
 
-		AtmosphereConfig& GetAtmosphereConfig() { return m_AtmosConfig; }
-
 		// Updates scene graph
-		void Update();
+		void Update(float elapsedSec);
 
+		void RefreshSceneGraph();
 		void ResetGpuBuffers() { m_ResetGpuBuffers = true; }
 
 	private:
@@ -60,7 +61,7 @@ namespace alm::gfx
 		alm::unique<SceneGraph> m_SceneGraph;		
 		std::vector<alm::weak<RenderView>> m_RenderViews;
 
-		AtmosphereConfig m_AtmosConfig;
+		alm::unique<AtmosphereConfig> m_AtmosConfig;
 
 		GpuSceneBuffersHandle m_GpuBuffersHandle;
 		bool m_ResetGpuBuffers;
