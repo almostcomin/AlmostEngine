@@ -1,5 +1,6 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
+#include "Common.hlsli"
 
 ConstantBuffer<interop::LinearizeDepthConstants> Constants : register(b0);
 
@@ -15,7 +16,15 @@ void main(uint2 DTid : SV_DispatchThreadID)
     
     float depth = srcDepthTex[DTid];
     // Reverse-Z, infinite far
-    float linearDepth = Constants.nearPlaneDist / max(depth, 0.0000001f);
-    
+    float linearDepth;
+    if (depth < 1e-7f)
+    {
+        linearDepth = INFINITE_DEPTH;
+    }
+    else
+    {
+        linearDepth = Constants.nearPlaneDist / depth;
+    }
+
     dstDepthTex[DTid] = linearDepth;
 }

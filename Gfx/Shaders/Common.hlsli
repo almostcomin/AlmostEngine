@@ -5,6 +5,7 @@
 #define M_INV_PI 0.31830988618379067154
 #define POS_INFINITY asfloat(0x7F800000)
 #define NEG_INFINITY asfloat(0xFF800000)
+#define INFINITE_DEPTH 1e10
 
 // Typically:
 //   invMatrix is invViewProjMatrix for world space position reconstruction

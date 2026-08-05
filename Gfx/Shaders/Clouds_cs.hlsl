@@ -317,6 +317,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
     if (any(DTid >= cloudsData.DstTextureSize))
         return;
     
+    float2 pixelPos = float2(DTid);
     float2 uv = (float2(DTid) + 0.5) / float2(cloudsData.DstTextureSize);
     
     // Reconstruct world-space ray direction from clip-space coordinates.
@@ -335,12 +336,10 @@ void main(uint2 DTid : SV_DispatchThreadID)
     // Read linear depth (distance along the camera forward axis) and convert to scene distance along the ray direction.
     // viewZ: depth along camera forward vector (Z component in view space)
     // sceneDist: actual distance along rayDir to the geometry
-    float viewZ = linearDepthTex.SampleLevel(pointClampSampler, uv, 0.0);
+    float viewZ = linearDepthTex.SampleLevel(linearClampSampler, uv, 0.0);
     float cosAngle = saturate(dot(rayDir, cloudsData.cameraForward));
     float sceneDist = viewZ / max(cosAngle, 0.0001);
-    
-    float2 pixelPos = uv * Constants.viewportSize;
-    
+        
     CloudResult clouds = GetCloudsColorRayMarch(
         Constants.cameraPosition, rayDir, baseTexture, detailTexture, cloudsShape, cloudsData, sceneDist, pixelPos);
     
@@ -350,8 +349,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
         return;
     }
         
-    // Punto estable: centro del segmento atravesado por el rayo dentro de la capa.
-    // Es EXACTO para este rayo (no depende del muestreo) y NO SALTA con jitter.
+    // Stable point for this ray, modulated by transmittance
     float hit_t = 0.5f * (clouds.tEntry + clouds.tExit);
     float blendToMass = saturate((1.0f - clouds.transmittance) * (1.0f - clouds.transmittance));
     hit_t = lerp(hit_t, clouds.weightedDistance, blendToMass);
@@ -363,7 +361,9 @@ void main(uint2 DTid : SV_DispatchThreadID)
     prevClipPos.xyz /= prevClipPos.w;
     // Convert NDC to uv
     float2 prevUv = prevClipPos.xy * float2(0.5, -0.5) + 0.5;
-    float prevViewZ = linearDepthTex.SampleLevel(pointClampSampler, prevUv, 0.0);
+
+    float prevViewZ = linearDepthTex.SampleLevel(linearClampSampler, prevUv, 0.0);
+    
     float depthDiff = abs(prevViewZ - viewZ) / max(viewZ, 1.0);
     bool prevDepthValid = depthDiff < cloudsData.depthThreshold;
     
@@ -378,16 +378,23 @@ void main(uint2 DTid : SV_DispatchThreadID)
     {        
         Texture2D<float4> prevCloudsTex = ResourceDescriptorHeap[cloudsData.prevCloudsTexDI];
         float4 prevColor = prevCloudsTex.SampleLevel(pointClampSampler, prevUv, 0.0);        
+        float skyDistance = cloudsData.earthRadius + cloudsData.cloudLayerMax;
         
         bool historyHadCloud = prevColor.a < 0.999;
         bool hasHit = clouds.transmittance < 0.999;
+        bool currentHasGeometry = viewZ < INFINITE_DEPTH;
+        bool prevHasGeometry = prevViewZ < INFINITE_DEPTH;
         
+        float blendFactor = cloudsData.blendFactor;
+        if (currentHasGeometry || prevHasGeometry)
+            blendFactor = 0.0;
+                
         if (hasHit && historyHadCloud)
-            finalColor = lerp(prevColor, currentColor, cloudsData.blendFactor);
+            finalColor = lerp(currentColor, prevColor, blendFactor);
         else if (hasHit)
             finalColor = currentColor;
         else
-            finalColor = lerp(prevColor, float4(0, 0, 0, 1), cloudsData.blendFactor);
+            finalColor = lerp(float4(0, 0, 0, 1), prevColor, blendFactor);
     }
     
     dstTexture[DTid] = finalColor;

@@ -549,11 +549,10 @@ namespace interop
     {
         float4x4 matClipToTranslatedWorld;
         float3 cameraPosition;
-        BufferUniformIndex cloudsDataDI; // CloudsData
-        uint2 viewportSize;
+        BufferUniformIndex cloudsShapeDataDI;   // CloudsShapeData
+        BufferUniformIndex cloudsDataDI;        // CloudsData
         uint frameCounter;
         uint debugChannel;
-        BufferUniformIndex cloudsShapeDataDI;  // CloudsData
     };
 
     struct CloudsShadowmapData

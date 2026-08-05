@@ -155,8 +155,8 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->multiScatterBaseG = cloudsParams.MultiScatterBaseG;
 		cloudsData->powderStrength = cloudsParams.PowderStrength;
 		cloudsData->powderEdgeWidth = cloudsParams.PowderEdgeWidth;
-		cloudsData->depthThreshold = 0.05f * downscaleFactor;
-		cloudsData->blendFactor = 0.4f / downscaleFactor;
+		cloudsData->depthThreshold = 0.1f;
+		cloudsData->blendFactor = 0.6f;
 
 		const float3 up = abs(toSunDirection.y) < 0.99 ? float3(0.0, 1.0, 0.0) : float3(1.0, 0.0, 0.0);
 		cloudsData->sunT = normalize(cross(toSunDirection, up));
@@ -166,7 +166,6 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
 		cloudsConstants.cameraPosition = GetCamera()->GetPosition();
 		cloudsConstants.cloudsDataDI = m_CloudsCB.GetUniformView();
-		cloudsConstants.viewportSize = cloudsTexDims;
 		cloudsConstants.frameCounter = m_RenderGraph->GetDeviceManager()->GetFrameIndex();
 		cloudsConstants.debugChannel = (uint32_t)m_DebugChannel;
 		cloudsConstants.cloudsShapeDataDI = atmos->GetCloudsShapeUniformView();
