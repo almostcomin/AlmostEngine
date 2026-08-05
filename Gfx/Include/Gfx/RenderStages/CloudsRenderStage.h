@@ -52,16 +52,14 @@ private:
 	void OnDetached() override;
     void OnBackbufferResize() override;
 
-    void ResetCloudsResources();
-
 private:
 
     RGTextureHandle m_SceneColorTexture;
     RGTextureHandle m_LinearDepthTexture;
+    RGTextureHandle m_CloudsTexture[2];
+
     RGFramebufferHandle m_CompositeFB;
 
-    rhi::TextureOwner m_CloudsTexture[2];
-    uint2 m_CloudsTextureDims;
     int m_CloudsTextureIdx;
 
     rhi::ShaderOwner m_CloudsCS;

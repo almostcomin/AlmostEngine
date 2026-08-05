@@ -16,8 +16,12 @@ namespace
 		{
 			return desired;
 		}
+		if (desired == 0)
+		{
+			return ref;
+		}
 
-		return ref / (-desired + 1);
+		return ref / -desired;
 	}
 
 	alm::rhi::ResourceState GetInitialState(alm::gfx::RenderGraph::TextureResourceType type)
@@ -578,6 +582,14 @@ bool alm::gfx::RenderGraph::RecreateTexture(RGTextureHandle handle, int width, i
 		// newTexture (actually the old old since it has been swap-ed) would be released when the owner pointer gets out of scope
 		// but lets do it explicitly
 		m_DeviceManager->GetDevice()->ReleaseQueued(std::move(newTexture));
+
+		// Recreate debug view requests
+		auto it = std::find_if(m_TexViewRequests.begin(), m_TexViewRequests.end(), [handle](const TextureViewRequest* entry)
+			{ return entry->handle == handle; });
+		if (it != m_TexViewRequests.end())
+		{
+			m_DeviceManager->GetDevice()->ReleaseImmediately(std::move((*it)->tex));
+		}
 	}
 
 	return true;

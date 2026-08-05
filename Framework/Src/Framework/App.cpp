@@ -148,7 +148,10 @@ void alm::fw::App::RefreshUIData()
 		data.SkySimParams = skyRS->GetSkySimParams();
 
 	if (cloudsRS)
+	{
 		data.CloudsSimParams = cloudsRS->GetCloudsSimParams();
+		data.CloudsRTDenom = cloudsRS->GetRenderTargetDenominator();
+	}
 
 	if (SSAORS)
 	{
@@ -770,6 +773,7 @@ void alm::fw::App::MainLoop()
 			{
 				cloudsRS->SetEnabled(data.CloudsEnabled);
 				cloudsRS->SetCloudsSimParams(data.CloudsSimParams);
+				cloudsRS->SetRenderTargetDenominator(data.CloudsRTDenom);
 			}
 
 			lightingRS->SetMaterialChannel(data.MatChannel);

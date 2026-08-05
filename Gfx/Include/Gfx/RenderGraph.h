@@ -21,9 +21,11 @@ class RenderGraph : public alm::enable_weak_from_this<RenderGraph>, private alm:
 {
 public:
 
+	// Use GetBackBufferSizeDenominator getting more denom values
 	static constexpr int c_BBSize = 0;
-	static constexpr int c_HalfBBSize = -1;
-	static constexpr int c_QuarterBBSize = -1;
+	static constexpr int c_HalfBBSize = -2;
+	static constexpr int c_QuarterBBSize = -4;
+	static constexpr int c_EighthBBSize = -8;
 
 	enum TextureResourceType
 	{
@@ -88,6 +90,8 @@ public:
 	RGTextureHandle CreateTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type, int width, int height, int arraySize,
 								rhi::Format format, bool needsUAV);
 	RGBufferHandle CreateBuffer(RenderStage* renderStage, const std::string& id, const rhi::BufferDesc& desc);
+
+	static int GetBackBufferSizeDenominator(int denom) { return -denom; }
 
 	bool RecreateTexture(RGTextureHandle handle, int width, int height, int arraySize, rhi::Format format);
 	bool RecreateBuffer(RGBufferHandle handle, const rhi::BufferDesc& desc);

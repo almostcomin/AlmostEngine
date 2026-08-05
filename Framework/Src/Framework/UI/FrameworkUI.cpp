@@ -1444,15 +1444,14 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 
         ImGui::Spacing();
 
-        int rtDenom = cloudsRS->GetRenderTargetDenominator();
-        if (ImGui::RadioButton("Render Target 1/1##Clouds", rtDenom == 1))
-            cloudsRS->SetRenderTargetDenominator(1);
+        if (ImGui::RadioButton("Render Target 1/1##Clouds", FrameworkData.CloudsRTDenom == 1))
+            FrameworkData.CloudsRTDenom = 1;
         ImGui::SameLine();
-        if (ImGui::RadioButton("Render Target 1/2##Clouds", rtDenom == 2))
-            cloudsRS->SetRenderTargetDenominator(2);
+        if (ImGui::RadioButton("Render Target 1/2##Clouds", FrameworkData.CloudsRTDenom == 2))
+            FrameworkData.CloudsRTDenom = 2;
         ImGui::SameLine();
-        if (ImGui::RadioButton("Render Target 1/4##Clouds", rtDenom == 4))
-            cloudsRS->SetRenderTargetDenominator(4);
+        if (ImGui::RadioButton("Render Target 1/4##Clouds", FrameworkData.CloudsRTDenom == 4))
+            FrameworkData.CloudsRTDenom = 4;
 
         ImGui::Spacing();
         ImGui::SeparatorText("Debug");

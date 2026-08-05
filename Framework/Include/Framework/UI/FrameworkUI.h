@@ -54,6 +54,7 @@ public:
 		bool SkyEnabled = true;
 
 		alm::gfx::CloudsRenderStage::CloudsSimParams CloudsSimParams;
+		uint32_t CloudsRTDenom = 0;
 		bool CloudsEnabled = true;
 
 		alm::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
