@@ -62,6 +62,10 @@ public:
 
 	const float4x4& GetPrevFrameViewProjMatrix() const { return m_PrevViewProjectionMatrix; }
 
+	const float4x4& GetCloudsShadowMapClipToTranslatedWorldMatrix() const { return m_CloudsShadowMapClipToTranslatedWorldMatrix; }
+	const float3& GetCloudsSunPoisition() const { return m_CloudsSunPosition; }
+	float GetCloudsZNear() const { return m_CloudsZNear; }
+
 	alm::rhi::BufferUniformView GetSceneBufferUniformView();
 	alm::rhi::BufferReadOnlyView GetCameraVisiblityBufferROView();
 	alm::rhi::BufferReadOnlyView GetShadowMapVisibilityBufferROView();
@@ -90,15 +94,25 @@ private:
 
 	void UpdateSceneConstantBuffer();
 	void UpdateCameraVisibleSet(rhi::ICommandList* commandList);
+
 	bool UpdateShadowmapData(rhi::ICommandList* commandList);
+	bool UpdateCloudsShadowmapData(rhi::ICommandList* commandList);
+
 	void UpdateDirLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList);
+
 	void UpdateHeightmaps(const uint2& frameBufferSize, rhi::ICommandList* commandList);
 
 	void GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
 		aabox3f* opt_outPrimaryBounds = nullptr, SceneContentType secondaryType = SceneContentType::_Size, aabox3f* opt_outSecondaryBounds = nullptr) const;
 	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer, rhi::ICommandList* commandList, const char* marker);
+
+	aabox3d BuildCloudsShadowVolume() const;
+	
+	void BuildSunSpaceShadowMatrices(const aabox3d& shadowVolumeWorld,
+		float4x4* opt_out_worldToClip, float4x4* opt_out_viewToShadowClip, float4x4* opt_out_clipToTranslatedWorld,
+		float3* opt_out_sunPos, float* opt_out_zNear) const;
 
 private:
 
@@ -128,9 +142,15 @@ private:
 	// Visible set for the shadowmapping
 	gfx::MultiBuffer m_ShadowMapVisibleBuffer;
 	RenderSet m_ShadowMapVisibleSet;
+
 	// Matrices for cascade shadowmap
 	float4x4 m_ShadowMapWoldToClipMatrix;
 	float4x4 m_ViewToShadowMapClipMatrix;
+
+	// Matrices for clouds shadowmap
+	float4x4 m_CloudsShadowMapClipToTranslatedWorldMatrix;
+	float3 m_CloudsSunPosition;
+	float m_CloudsZNear;
 
 	// Visible set for directional lights
 	gfx::MultiBuffer m_DirLightsVisibleBuffer;
@@ -154,6 +174,7 @@ private:
 	std::vector<rhi::CommandListOwner> m_EndCommandLists;
 
 	bool m_ShadowmapValid;
+	bool m_CloudsShadowmapValid;
 
 	double m_TimeSec;
 	float m_TimeDeltaSec;

@@ -43,7 +43,7 @@ struct aabox
 
     bool valid() const
     {
-        return max.x >= min.x && max.y >= min.y && max.z >= min.z;
+        return max.x > min.x || max.y > min.y || max.z > min.z;
     }
 
     vec_t center() const
@@ -56,7 +56,7 @@ struct aabox
         return max - min;
     }
 
-    vec_t extent() const
+    vec_t extents() const
     {
         return (max - min) / T(2);
     }
@@ -98,16 +98,30 @@ struct aabox
         return result;
     }
 
-    [[nodiscard]] std::vector<plane<T, 3>> buildClipPlanes() const
+    [[nodiscard]] std::array<plane<T, 3>, 6> getClipPlanes() const
     {
-        return std::vector<plane<T, 3>>{
+        return std::array<plane<T, 3>, 6>{{
             {{ 1.f, 0.f, 0.f }, -min.x },	// left
             {{ -1.f, 0.f, 0.f }, max.x },	// right
             {{ 0.f, -1.f, 0.f }, max.y },	// top
             {{ 0.f, 1.f, 0.f }, -min.y },	// bottom
             {{ 0.f, 0.f, 1.f }, -min.z },	// near
             {{ 0.f, 0.f, -1.f }, max.z },	// far		
-        };
+        }};
+    }
+
+    [[nodiscard]] std::array<vec_t, 8> getCornerPoints() const
+    {
+        return std::array<vec_t, 8>{{
+            { min.x, min.y, min.z },
+            { max.x, min.y, min.z },
+            { min.x, max.y, min.z },
+            { max.x, max.y, min.z },
+            { min.x, min.y, max.z },
+            { max.x, min.y, max.z },
+            { min.x, max.y, max.z },
+            { max.x, max.y, max.z },
+        }};
     }
 
     // Returns true if inside (direction of the normal) or overlaps the plane

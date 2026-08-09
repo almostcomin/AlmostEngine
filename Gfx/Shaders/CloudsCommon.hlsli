@@ -40,7 +40,6 @@ float GlobalHeightGradient(float norY)
     return lerp(1.0, 0.55, smoothstep(0.0, 1.0, norY));
 }
 
-
 float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
     ConstantBuffer<interop::CloudsShapeData> cloudsShape)
 {    

@@ -46,6 +46,7 @@ public:
 	const float4x4& GetViewMatrix() const;
 	const float4x4& GetProjectionMatrix() const;
 	float4x4 GetViewProjectionMatrix() const;
+	float4x4 GetInvViewProjectionMatrix() const;
 	
 	// Inverse view-projection matrix but removing view translation
 	float4x4 GetClipToTranslatedWorldMatrix();
@@ -62,12 +63,14 @@ public:
 
 	float3 ScreenToWorld(const uint2& pixelPos, float linearDepth, const uint2& viewportSize) const;
 
-	// World -> NDC (D3D/Vulkan). ndc.xy E [-1, +1], ndc.z E [0,1] (standard) o [1,0] (reverse-Z).
+	// World -> NDC (D3D/Vulkan). ndc.xy E [-1, +1], ndc.z E [0,1] (standard) or [1,0] (reverse-Z).
 	// The returned .w component is pre-division. If w <= 0 point is behind near plane
 	float4 WorldToNDC(const float3& worldPos) const;
 
 	// Returns <visible, pixel_coords>
 	std::pair<bool, uint2> WorldToPixel(const float3& worldPos, const uint2& viewportSize) const;
+
+	std::array<float3, 8> GetWorldFrustumCorners(float farDistance = 1e6f) const;
 
 private:
 

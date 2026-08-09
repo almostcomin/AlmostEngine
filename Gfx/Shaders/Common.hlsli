@@ -161,13 +161,18 @@ float2 RaySphereIntersection(float3 rayOrigin, float3 rayDir, float3 sphereCente
 {
     float3 oc = rayOrigin - sphereCenter;
     float b = dot(oc, rayDir);
-    float c = dot(oc, oc) - square(sphereRadius);
-    float d = b * b - c;
-    if (d < 0.0)  
-        return float2(-1.0, -1.0); // no intersection
+    float c = dot(oc, oc) - sphereRadius * sphereRadius;
+    float disc = b * b - c;
+    if (disc < 0.0)
+        return float2(-1.0, -1.0);
+
+    float sqrtDisc = sqrt(disc);
+    float q = (b > 0.0) ? (-b - sqrtDisc) : (-b + sqrtDisc);
+    float2 result = float2(q, c / q);
+    if (b < 0.0)  // swap to ensure tNear <= tFar
+        result = result.yx;
     
-    float sqrtD = sqrt(d);
-    return float2(-b - sqrtD, -b + sqrtD); // tNear, tFar
+    return result;
 }
 
 float4 CheckerEffect(float2 uv, float squareSize, float4 color0, float4 color1)

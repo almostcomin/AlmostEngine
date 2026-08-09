@@ -109,6 +109,11 @@ float4x4 alm::gfx::Camera::GetViewProjectionMatrix() const
 	return m_ProjectionMatrix * m_ViewMatrix;
 }
 
+float4x4 alm::gfx::Camera::GetInvViewProjectionMatrix() const
+{
+	return glm::inverse(GetViewProjectionMatrix());
+}
+
 float4x4 alm::gfx::Camera::GetClipToTranslatedWorldMatrix()
 {
 	UpdateMatrices();
@@ -192,7 +197,7 @@ float3 alm::gfx::Camera::ScreenToWorld(const uint2& pixelPos, float linearDepth,
 	float4 clipPos;
 	clipPos.x = uv.x * 2.f - 1.f;
 	clipPos.y = 1.0 - uv.y * 2.f; // flip Y (screen -> NDC)
-	clipPos.z = 1.f;			  // Direction to near plane
+	clipPos.z = 1.f;			  // Near plane in reverse z
 	clipPos.w = 1.f;
 
 	float4x4 invProj = glm::inverse(m_ProjectionMatrix);
@@ -216,7 +221,7 @@ float4 alm::gfx::Camera::WorldToNDC(const float3& worldPos) const
 
 	const float4 clip = vp * worldH; // column-major glm: vp * world
 	
-	// Si w <= 0, el punto está behind the near plane
+	// If w <= 0, the point is behind the near plane
 	if (clip.w <= 0.f)
 		return float4(0.f, 0.f, 0.f, clip.w);
 	
@@ -241,6 +246,36 @@ std::pair<bool, uint2> alm::gfx::Camera::WorldToPixel(const float3& worldPos, co
 				   (ndc.y >= -1.f && ndc.y <= 1.f);
 	
 	return { visible, pixel };
+}
+
+std::array<float3, 8> alm::gfx::Camera::GetWorldFrustumCorners(float farDistance) const
+{
+	const double4x4 invViewProj = GetInvViewProjectionMatrix();
+	constexpr double kNearZ = 1.0;       // near plane (reversed-Z)
+	const double farZ = double(m_zNear) / double(farDistance);
+
+	const std::array<double4, 8> clipCorners = {{
+		// Near plane (z=1)
+		{ -1.0, -1.0,  kNearZ,  1.0 },
+		{  1.0, -1.0,  kNearZ,  1.0 },
+		{ -1.0,  1.0,  kNearZ,  1.0 },
+		{  1.0,  1.0,  kNearZ,  1.0 },
+		// Far plane (z=0)
+		{ -1.0, -1.0,  farZ,  1.0 },
+		{  1.0, -1.0,  farZ,  1.0 },
+		{ -1.0,  1.0,  farZ,  1.0 },
+		{  1.0,  1.0,  farZ,  1.0 }
+	}};
+
+	std::array<float3, 8> worldCorners;
+	for (int i = 0; i < 8; ++i)
+	{
+		double4 worldH = invViewProj * clipCorners[i];
+		worldH /= worldH.w;
+		worldCorners[i] = float3(worldH);
+	}
+
+	return worldCorners;
 }
 
 void alm::gfx::Camera::UpdateMatrices() const

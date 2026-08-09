@@ -1,4 +1,4 @@
-#include "Gfx/GfxPCH.h"
+﻿#include "Gfx/GfxPCH.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderStage.h"
 #include "Gfx/DeviceManager.h"
@@ -29,6 +29,7 @@ alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* 
 	m_ResetPrevFrameCamera{ true },
 	m_ViewportSwapChainId{ viewportId },
 	m_ShadowmapValid{ false },
+	m_CloudsShadowmapValid{ false },
 	m_TimeSec{ 0.0 },
 	m_TimeDeltaSec{ 0.f },
 	m_DebugName{ debugName },
@@ -202,6 +203,7 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec, const Mous
 	UpdateCameraVisibleSet(beginCommandList);
 	// Collects draw infos for shadowmap
 	m_ShadowmapValid = UpdateShadowmapData(beginCommandList);
+	m_CloudsShadowmapValid = UpdateCloudsShadowmapData(beginCommandList);
 
 	// Updates visible lights buffers
 	UpdateDirLightsVisibleBuffer(beginCommandList);
@@ -380,45 +382,47 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	m_ShadowMapWoldToClipMatrix = {};
 	m_ViewToShadowMapClipMatrix = {};
 
+	if (!m_Scene)
+		return false;
 	if (!m_CameraVisibleBounds.valid())
 		return false;
+
+	const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
+	const double3 sunDir = atmos->GetSunDirection();
 
 	const alm::aabox3f& worldCasterBoundsF = m_Scene->GetWorldBounds(SceneContentType::ShadowCasters);
 	if (!worldCasterBoundsF.valid())
 		return false;  // no shadow casters in the scene
 
-	const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
-
-	// sunDir in double for precision
-	const double3 sunDir = atmos->GetSunDirection();
 	// Promote bounds to double for the precision-critical calculations
 	const aabox3d cameraVisibleBoundsD(m_CameraVisibleBounds);
 	const aabox3d worldCasterBoundsD(worldCasterBoundsF);
+
+	// --- Build search volume (camera + world casters, extended in sun direction)
+	//     for GetVisibleSet. This is NOT extracted — it's specific to shadow casters culling.
 
 	// --- 1. Sun view matrix (arbitrary sunPos, it will be recalculated later)
 
 	double3 sunPos = m_CameraVisibleBounds.center();
 	const double3 sunUp = fabs(glm::dot(sunDir, { 0, 1, 0 })) > 0.999f ? double3(0, 0, 1) : double3(0, 1, 0);
-	double4x4 sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
+	double4x4 sunViewMatrixD = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
 
 	// --- 2. Construct shadow search volume in sun-space
 
-	aabox3d cameraBoundsSun = m_CameraVisibleBounds.transform(sunViewMatrix);
-	const aabox3d worldCasterBoundsSun = worldCasterBoundsD.transform(sunViewMatrix);
+	aabox3d cameraBoundsSun = m_CameraVisibleBounds.transform(sunViewMatrixD);
+	const aabox3d worldCasterBoundsSun = worldCasterBoundsD.transform(sunViewMatrixD);
 
 	// Extends Z towards the sun (max.z positive is behind the sun in sun-space) 
-	// so we cover any caster that  could be betwween sun and shadow receivers
+	// so we cover any caster that could be betwween sun and shadow receivers
 	cameraBoundsSun.max.z = std::max(cameraBoundsSun.max.z, worldCasterBoundsSun.max.z);
 	// So cameraBoundsSun is the volume that includes all visible receivers extended towards sun direction
 	// to include world shadow casters.
 
 	// --- 3. Culling shadow casters using search volume
 
-	// Note: searchPlanes go to GetVisibleSet which expects float planes (CPU culling doesn't need double precision,
-	// the bounds it tests have small magnitudes relative to camera frustum). If needed, can also be promoted to double.
-	const aabox3d searchVolumeWorldD = cameraBoundsSun.transform(glm::inverse(sunViewMatrix));
+	const aabox3d searchVolumeWorldD = cameraBoundsSun.transform(glm::inverse(sunViewMatrixD));
 	const aabox3f searchVolumeWorld(searchVolumeWorldD);  // back to float for the cull
-	const std::vector<plane3f> searchPlanes = searchVolumeWorld.buildClipPlanes();
+	const auto searchPlanes = searchVolumeWorld.getClipPlanes();
 
 	VisibleSetContext context{
 		.HeightmapInstances = &m_HeightmapInstances,
@@ -432,52 +436,39 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	// Promote back to double for the precision-critical Z calculations
 	const aabox3d casterBoundsForShadowMapD(casterBoundsForShadowMapF);
 
-	// --- 4. Dimension shadowmap
+	// --- 4. Build matrices
 
-	aabox3d sceneBoundsSun = casterBoundsForShadowMapD.transform(sunViewMatrix);
-	// Sliding sun position to guarantee zNear >= 0
-	sunPos -= sunDir * sceneBoundsSun.max.z;
-	sunViewMatrix = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
-	sceneBoundsSun = casterBoundsForShadowMapD.transform(sunViewMatrix);
+	BuildSunSpaceShadowMatrices(casterBoundsForShadowMapD, &m_ShadowMapWoldToClipMatrix, &m_ViewToShadowMapClipMatrix, nullptr,
+		nullptr, nullptr);
 
-	// Safety net for residual numerical errors (now much smaller in double)
-	sceneBoundsSun.max.z = std::min(sceneBoundsSun.max.z, 0.0);
-
-	const double zNearD = -sceneBoundsSun.max.z;
-	const double zFarD = -sceneBoundsSun.min.z;
-	assert(zNearD >= 0.0f);
-	assert(zFarD >= zNearD);
-
-	// Build projection matrix in double
-	const double4x4 sunProjMatrixD = BuildOrthoInvZ_d(
-		sceneBoundsSun.min.x, sceneBoundsSun.max.x,
-		sceneBoundsSun.min.y, sceneBoundsSun.max.y,
-		zNearD, zFarD);
-
-#ifdef _DEBUG
-	//*** TEST
-	{
-		float4 pNear = sunProjMatrixD * float4{ 0.f, 0.f, -zNearD, 1.f };
-		float4 pFar = sunProjMatrixD * float4{ 0.f, 0.f, -zFarD, 1.f };
-		float zn = pNear.z / pNear.w;
-		float zf = pFar.z / pFar.w;
-		assert(zn > zf);
-		// Ortho proj, W is 1, so p.w should be 1
-		assert(AlmostEqual(zn, 1.f) && AlmostEqual(pFar.z, 0.f));
-		assert(AlmostEqual(zf, 0.f) && AlmostEqual(pFar.w, 1.f));
-	}
-#endif
-
-	// Combined matrices in double for precision, then convert to float at the end
-	const double4x4 sunWorldToClipD = sunProjMatrixD * sunViewMatrix;
-	const double4x4 cameraViewMatrixD(m_Camera->GetViewMatrix());
-	const double4x4 viewToShadowMapClipD = sunWorldToClipD * glm::inverse(cameraViewMatrixD);
-
-	// Convert final matrices to float for the GPU
-	m_ShadowMapWoldToClipMatrix = float4x4(sunWorldToClipD);
-	m_ViewToShadowMapClipMatrix = float4x4(viewToShadowMapClipD);
+	// --- 5. Update visible set for shadowmap
 
 	UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList, "Shadowmap Visible Buffer");
+
+	return true;
+}
+
+bool alm::gfx::RenderView::UpdateCloudsShadowmapData(rhi::ICommandList* commandList)
+{
+	ZoneScoped;
+
+	m_CloudsShadowMapClipToTranslatedWorldMatrix = {};
+	m_CloudsSunPosition = {};
+	m_CloudsZNear = 0.f;
+
+	if (!m_Scene)
+		return false;
+
+	const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
+	if (!atmos->CloudsSubsystemInitialized())
+		return false;
+
+	const aabox3d shadowBBox = BuildCloudsShadowVolume();
+	if (!shadowBBox.valid())
+		return false;
+
+	BuildSunSpaceShadowMatrices(shadowBBox,
+		nullptr, nullptr, &m_CloudsShadowMapClipToTranslatedWorldMatrix, &m_CloudsSunPosition, &m_CloudsZNear);
 
 	return true;
 }
@@ -856,4 +847,177 @@ void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderS
 
 	if (marker)
 		commandList->EndMarker();
+}
+
+alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
+{
+	static constexpr std::pair<uint8_t, uint8_t> kFrustumEdges[] =
+	{
+		{0,1}, {1,3}, {3,2}, {2,0},   // near quad
+		{4,5}, {5,7}, {7,6}, {6,4},   // far quad
+		{0,4}, {1,5}, {2,6}, {3,7},   // connecting
+	};
+
+	const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
+	if (!atmos->CloudsSubsystemInitialized())
+		return aabox3d::get_empty();
+
+	const double3 earthCenter = atmos->EarthCenter;
+	const double innerRadius = atmos->EarthRadius + atmos->Clouds.CloudsLayerMin;
+	const double outerRadius = atmos->EarthRadius + atmos->Clouds.CloudsLayerMax;
+	const double3 sunDir = atmos->GetSunDirection();
+	const std::array<float3, 8> frustumCorners = m_Camera->GetWorldFrustumCorners();
+
+	// Prepare point list to construct AABB
+	std::vector<double3> pointsD;
+	pointsD.reserve(8 * 6);
+
+	auto addRaySphereShellIntersections = [&](const double3& p)
+	{
+		const double3 rayDir = -sunDir;
+
+		for (double radius : { innerRadius, outerRadius })
+		{
+			auto t = RaySphereIntersection(p, rayDir, earthCenter, radius);
+			if (t && t->y > 0.0)
+			{
+				if (t->x > 0.0)
+					pointsD.push_back(p + rayDir * t->x);
+				pointsD.push_back(p + rayDir * t->y);
+			}
+		}
+	};
+
+	auto addShellSegmentIntersections = [&](const double3& a, const double3& b)
+	{
+		const double3 d = b - a;
+		const double len = glm::length(d);
+		if (len <= 0.0)
+			return;
+
+		const double3 dir = d / len;
+		for (double radius : {innerRadius, outerRadius})
+		{
+			auto t = RaySphereIntersection(a, dir, earthCenter, radius);
+			if (!t)
+				continue;
+			if (t->x >= 0.0 && t->x <= len)
+				pointsD.push_back(a + dir * t->x);
+			if (t->y >= 0.0 && t->y <= len)
+				pointsD.push_back(a + dir * t->y);
+		}
+	};
+
+	// --- 1. Add visible geometry receptors and their shadow caster clouds
+
+	if (m_CameraVisibleBounds.valid())
+	{
+		const std::array<float3, 8> cornerPoints = m_CameraVisibleBounds.getCornerPoints();
+
+		// Add receptors (bbox vertices)
+		for (const auto& p : cornerPoints)
+		{
+			pointsD.push_back(p);
+			addRaySphereShellIntersections(double3{ p });
+		}
+	}
+
+	// --- 2. Add frustum corners that lie inside the shell
+
+	for (const auto& p : frustumCorners)
+	{
+		const double dist = glm::length(double3{ p } - earthCenter);
+		if (dist >= innerRadius && dist <= outerRadius)
+			pointsD.push_back(p);
+	}
+
+	// --- 3. Iterate 12 frustum edges, intersect each with inner and outer spheres,
+	//		  add the segment-clipping intersection points. Also add frustum corners
+	//        that lie inside the shell (vertices of the intersection region).
+
+	for (auto [i, j] : kFrustumEdges)
+	{
+		addShellSegmentIntersections(double3{ frustumCorners[i] }, double3{ frustumCorners[j] });
+	}
+
+	// --- 4. Add clouds that are casters for the frustum (even if no geometry visible)
+	
+	for (const auto& p : frustumCorners)
+	{
+		addRaySphereShellIntersections(double3{ p });
+	}
+
+	aabox3d result{ aabox3d::InitEmpty };
+	for (const auto& p : pointsD)
+		result.merge(p);
+
+	return result;
+}
+
+void alm::gfx::RenderView::BuildSunSpaceShadowMatrices(const aabox3d& shadowVolumeWorld,
+	float4x4* opt_out_worldToClip, float4x4* opt_out_viewToShadowClip, float4x4* opt_out_clipToTranslatedWorld,
+	float3* opt_out_sunPos, float* opt_out_zNear) const
+{
+	const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
+	const double3 sunDir = atmos->GetSunDirection();
+
+	// Initial sun view matrix (sunPos will be slid later)
+	double3 sunPos = shadowVolumeWorld.center();
+	const double3 sunUp = fabs(glm::dot(sunDir, { 0, 1, 0 })) > 0.999f ?
+		double3(0, 0, 1) : double3(0, 1, 0);
+	double4x4 sunViewMatrixD = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
+
+	// Transform shadow volume to sun-space
+	aabox3d sceneBoundsSun = shadowVolumeWorld.transform(sunViewMatrixD);
+
+	// Slide sunPos so zNear >= 0 (reversed-Z: max.z in sun-space <= 0)
+	sunPos -= sunDir * sceneBoundsSun.max.z;
+	sunViewMatrixD = glm::lookAtRH(sunPos, sunPos + sunDir, sunUp);
+	sceneBoundsSun = shadowVolumeWorld.transform(sunViewMatrixD);
+	// Safety net for residual numerical errors
+	sceneBoundsSun.max.z = std::min(sceneBoundsSun.max.z, 0.0);
+
+	const double zNearD = -sceneBoundsSun.max.z;
+	const double zFarD = -sceneBoundsSun.min.z;
+	assert(zNearD >= 0.0);
+	assert(zFarD >= zNearD);
+
+	// Ortho projection (reversed-Z)
+	const double4x4 sunProjMatrixD = BuildOrthoInvZ_d(
+		sceneBoundsSun.min.x, sceneBoundsSun.max.x,
+		sceneBoundsSun.min.y, sceneBoundsSun.max.y,
+		zNearD, zFarD);
+
+	// Combined matrices (double -> float)
+	const double4x4 sunWorldToClipD = sunProjMatrixD * sunViewMatrixD;
+	const double4x4 cameraViewMatrixD = m_Camera->GetViewMatrix();
+	const double4x4 viewToShadowMapClipD = sunWorldToClipD * glm::inverse(cameraViewMatrixD);
+
+	if (opt_out_worldToClip)
+	{
+		*opt_out_worldToClip = float4x4{ sunWorldToClipD };
+	}
+
+	if (opt_out_viewToShadowClip)
+	{
+		*opt_out_viewToShadowClip = float4x4{ viewToShadowMapClipD };
+	}
+
+	if (opt_out_clipToTranslatedWorld)
+	{
+		float4x4 invView = glm::inverse(sunViewMatrixD);
+		invView[3] = float4(0.f, 0.f, 0.f, 1.f);   // zero translation
+		float4x4 invProj = glm::inverse(sunProjMatrixD);
+		*opt_out_clipToTranslatedWorld = invView * invProj;
+	}
+
+	if (opt_out_sunPos)
+	{
+		*opt_out_sunPos = sunPos;
+	}
+
+	if (opt_out_zNear)
+	{
+		*opt_out_zNear = zNearD;
+	}
 }

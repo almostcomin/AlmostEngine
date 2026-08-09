@@ -168,8 +168,6 @@ bool GetCloudsLayerIntersectionPoints(
     return true;
 }
 
-// rayOriginLocal: camera position in world space
-// rayDir:         normalized ray direction in world space
 CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
     ConstantBuffer<interop::CloudsShapeData> cloudsShape, ConstantBuffer<interop::CloudsData> cloudsData, float sceneDist, float2 pixelPos)
 {

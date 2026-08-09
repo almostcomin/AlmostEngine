@@ -562,10 +562,12 @@ namespace interop
         TextureSampledViewIndex CloudsBaseShapeTexture;
         TextureSampledViewIndex CloudsDetailTexture;
         uint2 DstTextureSize;
-        uint2 _padding1;
+        uint2 _padding0;
         float4x4 MatClipToTranslatedWorld;
-        float3 CameraForward;
-        uint _passing2;
+        float3 SunPos;
+        uint _padding1;
+        float3 SunDir;
+        float zNear;
     };
 
     struct CloudsShadowmapConstants

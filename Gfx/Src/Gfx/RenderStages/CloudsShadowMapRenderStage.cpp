@@ -6,6 +6,7 @@
 #include "Gfx/Camera.h"
 #include "Gfx/AtmosphereConfig.h"
 #include "Gfx/Scene.h"
+#include "Gfx/RenderView.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
@@ -46,8 +47,6 @@ void alm::gfx::CloudsShadowmapRenderStage::Render(alm::rhi::CommandListHandle co
 
 	uint2 dstTextureSize = m_RenderGraph->GetTexture2dDimensions(m_CloudsShadowmapTexture);
 
-	commandList->BeginMarker("CloudsShadowmap");
-
 	commandList->SetPipelineState(m_PSO.get());
 
 	auto* cloudsShadowmapData = (interop::CloudsShadowmapData*)m_CloudsShadowmapCB.Map();
@@ -57,8 +56,11 @@ void alm::gfx::CloudsShadowmapRenderStage::Render(alm::rhi::CommandListHandle co
 	cloudsShadowmapData->CloudsBaseShapeTexture = cloudsShape->GetSampledView();
 	cloudsShadowmapData->CloudsDetailTexture = cloudsDetail->GetSampledView();
 	cloudsShadowmapData->DstTextureSize = dstTextureSize;
-	cloudsShadowmapData->MatClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
-	cloudsShadowmapData->CameraForward = GetCamera()->GetForward();
+	cloudsShadowmapData->MatClipToTranslatedWorld = GetRenderView()->GetCloudsShadowMapClipToTranslatedWorldMatrix();
+	
+	cloudsShadowmapData->SunPos = GetRenderView()->GetCloudsSunPoisition();
+	cloudsShadowmapData->SunDir = atmos->GetSunDirection();
+	cloudsShadowmapData->zNear = GetRenderView()->GetCloudsZNear();
 
 	m_CloudsShadowmapCB.Unmap();
 
@@ -68,8 +70,6 @@ void alm::gfx::CloudsShadowmapRenderStage::Render(alm::rhi::CommandListHandle co
 	commandList->PushComputeConstants(0, shaderConstants);
 
 	commandList->Dispatch(DivRoundUp(dstTextureSize.x, 16u), DivRoundUp(dstTextureSize.y, 16u), 1);
-
-	commandList->EndMarker();
 }
 
 void alm::gfx::CloudsShadowmapRenderStage::OnAttached()
