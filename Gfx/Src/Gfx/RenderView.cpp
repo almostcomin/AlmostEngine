@@ -19,6 +19,45 @@
 #include "Gfx/HeightmapInstance.h"
 #include "Gfx/AtmosphereConfig.h"
 
+static std::optional<double2> RayShellOutsideEarth(
+	const double3& rayOrigin, const double3& rayDir,
+	const double3& earthCenter, double earthRadius,
+	double innerRadius, double outerRadius)
+{
+	auto tEarth = alm::RaySphereIntersection(rayOrigin, rayDir, earthCenter, earthRadius);
+	double tEarthStart = 0.0;
+	double tEarthEnd = std::numeric_limits<double>::infinity();
+
+	if (tEarth && tEarth->y > 0.0)
+	{
+		if (tEarth->x >= 0.0)
+			tEarthEnd = tEarth->x; // ray collides with earth
+		else
+			tEarthStart = tEarth->y; // rayOrigin is inside earth
+	}
+	// If tEarth es nullopt or both points are neg, the rays does not collide with earth
+
+	auto tOuter = alm::RaySphereIntersection(rayOrigin, rayDir, earthCenter, outerRadius);
+	if (!tOuter || tOuter->y <= 0.0)
+		return std::nullopt;
+
+	auto tInner = alm::RaySphereIntersection(rayOrigin, rayDir, earthCenter, innerRadius);
+
+	double tShellNear = std::max(tOuter->x, 0.0);
+	// If the origin is inside the inner sphere, the entry is tInner->y
+	if (tInner && tInner->x < 0.0 && tInner->y > 0.0)
+		tShellNear = std::max(tShellNear, tInner->y);
+	double tShellFar = tOuter->y;
+
+	double tNear = std::max(tShellNear, tEarthStart);
+	double tFar = std::min(tShellFar, tEarthEnd);
+
+	if (tNear >= tFar)
+		return std::nullopt;
+
+	return double2{ tNear, tFar };
+}
+
 alm::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debugName) :
 	RenderView{ nullptr, deviceManager, debugName }
 {}
@@ -863,8 +902,9 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 		return aabox3d::get_empty();
 
 	const double3 earthCenter = atmos->EarthCenter;
-	const double innerRadius = atmos->EarthRadius + atmos->Clouds.CloudsLayerMin;
-	const double outerRadius = atmos->EarthRadius + atmos->Clouds.CloudsLayerMax;
+	const double earthRadius = atmos->EarthRadius;
+	const double innerRadius = atmos->EarthRadius + atmos->CloudsShape.CloudsLayerMinH;
+	const double outerRadius = atmos->EarthRadius + atmos->CloudsShape.CloudsLayerMaxH;
 	const double3 sunDir = atmos->GetSunDirection();
 	const std::array<float3, 8> frustumCorners = m_Camera->GetWorldFrustumCorners();
 
@@ -876,14 +916,16 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 	{
 		const double3 rayDir = -sunDir;
 
-		for (double radius : { innerRadius, outerRadius })
+		if (auto hit = RayShellOutsideEarth(p, rayDir, earthCenter, earthRadius, innerRadius, outerRadius))
 		{
-			auto t = RaySphereIntersection(p, rayDir, earthCenter, radius);
-			if (t && t->y > 0.0)
+			// Cap por longitud máxima — evita que el rayo vaya al horizonte lejano
+			double tNear = std::max(hit->x, 0.0);
+			double tFar = std::min(hit->y, double{ atmos->Clouds.CloudsShadowMaxDistance });
+
+			if (tNear < tFar)
 			{
-				if (t->x > 0.0)
-					pointsD.push_back(p + rayDir * t->x);
-				pointsD.push_back(p + rayDir * t->y);
+				pointsD.push_back(p + rayDir * tNear);
+				pointsD.push_back(p + rayDir * tFar);
 			}
 		}
 	};
@@ -896,20 +938,18 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 			return;
 
 		const double3 dir = d / len;
-		for (double radius : {innerRadius, outerRadius})
+
+		if (auto hit = RayShellOutsideEarth(a, dir, earthCenter, earthRadius, innerRadius, outerRadius))
 		{
-			auto t = RaySphereIntersection(a, dir, earthCenter, radius);
-			if (!t)
-				continue;
-			if (t->x >= 0.0 && t->x <= len)
-				pointsD.push_back(a + dir * t->x);
-			if (t->y >= 0.0 && t->y <= len)
-				pointsD.push_back(a + dir * t->y);
+			if (hit->x >= 0.0 && hit->x <= len)
+				pointsD.push_back(a + dir * hit->x);
+			if (hit->y >= 0.0 && hit->y <= len)
+				pointsD.push_back(a + dir * hit->y);
 		}
 	};
 
 	// --- 1. Add visible geometry receptors and their shadow caster clouds
-
+/*
 	if (m_CameraVisibleBounds.valid())
 	{
 		const std::array<float3, 8> cornerPoints = m_CameraVisibleBounds.getCornerPoints();
@@ -921,7 +961,7 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 			addRaySphereShellIntersections(double3{ p });
 		}
 	}
-
+*/
 	// --- 2. Add frustum corners that lie inside the shell
 
 	for (const auto& p : frustumCorners)

@@ -16,7 +16,7 @@ alm::gfx::CloudsShadowmapRenderStage::CloudsShadowmapRenderStage()
 
 void alm::gfx::CloudsShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	m_CloudsShadowmapTexture = builder.CreateTexture("CloudsShadowmap", RenderGraph::TextureResourceType::ShaderResource, 1024, 1024, 1,
+	m_CloudsShadowmapTexture = builder.CreateTexture("CloudsShadowmap", RenderGraph::TextureResourceType::ShaderResource, 2048, 2048, 1,
 		rhi::Format::R16_FLOAT, true);
 	m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
 
@@ -58,13 +58,15 @@ void alm::gfx::CloudsShadowmapRenderStage::Render(alm::rhi::CommandListHandle co
 	cloudsShadowmapData->DstTextureSize = dstTextureSize;
 	cloudsShadowmapData->MatClipToTranslatedWorld = GetRenderView()->GetCloudsShadowMapClipToTranslatedWorldMatrix();
 	
-	cloudsShadowmapData->SunPos = GetRenderView()->GetCloudsSunPoisition();
+	cloudsShadowmapData->SunPos = GetRenderView()->GetCloudsSunPosition();
 	cloudsShadowmapData->SunDir = atmos->GetSunDirection();
 	cloudsShadowmapData->zNear = GetRenderView()->GetCloudsZNear();
+	cloudsShadowmapData->RayMarchStepCount = 128;
 
 	m_CloudsShadowmapCB.Unmap();
 
 	interop::CloudsShadowmapConstants shaderConstants;
+	shaderConstants.CloudsShapeDataDI = atmos->GetCloudsShapeUniformView();
 	shaderConstants.CloudsShadowmapDataDI = m_CloudsShadowmapCB.GetUniformView();
 
 	commandList->PushComputeConstants(0, shaderConstants);

@@ -234,6 +234,10 @@ alm::rhi::BufferUniformView alm::gfx::AtmosphereConfig::GetCloudsShapeUniformVie
 {
 	if (m_CloudsShapeCBDirty)
 	{
+		const float muS = CloudsShape.ScatteringCoeff / EarthScaleFactor;
+		const float muA = CloudsShape.AbsorptionCoeff / EarthScaleFactor;
+		const float muT = muS + muA;
+
 		auto* data = (interop::CloudsShapeData*)m_CloudsShapeCB.Map();
 
 		data->BaseShapeTexture = m_CloudsShapeTexture->GetSampledView();
@@ -246,6 +250,14 @@ alm::rhi::BufferUniformView alm::gfx::AtmosphereConfig::GetCloudsShapeUniformVie
 		data->StratusWeight = CloudsShape.StratusWeight;
 		data->CumulusWeight = CloudsShape.CumulusWeight;
 		data->CumulonimbusWeight = CloudsShape.CumulonimbusWeight;
+		data->CloudLayerMinH = CloudsShape.CloudsLayerMinH;
+		data->CloudLayerMaxH = CloudsShape.CloudsLayerMaxH;
+		data->EarthCenter = EarthCenter;
+		data->EarthRadius = EarthRadius;
+		data->InvCloudLayerThickness = 1.f / (CloudsShape.CloudsLayerMaxH - CloudsShape.CloudsLayerMinH);
+		data->muT = muT;
+		data->muS = muS;
+		data->Albedo = muS / muT;
 
 		m_CloudsShapeCB.Unmap();
 		m_CloudsShapeCBDirty = false;

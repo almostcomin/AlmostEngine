@@ -94,8 +94,8 @@ alm::rhi::GraphicsPipelineStateOwner alm::gfx::CommonResources::CreateFullscreen
 	return m_Device->CreateGraphicsPipelineState(desc, fbInfo, debugName);
 }
 
-std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float radius, uint32_t stacks, uint32_t slices, alm::gfx::DataUploader* dataUploader,
-	const std::string& name)
+std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float radius, uint32_t stacks, uint32_t slices,
+	alm::gfx::DataUploader* dataUploader, const std::string& name)
 {
 	assert(stacks >= 2);
 	assert(slices >= 3);
@@ -144,7 +144,7 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 			}
 		}
 
-		auto vertexBuffer = std::make_shared<alm::rhi::BufferOwner>();
+		vertexBuffer = std::make_shared<alm::rhi::BufferOwner>();
 
 		*vertexBuffer = m_Device->CreateBuffer(
 			vertexBufferDesc, alm::rhi::ResourceState::COPY_DST, std::format("{} - VB", name));

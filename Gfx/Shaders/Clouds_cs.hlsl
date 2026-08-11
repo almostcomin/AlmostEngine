@@ -27,15 +27,6 @@ struct CloudResult
     float tExit;
 };
 
-// Step-decorrelated jitter.
-// pixelPos in pixels, step = sample ID. Returns [0, 1].
-float StepJitter(float2 pixelPos, uint step, float salt)
-{
-    // Golden ratio breaks step-to-step correlation.
-    // Salt prevents main/shadow jitter periodicity conflicts.
-    return frac(InterleavedGradientNoise(pixelPos + float2(step, step * 1.61803398875)) + salt);
-}
-
 // Henyey-Greenstein phase function, forward-scattering anisotropy.
 // g in [-1, 1]: g > 0 favors forward scatter, g < 0 backward.
 // For water droplets g ~ 0.6-0.8 (very forward).
@@ -73,12 +64,12 @@ ShadowResult VolumetricShadow(float3 from, float2 pixelPos,
 {
     // Distance to layer's outer surface along sun direction.
     float2 hit = RaySphereIntersection(
-        from, cloudsData.toSunDirection, float3(0.0, 0.0, 0.0), cloudsData.earthRadius + cloudsData.cloudLayerMax);
+        from, cloudsData.toSunDirection, float3(0.0, 0.0, 0.0), cloudsShape.EarthRadius + cloudsShape.CloudLayerMaxH);
     float tMax = max(0.0, hit.y);
 
     // EARTH OCCLUSION: if the sun is below the horizon, the shadow ray
     // would hit the Earth. Clamp tMax so the march stops at the Earth surface.
-    float2 earthHit = RaySphereIntersection(from, cloudsData.toSunDirection, float3(0.0, 0.0, 0.0), cloudsData.earthRadius);
+    float2 earthHit = RaySphereIntersection(from, cloudsData.toSunDirection, float3(0.0, 0.0, 0.0), cloudsShape.EarthRadius);
     if(earthHit.x > 0.0)
         tMax = min(tMax, earthHit.x);
 
@@ -102,8 +93,8 @@ ShadowResult VolumetricShadow(float3 from, float2 pixelPos,
         float stepJ = StepJitter(pixelPos + float2(7.0, 13.0) + frameOffset, (uint)j, 0.37);
         float sampleD = (float)j * step + stepJ * step;
         float3 pos = from + cloudsData.toSunDirection * sampleD;
-        float alt = length(pos) - cloudsData.earthRadius;
-        float norY = (alt - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
+        float alt = length(pos) - cloudsShape.EarthRadius;
+        float norY = (alt - cloudsShape.CloudLayerMinH) * cloudsShape.InvCloudLayerThickness;
         if (norY > 1.0 || norY < 0.0)
             continue;
 
@@ -112,60 +103,9 @@ ShadowResult VolumetricShadow(float3 from, float2 pixelPos,
     }
 
     ShadowResult r;
-    r.lightEnergy = exp(-opticalDepth * cloudsData.muT);
+    r.lightEnergy = exp(-opticalDepth * cloudsShape.muT);
     r.opticalDepth = opticalDepth;   // weighted OD from the sun
     return r;
-}
-
-bool GetCloudsLayerIntersectionPoints(
-    float3 rayOrigin,
-    float3 rayDir,
-    float earthRadius,          // Solid Earth radius
-    float innerSphereRadius,    // Cloud base altitude (earthRadius + cloudMinHeight)
-    float outerSphereRadius,    // Cloud top altitude (earthRadius + cloudMaxHeight)
-    float tMax,                 // Additional solid occluder (e.g., depth buffer for mountains/buildings)
-    out float tEntry,
-    out float tExit)
-{
-    tEntry = 0.0;
-    tExit = 0.0;
-
-    // Intersections with cloud layer boundaries
-    float2 innerHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), innerSphereRadius);
-    float2 outerHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), outerSphereRadius);
-
-    // If the outer sphere is entirely behind the origin or misses it, no clouds ahead
-    if (outerHit.y < 0.0) 
-        return false;
-
-    // Entry: start at outerHit.x or 0 if inside, or innerHit.y if inside inner sphere
-    tEntry = max(max(outerHit.x, 0.0), (innerHit.x < 0.0 && innerHit.y > 0.0) ? innerHit.y : 0.0);
-
-    // Exit: always go to outer boundary, let density be zero inside inner sphere
-    tExit = outerHit.y;
-
-    // Solid Earth occlusion
-    float2 earthHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), earthRadius);
-    if (length(rayOrigin) >= earthRadius)
-    {
-        if (earthHit.x > 0.0)
-            tExit = min(tExit, earthHit.x);
-    }
-    else
-    {
-        if (earthHit.y > 0.0)
-            tEntry = max(tEntry, earthHit.y);
-        else
-            return false;
-    }
-
-    // Solid geometry occlusion
-    tExit = min(tExit, tMax);
-
-    if (tEntry >= tExit)
-        return false;
-
-    return true;
 }
 
 CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
@@ -179,15 +119,15 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     result.tExit = 0.0;
     
     // Translate ray origin to Earth-centered coordinates.
-    float3 rayOrigin = rayOriginLocal - cloudsData.earthCenter;
+    float3 rayOrigin = rayOriginLocal - cloudsShape.EarthCenter;
     
     float3 hitWorld = Constants.cameraPosition + rayDir * sceneDist;
-    float3 hitEarth = hitWorld - cloudsData.earthCenter;
+    float3 hitEarth = hitWorld - cloudsShape.EarthCenter;
     float sceneDistEarth = length(hitEarth - rayOrigin);
     
     float tEntry, tExit;
-    if (!GetCloudsLayerIntersectionPoints(rayOrigin, rayDir, cloudsData.earthRadius, cloudsData.earthRadius + cloudsData.cloudLayerMin,
-        cloudsData.earthRadius + cloudsData.cloudLayerMax, sceneDistEarth, tEntry, tExit))
+    if (!GetCloudsLayerIntersectionPoints(rayOrigin, rayDir, cloudsShape.EarthRadius, cloudsShape.EarthRadius + cloudsShape.CloudLayerMinH,
+        cloudsShape.EarthRadius + cloudsShape.CloudLayerMaxH, sceneDistEarth, tEntry, tExit))
     {
         return result;
     }
@@ -203,7 +143,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     effectiveSteps = clamp(effectiveSteps, cloudsData.maxSteps / 2, cloudsData.maxSteps);
 
     float stepSize = rayLength / max(effectiveSteps, 1u);
-    float t = tEntry;                
+    float t = tEntry;
     float cosTheta = dot(rayDir, cloudsData.toSunDirection);
     float phase = DualLobeHG(cosTheta, cloudsData.phaseGForward, cloudsData.phaseGBackward);
 
@@ -219,8 +159,8 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
         float sampleT = t + stepJ * stepSize;
         
         float3 pos = rayOrigin + rayDir * sampleT;
-        float altitude = length(pos) - cloudsData.earthRadius;
-        float norY = (altitude - cloudsData.cloudLayerMin) * cloudsData.invCloudLayerThickness;
+        float altitude = length(pos) - cloudsShape.EarthRadius;
+        float norY = (altitude - cloudsShape.CloudLayerMinH) * cloudsShape.InvCloudLayerThickness;
         float density = SampleCloudDensity(pos, norY, cloudsTexture, cloudsDetailTexture, cloudsShape);
         
         float normT = sampleT * cloudsData.invCloudFadeDistance;
@@ -240,15 +180,15 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
 
             // Single scatter: HG phase + powder + Beer-Lambert on sun path.
             float powder = PowderEffect(density, cloudsData.powderEdgeWidth, cloudsData.powderStrength);
-            float3 S_direct = cloudsData.sunRadiance * cloudsData.muS * lightEnergy * phase * powder;
+            float3 S_direct = cloudsData.sunRadiance * cloudsShape.muS * lightEnergy * phase * powder;
 
             // Multi-scatter
-            const float energyLostToScatter = 1.0 - exp(-sunOD * cloudsData.muT);
-            const float tau_sun = sunOD * cloudsData.muT;
+            const float energyLostToScatter = 1.0 - exp(-sunOD * cloudsShape.muT);
+            const float tau_sun = sunOD * cloudsShape.muT;
             const int numOctaves = (int)cloudsData.multiScatterOctaves;
             const float msIntensity = 1.0;
             
-            float currentEnergy = energyLostToScatter * cloudsData.albedo;
+            float currentEnergy = energyLostToScatter * cloudsShape.Albedo;
             float3 S_ms_accum = 0.0;
             
             for (int octave = 0; octave < numOctaves; octave++)
@@ -266,13 +206,13 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
                 S_ms_accum += octaveEnergy * cloudsData.multiScatterContribution * phase_octave;
                 
                 // Next octave
-                currentEnergy = octaveEnergy * cloudsData.albedo;
+                currentEnergy = octaveEnergy * cloudsShape.Albedo;
             }            
-            float3 S_ms = cloudsData.sunRadiance * cloudsData.muS * S_ms_accum * msIntensity;
+            float3 S_ms = cloudsData.sunRadiance * cloudsShape.muS * S_ms_accum * msIntensity;
                         
-            float segmentTransmittance = exp(-density * stepSize * cloudsData.muT);            
-            float integrationWeight = cloudsData.muT > 0.0001 ? 
-                (1.0 - segmentTransmittance) / cloudsData.muT : density * stepSize;
+            float segmentTransmittance = exp(-density * stepSize * cloudsShape.muT);
+            float integrationWeight = cloudsShape.muT > 0.0001 ?
+                (1.0 - segmentTransmittance) / cloudsShape.muT : density * stepSize;
 
             result.color += result.transmittance * (S_direct + S_ms) * integrationWeight;
             result.transmittance *= segmentTransmittance;
@@ -292,7 +232,7 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
     float skyWeight = saturate(-rayDir.y * 0.5 + 0.5); // 0=looking down, 1=looking up
     float3 ambient = lerp(ambientDown, ambientUp, skyWeight);
     
-    result.color += ambient * (1.0 - result.transmittance) * cloudsData.albedo;
+    result.color += ambient * (1.0 - result.transmittance) * cloudsShape.Albedo;
     
     result.weightedDistance /= max(totalDensity, 0.0001f);
     result.tEntry = tEntry;
@@ -376,7 +316,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
     {        
         Texture2D<float4> prevCloudsTex = ResourceDescriptorHeap[cloudsData.prevCloudsTexDI];
         float4 prevColor = prevCloudsTex.SampleLevel(pointClampSampler, prevUv, 0.0);        
-        float skyDistance = cloudsData.earthRadius + cloudsData.cloudLayerMax;
+        float skyDistance = cloudsShape.EarthRadius + cloudsShape.CloudLayerMaxH;
         
         bool historyHadCloud = prevColor.a < 0.999;
         bool hasHit = clouds.transmittance < 0.999;

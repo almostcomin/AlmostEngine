@@ -63,7 +63,7 @@ public:
 	const float4x4& GetPrevFrameViewProjMatrix() const { return m_PrevViewProjectionMatrix; }
 
 	const float4x4& GetCloudsShadowMapClipToTranslatedWorldMatrix() const { return m_CloudsShadowMapClipToTranslatedWorldMatrix; }
-	const float3& GetCloudsSunPoisition() const { return m_CloudsSunPosition; }
+	const float3& GetCloudsSunPosition() const { return m_CloudsSunPosition; }
 	float GetCloudsZNear() const { return m_CloudsZNear; }
 
 	alm::rhi::BufferUniformView GetSceneBufferUniformView();

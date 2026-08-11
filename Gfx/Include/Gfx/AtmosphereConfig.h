@@ -22,9 +22,10 @@ public:
     static constexpr float kMieBase = 21e-6f;
     static constexpr float kRefMieScaleHeight = 1200.f;
 
-    static constexpr float kCloudsLayerMinRef = 1500.f;
-    static constexpr float kCloudsLayerMaxRef = 12000.f;
+    static constexpr float kCloudsLayerMinHRef = 1500.f;
+    static constexpr float kCloudsLayerMaxHRef = 12000.f;
     static constexpr float kCloudsFadeDistRef = 48000.f;
+    static constexpr float kCloudsShadowsMaxDistRef = 20000.f;
 
     // ------------------------------------------------------------
     // Sub-structures (all parameters are public and modifiable)
@@ -38,8 +39,8 @@ public:
 
     struct SunParams
     {
-        float  ElevationDeg = 0.f;// 60.f;
-        float  AzimuthDeg = 180.f;//-135.f;
+        float  ElevationDeg = 0.f;// 90.f;// 60.f;
+        float  AzimuthDeg = 0.f;//-135.f;
         float  Irradiance = 1.f;
         float  AngularSizeDeg = 0.53f;
         float3 Color = { 1.f, 1.f, 1.f };
@@ -47,6 +48,11 @@ public:
 
     struct CloudsShapeParams
     {
+        // ---- Cloud‑specific distances (meters) ----
+        // Stored already scaled. Modify them directly or via ApplyEarthScale().
+        float CloudsLayerMinH = kCloudsLayerMinHRef;
+        float CloudsLayerMaxH = kCloudsLayerMaxHRef;
+
         // Weights and coverage (dimensionless)
         float StratusWeight = 0.33f;
         float CumulusWeight = 0.52f;
@@ -60,15 +66,15 @@ public:
 
         // Noise detail (dimensionless)
         float DetailErosionStrength = 0.25f;
-    };
 
-    struct CloudsParams
-    {
         // ---- Extinction/scattering densities (1/m) ----
         // MUST also be divided by EarthScaleFactor at binding time.
         float AbsorptionCoeff = 0.1f / 1000.f;   // 1/m
         float ScatteringCoeff = 2.9f / 1000.f;    // 1/m
+    };
 
+    struct CloudsParams
+    {
         // Multi-scattering (dimensionless)
         float MultiScatterContribution = 0.1f;
         float MultiScatterOcclusion = 0.5f;
@@ -88,9 +94,8 @@ public:
 
         // ---- Cloud‑specific distances (meters) ----
         // Stored already scaled. Modify them directly or via ApplyEarthScale().
-        float CloudsLayerMin = kCloudsLayerMinRef;
-        float CloudsLayerMax = kCloudsLayerMaxRef;
         float CloudsFadeDistance = kCloudsFadeDistRef;
+        float CloudsShadowMaxDistance = kCloudsShadowsMaxDistRef;
     };
 
     struct SkyParams
@@ -135,9 +140,10 @@ public:
         EarthScaleFactor = scale;
         EarthRadius = kEarthRadiusRef * scale;
         Sky.AtmosHeight = kAtmosHeightRef * scale;
-        Clouds.CloudsLayerMin = kCloudsLayerMinRef * scale;
-        Clouds.CloudsLayerMax = kCloudsLayerMaxRef * scale;
+        CloudsShape.CloudsLayerMinH = kCloudsLayerMinHRef * scale;
+        CloudsShape.CloudsLayerMaxH = kCloudsLayerMaxHRef * scale;
         Clouds.CloudsFadeDistance = kCloudsFadeDistRef * scale;
+        Clouds.CloudsShadowMaxDistance = kCloudsShadowsMaxDistRef * scale;
     }
 
     // ------------------------------------------------------------
@@ -155,9 +161,10 @@ public:
             float ratio = (oldRadius != 0.f) ? (r / oldRadius) : 1.f;
 
             EarthRadius = r;
-            Clouds.CloudsLayerMin *= ratio;
-            Clouds.CloudsLayerMax *= ratio;
+            CloudsShape.CloudsLayerMinH *= ratio;
+            CloudsShape.CloudsLayerMaxH *= ratio;
             Clouds.CloudsFadeDistance *= ratio;
+            Clouds.CloudsShadowMaxDistance *= ratio;
             Sky.AtmosHeight *= ratio;
 
             EarthScaleFactor = r / kEarthRadiusRef;

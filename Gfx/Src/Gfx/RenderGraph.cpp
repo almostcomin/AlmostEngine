@@ -305,11 +305,11 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 	stageCommandList->BeginMarker("Render stages");
 	for (auto* rs : renderStages)
 	{
+		stageCommandList->BeginMarker(rs->renderStage->GetDebugName());
+
 		// Update view of reads
 		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, m_TexturesState);
 		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Read, m_BuffersState, m_TexturesState);
-
-		stageCommandList->BeginMarker(rs->renderStage->GetDebugName());
 
 		// GPU time query
 		const int timeQueryIndex = m_DeviceManager->GetFrameIndex() % rs->timerQueries.size();
@@ -352,9 +352,7 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 
 			if (!barriers.empty())
 			{
-				std::string markerName = rs->renderStage->GetDebugName();
-				markerName.append(" - Entry barriers");
-				stageCommandList->BeginMarker(markerName.c_str());
+				stageCommandList->BeginMarker("Entry barriers");
 				stageCommandList->PushBarriers(barriers);
 				stageCommandList->EndMarker();
 			}
@@ -381,7 +379,6 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 		}
 
 		stageCommandList->EndTimerQuery(rs->timerQueries[timeQueryIndex].get());
-		stageCommandList->EndMarker();
 
 		// Update the resource states
 		{
@@ -416,6 +413,8 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 		// Update view of writes
 		UpdateRequestedTextureViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, m_TexturesState);
 		UpdateRequestedBufferViews(stageCommandList, rs->renderStage.get(), AccessMode::Write, m_BuffersState, m_TexturesState);
+
+		stageCommandList->EndMarker();
 	} // end render stages iteration
 
 	stageCommandList->EndMarker();
@@ -1056,53 +1055,58 @@ void alm::gfx::RenderGraph::UpdateRequestedTextureViews(alm::rhi::ICommandList* 
 	const std::map<RGTextureHandle, rhi::ResourceState> resourceStates)
 {
 	auto requests = GetTexViewRequests(rs, accessMode);
-	for (auto req : requests)
+	if (!requests.empty())
 	{
-		rhi::TextureHandle sourceTex = GetDeclTex(req->handle)->texture.get_weak();
-		if (!sourceTex)
-			continue;
-
-		const rhi::TextureDesc& sourceTexDesc = sourceTex->GetDesc();
-
-		// Create the target texture if does not exists
-		// TODO: If the source texture changed (resized for example) we need to re-create de texture
-		if (!req->tex)
+		commandList->BeginMarker("Texture Debug Views");
+		for (auto req : requests)
 		{
-			rhi::TextureDesc desc{
-				.width = sourceTexDesc.width,
-				.height = sourceTexDesc.height,
-				.depth = sourceTexDesc.depth,
-				.arraySize = sourceTexDesc.arraySize,
-				.mipLevels = sourceTexDesc.mipLevels,
-				.format = sourceTexDesc.format,
-				.shaderUsage = rhi::TextureShaderUsage::Sampled
-			};
+			rhi::TextureHandle sourceTex = GetDeclTex(req->handle)->texture.get_weak();
+			if (!sourceTex)
+				continue;
 
-			std::stringstream debugName;
-			debugName << rs->GetDebugName() << " - ";
-			if (accessMode == alm::gfx::RenderGraph::AccessMode::Read)
-				debugName << "Read";
-			else
-				debugName << "Write";
-			debugName << " - " << sourceTex->GetDebugName();
+			const rhi::TextureDesc& sourceTexDesc = sourceTex->GetDesc();
 
-			req->tex = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::SHADER_RESOURCE, debugName.str().c_str());
-			assert(req->tex);
+			// Create the target texture if does not exists
+			// TODO: If the source texture changed (resized for example) we need to re-create de texture
+			if (!req->tex)
+			{
+				rhi::TextureDesc desc{
+					.width = sourceTexDesc.width,
+					.height = sourceTexDesc.height,
+					.depth = sourceTexDesc.depth,
+					.arraySize = sourceTexDesc.arraySize,
+					.mipLevels = sourceTexDesc.mipLevels,
+					.format = sourceTexDesc.format,
+					.shaderUsage = rhi::TextureShaderUsage::Sampled
+				};
+
+				std::stringstream debugName;
+				debugName << rs->GetDebugName() << " - ";
+				if (accessMode == alm::gfx::RenderGraph::AccessMode::Read)
+					debugName << "Read";
+				else
+					debugName << "Write";
+				debugName << " - " << sourceTex->GetDebugName();
+
+				req->tex = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::SHADER_RESOURCE, debugName.str().c_str());
+				assert(req->tex);
+			}
+
+			rhi::ResourceState srcTexState = resourceStates.find(req->handle)->second;
+
+			rhi::Barrier entryBarriers[] = {
+				rhi::Barrier::Texture(sourceTex.get(), srcTexState, rhi::ResourceState::COPY_SRC),
+				rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST) };
+			commandList->PushBarriers(entryBarriers);
+
+			commandList->CopyTextureToTexture(req->tex.get(), rhi::AllSubresources, sourceTex.get(), rhi::AllSubresources);
+
+			rhi::Barrier exitBarriers[] = {
+				rhi::Barrier::Texture(sourceTex.get(), rhi::ResourceState::COPY_SRC, srcTexState),
+				rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE) };
+			commandList->PushBarriers(exitBarriers);
 		}
-
-		rhi::ResourceState srcTexState = resourceStates.find(req->handle)->second;
-
-		rhi::Barrier entryBarriers[] = {
-			rhi::Barrier::Texture(sourceTex.get(), srcTexState, rhi::ResourceState::COPY_SRC),
-			rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST) };
-		commandList->PushBarriers(entryBarriers);
-
-		commandList->CopyTextureToTexture(req->tex.get(), rhi::AllSubresources, sourceTex.get(), rhi::AllSubresources);
-
-		rhi::Barrier exitBarriers[] = {
-			rhi::Barrier::Texture(sourceTex.get(), rhi::ResourceState::COPY_SRC, srcTexState),
-			rhi::Barrier::Texture(req->tex.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE) };
-		commandList->PushBarriers(exitBarriers);
+		commandList->EndMarker();
 	}
 }
 
@@ -1123,20 +1127,25 @@ void alm::gfx::RenderGraph::UpdateRequestedBufferViews(alm::rhi::ICommandList* c
 	const std::map<RGBufferHandle, rhi::ResourceState> bufferStates, const std::map<RGTextureHandle, rhi::ResourceState> textureState)
 {
 	auto requests = GetBufferViewRequests(rs, accessMode);
-	for (auto req : requests)
+	if(!requests.empty())
 	{
-		if (req->type == BufferViewRequest::Type::Buffer)
+		commandList->BeginMarker("Buffer Debug Views");
+		for (auto req : requests)
 		{
-			UpdateRequestedBufferFromBufferView(req, rs, bufferStates, commandList);
+			if (req->type == BufferViewRequest::Type::Buffer)
+			{
+				UpdateRequestedBufferFromBufferView(req, rs, bufferStates, commandList);
+			}
+			else if (req->type == BufferViewRequest::Type::Texture)
+			{
+				UpdateRequestedBufferFromTextureView(req, rs, textureState, commandList);
+			}
+			else
+			{
+				assert(0);
+			}
 		}
-		else if (req->type == BufferViewRequest::Type::Texture)
-		{
-			UpdateRequestedBufferFromTextureView(req, rs, textureState, commandList);
-		}
-		else
-		{
-			assert(0);
-		}
+		commandList->EndMarker();
 	}
 }
 

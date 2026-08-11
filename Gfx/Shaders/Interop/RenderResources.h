@@ -487,7 +487,15 @@ namespace interop
         float StratusWeight;
         float CumulusWeight;
         float CumulonimbusWeight;
-        uint _padding0;
+        float CloudLayerMinH;
+        float CloudLayerMaxH;
+        float3 EarthCenter;
+        float EarthRadius;
+        float InvCloudLayerThickness;
+        float muT;
+        float muS;
+        float Albedo;
+        uint3 _padding0;
     };
 
     struct CloudsData
@@ -499,21 +507,17 @@ namespace interop
         TextureSampledViewIndex linearDepthTexDI;
         TextureSampledViewIndex prevCloudsTexDI;
         float cloudFadeDistance;
-        float earthRadius;
+        uint _padding1;
 
         float3 toSunDirection;
-        float cloudLayerMin;
-
-        float3 earthCenter;
-        float cloudLayerMax;
+        uint _padding2;
 
         float3 cameraForward;
-        float muT;
+        uint _padding3;
 
-        float invCloudLayerThickness;   
         uint maxSteps;
         uint lightSteps;
-        float muS;
+        uint2 _padding4;
 
         float4x4 matPrevFrameViewProj;
 
@@ -523,10 +527,10 @@ namespace interop
         float3 sunB;
         uint multiScatterOctaves;
 
-        float albedo;
         float ambientStrength;
         float multiScatterEccentricity;
         float multiScatterContribution;
+        uint _padding5;
 
         float3 sunRadiance;
         float multiScatterOcclusion;
@@ -542,7 +546,7 @@ namespace interop
         uint volumetricShadows;
         float depthThreshold;
         float blendFactor;
-        uint _padding1;
+        uint _padding6;
     };
 
     struct CloudsConstants
@@ -568,10 +572,14 @@ namespace interop
         uint _padding1;
         float3 SunDir;
         float zNear;
+        uint RayMarchStepCount;
+        float muT;
+        uint2 _padding2;
     };
 
     struct CloudsShadowmapConstants
     {
+        BufferUniformIndex CloudsShapeDataDI;     // CloudsShapeData
         BufferUniformIndex CloudsShadowmapDataDI; // CloudsShadowmapData
     };
 

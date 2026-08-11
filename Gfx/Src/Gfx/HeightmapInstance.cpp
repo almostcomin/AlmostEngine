@@ -161,7 +161,8 @@ void alm::gfx::HeightmapInstance::CollectDrawInfos(const GpuSceneBuffers* gpuSce
 {
 	for (int i = 0; i < m_LeafNodes.size(); ++i)
 	{
-		const uint32_t meshIndex = m_SceneHeightmap->GetPatchMeshGpuIndex(m_LeafNodes[i].GetMeshVariantIndex());
+		const uint32_t heighmapMeshVariantIndex = m_LeafNodes[i].GetMeshVariantIndex();
+		const uint32_t meshIndex = m_SceneHeightmap->GetPatchMeshGpuIndex(heighmapMeshVariantIndex);
 
 		out.push_back(RenderableDrawInfo{
 			.MaterialDomain = MaterialDomain::Terrain,
@@ -171,7 +172,8 @@ void alm::gfx::HeightmapInstance::CollectDrawInfos(const GpuSceneBuffers* gpuSce
 			.MeshIndex = meshIndex,
 			.MaterialIndex = gpuSceneBuffers->GetMaterialIndexFromMeshIdx(meshIndex).Index,
 			.TransientBaseIndex = m_PatchesAllocBaseIndex + i,
-			.IndexCount = m_SceneHeightmap->GetHeightmap()->GetPatchIndicesCount(meshIndex) });
+			.IndexCount = m_SceneHeightmap->GetHeightmap()->GetPatchIndicesCount(heighmapMeshVariantIndex) 
+		});
 	}
 }
 

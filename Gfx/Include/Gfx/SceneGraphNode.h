@@ -44,7 +44,7 @@ public:
 	alm::weak<SceneGraphNode> AddChild(alm::unique<SceneGraphNode>&& child);
 	alm::unique<SceneGraphNode> RemoveChild(const alm::weak<SceneGraphNode>& child);
 
-	void SetLeaf(alm::unique<SceneGraphLeaf>&& leaf);
+	alm::weak<SceneGraphLeaf> SetLeaf(alm::unique<SceneGraphLeaf>&& leaf);
 	void RemoveLeaf();
 
 	void SetLocalTransform(const Transform& t);

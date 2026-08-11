@@ -39,10 +39,11 @@ public:
 	rhi::ShaderHandle GetBlitVS() const { return m_BlitVS.get_weak(); }
 	rhi::ShaderHandle GetBlitPS() const { return m_BlitPS.get_weak(); }
 
-	// Generates a UV sphere centered at origin
+	// Generates a UV sphere of radius 1 centered at origin
 	// stacks: horizontal subdivisions (latitude bands), >= 2
 	// slices: vertical subdivisions (longitude segments), >= 3
-	std::shared_ptr<alm::gfx::Mesh> CreateUVSphere(float radius, uint32_t stacks, uint32_t slices, alm::gfx::DataUploader* dataUploader, const std::string& name);
+	std::shared_ptr<alm::gfx::Mesh> CreateUVSphere(float radius, uint32_t stacks, uint32_t slices, alm::gfx::DataUploader* dataUploader,
+		const std::string& name);
 
 	// Blue noise texture: 64x64 single channel
 	//rhi::TextureHandle GetBlueNoise_HDR_64x64_L() const;

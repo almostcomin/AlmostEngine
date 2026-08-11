@@ -60,13 +60,13 @@ public:
 		m_MainCamera->SetZNear(0.01f);
 
 		// Init earth sphere
-#if 0
+#if 1
 		{
 			alm::gfx::CommonResources* commonResources = m_DeviceManager->GetCommonResources();
 			auto earthMesh = commonResources->CreateUVSphere(kEarthRadius, 128, 128, m_DeviceManager->GetDataUploader(), "EarthMesh");
 
-			auto meshInstance = alm::make_unique_with_weak<alm::gfx::MeshInstance>(earthMesh);			
-			meshInstance->SetInstanceFlags(meshInstance->GetInstanceFlags() & ~alm::gfx::MeshInstance::Flags::CastShadows);
+			auto meshInstance = alm::make_unique_with_weak<alm::gfx::MeshInstance>(earthMesh);
+			meshInstance->SetCastShadows(false);
 
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
 			graphNode->SetName("EarthSphere");
@@ -75,7 +75,6 @@ public:
 
 			auto sceneGraph = m_Scene->GetSceneGraph();
 			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
-			m_Scene->RefreshSceneGraph();
 		}
 #endif
 		// Init heightmap
@@ -216,11 +215,6 @@ public:
 			// Attach to scene
 			auto sceneGraph = m_Scene->GetSceneGraph();
 			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
-
-			// Update camera speed
-			m_CameraController.SetSpeed(
-				std::max(std::max(heightmap->GetActualSize().x, heightmap->GetActualSize().y) * 0.1f, 1.f));
-
 		}
 
 		// Load file
@@ -258,11 +252,20 @@ public:
 			m_UI->Init(m_Window, m_Scene.get_weak(), m_MainRenderView.get_weak(), &m_CameraController);
 			m_UI->SetHeightmap(sceneHeightmap);
 			RefreshUIData();
+
+			m_UI->AddRenderStageTextureWindow(
+				alm::gfx::CloudsShadowmapRenderStage::StaticType(), alm::gfx::RenderGraph::AccessMode::Write, "CloudsShadowmap");
 		}
 
 		// Camera initial position
 		{
-			alm::aabox3f bbox = m_Scene->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
+			m_Scene->RefreshSceneGraph();
+
+			alm::aabox3f bbox = sceneHeightmap ?
+				sceneHeightmap->GetNode()->GetWorldBounds(alm::gfx::SceneContentType::Meshes) :
+				m_Scene->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
+
+			//alm::aabox3f bbox = m_Scene->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
 			float3 center = bbox.center();
 			float3 diagonal = bbox.diagonal();
 
@@ -273,6 +276,13 @@ public:
 			bbox.max = center + diagonal / 4.f;
 
 			m_MainCamera->Frame(bbox);
+		}
+
+		// Update camera speed
+		if (heightmap)
+		{
+			m_CameraController.SetSpeed(
+				std::max(std::max(heightmap->GetActualSize().x, heightmap->GetActualSize().y) * 0.1f, 1.f));
 		}
 
 		return true;

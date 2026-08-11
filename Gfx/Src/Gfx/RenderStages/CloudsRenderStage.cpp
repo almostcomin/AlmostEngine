@@ -108,9 +108,6 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 
 		const float3 toSunDirection = -glm::normalize(alm::ElevationAzimuthRadToDir(
 			glm::radians(sunParams.ElevationDeg), glm::radians(sunParams.AzimuthDeg)));
-		const float muS = cloudsParams.ScatteringCoeff / atmos->EarthScaleFactor;
-		const float muA = cloudsParams.AbsorptionCoeff / atmos->EarthScaleFactor;
-		const float muT = muS + muA;
 
 		//const float sunSolidAngle = 4.0f * PI * square(glm::sin(glm::radians(sunParams.AngularSizeDeg / 2.0f)));
 		//const float3 sunRadiance = sunParams.Color * sunParams.Irradiance / std::max(sunSolidAngle, 1e-6f);
@@ -128,19 +125,11 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->prevCloudsTexDI = m_RenderGraph->GetTextureSampledView(m_CloudsTexture[cloudsOtherIdx]);
 
 		cloudsData->cloudFadeDistance = cloudsParams.CloudsFadeDistance;
-		cloudsData->cloudLayerMin = cloudsParams.CloudsLayerMin;
-		cloudsData->cloudLayerMax = cloudsParams.CloudsLayerMax;
 		cloudsData->toSunDirection = toSunDirection;
-		cloudsData->muT = muT;
-		cloudsData->muS = muS;
 		cloudsData->multiScatterContribution = cloudsParams.MultiScatterContribution;
 		cloudsData->multiScatterOcclusion = cloudsParams.MultiScatterOcclusion;
 		cloudsData->multiScatterEccentricity = cloudsParams.MultiScatterEccentricity;
-		cloudsData->albedo = muS / std::max(muT, 1e-10f);
 		cloudsData->ambientStrength = cloudsParams.AmbientStrength;
-		cloudsData->earthCenter = atmos->EarthCenter;
-		cloudsData->earthRadius = atmos->EarthRadius;
-		cloudsData->invCloudLayerThickness = 1.f / (cloudsParams.CloudsLayerMax - cloudsParams.CloudsLayerMin);
 		cloudsData->cameraForward = GetCamera()->GetForward();
 		cloudsData->matPrevFrameViewProj = GetRenderView()->GetPrevFrameViewProjMatrix();
 		cloudsData->invCloudFadeDistance = 1.f / cloudsParams.CloudsFadeDistance;

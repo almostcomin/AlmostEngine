@@ -39,3 +39,15 @@ void alm::gfx::SceneGraphLeaf::SetVisible(bool b)
 		m_RenderFlags &= ~SceneRenderFlags::Visible;
 	}
 }
+
+void alm::gfx::SceneGraphLeaf::SetCastShadows(bool b)
+{
+	if (b)
+	{
+		m_RenderFlags |= SceneRenderFlags::CastShadows;
+	}
+	else
+	{
+		m_RenderFlags &= ~SceneRenderFlags::CastShadows;
+	}
+}

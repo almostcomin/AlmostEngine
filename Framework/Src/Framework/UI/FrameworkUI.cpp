@@ -1396,13 +1396,13 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::SeparatorText("Lighting");
         ImGui::Spacing();
 
-        float muA_Km = atmos->Clouds.AbsorptionCoeff * 1000.f;
+        float muA_Km = atmos->CloudsShape.AbsorptionCoeff * 1000.f;
         if (ImGui::SliderFloat("Absorption Coeff 1/km (norm)##Clouds", &muA_Km, 0.f, 10.f))
-            atmos->Clouds.AbsorptionCoeff = muA_Km / 1000.f;
+            atmos->CloudsShape.AbsorptionCoeff = muA_Km / 1000.f;
 
-        float muS_Km = atmos->Clouds.ScatteringCoeff * 1000.f;
+        float muS_Km = atmos->CloudsShape.ScatteringCoeff * 1000.f;
         if(ImGui::SliderFloat("Scattering Coeff 1/km (norm)##Clouds", &muS_Km, 0.f, 10.f))
-            atmos->Clouds.ScatteringCoeff = muS_Km / 1000.f;
+            atmos->CloudsShape.ScatteringCoeff = muS_Km / 1000.f;
 
         ImGui::Spacing();
         ImGui::SliderFloat("MultiScatter Contribution##Clouds", &atmos->Clouds.MultiScatterContribution, 0.f, 1.f);
@@ -1428,8 +1428,8 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::SeparatorText("Layer");
         ImGui::Spacing();
 
-        ImGui::InputFloat("Clouds Bottom##Clouds", &atmos->Clouds.CloudsLayerMin);
-        ImGui::InputFloat("Clouds Top##Clouds", &atmos->Clouds.CloudsLayerMax);
+        ImGui::InputFloat("Clouds Bottom##Clouds", &atmos->CloudsShape.CloudsLayerMinH);
+        ImGui::InputFloat("Clouds Top##Clouds", &atmos->CloudsShape.CloudsLayerMaxH);
         ImGui::Spacing();
         ImGui::InputFloat("Fade Distance##Clouds", &atmos->Clouds.CloudsFadeDistance);
 

@@ -1,6 +1,8 @@
 #ifndef __CLOUDS_COMMON_HLSLI__
 #define __CLOUDS_COMMON_HLSLI__
 
+#include "Common.hlsli"
+
 // Stratus: thin band near base.
 float StratusProfile(float norY)
 {
@@ -98,6 +100,66 @@ float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Textur
     float eroded = remap(coverage, threshold, 1.0, 0.0, 1.0);
 
     return saturate(eroded);
+}
+
+bool GetCloudsLayerIntersectionPoints(
+    float3 rayOrigin,
+    float3 rayDir,
+    float earthRadius,       // Solid Earth radius
+    float innerSphereRadius, // Cloud base altitude (earthRadius + cloudMinHeight)
+    float outerSphereRadius, // Cloud top altitude (earthRadius + cloudMaxHeight)
+    float tMax,              // Additional solid occluder (e.g., depth buffer for mountains/buildings)
+    out float tEntry,
+    out float tExit)
+{
+    tEntry = 0.0;
+    tExit = 0.0;
+
+    // Intersections with cloud layer boundaries
+    float2 innerHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), innerSphereRadius);
+    float2 outerHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), outerSphereRadius);
+
+    // If the outer sphere is entirely behind the origin or misses it, no clouds ahead
+    if (outerHit.y < 0.0) 
+        return false;
+
+    // Entry: start at outerHit.x or 0 if inside, or innerHit.y if inside inner sphere
+    tEntry = max(max(outerHit.x, 0.0), (innerHit.x < 0.0 && innerHit.y > 0.0) ? innerHit.y : 0.0);
+
+    // Exit: always go to outer boundary, let density be zero inside inner sphere
+    tExit = outerHit.y;
+
+    // Solid Earth occlusion
+    float2 earthHit = RaySphereIntersection(rayOrigin, rayDir, float3(0, 0, 0), earthRadius);
+    if (length(rayOrigin) >= earthRadius)
+    {
+        if (earthHit.x > 0.0)
+            tExit = min(tExit, earthHit.x);
+    }
+    else
+    {
+        if (earthHit.y > 0.0)
+            tEntry = max(tEntry, earthHit.y);
+        else
+            return false;
+    }
+
+    // Solid geometry occlusion
+    tExit = min(tExit, tMax);
+
+    if (tEntry >= tExit)
+        return false;
+
+    return true;
+}
+
+// Step-decorrelated jitter.
+// pixelPos in pixels, step = sample ID. Returns [0, 1].
+float StepJitter(float2 pixelPos, uint step, float salt)
+{
+    // Golden ratio breaks step-to-step correlation.
+    // Salt prevents main/shadow jitter periodicity conflicts.
+    return frac(InterleavedGradientNoise(pixelPos + float2(step, step * 1.61803398875)) + salt);
 }
 
 #endif // __CLOUDS_COMMON_HLSLI__

@@ -57,6 +57,7 @@ public:
 	uint32_t GetLeafSceneIndex() const { return m_SceneIndex; }
 
 	void SetVisible(bool b);
+	void SetCastShadows(bool b);
 
 protected:
 
