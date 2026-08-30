@@ -58,7 +58,7 @@ void alm::gfx::CloudsShadowmapRenderStage::Render(alm::rhi::CommandListHandle co
 	cloudsShadowmapData->DstTextureSize = dstTextureSize;
 	cloudsShadowmapData->MatClipToTranslatedWorld = GetRenderView()->GetCloudsShadowMapClipToTranslatedWorldMatrix();
 	
-	cloudsShadowmapData->SunPos = GetRenderView()->GetCloudsSunPosition();
+	cloudsShadowmapData->SunPos = GetRenderView()->GetCloudsShadowmapSunPosition();
 	cloudsShadowmapData->SunDir = atmos->GetSunDirection();
 	cloudsShadowmapData->zNear = GetRenderView()->GetCloudsZNear();
 	cloudsShadowmapData->RayMarchStepCount = 128;

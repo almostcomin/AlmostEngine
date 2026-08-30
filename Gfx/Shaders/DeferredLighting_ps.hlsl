@@ -125,6 +125,22 @@ float4 main(PS_INPUT input) : SV_Target
             shadowFactor = SampleShadowMapPoissonDisk16(
                 surfacePosView, sceneData.shadowMapViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
         }
+        
+        // Clouds shadow
+        float cloudsShadowFactor = 1.0;        
+        if (Constants.CloudsShadowmapDI != INVALID_DESCRIPTOR_INDEX)
+        {
+            Texture2D cloudsShadowmap = ResourceDescriptorHeap[Constants.CloudsShadowmapDI];
+            
+            // Convert view-space surface position to world space
+            float4 surfacePosWorldH = mul(sceneData.invCamViewMatrix, float4(surfacePosView.xyz, 1));
+            float3 surfacePosWorld = surfacePosWorldH.xyz;
+            
+            // Compute clip-space UV from sun-space direction
+            float4 clip = mul(sceneData.CloudsShadowmapWorldToClipMatrix, float4(surfacePosWorld, 1.0));
+            float2 uv = float2(clip.x * 0.5 + 0.5, 0.5 - clip.y * 0.5);
+            cloudsShadowFactor = cloudsShadowmap.SampleLevel(linearClampSampler, uv, 0.0).x;
+        }
     
         // Sample ambient occlusion
         float ambientOcclusion = surfaceMat.occlusion;
@@ -142,8 +158,9 @@ float4 main(PS_INPUT input) : SV_Target
         // Main directional light, the only one with a cascade shadowmap
         ShadeSurface_DirLight(sceneData.mainDirLight, surfaceMat, surfacePosView.xyz, viewIncident, diffuseRadiance, specularRadiance);
         // Cascade shadow map only affects main directional light
-        diffuseRadiance *= shadowFactor;
-        specularRadiance *= shadowFactor;
+        float combinedShadowFactor = shadowFactor * cloudsShadowFactor;
+        diffuseRadiance *= combinedShadowFactor;
+        specularRadiance *= combinedShadowFactor;
 
         // Additional directional lights
         for (uint i = 0; i < sceneData.dirLightCount; i++)

@@ -24,19 +24,6 @@ static std::optional<double2> RayShellOutsideEarth(
 	const double3& earthCenter, double earthRadius,
 	double innerRadius, double outerRadius)
 {
-	auto tEarth = alm::RaySphereIntersection(rayOrigin, rayDir, earthCenter, earthRadius);
-	double tEarthStart = 0.0;
-	double tEarthEnd = std::numeric_limits<double>::infinity();
-
-	if (tEarth && tEarth->y > 0.0)
-	{
-		if (tEarth->x >= 0.0)
-			tEarthEnd = tEarth->x; // ray collides with earth
-		else
-			tEarthStart = tEarth->y; // rayOrigin is inside earth
-	}
-	// If tEarth es nullopt or both points are neg, the rays does not collide with earth
-
 	auto tOuter = alm::RaySphereIntersection(rayOrigin, rayDir, earthCenter, outerRadius);
 	if (!tOuter || tOuter->y <= 0.0)
 		return std::nullopt;
@@ -48,6 +35,19 @@ static std::optional<double2> RayShellOutsideEarth(
 	if (tInner && tInner->x < 0.0 && tInner->y > 0.0)
 		tShellNear = std::max(tShellNear, tInner->y);
 	double tShellFar = tOuter->y;
+
+	auto tEarth = alm::RaySphereIntersection(rayOrigin, rayDir, earthCenter, earthRadius);
+	double tEarthStart = 0.0;
+	double tEarthEnd = std::numeric_limits<double>::infinity();
+
+	if (tEarth && tEarth->y > 0.0)
+	{
+		if (tEarth->x >= 0.0)
+			tEarthEnd = tEarth->x; // ray collides with earth
+		else
+			tEarthStart = tEarth->y; // rayOrigin is inside earth
+	}
+	// If tEarth is nullopt or both points are neg, the rays does not collide with earth
 
 	double tNear = std::max(tShellNear, tEarthStart);
 	double tFar = std::min(tShellFar, tEarthEnd);
@@ -351,8 +351,14 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
 		// ShadowMap matrices
 		{
-			sceneShaderConstant->shadowMapWorldToClipMatrix = m_ShadowMapWoldToClipMatrix;
+			sceneShaderConstant->shadowMapWorldToClipMatrix = m_ShadowMapWorldToClipMatrix;
 			sceneShaderConstant->shadowMapViewToClipMatrix = m_ViewToShadowMapClipMatrix;
+		}
+
+		// Clouds
+		{
+			sceneShaderConstant->CloudsShadowmapWorldToClipMatrix = m_CloudsShadowMapWorldToClipMatrix;
+			sceneShaderConstant->CloudsShadowmapSunPosition = m_CloudsShadowmapSunPosition;
 		}
 
 		// Ambient
@@ -418,7 +424,7 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	ZoneScoped;
 
 	m_ShadowMapVisibleSet.Elements.clear();
-	m_ShadowMapWoldToClipMatrix = {};
+	m_ShadowMapWorldToClipMatrix = {};
 	m_ViewToShadowMapClipMatrix = {};
 
 	if (!m_Scene)
@@ -477,7 +483,7 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 	// --- 4. Build matrices
 
-	BuildSunSpaceShadowMatrices(casterBoundsForShadowMapD, &m_ShadowMapWoldToClipMatrix, &m_ViewToShadowMapClipMatrix, nullptr,
+	BuildSunSpaceShadowMatrices(casterBoundsForShadowMapD, &m_ShadowMapWorldToClipMatrix, &m_ViewToShadowMapClipMatrix, nullptr,
 		nullptr, nullptr);
 
 	// --- 5. Update visible set for shadowmap
@@ -491,8 +497,9 @@ bool alm::gfx::RenderView::UpdateCloudsShadowmapData(rhi::ICommandList* commandL
 {
 	ZoneScoped;
 
+	m_CloudsShadowMapWorldToClipMatrix = {};
 	m_CloudsShadowMapClipToTranslatedWorldMatrix = {};
-	m_CloudsSunPosition = {};
+	m_CloudsShadowmapSunPosition = {};
 	m_CloudsZNear = 0.f;
 
 	if (!m_Scene)
@@ -507,7 +514,7 @@ bool alm::gfx::RenderView::UpdateCloudsShadowmapData(rhi::ICommandList* commandL
 		return false;
 
 	BuildSunSpaceShadowMatrices(shadowBBox,
-		nullptr, nullptr, &m_CloudsShadowMapClipToTranslatedWorldMatrix, &m_CloudsSunPosition, &m_CloudsZNear);
+		&m_CloudsShadowMapWorldToClipMatrix, nullptr, &m_CloudsShadowMapClipToTranslatedWorldMatrix, &m_CloudsShadowmapSunPosition, &m_CloudsZNear);
 
 	return true;
 }
@@ -888,6 +895,7 @@ void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderS
 		commandList->EndMarker();
 }
 
+#if 0
 alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 {
 	static constexpr std::pair<uint8_t, uint8_t> kFrustumEdges[] =
@@ -906,6 +914,8 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 	const double innerRadius = atmos->EarthRadius + atmos->CloudsShape.CloudsLayerMinH;
 	const double outerRadius = atmos->EarthRadius + atmos->CloudsShape.CloudsLayerMaxH;
 	const double3 sunDir = atmos->GetSunDirection();
+	const double3 cameraPos = m_Camera->GetPosition();
+	const double maxShadowDist = atmos->Clouds.CloudsShadowMaxDistance * 100.f;
 	const std::array<float3, 8> frustumCorners = m_Camera->GetWorldFrustumCorners();
 
 	// Prepare point list to construct AABB
@@ -920,7 +930,7 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 		{
 			// Cap por longitud máxima — evita que el rayo vaya al horizonte lejano
 			double tNear = std::max(hit->x, 0.0);
-			double tFar = std::min(hit->y, double{ atmos->Clouds.CloudsShadowMaxDistance });
+			double tFar = std::min(hit->y, maxShadowDist);
 
 			if (tNear < tFar)
 			{
@@ -934,9 +944,6 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 	{
 		const double3 d = b - a;
 		const double len = glm::length(d);
-		if (len <= 0.0)
-			return;
-
 		const double3 dir = d / len;
 
 		if (auto hit = RayShellOutsideEarth(a, dir, earthCenter, earthRadius, innerRadius, outerRadius))
@@ -948,21 +955,34 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 		}
 	};
 
-	// --- 1. Add visible geometry receptors and their shadow caster clouds
-/*
-	if (m_CameraVisibleBounds.valid())
+	auto clipCorner = [&](const double3& corner) -> double3
 	{
-		const std::array<float3, 8> cornerPoints = m_CameraVisibleBounds.getCornerPoints();
+		double3 dir = corner - cameraPos;
+		double len = glm::length(dir);
+		double3 normDir = dir / len;
+		double tMax = std::min(len, maxShadowDist);
 
-		// Add receptors (bbox vertices)
-		for (const auto& p : cornerPoints)
+		auto tOuter = RaySphereIntersection(cameraPos, normDir, earthCenter, outerRadius);
+		if (tOuter && tOuter->y > 0.0 && tOuter->y < tMax)
+			tMax = tOuter->y;
+
+		auto tEarth = RaySphereIntersection(cameraPos, normDir, earthCenter, earthRadius);
+		if (tEarth && tEarth->x > 0.0 && tEarth->x < tMax)
 		{
-			pointsD.push_back(p);
-			addRaySphereShellIntersections(double3{ p });
+			tMax = tEarth->x;
 		}
+
+		return cameraPos + normDir * tMax;
+	};
+
+	// Clip frustum corners
+	std::array<double3, 8> clippedCorners;
+	for (int i = 0; i < 8; ++i)
+	{
+		clippedCorners[i] = clipCorner(frustumCorners[i]);
 	}
-*/
-	// --- 2. Add frustum corners that lie inside the shell
+
+	// --- 1. Add frustum corners that lie inside the shell
 
 	for (const auto& p : frustumCorners)
 	{
@@ -971,18 +991,18 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 			pointsD.push_back(p);
 	}
 
-	// --- 3. Iterate 12 frustum edges, intersect each with inner and outer spheres,
+	// --- 2. Iterate 12 frustum edges, intersect each with inner and outer spheres,
 	//		  add the segment-clipping intersection points. Also add frustum corners
 	//        that lie inside the shell (vertices of the intersection region).
 
 	for (auto [i, j] : kFrustumEdges)
 	{
-		addShellSegmentIntersections(double3{ frustumCorners[i] }, double3{ frustumCorners[j] });
+		addShellSegmentIntersections(double3{ clippedCorners[i] }, double3{ clippedCorners[j] });
 	}
 
-	// --- 4. Add clouds that are casters for the frustum (even if no geometry visible)
+	// --- 3. Add clouds that are casters for the frustum (even if no geometry visible)
 	
-	for (const auto& p : frustumCorners)
+	for (const auto& p : clippedCorners)
 	{
 		addRaySphereShellIntersections(double3{ p });
 	}
@@ -993,6 +1013,107 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 
 	return result;
 }
+#else
+alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
+{
+	ZoneScoped;
+
+	const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
+	if (!atmos->CloudsSubsystemInitialized())
+		return aabox3d::get_empty();
+
+	const double3 earthCenter = atmos->EarthCenter;
+	const double earthRadius = atmos->EarthRadius;
+	const double innerRadius = atmos->EarthRadius + atmos->CloudsShape.CloudsLayerMinH;
+	const double outerRadius = atmos->EarthRadius + atmos->CloudsShape.CloudsLayerMaxH;
+	const double3 sunDir = atmos->GetSunDirection();
+	const double3 cameraPos = m_Camera->GetPosition();
+
+	// Reach along the view direction: at least the cloud layer tangent over the
+	// ground (beyond it no cloud can cast onto visible terrain), and never less
+	// than the configured value
+
+	// Pitagoras: Tangent to a sphere.
+	// Leg: d2 = a^2 − b^2 = (a + b) * (a - b)
+	const double tangentDist = glm::sqrt((outerRadius + earthRadius) * (outerRadius - earthRadius));
+	const double viewDistCap = tangentDist * 1.05;
+
+	// Camera ray directions out of the frustum corners. The far corners are used on
+	// purpose: the near corners sit ~1cm from the camera, so subtracting the float
+	// camera position would drown the direction in quantization noise.
+	const std::array<float3, 8> frustumCorners = m_Camera->GetWorldFrustumCorners();
+	std::array<double3, 4> cornerDirs{};
+	for (int i = 0; i < 4; ++i)
+		cornerDirs[i] = glm::normalize(double3{ frustumCorners[4 + i] } - cameraPos);
+
+	// The frustum is sampled as a regular UV grid of camera rays.
+	constexpr uint32_t kGridSize = 16;
+	constexpr uint32_t kRaySampleCount = 12;
+
+	std::vector<double3> pointsD;
+	pointsD.reserve(kGridSize * kGridSize * (kRaySampleCount + 1) * 3);
+
+	// Clip the ray against the Earth
+	auto clipRay = [&](const double3& origin, const double3& dir, double maxT) -> double
+	{
+		double t = maxT;
+		auto tEarth = alm::RaySphereIntersection(origin, dir, earthCenter, earthRadius);
+		if (tEarth && tEarth->x > 0.0 && tEarth->x < t)
+			t = tEarth->x;
+		return t;
+	};
+
+	// Adds the sample itself (if within the layer's reach) plus its cloud envelope
+	// towards the sun, so the volume's near plane ends up right above the cloud
+	// layer instead of flying up with the sky-bound rays.
+	auto pushSampleColumn = [&](const double3& p)
+	{
+		if (glm::length(p - earthCenter) <= outerRadius)
+			pointsD.push_back(p);
+
+		const double3 sunRayDir = -sunDir;
+		if (auto hit = RayShellOutsideEarth(p, sunRayDir, earthCenter, earthRadius, innerRadius, outerRadius))
+		{
+			const double tNear = glm::max(hit->x, 0.0);
+			const double tFar = glm::min(hit->y, viewDistCap);
+			if (tNear < tFar)
+			{
+				pointsD.push_back(p + sunRayDir * tNear);
+				pointsD.push_back(p + sunRayDir * tFar);
+			}
+		}
+	};
+
+	// Bilinear fan over the corner directions: corners come in order (-,-), (+,-), (-,+), (+,+) in clip space.
+	for (uint32_t j = 0; j < kGridSize; ++j)
+	{
+		const double v = (double(j) + 0.5) / double(kGridSize);
+		const double3 dirL = glm::normalize(glm::mix(cornerDirs[0], cornerDirs[2], v));
+		const double3 dirR = glm::normalize(glm::mix(cornerDirs[1], cornerDirs[3], v));
+
+		for (uint32_t i = 0; i < kGridSize; ++i)
+		{
+			const double u = (double(i) + 0.5) / double(kGridSize);
+			const double3 dir = glm::normalize(glm::mix(dirL, dirR, u));
+
+			// Depth samples along the ray up to its Earth hit (or the distance cap),
+			// so the volume covers the receiver region this ray looks at.
+			const double hitT = clipRay(cameraPos, dir, viewDistCap);
+			for (uint32_t s = 0; s <= kRaySampleCount; ++s)
+			{
+				const double t = hitT * (double(s) / double(kRaySampleCount));
+				pushSampleColumn(cameraPos + dir * t);
+			}
+		}
+	}
+
+	aabox3d result{ aabox3d::InitEmpty };
+	for (const auto& p : pointsD)
+		result.merge(p);
+
+	return result;
+}
+#endif
 
 void alm::gfx::RenderView::BuildSunSpaceShadowMatrices(const aabox3d& shadowVolumeWorld,
 	float4x4* opt_out_worldToClip, float4x4* opt_out_viewToShadowClip, float4x4* opt_out_clipToTranslatedWorld,

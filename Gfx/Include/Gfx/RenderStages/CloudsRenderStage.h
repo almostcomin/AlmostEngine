@@ -56,6 +56,7 @@ private:
 
     RGTextureHandle m_SceneColorTexture;
     RGTextureHandle m_LinearDepthTexture;
+    RGTextureHandle m_CloudsShadowmapTexture;
     RGTextureHandle m_CloudsTexture[2];
 
     RGFramebufferHandle m_CompositeFB;

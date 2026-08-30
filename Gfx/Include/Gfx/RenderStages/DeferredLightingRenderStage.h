@@ -53,6 +53,7 @@ private:
 	RGTextureHandle m_SceneColorTexture;
 	RGTextureHandle m_SceneDepthTexture;
 	RGTextureHandle m_ShadowmapTexture;
+	RGTextureHandle m_CloudsShadowmapTexture;
 	RGTextureHandle m_GBuffer0Texture;
 	RGTextureHandle m_GBuffer1Texture;
 	RGTextureHandle m_GBuffer2Texture;

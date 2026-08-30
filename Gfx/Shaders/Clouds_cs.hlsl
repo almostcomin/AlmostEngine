@@ -173,9 +173,21 @@ CloudResult GetCloudsColorRayMarch(float3 rayOriginLocal, float3 rayDir, Texture
             float sunOD = 0.0;
             if(cloudsData.volumetricShadows)
             {
-                ShadowResult shadowResult = VolumetricShadow(pos, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsShape, cloudsData);
-                lightEnergy = shadowResult.lightEnergy;
-                sunOD = shadowResult.opticalDepth;
+                if (cloudsData.CloudsShadowMapDI == INVALID_DESCRIPTOR_INDEX)
+                {
+                    ShadowResult shadowResult = VolumetricShadow(pos, pixelPos, cloudsTexture, cloudsDetailTexture, cloudsShape, cloudsData);
+                    lightEnergy = shadowResult.lightEnergy;
+                    sunOD = shadowResult.opticalDepth;
+                }
+                else
+                {
+                    Texture2D<float> shadowmapTex = ResourceDescriptorHeap[cloudsData.CloudsShadowMapDI];
+                    float3 tw = cloudsData.SunPos;
+                    float4 clip = mul(cloudsData.ShadowWorldToClip, float4(tw, 1.0));
+                    float2 shadowmapUV = float2(clip.x * 0.5 + 0.5, 0.5 - clip.y * 0.5);
+                    lightEnergy = shadowmapTex.SampleLevel(linearClampSampler, shadowmapUV, 0.0);
+                    sunOD = -log(max(lightEnergy, 1e-6)) / max(cloudsShape.muT, 1e-6);
+                }
             }
 
             // Single scatter: HG phase + powder + Beer-Lambert on sun path.

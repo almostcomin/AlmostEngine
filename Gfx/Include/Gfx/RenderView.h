@@ -62,8 +62,9 @@ public:
 
 	const float4x4& GetPrevFrameViewProjMatrix() const { return m_PrevViewProjectionMatrix; }
 
+	const float4x4& GetCloudsShadowMapWorldToClipMatrix() const { return m_CloudsShadowMapWorldToClipMatrix; }
 	const float4x4& GetCloudsShadowMapClipToTranslatedWorldMatrix() const { return m_CloudsShadowMapClipToTranslatedWorldMatrix; }
-	const float3& GetCloudsSunPosition() const { return m_CloudsSunPosition; }
+	const float3& GetCloudsShadowmapSunPosition() const { return m_CloudsShadowmapSunPosition; }
 	float GetCloudsZNear() const { return m_CloudsZNear; }
 
 	alm::rhi::BufferUniformView GetSceneBufferUniformView();
@@ -144,12 +145,13 @@ private:
 	RenderSet m_ShadowMapVisibleSet;
 
 	// Matrices for cascade shadowmap
-	float4x4 m_ShadowMapWoldToClipMatrix;
+	float4x4 m_ShadowMapWorldToClipMatrix;
 	float4x4 m_ViewToShadowMapClipMatrix;
 
 	// Matrices for clouds shadowmap
+	float4x4 m_CloudsShadowMapWorldToClipMatrix;
 	float4x4 m_CloudsShadowMapClipToTranslatedWorldMatrix;
-	float3 m_CloudsSunPosition;
+	float3 m_CloudsShadowmapSunPosition;
 	float m_CloudsZNear;
 
 	// Visible set for directional lights

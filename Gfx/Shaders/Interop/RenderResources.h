@@ -193,13 +193,17 @@ namespace interop
         // Shadomap matrices
         float4x4 shadowMapWorldToClipMatrix;    // offset 112
         float4x4 shadowMapViewToClipMatrix;     // offset 128
+        // Clouds shadowmap
+        float4x4 CloudsShadowmapWorldToClipMatrix;
+        float3 CloudsShadowmapSunPosition;
+        uint _padding1;
 
         // Sky/ambient light
-        float4 ambientTop;      // rgb          // offset 134
-        float4 ambientBottom;   // rgb          // offset 138
+        float4 ambientTop;      // rgb
+        float4 ambientBottom;   // rgb
 
         // Lights
-        DirLightData mainDirLight;              // offset 142
+        DirLightData mainDirLight;
         uint dirLightCount;
         BufferReadOnlyIndex dirLightsDataDI;    // DirLightData
         uint pointLightCount;
@@ -270,14 +274,19 @@ namespace interop
         TextureSampledViewIndex sceneDepthDI;
         TextureSampledViewIndex shadowMapDI;
         TextureSampledViewIndex GBuffer0DI;
-        TextureSampledViewIndex GBuffer1DI; // offset 16
+
+        TextureSampledViewIndex GBuffer1DI;
         TextureSampledViewIndex GBuffer2DI;
         TextureSampledViewIndex GBuffer3DI;
         TextureSampledViewIndex SSAO_DI;
-        float2 oneOverShadowmapResolution; // offset 32
+
+        TextureSampledViewIndex CloudsShadowmapDI;
+        float2 oneOverShadowmapResolution; 
         uint MaterialChannel; 
+
         uint ShowSSAO;
         uint ShowShadowmap;
+        uint2 _padding0;
     };
 
     struct DebugStageBBoxes
@@ -501,8 +510,8 @@ namespace interop
     struct CloudsData
     {
         TextureStorageViewIndex DstTextureDI;
+        TextureSampledViewIndex CloudsShadowMapDI;
         uint2 DstTextureSize;
-        uint _padding0;
 
         TextureSampledViewIndex linearDepthTexDI;
         TextureSampledViewIndex prevCloudsTexDI;
@@ -547,6 +556,10 @@ namespace interop
         float depthThreshold;
         float blendFactor;
         uint _padding6;
+
+        float4x4 ShadowWorldToClip;
+        float3 SunPos;
+        uint _padding7;
     };
 
     struct CloudsConstants

@@ -18,6 +18,7 @@ void alm::gfx::CloudsRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
 	m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
+	m_CloudsShadowmapTexture = builder.GetTextureHandle("CloudsShadowmap");
 	m_CloudsTexture[0] = builder.CreateTexture("CloudsTexture[0]", RenderGraph::TextureResourceType::ShaderResource,
 		RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), 1,
 		rhi::Format::RGBA16_FLOAT, true);
@@ -30,6 +31,8 @@ void alm::gfx::CloudsRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 	builder.AddTextureDependency(m_LinearDepthTexture, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_CloudsShadowmapTexture, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	builder.AddTextureDependency(m_CloudsTexture[0], RenderGraph::AccessMode::Write,
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
@@ -119,6 +122,7 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		auto* cloudsData = (interop::CloudsData*)m_CloudsCB.Map();
 
 		cloudsData->DstTextureDI = m_RenderGraph->GetTextureStorageView(m_CloudsTexture[m_CloudsTextureIdx]);
+		cloudsData->CloudsShadowMapDI = {};// m_RenderGraph->GetTextureSampledView(m_CloudsShadowmapTexture);
 		cloudsData->DstTextureSize = cloudsTexDims;
 
 		cloudsData->linearDepthTexDI = m_RenderGraph->GetTextureSampledView(m_LinearDepthTexture);
@@ -146,6 +150,8 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		cloudsData->powderEdgeWidth = cloudsParams.PowderEdgeWidth;
 		cloudsData->depthThreshold = 0.1f;
 		cloudsData->blendFactor = 0.6f;
+		cloudsData->ShadowWorldToClip = GetRenderView()->GetCloudsShadowMapWorldToClipMatrix();
+		cloudsData->SunPos = GetRenderView()->GetCloudsShadowmapSunPosition();
 
 		const float3 up = abs(toSunDirection.y) < 0.99 ? float3(0.0, 1.0, 0.0) : float3(1.0, 0.0, 0.0);
 		cloudsData->sunT = normalize(cross(toSunDirection, up));

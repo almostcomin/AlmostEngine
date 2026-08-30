@@ -16,12 +16,12 @@ alm::gfx::DeferredLightingRenderStage::~DeferredLightingRenderStage() = default;
 
 void alm::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	//m_SceneColorTexture = builder.CreateColorTarget("SceneColor", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
 	m_SceneColorTexture = builder.CreateTexture("SceneColor", RenderGraph::TextureResourceType::RenderTarget, RenderGraph::c_BBSize, RenderGraph::c_BBSize,
 		1, rhi::Format::RGBA16_FLOAT, true);
 
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 	m_ShadowmapTexture = builder.GetTextureHandle("Shadowmap");
+	m_CloudsShadowmapTexture = builder.GetTextureHandle("CloudsShadowmap");
 	m_GBuffer0Texture = builder.GetTextureHandle("GBuffer0");
 	m_GBuffer1Texture = builder.GetTextureHandle("GBuffer1");
 	m_GBuffer2Texture = builder.GetTextureHandle("GBuffer2");
@@ -32,6 +32,7 @@ void alm::gfx::DeferredLightingRenderStage::Setup(RenderGraphBuilder& builder)
 
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	builder.AddTextureDependency(m_ShadowmapTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_CloudsShadowmapTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	builder.AddTextureDependency(m_GBuffer0Texture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	builder.AddTextureDependency(m_GBuffer1Texture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	builder.AddTextureDependency(m_GBuffer2Texture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
@@ -72,6 +73,8 @@ void alm::gfx::DeferredLightingRenderStage::Render(alm::rhi::CommandListHandle c
 	shaderConstants.GBuffer2DI = m_RenderGraph->GetTextureSampledView(m_GBuffer2Texture);
 	shaderConstants.GBuffer3DI = m_RenderGraph->GetTextureSampledView(m_GBuffer3Texture);
 	shaderConstants.SSAO_DI = m_RenderGraph->GetTextureSampledView(m_AmbientOcclusionTexture);
+	shaderConstants.CloudsShadowmapDI = m_RenderGraph->GetTextureSampledView(m_CloudsShadowmapTexture);
+
 	shaderConstants.oneOverShadowmapResolution = 1.f / shadowMapResolution;
 	shaderConstants.MaterialChannel = (uint)m_MaterialChannel;
 	shaderConstants.ShowSSAO = m_ShowSSAO;

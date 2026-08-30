@@ -39,7 +39,7 @@ public:
 
     struct SunParams
     {
-        float  ElevationDeg = 0.f;// 90.f;// 60.f;
+        float  ElevationDeg = 90.f;// 90.f;// 60.f;
         float  AzimuthDeg = 0.f;//-135.f;
         float  Irradiance = 1.f;
         float  AngularSizeDeg = 0.53f;

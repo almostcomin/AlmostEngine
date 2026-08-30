@@ -366,11 +366,11 @@ public:
 		auto shadowmapRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::ShadowmapRenderStage>();
 		auto depthPrepassRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::DepthPrepassRenderStage>();
 		auto linearizeDepthRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::LinearizeDepthRenderStage>();
+		auto cloudsSMRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsShadowmapRenderStage>();
 		auto SSAORS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::SSAORenderStage>();
 		auto GBuffersRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::GBuffersRenderStage>();
 		auto deferredLightingRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::DeferredLightingRenderStage>();
 		auto skyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::SkyRenderStage>();
-		auto cloudsSMRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsShadowmapRenderStage>();
 		auto cloudsRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsRenderStage>();
 		auto WBOITAccumRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
 		auto WBOITResolveRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
@@ -386,11 +386,11 @@ public:
 			shadowmapRS,
 			depthPrepassRS,
 			linearizeDepthRS,
+			cloudsSMRS,
 			GBuffersRS,
 			SSAORS,
 			deferredLightingRS,
 			skyRS,
-			cloudsSMRS,
 			cloudsRS,
 			WBOITAccumRS,
 			WBOITResolveRS,
@@ -406,11 +406,11 @@ public:
 			shadowmapRS.get(),
 			depthPrepassRS.get(),
 			linearizeDepthRS.get(),
+			cloudsSMRS.get(),
 			GBuffersRS.get(),
 			SSAORS.get(),
 			deferredLightingRS.get(),
 			skyRS.get(),
-			cloudsSMRS.get(),
 			cloudsRS.get(),
 			WBOITAccumRS.get(),
 			WBOITResolveRS.get(),
