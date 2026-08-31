@@ -1393,6 +1393,18 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::SliderFloat("Detail Erosion Strength##Clouds", &atmos->CloudsShape.DetailErosionStrength, 0.f, 1.f);
 
         ImGui::Spacing();
+        ImGui::SeparatorText("Animation");
+        ImGui::Spacing();
+
+        ImGui::InputFloat("Animation multiplier##Clouds", &atmos->CloudsShape.AnimationMult);
+        ImGui::InputFloat("Shear Tilt##Clouds", &atmos->CloudsShape.ShearTiltMeters);
+        ImGui::InputFloat("Sway Amplitude##Clouds", &atmos->CloudsShape.SwayAmpMeters);
+        ImGui::SliderFloat("Sway Speed##Clouds", &atmos->CloudsShape.SwaySpeed, 0.f, 1.f);
+        ImGui::SliderFloat("Swirl Speed##Clouds", &atmos->CloudsShape.SwirlSpeed, 0.f, 1.f);
+        ImGui::SliderFloat("Swirl Radius##Clouds", &atmos->CloudsShape.SwirlRadius, 0.f, 1.f);
+        ImGui::SliderFloat("Morph Speed##Clouds", &atmos->CloudsShape.MorphSpeed, 0.f, 1.f);
+
+        ImGui::Spacing();
         ImGui::SeparatorText("Lighting");
         ImGui::Spacing();
 

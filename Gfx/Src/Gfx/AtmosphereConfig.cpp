@@ -207,7 +207,8 @@ void alm::gfx::AtmosphereConfig::InitCloudsSubsystem(bool forceNew, bool saveCac
 
 void alm::gfx::AtmosphereConfig::Update(float elapsedSec)
 {
-	m_CloudsOffset += WindVelocity * elapsedSec;
+	m_CloudsOffset += WindVelocity * elapsedSec; //* CloudsShape.AnimationMult;
+	m_AnimTime += elapsedSec * CloudsShape.AnimationMult;
 	
 	m_CloudsShapeCBDirty = true;
 }
@@ -243,6 +244,7 @@ alm::rhi::BufferUniformView alm::gfx::AtmosphereConfig::GetCloudsShapeUniformVie
 		data->BaseShapeTexture = m_CloudsShapeTexture->GetSampledView();
 		data->DetailTexture = m_CloudsDetailTexture->GetSampledView();
 		data->WindOffset = m_CloudsOffset;
+		data->WindDir = glm::normalize(WindVelocity);
 		data->ShapeScale = CloudsShape.CloudsScale * EarthScaleFactor;
 		data->DetailScale = CloudsShape.DetailScale * EarthScaleFactor;
 		data->DetailErosionStrength = CloudsShape.DetailErosionStrength;
@@ -258,6 +260,13 @@ alm::rhi::BufferUniformView alm::gfx::AtmosphereConfig::GetCloudsShapeUniformVie
 		data->muT = muT;
 		data->muS = muS;
 		data->Albedo = muS / muT;
+		data->AnimTime = m_AnimTime;
+		data->ShearTiltMeters = CloudsShape.ShearTiltMeters;
+		data->SwayAmpMeters = CloudsShape.SwayAmpMeters;
+		data->SwaySpeed = CloudsShape.SwaySpeed;
+		data->SwirlSpeed = CloudsShape.SwirlSpeed;
+		data->SwirlRadius = CloudsShape.SwirlRadius;
+		data->MorphSpeed = CloudsShape.MorphSpeed;
 
 		m_CloudsShapeCB.Unmap();
 		m_CloudsShapeCBDirty = false;

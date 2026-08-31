@@ -489,22 +489,38 @@ namespace interop
         TextureSampledViewIndex BaseShapeTexture;
         TextureSampledViewIndex DetailTexture;
         float2 WindOffset;
+
+        float2 WindDir;
         float ShapeScale;
         float DetailScale;
+
         float DetailErosionStrength;
         float Coverage;
         float StratusWeight;
         float CumulusWeight;
+
         float CumulonimbusWeight;
         float CloudLayerMinH;
         float CloudLayerMaxH;
+        uint _padding0;
+
         float3 EarthCenter;
         float EarthRadius;
+
         float InvCloudLayerThickness;
         float muT;
         float muS;
         float Albedo;
-        uint3 _padding0;
+
+        float AnimTime;
+        float ShearTiltMeters;
+        float SwayAmpMeters;
+        float SwaySpeed;
+
+        float SwirlSpeed;
+        float SwirlRadius;
+        float MorphSpeed;
+        uint _padding1;
     };
 
     struct CloudsData

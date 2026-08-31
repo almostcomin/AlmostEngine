@@ -39,8 +39,8 @@ public:
 
     struct SunParams
     {
-        float  ElevationDeg = 90.f;// 90.f;// 60.f;
-        float  AzimuthDeg = 0.f;//-135.f;
+        float  ElevationDeg = 60.f;
+        float  AzimuthDeg = -135.f;
         float  Irradiance = 1.f;
         float  AngularSizeDeg = 0.53f;
         float3 Color = { 1.f, 1.f, 1.f };
@@ -71,6 +71,17 @@ public:
         // MUST also be divided by EarthScaleFactor at binding time.
         float AbsorptionCoeff = 0.1f / 1000.f;   // 1/m
         float ScatteringCoeff = 2.9f / 1000.f;    // 1/m
+
+        // ---- Cloud animation ----
+        float AnimationMult = 1.f;
+        // Distances in meters (stored already scaled, modify via ApplyEarthScale/SetEarthRadius)
+        float ShearTiltMeters = 60.f;
+        float SwayAmpMeters = 40.f;
+        // Time constants
+        float SwaySpeed = 0.1f;     // rad/s
+        float SwirlSpeed = 0.1f;    // rad/s
+        float SwirlRadius = 0.15f;  // detail tiles (detailUVW space)
+        float MorphSpeed = 0.01f;   // cycles/sec (Z phase)
     };
 
     struct CloudsParams
@@ -201,6 +212,7 @@ private:
 
     mutable gfx::MultiBuffer m_CloudsShapeCB;
     float2 m_CloudsOffset = { 0.f, 0.f };
+    float m_AnimTime = 0.f;
     mutable bool m_CloudsShapeCBDirty = false;
 
     gfx::DeviceManager* m_DeviceManager;

@@ -43,22 +43,36 @@ float GlobalHeightGradient(float norY)
 }
 
 float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Texture3D cloudsDetailTexture,
-    ConstantBuffer<interop::CloudsShapeData> cloudsShape)
-{    
-    // Si norY está fuera del rango válido [0,1], no hay densidad
+    ConstantBuffer<interop:: CloudsShapeData> cloudsShape)
+{
+    const float t = cloudsShape.AnimTime;
+    const float shearTilt = cloudsShape.ShearTiltMeters;
+    const float swayAmp = cloudsShape.SwayAmpMeters;
+    const float swaySpeed = cloudsShape.SwaySpeed;
+    const float swirlSpeed = cloudsShape.SwirlSpeed;
+    const float swirlRadius = cloudsShape.SwirlRadius;
+    const float morphSpeed = cloudsShape.MorphSpeed;
+    const float2 windOffset = cloudsShape.WindOffset;
+    const float2 windDir = cloudsShape.WindDir;
+
     if (norY < 0.0 || norY > 1.0)
         return 0.0;
 
     // --- BASE SHAPE
 
+    float sway = swayAmp * sin(t * swaySpeed);
+
     float3 uvw1;
     uvw1.xy = pos.xz * cloudsShape.ShapeScale;
-    uvw1.xy += cloudsShape.WindOffset;
+    uvw1.xy += windOffset;
+    uvw1.xy += windDir * (shearTilt * cloudsShape.ShapeScale) * smoothstep(0.0, 1.0, norY);
     uvw1.z = norY;
+
     float3 uvw2;
     uvw2.xy = pos.xz * cloudsShape.ShapeScale * 0.37; // prime number
-    uvw2.xy += cloudsShape.WindOffset * 0.73;
-    uvw2.z = frac(norY + 0.5);
+    uvw2.xy += windOffset * 0.73;
+    uvw2.xy += windDir * ((shearTilt + sway) * cloudsShape.ShapeScale * 0.37) * smoothstep(0.0, 1.0, norY);
+    uvw2.z = frac(norY + 0.5 + t * morphSpeed);
         
     float4 noise1 = cloudsTexture.SampleLevel(linearWrapSampler, uvw1, 0.0);
     float4 noise2 = cloudsTexture.SampleLevel(linearWrapSampler, uvw2, 0.0);
@@ -83,8 +97,9 @@ float SampleCloudDensity(float3 pos, float norY, Texture3D cloudsTexture, Textur
 
     float3 detailUVW;
     detailUVW.xy = pos.xz * cloudsShape.ShapeScale * cloudsShape.DetailScale;
-    detailUVW.xy += cloudsShape.WindOffset * cloudsShape.DetailScale;
-    detailUVW.z  = norY;
+    detailUVW.xy += windOffset * cloudsShape.DetailScale;
+    detailUVW.xy += windDir * cloudsShape.DetailScale * swirlRadius * float2(cos(t * swirlSpeed), sin(t * swirlSpeed));
+    detailUVW.z = norY;
 
     float3 detail = cloudsDetailTexture.SampleLevel(linearWrapSampler, detailUVW, 0.0).rgb;
     float hfbm = detail.r * 0.625 + detail.g * 0.25 + detail.b * 0.125;
