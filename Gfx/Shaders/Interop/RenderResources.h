@@ -393,16 +393,6 @@ namespace interop
         float textureHeight;
     };
 
-    struct BloomPrefilterConstants
-    {
-        TextureSampledViewIndex inputTextureDI;
-        TextureStorageViewIndex outputTextureDI;
-        uint2 texResolution;
-        float2 invTexResolution;
-        float threshold;
-        float knee;
-    };
-
     struct BloomDownsampleConstants
     {
         TextureSampledViewIndex inputTextureDI;

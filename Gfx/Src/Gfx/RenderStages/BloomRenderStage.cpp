@@ -9,11 +9,9 @@
 #include "RHI/Device.h"
 
 alm::gfx::BloomRenderStage::BloomRenderStage() : 
-	m_BloomEnabled{ true },
+	m_BloomEnabled{ false },
 	m_FilterRadius{ 0.005f },
 	m_Strength{ 0.04f },
-	m_Threshold{ 1.f },
-	m_Knee{ 0.5f },
 	m_MipChainLength { 7 }
 {}
 
@@ -28,19 +26,14 @@ void alm::gfx::BloomRenderStage::SetMaxMipChainLenght(uint32_t v)
 
 void alm::gfx::BloomRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
-	m_BloomPrefilterTexture = builder.CreateTexture("BloomPrefilter", RenderGraph::TextureResourceType::ShaderResource, 
-		RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
 	m_BloomResultTexture = builder.CreateColorTarget("BloomResult", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
-
+	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
 	m_FB = builder.RequestFramebuffer({ m_BloomResultTexture }, nullptr);
 
-	builder.AddTextureDependency(m_BloomPrefilterTexture, RenderGraph::AccessMode::Write,
-		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE);
-	builder.AddTextureDependency(m_BloomResultTexture, RenderGraph::AccessMode::Write,
-		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_BloomResultTexture, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 }
 
 void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
@@ -49,7 +42,6 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	{
 		rhi::ITexture* dstTex = m_RenderGraph->GetTexture(m_BloomResultTexture).get();
 		rhi::ITexture* srcTex = m_RenderGraph->GetTexture(m_SceneColorTexture).get();
-		rhi::ITexture* preFilterTex = m_RenderGraph->GetTexture(m_BloomPrefilterTexture).get();
 
 		commandList->PushBarriers({
 			rhi::Barrier::Texture(dstTex, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::COPY_DST),
@@ -60,38 +52,13 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 
 		commandList->PushBarriers({
 			rhi::Barrier::Texture(dstTex, rhi::ResourceState::COPY_DST, rhi::ResourceState::RENDERTARGET),
-			rhi::Barrier::Texture(srcTex, rhi::ResourceState::COPY_SRC, rhi::ResourceState::SHADER_RESOURCE),
-			rhi::Barrier::Texture(preFilterTex, rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE) });
+			rhi::Barrier::Texture(srcTex, rhi::ResourceState::COPY_SRC, rhi::ResourceState::SHADER_RESOURCE) });
 
 		return;
 	}
 
 	rhi::TextureHandle sceneColorTexture = m_RenderGraph->GetTexture(m_SceneColorTexture);
 	const auto sceneColorTexDesc = sceneColorTexture->GetDesc();
-	rhi::TextureHandle bloomPrefilterTexture = m_RenderGraph->GetTexture(m_BloomPrefilterTexture);
-
-	// Filter
-	{
-		commandList->BeginMarker("Downsample");
-		commandList->SetPipelineState(m_FilterPSO.get());
-
-		interop::BloomPrefilterConstants shaderConstants;
-		shaderConstants.inputTextureDI = sceneColorTexture->GetSampledView();
-		shaderConstants.outputTextureDI = bloomPrefilterTexture->GetStorageView();
-		shaderConstants.texResolution = uint2{ sceneColorTexDesc.width, sceneColorTexDesc.height };
-		shaderConstants.invTexResolution = 1.f / float2{ sceneColorTexDesc.width, sceneColorTexDesc.height };
-		shaderConstants.threshold = m_Threshold;
-		shaderConstants.knee = m_Knee;
-
-		commandList->PushComputeConstants(0, shaderConstants);
-
-		commandList->Dispatch(DivRoundUp(sceneColorTexDesc.width, 16u), DivRoundUp(sceneColorTexDesc.height, 16u), 1);
-
-		commandList->PushBarrier(rhi::Barrier::Texture(bloomPrefilterTexture.get(),
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
-
-		commandList->EndMarker();
-	}
 
 	// Progressively downsample through the mip chain
 	commandList->BeginMarker("Downsample");
@@ -102,7 +69,7 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		const bool firstDownsample = (i == 0);
 
 		rhi::ITexture* inputTex = firstDownsample ?
-			inputTex = bloomPrefilterTexture.get() : m_MipChain[i - 1].get();
+			inputTex = sceneColorTexture.get() : m_MipChain[i - 1].get();
 		const auto& outputTexDesc = m_MipChain[i]->GetDesc();
 		const auto& inputTexDesc = inputTex->GetDesc();
 
@@ -204,23 +171,19 @@ void alm::gfx::BloomRenderStage::OnAttached()
 		m_DownsampleShader = shaderFactory->LoadShader("BloomDownsample_cs", rhi::ShaderType::Compute);
 		m_UpsampleShader = shaderFactory->LoadShader("BloomUpsample_cs", rhi::ShaderType::Compute);
 		m_MixShader = shaderFactory->LoadShader("BloomMix_ps", rhi::ShaderType::Pixel);
-		m_FilterShader = shaderFactory->LoadShader("BloomPrefilter_cs", rhi::ShaderType::Compute);
 	}
 
 	// Create PSOs
-	{
+	{		
 		m_MixPSO = commonResources->CreateFullscreenPassPSO(
 			m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(),
 			m_MixShader.get_weak(), "BloomMixPSO");
 
 		m_DownsamplePSO = device->CreateComputePipelineState(
-			rhi::ComputePipelineStateDesc{ .CS = m_DownsampleShader.get_weak() }, "BloomDownsamplePSO");
+			rhi::ComputePipelineStateDesc{ .CS = m_DownsampleShader.get_weak() }, "DownsamplePSO");
 
 		m_UpsamplePSO = device->CreateComputePipelineState(
-			rhi::ComputePipelineStateDesc{ .CS = m_UpsampleShader.get_weak() }, "BloomUpsamplePSO");
-
-		m_FilterPSO = device->CreateComputePipelineState(
-			rhi::ComputePipelineStateDesc{ .CS = m_FilterShader.get_weak() }, "BloomFilterPSO");
+			rhi::ComputePipelineStateDesc{ .CS = m_UpsampleShader.get_weak() }, "UpsamplePSO");
 	}
 
 	// Create texture mips
@@ -231,12 +194,9 @@ void alm::gfx::BloomRenderStage::OnDetached()
 {
 	ReleaseMipChain(false);
 
-	m_FilterPSO = {};
 	m_UpsamplePSO = {};
 	m_DownsamplePSO = {};
 	m_MixPSO = {};
-
-	m_FilterShader = {};
 	m_MixShader = {};
 	m_UpsampleShader = {};
 	m_DownsampleShader = {};

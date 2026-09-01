@@ -73,8 +73,6 @@ public:
 			bool Enabled = true;
 			float Radius;
 			float Strength;
-			float Threshold;
-			float ThresholdKnee;
 			int MaxMip;
 		} Bloom;
 
