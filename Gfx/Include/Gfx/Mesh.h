@@ -57,6 +57,13 @@ public:
 
 	std::shared_ptr<TerrainMaterial> GetTerrainMaterial() const { return m_TerrainMaterial; }
 
+	void SetCpuPositions(std::vector<float3>&& posVec) { m_CpuPositions = std::move(posVec); m_CpuPositions.shrink_to_fit(); }
+	void SetCpuIndices(std::vector<uint32_t>&& indicesVec) { m_CpuIndices = std::move(indicesVec); m_CpuIndices.shrink_to_fit(); }
+
+	bool HasCpuGeometry() const { return !m_CpuPositions.empty() && !m_CpuIndices.empty(); }
+	const std::vector<float3>& GetCpuPositions() const { return m_CpuPositions; }
+	const std::vector<uint32_t>& GetCpuIndices() const { return m_CpuIndices; }
+
 	const std::string& GetName() const { return m_Name; }
 
 private:
@@ -75,6 +82,9 @@ private:
 
 	MaterialRef m_MaterialRef;
 	std::shared_ptr<TerrainMaterial> m_TerrainMaterial;
+
+	std::vector<float3> m_CpuPositions;
+	std::vector<uint32_t> m_CpuIndices;
 
 	rhi::Device* m_Device;
 };

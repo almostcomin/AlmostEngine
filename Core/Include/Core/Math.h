@@ -1,42 +1,8 @@
 #pragma once
 
 #include "Core/Math/glm_config.h"
-
-using float2 = glm::vec2;
-using float3 = glm::vec3;
-using float4 = glm::vec4;
-
-using double2 = glm::dvec2;
-using double3 = glm::dvec3;
-using double4 = glm::dvec4;
-
-using int2 = glm::ivec2;
-using int3 = glm::ivec3;
-using int4 = glm::ivec4;
-
-using uint2 = glm::uvec2;
-using uint3 = glm::uvec3;
-using uint4 = glm::uvec4;
-
-using short2 = glm::i16vec2;
-using short3 = glm::i16vec3;
-using short4 = glm::i16vec4;
-
-using ushort = uint16_t;
-using ushort2 = glm::u16vec2;
-using ushort3 = glm::u16vec3;
-using ushort4 = glm::u16vec4;
-
-using float3x3 = glm::fmat3x3;
-using float4x4 = glm::fmat4x4;
-
-using double3x3 = glm::dmat3x3;
-using double4x4 = glm::dmat4x4;
-
-constexpr float PI = glm::pi<float>();
-constexpr float PId = glm::pi<double>();
-
-inline const float4x4 float4x4_I{ 1.0f };
+#include "Core/Math/types.h"
+#include "Core/Math/aabox.h"
 
 namespace alm
 {
@@ -121,6 +87,123 @@ std::optional<glm::vec<2, T, Q>> RaySphereIntersection(
         std::swap(root1, root2);
 
     return glm::vec<2, T, Q>(root1, root2);
+}
+
+// Solves the ray vs axis-aligned box intersection using the slab method.
+//
+// @param rayOrigin Origin of the ray (point in space).
+// @param rayDir    Direction of the ray. Does NOT need to be normalized: the
+//                  returned t values are parametric along rayDir. Pass a
+//                  normalized rayDir if euclidean distances are wanted.
+// @param box       Axis aligned box. Must be valid (max >= min).
+//
+// @return std::nullopt if the ray misses the box, or if the box lies entirely
+//         behind the ray origin.
+//
+//         A populated vec2{tNear, tFar} otherwise. The ray intersects the box
+//         for rayOrigin + t * rayDir with t in [tNear, tFar]. Sign conventions:
+//
+//           tNear > 0 && tFar > 0 : standard case, box in front of the origin.
+//           tNear < 0 && tFar > 0 : rayOrigin is inside the box. tNear is
+//                                   behind the origin; clamp it to 0 when the
+//                                   entry distance is wanted.
+//
+// @note Robust for rays parallel to any slab pair (zero direction components):
+//       does not rely on IEEE inf/NaN arithmetic, so it is safe under
+//       fast-math compilation flags (e.g. /fp:fast).
+// @note A degenerate zero-length rayDir returns the full interval when the
+//       origin is inside the box; callers are responsible for validating rayDir.
+
+template<typename T, glm::qualifier Q>
+std::optional<glm::vec<2, T, Q>> RayAABBIntersection(
+    const glm::vec<3, T, Q>& rayOrigin, const glm::vec<3, T, Q>& rayDir, const aabox<T, 3>& box)
+{
+    glm::vec<3, T, Q> slabNear{ -std::numeric_limits<T>::max() };
+    glm::vec<3, T, Q> slabFar{ std::numeric_limits<T>::max() };
+
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        const T d = rayDir[axis];
+        if (glm::abs(d) < std::numeric_limits<T>::epsilon())
+        {
+            // Parallel to the slab planes: intersects only if the origin lies inside the slab
+            if (rayOrigin[axis] < box.min[axis] || rayOrigin[axis] > box.max[axis])
+                return std::nullopt;
+            // Otherwise this axis does not constrain the interval
+        }
+        else
+        {
+            const T invD = T(1) / d;
+            T t0 = (box.min[axis] - rayOrigin[axis]) * invD;
+            T t1 = (box.max[axis] - rayOrigin[axis]) * invD;
+            if (t0 > t1)
+                std::swap(t0, t1);
+            slabNear[axis] = t0;
+            slabFar[axis] = t1;
+        }
+    }
+
+    const T tNear = glm::max(slabNear.x, glm::max(slabNear.y, slabNear.z));
+    const T tFar = glm::min(slabFar.x, glm::min(slabFar.y, slabFar.z));
+
+    if (tNear > tFar || tFar < T(0))
+        return std::nullopt;
+
+    return glm::vec<2, T, Q>(tNear, tFar);
+}
+
+// Solves the ray vs triangle intersection using the Moller-Trumbore algorithm.
+//
+// @param rayOrigin Origin of the ray (point in space).
+// @param rayDir    Direction of the ray. Does NOT need to be normalized: the
+//                  returned t is parametric along rayDir. Pass a normalized
+//                  rayDir if euclidean distances are wanted.
+// @param v0, v1, v2  Triangle vertices, in any winding order.
+//
+// @return std::nullopt if the ray misses the triangle: ray parallel to the
+//         triangle plane (or degenerate zero-area triangle), intersection
+//         outside the triangle edges, or hit behind the ray origin.
+//
+//         A populated vec3{t, u, v} otherwise, where the intersection point is
+//         v0 + u * (v1 - v0) + v * (v2 - v0), with u >= 0, v >= 0, u + v <= 1.
+//
+// @note Both face orientations are accepted (backface hits included), so the
+//       test is two-sided. The geometric face normal is cross(v1 - v0, v2 - v0),
+//       oriented according to the winding order; normalize it when needed.
+// @note Hits exactly at the ray origin (t == 0) are rejected to avoid self
+//       intersections when casting rays from surfaces. This does not affect
+//       picking from free origins (e.g. mouse rays from a camera).
+// @note Does not rely on IEEE inf/NaN arithmetic; safe under fast-math
+//       compilation flags (e.g. /fp:fast).
+
+template<typename T, glm::qualifier Q>
+std::optional<glm::vec<3, T, Q>> RayTriangleIntersection(
+    const glm::vec<3, T, Q>& rayOrigin, const glm::vec<3, T, Q>& rayDir,
+    const glm::vec<3, T, Q>& v0, const glm::vec<3, T, Q>& v1, const glm::vec<3, T, Q>& v2)
+{
+    const glm::vec<3, T, Q> e1 = v1 - v0;
+    const glm::vec<3, T, Q> e2 = v2 - v0;
+    const glm::vec<3, T, Q> p = glm::cross(rayDir, e2);
+    const T det = glm::dot(e1, p);
+    if (glm::abs(det) < std::numeric_limits<T>::epsilon())
+        return std::nullopt; // Parallel to the triangle plane (also rejects degenerate zero-area triangles)
+
+    const T invDet = T(1) / det;
+    const glm::vec<3, T, Q> tvec = rayOrigin - v0;
+    const T u = glm::dot(tvec, p) * invDet;
+    if (u < T(0) || u > T(1))
+        return std::nullopt;
+
+    const glm::vec<3, T, Q> q = glm::cross(tvec, e1);
+    const T v = glm::dot(rayDir, q) * invDet;
+    if (v < T(0) || u + v > T(1))
+        return std::nullopt;
+
+    const T t = glm::dot(e2, q) * invDet;
+    if (t <= T(0))
+        return std::nullopt; // Hit behind the ray origin
+
+    return glm::vec<3, T, Q>{ t, u, v };
 }
 
 } // namespace st

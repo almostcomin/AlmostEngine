@@ -86,6 +86,16 @@ public:
     using RegisterLeafCB = std::function<void(SceneGraphLeaf*)>;
     using UnregisterLeafCB = std::function<void(SceneGraphLeaf*)>;
 
+    struct RaycastHit
+    {
+        float3 Position;
+        float3 Normal;
+        float  Distance;
+        SceneGraphNode* Node;
+        MeshInstance* Instance;
+        uint32_t PrimitiveIndex;
+    };
+
 public:
 
     SceneGraph(GpuSceneBuffersHandle buffersHandle, GpuSceneBuffers* gpuSceneBuffers);
@@ -116,6 +126,9 @@ public:
     // Updates the GpuSceneBuffers accordly.
     void Update();
 
+    // Raycast
+    bool Raycast(const float3& origin, const float3 dir, RaycastHit& out_closest) const;
+
     void LogGraph();
 
 private:
@@ -124,6 +137,10 @@ private:
     void RegisterLeaf(SceneGraphLeaf* leaf);
     void UnregisterLeaf(SceneGraphLeaf* leaf);
     void ReportLeafMoved(const SceneGraphLeaf* leaf);
+
+    // Broad/narrow phase recursive raycast. ioClosestT tracks the best hit found so far.
+    bool RaycastNode(const SceneGraphNode* node, const float3& origin, const float3& dir,
+        float& ioClosestT, RaycastHit& ioHit) const;
 
 private:
 

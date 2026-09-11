@@ -10,6 +10,40 @@
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Mesh.h"
 
+namespace
+{
+
+// Narrow phase: intersects the ray against the CPU copy of the mesh geometry,
+// in mesh local space. Updates ioClosestT/outTriangleIndex/outLocalNormal only
+// when a hit closer than ioClosestT is found. Returns true if one was found.
+bool RaycastMeshGeometry(const alm::gfx::Mesh& mesh, const float3& localOrigin, const float3& localDir,
+    float& ioClosestT, uint32_t& outTriangleIndex, float3& outLocalNormal)
+{
+    const std::vector<float3>& positions = mesh.GetCpuPositions();
+    const std::vector<uint32_t>& indices = mesh.GetCpuIndices();
+
+    bool found = false;
+    const size_t triangleCount = indices.size() / 3;
+    for (size_t tri = 0; tri < triangleCount; ++tri)
+    {
+        const float3& v0 = positions[indices[tri * 3 + 0]];
+        const float3& v1 = positions[indices[tri * 3 + 1]];
+        const float3& v2 = positions[indices[tri * 3 + 2]];
+
+        const auto hit = alm::RayTriangleIntersection(localOrigin, localDir, v0, v1, v2);
+        if (!hit || hit->x >= ioClosestT)
+            continue;
+
+        ioClosestT = hit->x;
+        outTriangleIndex = (uint32_t)tri;
+        outLocalNormal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
+        found = true;
+    }
+    return found;
+}
+
+} // anonymous namespace
+
 int alm::gfx::SceneGraph::Walker::Next(IterationMode mode)
 {
     if (!m_Current) 
@@ -149,6 +183,26 @@ void alm::gfx::SceneGraph::ReportLeafDirty(const SceneGraphLeaf* leaf)
     default:
         assert(0);
     }
+}
+
+bool alm::gfx::SceneGraph::Raycast(const float3& origin, const float3 dir, RaycastHit& out_closest) const
+{
+    // Note: world bounds must be up to date (Update() called before).
+
+    if (glm::length2(dir) < std::numeric_limits<float>::epsilon())
+        return false; // Degenerate ray
+
+    const float3 rayDir = glm::normalize(dir);
+
+    float closestT = std::numeric_limits<float>::max();
+    RaycastHit hit{};
+    if (!RaycastNode(m_Root.get(), origin, rayDir, closestT, hit))
+        return false;
+
+    hit.Position = origin + rayDir * closestT;
+    hit.Distance = closestT;
+    out_closest = hit;
+    return true;
 }
 
 void alm::gfx::SceneGraph::LogGraph()
@@ -385,4 +439,63 @@ void alm::gfx::SceneGraph::ReportLeafMoved(const SceneGraphLeaf* leaf)
         // managed by GpuSceneBuffers. Nothing to report.
         break;
     }
+}
+
+bool alm::gfx::SceneGraph::RaycastNode(const SceneGraphNode* node, const float3& origin, const float3& dir,
+    float& ioClosestT, RaycastHit& ioHit) const
+{
+    // Broad phase: prune the whole subtree if the ray misses the node bounds,
+    // or if it enters them farther than the closest hit found so far.
+    if (!node->HasBounds(SceneContentType::Meshes))
+        return false;
+
+    const auto boundsHit = RayAABBIntersection(origin, dir, node->GetWorldBounds(SceneContentType::Meshes));
+    if (!boundsHit || glm::max(boundsHit->x, 0.f) >= ioClosestT)
+        return false;
+
+    bool found = false;
+
+    // Narrow phase: leaf MeshInstance -> RayTriangleIntersection
+    // Narrow phase for mesh instance leafs
+    if (const auto& leaf = node->GetLeaf(); leaf && leaf->GetType() == SceneGraphLeaf::Type::MeshInstance)
+    {
+        auto* meshInstance = checked_cast<MeshInstance*>(leaf.get());
+        const auto& mesh = meshInstance->GetMesh();
+
+        if (mesh && mesh->HasCpuGeometry())
+        {
+            // Transform the ray to mesh local space. t is preserved because
+            // localDir is not renormalized.
+            const float4x4 worldToLocal = glm::inverse(node->GetWorldTransform());
+            const float3 localOrigin = worldToLocal * float4{ origin, 1.f };
+            const float3 localDir = worldToLocal * float4{ dir, 0.f };
+
+            // Local bounds as an extra cheap cull before the triangle loop
+            if (RayAABBIntersection(localOrigin, localDir, mesh->GetBounds()))
+            {
+                uint32_t triangleIndex = 0;
+                float3 localNormal;
+                if (RaycastMeshGeometry(*mesh, localOrigin, localDir, ioClosestT, triangleIndex, localNormal))
+                {
+                    ioHit.Node = meshInstance->GetNode().get(); // non-const, no const_cast needed
+                    ioHit.Instance = meshInstance;
+                    ioHit.PrimitiveIndex = triangleIndex;
+
+                    // Normal to world space: reuse worldToLocal, its transposed 3x3
+                    // is already the inverse-transpose of the world matrix
+                    ioHit.Normal = glm::normalize(glm::transpose(float3x3(worldToLocal)) * localNormal);
+
+                    found = true;
+                }
+            }
+        }
+    }
+
+    // Recurse children
+    for (size_t i = 0; i < node->GetChildrenCount(); ++i)
+    {
+        found |= RaycastNode(node->GetChild(i).get(), origin, dir, ioClosestT, ioHit);
+    }
+
+    return found;
 }

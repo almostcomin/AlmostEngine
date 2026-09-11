@@ -705,13 +705,14 @@ void GetIndexVertexCount(const cgltf_data* objects, size_t& out_totalIndices, si
 }
 
 template<typename T>
-void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& positions, alm::Blob& out_indexData)
+void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& positions, alm::Blob& out_indexData, std::vector<uint32_t>& out_cpuIndices)
 {
     static_assert(std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t>, "Only 16 or 32 bit indices are allowed");
 
     if (prim.indices)
     {
         out_indexData = alm::Blob{ (uint8_t*)malloc(prim.indices->count * sizeof(T)), prim.indices->count * sizeof(T) };
+        out_cpuIndices.reserve(prim.indices->count);
 
         // copy the indices
         auto [indexSrc, indexStride] = BufferIterator(*prim.indices, 0);
@@ -724,6 +725,8 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
             for (size_t i_idx = 0; i_idx < prim.indices->count; i_idx++)
             {
                 *indexDst = T(*(const uint8_t*)indexSrc);
+                out_cpuIndices.push_back(*indexDst);
+
                 indexSrc += indexStride;
                 indexDst++;
             }
@@ -734,6 +737,8 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
             for (size_t i_idx = 0; i_idx < prim.indices->count; i_idx++)
             {
                 *indexDst = T(*(const uint16_t*)indexSrc);
+                out_cpuIndices.push_back(*indexDst);
+
                 indexSrc += indexStride;
                 indexDst++;
             }
@@ -744,6 +749,8 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
             for (size_t i_idx = 0; i_idx < prim.indices->count; i_idx++)
             {
                 *indexDst = T(*(const uint32_t*)indexSrc);
+                out_cpuIndices.push_back(*indexDst);
+
                 indexSrc += indexStride;
                 indexDst++;
             }
@@ -762,6 +769,8 @@ void CollectPrimitiveIndices(const cgltf_primitive& prim, const cgltf_accessor& 
         for (size_t i_idx = 0; i_idx < indexCount; i_idx++)
         {
             *indexDst = (T)i_idx;
+            out_cpuIndices.push_back(*indexDst);
+
             indexDst++;
         }
     }
@@ -1087,17 +1096,18 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                 idx32bits = positions->count > std::numeric_limits<uint16_t>::max();
             }
             alm::Blob indexData;
+            std::vector<uint32_t> cpuIndices;
             if (idx32bits)
             {
-                CollectPrimitiveIndices<uint32_t>(prim, *positions, indexData);
+                CollectPrimitiveIndices<uint32_t>(prim, *positions, indexData, cpuIndices);
             }
             else
             {
-                CollectPrimitiveIndices<uint16_t>(prim, *positions, indexData);
+                CollectPrimitiveIndices<uint16_t>(prim, *positions, indexData, cpuIndices);
             }
 
             // Positions and bounds
-            std::vector<glm::vec3> vertexPosData;
+            std::vector<float3> vertexPosData;
             alm::aabox3f bounds;
             CollectPrimitivePositions(*positions, vertexPosData, bounds);
 
@@ -1244,6 +1254,9 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                 mesh->SetVertexBuffer(vertexBufferResult->first, vertexFormat);
                 out_handlesToWait.push_back(vertexBufferResult->second);
             }
+
+            mesh->SetCpuPositions(std::move(vertexPosData));
+            mesh->SetCpuIndices(std::move(cpuIndices));
 
             meshMap[&srcMesh].push_back(mesh);
         }

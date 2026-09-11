@@ -148,9 +148,9 @@ public:
 				if (event.key.mod & SDL_KMOD_CTRL)
 				{
 					if(!m_Wireframe)
-						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("wireframe");
+						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("Wireframe");
 					else
-						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("default");
+						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("Default");
 					m_Wireframe = !m_Wireframe;
 				}
 				break;
