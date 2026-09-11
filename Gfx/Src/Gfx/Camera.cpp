@@ -188,7 +188,7 @@ void alm::gfx::Camera::SetRoll(float roll)
 	SetUpRef(newUp);
 }
 
-float3 alm::gfx::Camera::ScreenToWorld(const uint2& pixelPos, float linearDepth, const uint2& viewportSize) const
+float3 alm::gfx::Camera::ScreenToWorldPos(const uint2& pixelPos, float linearDepth, const uint2& viewportSize) const
 {
 	UpdateMatrices();
 
@@ -196,8 +196,8 @@ float3 alm::gfx::Camera::ScreenToWorld(const uint2& pixelPos, float linearDepth,
 
 	float4 clipPos;
 	clipPos.x = uv.x * 2.f - 1.f;
-	clipPos.y = 1.0 - uv.y * 2.f; // flip Y (screen -> NDC)
-	clipPos.z = 1.f;			  // Near plane in reverse z
+	clipPos.y = 1.f - uv.y * 2.f; // flip Y (screen -> NDC)
+	clipPos.z = (m_ProjectionModel == ProjectionModel::Reverse) ? 1.f : 0.f;
 	clipPos.w = 1.f;
 
 	float4x4 invProj = glm::inverse(m_ProjectionMatrix);
@@ -212,6 +212,31 @@ float3 alm::gfx::Camera::ScreenToWorld(const uint2& pixelPos, float linearDepth,
 	worldPos /= worldPos.w;
 
 	return float3(worldPos.x, worldPos.y, worldPos.z);
+}
+
+std::pair<float3, float3> alm::gfx::Camera::ScreenToWorldRay(const uint2& pixelPos, const uint2& viewportSize) const
+{
+	UpdateMatrices();
+
+	float2 uv = float2{ (float)pixelPos.x + 0.5f, (float)pixelPos.y + 0.5f } / float2{ viewportSize.x, viewportSize.y };
+
+	float4 clipPos;
+	clipPos.x = uv.x * 2.f - 1.f;
+	clipPos.y = 1.f - uv.y * 2.f; // flip Y (screen -> NDC)
+	clipPos.z = (m_ProjectionModel == ProjectionModel::Reverse) ? 1.f : 0.f;
+	clipPos.w = 1.f;
+
+	float4x4 invProj = glm::inverse(m_ProjectionMatrix);
+	float4 viewPosNear = invProj * clipPos;
+	viewPosNear /= viewPosNear.w;      // Homogeneous
+
+	float4x4 invView = glm::inverse(m_ViewMatrix);
+	float4 worldPos = invView * viewPosNear;
+	worldPos /= worldPos.w;
+
+	float3 dir = glm::normalize(float3(worldPos) - m_Position);
+
+	return { m_Position, dir };
 }
 
 float4 alm::gfx::Camera::WorldToNDC(const float3& worldPos) const

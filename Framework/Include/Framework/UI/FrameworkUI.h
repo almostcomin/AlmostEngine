@@ -8,6 +8,7 @@
 #include "Gfx/RenderStageFactory.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/Scene.h"
+#include "Gfx/RaycastHit.h"
 #include "Framework/UI/CloudsPresets.h"
 
 struct MemoryEditor;
@@ -185,6 +186,8 @@ private:
 	void BuildRenderStagesWindow();
 	void BuildMaterialsWindow();
 
+	void BuildContextMenu();
+
 	void BuildRenderModesSettings();
 	void BuildCameraSettings(float availWidth);
 	void BuildDebugViewSettings(float availWidth);
@@ -237,6 +240,9 @@ private:
 	std::vector<UITextureWindow> m_TextureWindows;
 
 	alm::weak<alm::gfx::SceneGraphNode> m_SelectedNode;
+	bool m_ScrollToSelectedNode = false;
+	std::vector<const alm::gfx::SceneGraphNode*> m_ExpandAncestors;
+
 	std::string m_RenderStageIOHoveredId;
 	std::vector<std::string> m_BottomBarRightAlignTexts;
 
@@ -252,6 +258,11 @@ private:
 	std::vector<std::pair<std::string, const std::function<void()>>> m_MainMenuAdditionalItems;
 
 	gfx::Material* m_SelectedMaterial = nullptr;
+	ImGuiTextFilter m_MaterialFilter;
+
+	int2 m_ContextMenuPos;
+	gfx::RaycastHit m_ContextMenuHit{};
+	bool m_ContextMenuHitValid = false;
 };
 
 } // namespace alm::fw

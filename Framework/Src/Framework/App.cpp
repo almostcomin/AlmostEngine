@@ -27,6 +27,7 @@
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
 #include "Gfx/AtmosphereConfig.h"
+#include "Gfx/RaycastHit.h"
 #include "RHI/Device.h"
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_init.h>
@@ -326,7 +327,7 @@ void alm::fw::App::ShowNormal(const uint2& screenPos)
 
 			float depth = *(float*)linearDepthData;
 
-			worldPos = m_MainRenderView->GetCamera()->ScreenToWorld(
+			worldPos = m_MainRenderView->GetCamera()->ScreenToWorldPos(
 				screenPos, depth, uint2{ linearDepthTexDesc.width, linearDepthTexDesc.height });
 
 			validPos = true;

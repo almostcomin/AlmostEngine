@@ -22,6 +22,7 @@ class SceneHeightmap;
 class Mesh;
 class Material;
 class GpuSceneBuffers;
+class RaycastHit;
 
 class SceneGraph : public alm::enable_weak_from_this<SceneGraph>, private alm::noncopyable_nonmovable
 {
@@ -85,16 +86,6 @@ public:
 
     using RegisterLeafCB = std::function<void(SceneGraphLeaf*)>;
     using UnregisterLeafCB = std::function<void(SceneGraphLeaf*)>;
-
-    struct RaycastHit
-    {
-        float3 Position;
-        float3 Normal;
-        float  Distance;
-        SceneGraphNode* Node;
-        MeshInstance* Instance;
-        uint32_t PrimitiveIndex;
-    };
 
 public:
 

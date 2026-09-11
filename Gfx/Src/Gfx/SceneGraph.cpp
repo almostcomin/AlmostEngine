@@ -9,6 +9,7 @@
 #include "Gfx/Heightmap.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Mesh.h"
+#include "Gfx/RaycastHit.h"
 
 namespace
 {

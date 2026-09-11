@@ -61,7 +61,8 @@ public:
 	void SetPitch(float pich);
 	void SetRoll(float roll);
 
-	float3 ScreenToWorld(const uint2& pixelPos, float linearDepth, const uint2& viewportSize) const;
+	float3 ScreenToWorldPos(const uint2& pixelPos, float linearDepth, const uint2& viewportSize) const;
+	std::pair<float3, float3> ScreenToWorldRay(const uint2& pixelPos, const uint2& viewportSize) const;
 
 	// World -> NDC (D3D/Vulkan). ndc.xy E [-1, +1], ndc.z E [0,1] (standard) or [1,0] (reverse-Z).
 	// The returned .w component is pre-division. If w <= 0 point is behind near plane

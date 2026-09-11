@@ -508,6 +508,9 @@ void alm::fw::FrameworkUI::Init(SDL_Window* window, weak<gfx::Scene> scene, weak
 
 void alm::fw::FrameworkUI::BuildUI()
 {
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_M))
+        m_ShowMaterials = !m_ShowMaterials;
+
     ImGui::DockSpaceOverViewport(
         0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
 
@@ -518,6 +521,8 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildSceneGraphWindow();
     BuildRenderStagesWindow();
     BuildMaterialsWindow();
+
+    BuildContextMenu();
 
     BuildLumninanceHistogram();
     BuildTextureWindows();
@@ -712,6 +717,7 @@ void alm::fw::FrameworkUI::BuildMainMenu()
 
             ImGui::EndMenu();
         }
+
         if (ImGui::BeginMenu("View"))
         {
             if (ImGui::MenuItem("Settings", NULL, m_ShowSettings))
@@ -720,7 +726,7 @@ void alm::fw::FrameworkUI::BuildMainMenu()
                 m_ShowSceneGraphWindow = !m_ShowSceneGraphWindow;
             if (ImGui::MenuItem("Render Stages", NULL, m_ShowRenderStages))
                 m_ShowRenderStages = !m_ShowRenderStages;
-            if (ImGui::MenuItem("Material Panel", NULL, m_ShowMaterials))
+            if (ImGui::MenuItem("Material Panel", "Ctrl+M", m_ShowMaterials))
                 m_ShowMaterials = !m_ShowMaterials;
 
             ImGui::EndMenu();
@@ -876,6 +882,10 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
                 ImGui::TableNextColumn();
                 ImGui::PushID((const void*)node);
 
+                // Force-expand ancestors so the selected row is actually rendered
+                if (m_ScrollToSelectedNode && std::find(m_ExpandAncestors.begin(), m_ExpandAncestors.end(), node) != m_ExpandAncestors.end())
+                    ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+
                 ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
                 tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
                 tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
@@ -895,6 +905,13 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
 
                 if (ImGui::IsItemFocused())
                     m_SelectedNode = node->weak_from_this();
+
+                if (m_ScrollToSelectedNode && node == m_SelectedNode.get())
+                {
+                    ImGui::SetScrollHereY(0.5f);   // centra la fila; 0.f = arriba
+                    m_ScrollToSelectedNode = false;
+                    m_ExpandAncestors.clear();
+                }
 
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                 {
@@ -917,6 +934,7 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
                 }
             }
             ImGui::EndTable();
+            m_ScrollToSelectedNode = false;
         }
     }
     ImGui::EndChild();
@@ -1063,6 +1081,86 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
 
     ImGui::EndChild();
     ImGui::End();
+}
+
+void alm::fw::FrameworkUI::BuildContextMenu()
+{
+    // OpenPopup()/BeginPopup*() require a current window, but BuildUI() runs outside of any
+    // Begin()/End(). Use the fullscreen window as an input-less ID scope host for the popup.
+    BeginFullScreenWindow();
+
+    auto tryOpenAt = [this](const float2& mousePos) -> bool
+    {
+        m_ContextMenuHitValid = false;
+
+        auto sceneGraph = m_Scene ? m_Scene->GetSceneGraph() : nullptr;
+        auto camera = m_RenderViewUI ? m_RenderViewUI->GetCamera() : nullptr;
+        if (!sceneGraph || !camera)
+            return false;
+
+        const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+        auto [origin, dir] = camera->ScreenToWorldRay(
+            uint2{ (uint32_t)mousePos.x, (uint32_t)mousePos.y },
+            uint2{ (uint32_t)displaySize.x, (uint32_t)displaySize.y });
+
+        gfx::RaycastHit hit{};
+        if (!sceneGraph->Raycast(origin, dir, hit))
+            return false;
+
+        m_ContextMenuHit = hit;
+        m_ContextMenuHitValid = true;
+
+        // Popup positions live in ImGui space (OS-absolute when ViewportsEnable is set)
+        const ImGuiViewport* vp = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + mousePos.x, vp->Pos.y + mousePos.y));
+        ImGui::OpenPopup("##ContextMenu");
+        return true;
+    };
+
+    // Right-click on the 3D viewport: the dockspace PassthruCentralNode registers a hit-test hole
+    // so the viewport counts as "void" (no hovered ImGui window). Ignore right-drag releases
+    // (camera controls). Only opens if the ray hits an object.
+    if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && !ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Right) &&
+        !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
+    {
+        float mouseX = 0.f, mouseY = 0.f;
+        SDL_GetMouseState(&mouseX, &mouseY); // window-relative, same space as ScreenToWorldRay
+        tryOpenAt({ (int)mouseX, (int)mouseY });
+    }
+
+    if (ImGui::BeginPopup("##ContextMenu"))
+    {
+        // Middle-click outside closes (left/right are handled by ImGui itself, middle is not)
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle) && !ImGui::IsWindowHovered())
+            ImGui::CloseCurrentPopup();
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::TextUnformatted(m_ContextMenuHit.Node->GetName().c_str());
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Node"))
+        {
+            m_SelectedNode = m_ContextMenuHit.Node->weak_from_this();
+            m_ShowSceneGraphWindow = true;
+
+            m_ExpandAncestors.clear();
+            for (auto parent = m_ContextMenuHit.Node->GetParent(); parent; parent = parent->GetParent())
+                m_ExpandAncestors.push_back(parent);
+            m_ScrollToSelectedNode = true;
+        }
+
+        if (ImGui::MenuItem("Material"))
+        {
+            m_SelectedMaterial = m_ContextMenuHit.Instance->GetMesh()->GetMaterial();
+            m_ShowMaterials = true;
+        }
+
+        ImGui::EndPopup();
+    }
+
+    EndFullScreenWindow();
 }
 
 void alm::fw::FrameworkUI::BuildRenderModesSettings()
@@ -1678,27 +1776,34 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
     // Left panel
     if (ImGui::BeginChild("##materials_panel_left", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
     {
-        ImGui::Text("Material count: %d", materialManager->GetMaterialCount());
+        m_MaterialFilter.Draw("Filter");
+
+        std::vector<gfx::MaterialRef> mats;
+        mats.reserve(materialManager->GetMaterialCount());
+        bool validSelectedMat = false;
+        for (int i = 0; i < materialManager->GetMaterialCount(); ++i)
+        {
+            gfx::MaterialRef matRef = materialManager->GetMaterial(i);
+            if (!m_MaterialFilter.PassFilter(matRef.GetMaterial()->GetName().c_str()))
+                continue;
+
+            mats.push_back(matRef);
+            validSelectedMat |= (m_SelectedMaterial == matRef.GetMaterial());
+        }
+        if (!validSelectedMat)
+            m_SelectedMaterial = nullptr;
+
+        ImGui::Text("Material count: %d / %d", mats.size(), materialManager->GetMaterialCount());
+
         ImGui::Separator();
 
-        // Left side
+        // Table
         if (ImGui::BeginTable("##list", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_Reorderable))
         {
             ImGui::TableSetupColumn("Name");
             ImGui::TableSetupColumn("Filename");
             ImGui::TableSetupColumn("Ref Count");
             ImGui::TableHeadersRow();
-
-            std::vector<gfx::MaterialRef> mats;
-            mats.reserve(materialManager->GetMaterialCount());
-            bool validSelectedMat = false;
-            for (int i = 0; i < materialManager->GetMaterialCount(); ++i)
-            {
-                mats.push_back(materialManager->GetMaterial(i));
-                validSelectedMat |= (m_SelectedMaterial == materialManager->GetMaterial(i).GetMaterial());
-            }
-            if (!validSelectedMat)
-                m_SelectedMaterial = nullptr;
 
             ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs();
             if (sortSpecs && sortSpecs->Specs->SortDirection != ImGuiSortDirection_None)
@@ -1707,26 +1812,26 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
                 {
                 case 0:
                     std::ranges::sort(mats, [&sortSpecs](const gfx::MaterialRef& l, const gfx::MaterialRef& r)
-                    {
-                        return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
-                            l.GetMaterial()->GetName() < r.GetMaterial()->GetName() :
-                            l.GetMaterial()->GetName() >= r.GetMaterial()->GetName();
-                    });
+                        {
+                            return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
+                                l.GetMaterial()->GetName() < r.GetMaterial()->GetName() :
+                                l.GetMaterial()->GetName() >= r.GetMaterial()->GetName();
+                        });
                     break;
                 case 1:
                     std::ranges::sort(mats, [&sortSpecs](const gfx::MaterialRef& l, const gfx::MaterialRef& r)
-                    {
-                        return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
-                            l.GetMaterial()->GetSourceFilename() < r.GetMaterial()->GetSourceFilename() :
-                            l.GetMaterial()->GetSourceFilename() >= r.GetMaterial()->GetSourceFilename();
-                    });
+                        {
+                            return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
+                                l.GetMaterial()->GetSourceFilename() < r.GetMaterial()->GetSourceFilename() :
+                                l.GetMaterial()->GetSourceFilename() >= r.GetMaterial()->GetSourceFilename();
+                        });
                     break;
                 case 2:
                     std::ranges::sort(mats, [&sortSpecs](const gfx::MaterialRef& l, const gfx::MaterialRef& r)
-                    {
-                        return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
-                            l.GetRefCount() < r.GetRefCount() : l.GetRefCount() >= r.GetRefCount();
-                    });
+                        {
+                            return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
+                                l.GetRefCount() < r.GetRefCount() : l.GetRefCount() >= r.GetRefCount();
+                        });
                     break;
                 }
             }
