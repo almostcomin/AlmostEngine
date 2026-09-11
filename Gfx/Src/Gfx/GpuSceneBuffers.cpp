@@ -218,8 +218,8 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMesh(const gfx::Mesh* mesh, Material
 		{
 			switch (materialType)
 			{
-			case MaterialType::Regular:
-				m_MeshMaterialIndices[meshRefIdx].Index = RegisterMaterial(mesh->GetMaterial().get());
+			case MaterialType::Standard:
+				m_MeshMaterialIndices[meshRefIdx].Index = RegisterMaterial(mesh->GetMaterial());
 				break;
 			case MaterialType::Heightmap:
 				m_MeshMaterialIndices[meshRefIdx].Index = RegisterTerrainMaterial(mesh->GetTerrainMaterial().get());
@@ -253,7 +253,7 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMeshInstance(GpuSceneBuffersHandle h
 	m_SceneStates[handle.idx].MeshInstancesState.RemovedIndices.fast_erase(idx);
 
 	// Add mesh
-	mi->SetMeshSceneIndex(RegisterMesh(mi->GetMesh().get(), MaterialType::Regular));
+	mi->SetMeshSceneIndex(RegisterMesh(mi->GetMesh().get(), MaterialType::Standard));
 
 	mi->SetLeafSceneIndex(idx);
 	return idx;
@@ -326,7 +326,7 @@ void alm::gfx::GpuSceneBuffers::UnregisterMesh(uint32_t idx)
 			{
 				switch (m_MeshMaterialIndices[idx].Type)
 				{
-				case MaterialType::Regular:
+				case MaterialType::Standard:
 					UnregisterMaterial(m_MeshMaterialIndices[idx].Index);
 					break;
 				case MaterialType::Heightmap:
@@ -437,12 +437,12 @@ void alm::gfx::GpuSceneBuffers::RebindMeshMaterial(const Mesh* mesh, MaterialTyp
 	
 	switch (materialType)
 	{
-	case MaterialType::Regular:
+	case MaterialType::Standard:
 	{
-		const auto& newMat = mesh->GetMaterial();
+		const auto* newMat = mesh->GetMaterial();
 		if (newMat)
 		{
-			m_MeshMaterialIndices[meshIdx].Index = RegisterMaterial(newMat.get());
+			m_MeshMaterialIndices[meshIdx].Index = RegisterMaterial(newMat);
 		}
 	} break;
 	case MaterialType::Heightmap:

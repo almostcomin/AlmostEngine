@@ -27,9 +27,9 @@ void alm::gfx::Mesh::SetVertexBuffer(std::shared_ptr<rhi::BufferOwner> vertexBuf
 	m_VertexFormat = fmt;
 }
 
-void alm::gfx::Mesh::SetMaterial(std::shared_ptr<Material> mat)
+void alm::gfx::Mesh::SetMaterial(MaterialRef mat)
 {
-	m_Material = mat;
+	m_MaterialRef = mat;
 }
 
 void alm::gfx::Mesh::SetTerrainMaterial(std::shared_ptr<TerrainMaterial> mat)

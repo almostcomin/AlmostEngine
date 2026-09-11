@@ -62,6 +62,7 @@ public:
 	MaterialDomain GetDomain() const { return m_Domain; }
 
 	const std::string& GetName() const { return m_Name; }
+	const std::string& GetSourceFilename() const { return m_SourceFileName; }
 
 	bool operator==(const Material& other) const;
 
@@ -83,7 +84,6 @@ private:
 	float m_AlphaCutoff;
 
 	rhi::CullMode m_CullMode;
-
 	MaterialDomain m_Domain;
 
 	std::string m_Name;

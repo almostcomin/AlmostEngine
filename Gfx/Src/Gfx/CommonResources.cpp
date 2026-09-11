@@ -1,14 +1,15 @@
 #include "Gfx/GfxPCH.h"
 #include "Gfx/CommonResources.h"
 #include "Gfx/ShaderFactory.h"
+#include "Gfx/MaterialManager.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
 #include "Gfx/Math/Util.h"
 #include "RHI/Device.h"
 
-alm::gfx::CommonResources::CommonResources(alm::gfx::ShaderFactory* shaderFactory, alm::rhi::Device* device) :
-	m_ShaderFactory(shaderFactory), m_Device(device)
+alm::gfx::CommonResources::CommonResources(alm::gfx::ShaderFactory* shaderFactory, MaterialManager* materialManager, alm::rhi::Device* device) :
+	m_ShaderFactory(shaderFactory), m_MaterialManager(materialManager),	m_Device(device)
 {
 	m_BlitVS = m_ShaderFactory->LoadShader("Blit_vs", rhi::ShaderType::Vertex);
 	m_BlitPS = m_ShaderFactory->LoadShader("Blit_ps", rhi::ShaderType::Pixel);
@@ -240,9 +241,11 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 	
 	mesh->SetIndexBuffer(indexBuffer, rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
 
-	Material* material = new Material(std::format("{} - Material", name), "[generated]");
+	MaterialRef materialRef = m_MaterialManager->CreateNewMaterial(std::format("{} - Material", name), "[generated]");
+	Material* material = materialRef.GetMaterial();
+
 	material->SetBaseColor(float3{ 0.5f, 1.f, 1.f });
-	mesh->SetMaterial(std::shared_ptr<Material>{ material });
+	mesh->SetMaterial(materialRef);
 
 	mesh->SetBounds(aabox3f{ float3{-radius}, float3{radius} });
 

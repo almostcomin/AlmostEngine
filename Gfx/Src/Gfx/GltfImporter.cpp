@@ -7,6 +7,7 @@
 #include "Gfx/Math/Util.h"
 #include "Gfx/DataUploader.h"
 #include "Gfx/TextureCache.h"
+#include "Gfx/MaterialManager.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/SceneGraphNode.h"
 #include "Gfx/MeshInstance.h"
@@ -26,7 +27,7 @@ ALM_RESTORE_WARNINGS
 namespace
 {
 
-struct FleContext
+struct FileContext
 {
     alm::Blob data;
 };
@@ -99,7 +100,7 @@ struct FilePathOrInlineData
 cgltf_result ReadFileCB(const struct cgltf_memory_options* memory_options,
     const struct cgltf_file_options* file_options, const char* path, cgltf_size* size, void** data)
 {
-    FleContext* context = (FleContext*)file_options->user_data;
+    FileContext* context = (FileContext*)file_options->user_data;
     if (!context)
     {
         LOG_WARNING("cgltf read: no context for file {} provided.", path);
@@ -557,11 +558,11 @@ std::shared_ptr<alm::gfx::LoadedTexture> LoadTexture(cgltf_texture* texture, con
     return loadedTexture;
 }
 
-std::unordered_map<const cgltf_material*, std::shared_ptr<alm::gfx::Material>> 
-GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options, std::vector<alm::SignalListener>& out_handlesToWait, 
-    alm::rhi::Device* device)
+std::unordered_map<const cgltf_material*, alm::gfx::MaterialRef> 
+GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_options& options, alm::gfx::MaterialManager* materialManager,
+    std::vector<alm::SignalListener>& out_handlesToWait, alm::rhi::Device* device)
 {
-    std::unordered_map<const cgltf_material*, std::shared_ptr<alm::gfx::Material>> matMap;
+    std::unordered_map<const cgltf_material*, alm::gfx::MaterialRef> matMap;
     auto loadTex = [objects, &loadCache, &options, &out_handlesToWait](cgltf_texture* texture, bool sRGB, bool normalMap) 
         -> std::shared_ptr<alm::gfx::LoadedTexture>
     {
@@ -575,8 +576,8 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
     {
         const cgltf_material& srcMat = objects->materials[mat_idx];
         std::string path = loadCache.path.generic_string();
-        std::shared_ptr<alm::gfx::Material> mat =
-            std::make_shared<alm::gfx::Material>(srcMat.name ? srcMat.name : "<noname>", path.c_str());
+        std::unique_ptr<alm::gfx::Material> mat =
+            std::make_unique<alm::gfx::Material>(srcMat.name ? srcMat.name : "<null>", path.c_str());
 
         if (srcMat.has_pbr_specular_glossiness)
         {
@@ -637,16 +638,20 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
             break;
         }
 
-        // Avoid duplicated materials
-        for (auto& it : matMap)
+        alm::gfx::MaterialRef matRef;
+        for (const auto& it : matMap)
         {
-            if (*(it.second) == *mat)
+            if (*it.second.GetMaterial() == *mat)
             {
-                mat = it.second;
+                matRef = it.second;
             }
         }
+        if (!matRef.IsValid())
+        {
+            matRef = materialManager->CreateNewMaterial(std::move(mat));
+        }
 
-        matMap[&srcMat] = mat;
+        matMap[&srcMat] = matRef;
     }
 
     return matMap;
@@ -971,8 +976,9 @@ CreateVertexBuffer(alm::Blob&& vertexData, int vertexStride, const char* debugNa
 }
 
 std::expected<std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<alm::gfx::Mesh>>>, std::string>
-LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, std::shared_ptr<alm::gfx::Material>>& matMap, 
-    const char* filename, alm::gfx::DataUploader* dataUploader, alm::rhi::Device* device, std::vector<alm::SignalListener>& out_handlesToWait)
+LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, alm::gfx::MaterialRef>& matMap,
+    const char* filename, alm::gfx::DataUploader* dataUploader, alm::gfx::MaterialManager* materialManager, alm::rhi::Device* device,
+    std::vector<alm::SignalListener>& out_handlesToWait)
 {
     std::unordered_map<const cgltf_mesh*, std::vector<std::shared_ptr<alm::gfx::Mesh>>> meshMap;
 
@@ -1150,13 +1156,7 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             else
             {
                 LOG_WARNING("Geometry {} for mesh {} doesn't have a material.", prim_idx, debugName.c_str());
-                
-                static std::shared_ptr<alm::gfx::Material> emptyMaterial;
-                if (!emptyMaterial)
-                {
-                    emptyMaterial = std::make_shared<alm::gfx::Material>("(empty)", filename);
-                }
-                mesh->SetMaterial(emptyMaterial);
+                mesh->SetMaterial(materialManager->GetEmptyMaterial());
             }
 
             // Index buffer
@@ -1310,7 +1310,7 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
     loadTexCache.path = path;
     loadTexCache.textureCache = device->GetTextureCache();
 
-    FleContext fileContext;
+    FileContext fileContext;
 
     cgltf_options options{};
     options.file.read = &ReadFileCB;
@@ -1335,10 +1335,10 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
     std::vector<alm::SignalListener> handlesToWait;
 
     // Materials
-    auto matMap = GetMaterialsMap(objects, loadTexCache, options, handlesToWait, device->GetDevice());
+    auto matMap = GetMaterialsMap(objects, loadTexCache, options, device->GetMaterialManager(), handlesToWait, device->GetDevice());
 
     // Meshes
-    auto loadMeshesResult = LoadMeshes(objects, matMap, path, device->GetDataUploader(), device->GetDevice(), handlesToWait);
+    auto loadMeshesResult = LoadMeshes(objects, matMap, path, device->GetDataUploader(), device->GetMaterialManager(), device->GetDevice(), handlesToWait);
     auto meshMap = *loadMeshesResult;
 
     // Cameras
@@ -1376,7 +1376,6 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
     // Build scene
     assert(objects->scenes_count == 1); // only 1 scene allowed
 
-    //auto sceneGraph = alm::make_unique_with_weak<alm::gfx::SceneGraph>();
     auto rootNode = alm::make_unique_with_weak<SceneGraphNode>();
     rootNode->SetName(filename.c_str());
 
@@ -1385,7 +1384,7 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
 
     if (!objects->scene)
     {
-        objects->scene = objects->scenes;
+        objects->scene = objects->scenes; // first scene
     }
     const cgltf_node* srcNode = *objects->scene->nodes;
     while (srcNode)
@@ -1557,8 +1556,6 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
         signal.Wait();
     }
 
-    //sceneGraph->SetRoot(std::move(rootNode));
-    //return sceneGraph;
     return rootNode;
 }
 

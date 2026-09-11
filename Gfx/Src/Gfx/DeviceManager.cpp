@@ -10,6 +10,7 @@
 #include "Gfx/UploadBuffer.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/RenderView.h"
+#include "Gfx/MaterialManager.h"
 #include "RHI/Device.h"
 #include "RHI/TimerQuery.h"
 #include <imgui/imgui.h>
@@ -40,7 +41,8 @@ bool alm::gfx::DeviceManager::Init(const DeviceParams& params)
 		m_ShaderFactory = std::make_unique<alm::gfx::ShaderFactory>(params.ShadersDebug, m_Device.get());
 		m_DataUploader = std::make_unique<alm::gfx::DataUploader>(m_ShaderFactory.get(), m_Device.get());
 		m_TextureCache = std::make_unique<alm::gfx::TextureCache>(m_DataUploader.get(), m_Device.get());
-		m_CommonResources = std::make_unique<alm::gfx::CommonResources>(m_ShaderFactory.get(), m_Device.get());
+		m_MaterialManager = std::make_unique<alm::gfx::MaterialManager>();
+		m_CommonResources = std::make_unique<alm::gfx::CommonResources>(m_ShaderFactory.get(), m_MaterialManager.get(), m_Device.get());
 		m_UploadBuffer = std::make_unique<alm::gfx::UploadBuffer>(m_FrameIndex, MiB(8), m_Device.get());		
 		m_GpuSceneBuffers = std::make_unique<alm::gfx::GpuSceneBuffers>(m_Device.get());
 
@@ -79,6 +81,7 @@ void alm::gfx::DeviceManager::Shutdown()
 	m_GpuSceneBuffers.reset();
 	m_UploadBuffer.reset();
 	m_CommonResources.reset();
+	m_MaterialManager.reset();
 	m_TextureCache.reset();
 	m_DataUploader.reset();
 	m_ShaderFactory.reset();

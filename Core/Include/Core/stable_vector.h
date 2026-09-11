@@ -2,6 +2,43 @@
 
 #include <array>
 
+/**
+ * @file stable_vector.h
+ * @brief A fixed-capacity container that provides stable indices for elements.
+ *
+ * The `stable_vector` class template is a container that stores elements in a
+ * pre-allocated memory block of fixed size (`_max_elements`). It guarantees
+ * that the index of an element remains valid and stable even after other
+ * elements are erased or inserted, as long as the element itself is not removed.
+ * This is achieved by never moving elements in memory; instead, a separate
+ * occupancy array tracks which slots are currently in use.
+ *
+ * Key features:
+ * - Fixed capacity determined at compile time.
+ * - Stable indices: the index of an element never changes after insertion.
+ * - Insertion and erasure are O(1) operations (amortized) and do not
+ *   invalidate other indices.
+ * - Provides two types of iterators:
+ *   - `iterator` / `const_iterator`: iterate only over occupied slots.
+ *   - `all_iterator` / `const_all_iterator`: iterate over all slots (including
+ *     holes) for low-level inspection.
+ * - Supports copy, move, and assignment semantics with strong exception
+ *   guarantees (if the element type is nothrow copy/move constructible).
+ * - Memory is properly aligned and uses placement new and explicit destruction
+ *   to manage object lifetimes.
+ *
+ * @tparam T The type of elements stored. Must be default-constructible,
+ *           copy-constructible (or move-constructible) and destructible.
+ * @tparam _max_elements The maximum number of elements the container can hold.
+ *
+ * @note The container does not manage memory dynamically; all storage is
+ *       internal. It is suitable for real-time or embedded environments where
+ *       predictable memory usage is required.
+ * @warning The `AllIterator` variant allows access to unoccupied slots; it is
+ *          the user's responsibility to check validity via `valid()` or
+ *          `valid_index()` before dereferencing.
+ */
+
 namespace alm
 {
 	template <typename T, size_t _max_elements>

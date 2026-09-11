@@ -14,7 +14,8 @@ void StructureUI::BuildUI()
 
     BeginFullScreenWindow();
     {
-        if (GetScene()->GetSceneGraph()->GetRoot()->GetChildrenCount() == 0)
+        auto root = GetScene()->GetSceneGraph()->GetRoot();
+        if(!root || root->GetChildrenCount() == 0)
         {
             DrawCenteredText("Click File->Open to open a scene file");
         }

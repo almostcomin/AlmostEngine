@@ -5,10 +5,11 @@
 #include "Core/Math/aabox.h"
 #include "RHI/Buffer.h"
 #include "RHI/Common.h"
+#include "Gfx/MaterialRef.h"
 
 namespace alm::gfx
 {
-	class Material;
+	class MaterialRef;
 	struct TerrainMaterial;
 };
 
@@ -38,7 +39,7 @@ public:
 	void SetIndexBuffer(std::shared_ptr<rhi::BufferOwner> indexBuffer, rhi::PrimitiveTopology topo, uint8_t indexSize);
 	void SetVertexBuffer(std::shared_ptr<rhi::BufferOwner> vertexBuffer, const VertexFormat& fmt);
 
-	void SetMaterial(std::shared_ptr<Material> mat);
+	void SetMaterial(MaterialRef mat);
 	void SetTerrainMaterial(std::shared_ptr<TerrainMaterial> mat);
 
 	void SetBounds(const alm::aabox3f& bounds) { m_Bounds = bounds; }
@@ -51,7 +52,9 @@ public:
 	rhi::BufferHandle GetVertexBuffer() const { return m_VertexBuffer ? m_VertexBuffer->get_weak() : rhi::BufferHandle{}; }
 	const VertexFormat& GetVertexFormat() const { return m_VertexFormat; }
 
-	std::shared_ptr<Material> GetMaterial() const { return m_Material; }
+	MaterialRef GetMaterialRef() const { return m_MaterialRef; }
+	Material* GetMaterial() const { return m_MaterialRef.GetMaterial(); }
+
 	std::shared_ptr<TerrainMaterial> GetTerrainMaterial() const { return m_TerrainMaterial; }
 
 	const std::string& GetName() const { return m_Name; }
@@ -70,7 +73,7 @@ private:
 	std::shared_ptr<rhi::BufferOwner> m_VertexBuffer;
 	VertexFormat m_VertexFormat;
 
-	std::shared_ptr<Material> m_Material;
+	MaterialRef m_MaterialRef;
 	std::shared_ptr<TerrainMaterial> m_TerrainMaterial;
 
 	rhi::Device* m_Device;

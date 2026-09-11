@@ -14,6 +14,7 @@ namespace alm::gfx
 	class Mesh;
 	class ShaderFactory;
 	class DataUploader;
+	class MaterialManager;
 };
 
 namespace alm::gfx
@@ -23,7 +24,7 @@ class CommonResources
 {
 public:
 
-	CommonResources(ShaderFactory* shaderFactory, rhi::Device* device);
+	CommonResources(ShaderFactory* shaderFactory, MaterialManager* materialManager, rhi::Device* device);
 	~CommonResources();
 
 	rhi::GraphicsPipelineStateOwner CreateBlitGraphicsPSO(const rhi::FramebufferInfo& fbInfo);
@@ -51,6 +52,7 @@ public:
 private:
 
 	ShaderFactory* m_ShaderFactory;
+	MaterialManager* m_MaterialManager;
 	rhi::Device* m_Device;
 
 	rhi::ShaderOwner m_BlitVS;

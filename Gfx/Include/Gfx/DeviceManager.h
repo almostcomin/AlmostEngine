@@ -20,6 +20,7 @@ namespace alm::gfx
     class UploadBuffer;
     class GpuSceneBuffers;
     class RenderView;
+    class MaterialManager;
 }
 
 namespace alm::rhi
@@ -144,6 +145,7 @@ public:
     alm::gfx::ShaderFactory*        GetShaderFactory()          { return m_ShaderFactory.get(); }
     alm::gfx::DataUploader*         GetDataUploader()           { return m_DataUploader.get(); }
     alm::gfx::TextureCache*         GetTextureCache()           { return m_TextureCache.get(); }
+    alm::gfx::MaterialManager*      GetMaterialManager()        { return m_MaterialManager.get(); }
     alm::gfx::CommonResources*      GetCommonResources()        { return m_CommonResources.get(); }
     alm::gfx::UploadBuffer*         GetUploadBuffer()           { return m_UploadBuffer.get(); }
     alm::gfx::GpuSceneBuffers*      GetGpuSceneBuffers()        { return m_GpuSceneBuffers.get(); }
@@ -187,6 +189,7 @@ private:
     std::unique_ptr<alm::gfx::ShaderFactory> m_ShaderFactory;
     std::unique_ptr<alm::gfx::DataUploader> m_DataUploader;
     std::unique_ptr<alm::gfx::TextureCache> m_TextureCache;
+    std::unique_ptr<alm::gfx::MaterialManager> m_MaterialManager;
     std::unique_ptr<alm::gfx::CommonResources> m_CommonResources;
     std::unique_ptr<alm::gfx::UploadBuffer> m_UploadBuffer;
     std::unique_ptr<alm::gfx::GpuSceneBuffers> m_GpuSceneBuffers;

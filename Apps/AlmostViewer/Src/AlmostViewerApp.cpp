@@ -48,6 +48,15 @@ public:
 		m_CameraController.SetWindow(m_Window);
 		m_CameraController.SetCamera(m_MainCamera);
 
+		// Load file
+		{
+			std::string path = GetStartupArgString("load").value_or({});
+			if (!path.empty())
+			{
+				m_RequestLoadFile = path;
+			}
+		}
+
 		return true;
 	}
 
@@ -74,7 +83,7 @@ public:
 				if (bounds.valid())
 				{
 					const float radius = glm::length(bounds.diagonal()) / 2.f;
-					m_MainCamera->SetZNear(radius * 0.05f);
+					m_MainCamera->SetZNear(std::min(radius * 0.05f, 0.1f));
 
 					m_MainCamera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
 					m_MainCamera->Frame(bounds);
@@ -105,6 +114,11 @@ public:
 		// Camera movement
 		m_CameraController.Update(deltaTime);
 
+		// Update UI
+		m_UIRS->AddBottomBarText(std::format("Cam speed: {:1.1f}", m_CameraController.GetSpeed()));
+		m_UIRS->AddBottomBarText(std::format("Cam pos: {{{:1.1f}, {:1.1f}, {:1.1f}}}",
+			m_MainCamera->GetPosition().x, m_MainCamera->GetPosition().y, m_MainCamera->GetPosition().z));
+
 		if (m_RequestQuit)
 			return false;
 
@@ -124,7 +138,55 @@ public:
 
 	void OnSDLEvent(const SDL_Event& event) override
 	{
-		m_CameraController.OnSDLEvent(event);
+		switch (event.type)
+		{
+		case SDL_EVENT_KEY_DOWN:
+		{
+			switch (event.key.key)
+			{
+			case SDLK_W:
+				if (event.key.mod & SDL_KMOD_CTRL)
+				{
+					if(!m_Wireframe)
+						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("wireframe");
+					else
+						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("default");
+					m_Wireframe = !m_Wireframe;
+				}
+				break;
+
+			case SDLK_KP_PLUS:
+			{
+				float speed = m_CameraController.GetSpeed();
+				float magnitude = powf(10.f, floorf(log10f(speed)));
+				speed += magnitude * 0.1f;
+
+				m_CameraController.SetSpeed(speed);
+			} break;
+
+			case SDLK_KP_MINUS:
+			{
+				float speed = m_CameraController.GetSpeed();
+				float magnitude = powf(10.f, floorf(log10f(speed)));
+				speed -= magnitude * 0.1f;
+				speed = std::max(speed, 0.01f);
+
+				m_CameraController.SetSpeed(speed);
+			} break;
+			}
+		} break;
+		}
+
+		const bool* keyboardState = SDL_GetKeyboardState(NULL);
+		const bool ctrlPressed = keyboardState[SDL_SCANCODE_LCTRL] || keyboardState[SDL_SCANCODE_RCTRL];
+		if (!ctrlPressed)
+		{
+			m_CameraController.OnSDLEvent(event);
+		}
+		else
+		{
+			m_CameraController.Stop();
+		}
 	}
 
 	alm::gfx::RenderStageTypeID GetUIRenderStageType() const override { return StructureUI::StaticType(); }
@@ -142,6 +204,8 @@ private:
 	std::shared_ptr<alm::gfx::DeferredLightingRenderStage> m_LightingRS;
 
 	alm::fw::CameraController m_CameraController;
+
+	bool m_Wireframe = false;
 
 	std::string m_RequestLoadFile;
 	bool m_bMergeFile = false;

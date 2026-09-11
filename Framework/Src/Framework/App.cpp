@@ -200,7 +200,7 @@ void alm::fw::App::ShowArrow(const gfx::Transform& transform)
 			if (node->GetLeaf() && node->GetLeaf()->GetType() == gfx::SceneGraphLeaf::Type::MeshInstance)
 			{
 				auto meshInstance = alm::checked_pointer_cast<gfx::MeshInstance>(node->GetLeaf());
-				auto mat = meshInstance->GetMesh()->GetMaterial();
+				auto* mat = meshInstance->GetMesh()->GetMaterial();
 				mat->SetDomain(gfx::MaterialDomain::AlphaBlended);
 			}
 		}

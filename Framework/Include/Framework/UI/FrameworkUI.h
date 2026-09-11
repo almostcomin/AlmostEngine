@@ -15,6 +15,8 @@ struct MemoryEditor;
 namespace alm::gfx
 {
 	class SceneGraphNode;
+	class Material;
+	class LoadedTexture;
 }
 
 namespace alm::fw
@@ -126,6 +128,9 @@ protected:
 
 	static void TextRightAlignedPosX(float xpos, const char* fmt, ...);
 
+	bool BuildTextureShowOpenClear(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
+		bool sRGB, bool isNormalTex);
+
 	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
 	std::string SaveFileNativeDialog(const std::string& filename);
 
@@ -178,6 +183,7 @@ private:
 	void BuildSettingsWindow();
 	void BuildSceneGraphWindow();
 	void BuildRenderStagesWindow();
+	void BuildMaterialsWindow();
 
 	void BuildRenderModesSettings();
 	void BuildCameraSettings(float availWidth);
@@ -214,6 +220,7 @@ protected:
 	bool m_ShowSettings = false;
 	bool m_ShowSceneGraphWindow = false;
 	bool m_ShowRenderStages = false;
+	bool m_ShowMaterials = false;
 
 private:
 
@@ -243,6 +250,8 @@ private:
 	alm::gfx::CloudsRenderStage::DebugChannel m_CloudsDebugChannel = alm::gfx::CloudsRenderStage::DebugChannel::Disabled;
 
 	std::vector<std::pair<std::string, const std::function<void()>>> m_MainMenuAdditionalItems;
+
+	gfx::Material* m_SelectedMaterial = nullptr;
 };
 
 } // namespace alm::fw

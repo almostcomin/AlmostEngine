@@ -9,7 +9,7 @@
 #include "RHI/Device.h"
 
 alm::gfx::BloomRenderStage::BloomRenderStage() : 
-	m_BloomEnabled{ false },
+	m_BloomEnabled{ true },
 	m_FilterRadius{ 0.005f },
 	m_Strength{ 0.04f },
 	m_MipChainLength { 7 }

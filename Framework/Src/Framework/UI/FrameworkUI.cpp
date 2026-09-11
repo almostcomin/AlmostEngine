@@ -1,6 +1,7 @@
 #include "Framework/FrameworkPCH.h"
 #include "Framework/UI/FrameworkUI.h"
 #include "Framework/CameraController.h"
+#include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/MeshInstance.h"
@@ -11,7 +12,9 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/DeviceManager.h"
+#include "Gfx/MaterialManager.h"
 #include "Gfx/Camera.h"
+#include "Gfx/TextureCache.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
@@ -514,6 +517,7 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildSettingsWindow();
     BuildSceneGraphWindow();
     BuildRenderStagesWindow();
+    BuildMaterialsWindow();
 
     BuildLumninanceHistogram();
     BuildTextureWindows();
@@ -522,9 +526,19 @@ void alm::fw::FrameworkUI::BuildUI()
 
 void alm::fw::FrameworkUI::AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture)
 {
-    m_TextureWindows.push_back(UITextureWindow{
-        .title = title,
-        .texture = texture });
+    auto it = std::ranges::find_if(m_TextureWindows, [&title](const UITextureWindow& elem)
+        { return elem.title == title; });
+
+    if (it == m_TextureWindows.end())
+    {
+        m_TextureWindows.push_back(UITextureWindow{
+            .title = title,
+            .texture = texture });
+    }
+    else
+    {
+        ImGui::SetWindowFocus(title.c_str());
+    }
 }
 
 void alm::fw::FrameworkUI::AddRenderStageTextureWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode,
@@ -706,6 +720,8 @@ void alm::fw::FrameworkUI::BuildMainMenu()
                 m_ShowSceneGraphWindow = !m_ShowSceneGraphWindow;
             if (ImGui::MenuItem("Render Stages", NULL, m_ShowRenderStages))
                 m_ShowRenderStages = !m_ShowRenderStages;
+            if (ImGui::MenuItem("Material Panel", NULL, m_ShowMaterials))
+                m_ShowMaterials = !m_ShowMaterials;
 
             ImGui::EndMenu();
         }
@@ -847,10 +863,10 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
     if (!m_SelectedNode || m_SelectedNode.expired())
         m_SelectedNode = m_Scene->GetSceneGraph()->GetRoot();
 
-    if (ImGui::BeginChild("##tree", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
+    if (ImGui::BeginChild("##scene_graph_panel_left", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
     {
         // Left side
-        if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
+        if (ImGui::BeginTable("##tree", 1, ImGuiTableFlags_RowBg))
         {
             alm::gfx::SceneGraph::Walker walker(*m_Scene->GetSceneGraph());
             while (walker)
@@ -907,7 +923,7 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
 
     // Right side
     ImGui::SameLine();
-    if (ImGui::BeginChild("##details", ImVec2(0, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_AlwaysVerticalScrollbar))
+    if (ImGui::BeginChild("##scene_graph_panel_right", ImVec2(0, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_AlwaysVerticalScrollbar))
     {
         if (const auto& node = m_SelectedNode)
         {
@@ -1644,6 +1660,222 @@ void alm::fw::FrameworkUI::BuildRenderStagesWindow()
     ImGui::End();
 }
 
+void alm::fw::FrameworkUI::BuildMaterialsWindow()
+{
+    auto* deviceManager = GetDeviceManager();
+    auto* materialManager = deviceManager->GetMaterialManager();
+
+    if (!m_ShowMaterials)
+        return;
+
+    ImGui::SetNextWindowSize(ImVec2(1200, 800), ImGuiCond_Once);
+    if (!ImGui::Begin("Materials Panel", &m_ShowMaterials, ImGuiWindowFlags_None))
+    {
+        ImGui::End();
+        return;
+    }
+
+    // Left panel
+    if (ImGui::BeginChild("##materials_panel_left", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
+    {
+        ImGui::Text("Material count: %d", materialManager->GetMaterialCount());
+        ImGui::Separator();
+
+        // Left side
+        if (ImGui::BeginTable("##list", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_Reorderable))
+        {
+            ImGui::TableSetupColumn("Name");
+            ImGui::TableSetupColumn("Filename");
+            ImGui::TableSetupColumn("Ref Count");
+            ImGui::TableHeadersRow();
+
+            std::vector<gfx::MaterialRef> mats;
+            mats.reserve(materialManager->GetMaterialCount());
+            bool validSelectedMat = false;
+            for (int i = 0; i < materialManager->GetMaterialCount(); ++i)
+            {
+                mats.push_back(materialManager->GetMaterial(i));
+                validSelectedMat |= (m_SelectedMaterial == materialManager->GetMaterial(i).GetMaterial());
+            }
+            if (!validSelectedMat)
+                m_SelectedMaterial = nullptr;
+
+            ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs();
+            if (sortSpecs && sortSpecs->Specs->SortDirection != ImGuiSortDirection_None)
+            {
+                switch (sortSpecs->Specs->ColumnIndex)
+                {
+                case 0:
+                    std::ranges::sort(mats, [&sortSpecs](const gfx::MaterialRef& l, const gfx::MaterialRef& r)
+                    {
+                        return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
+                            l.GetMaterial()->GetName() < r.GetMaterial()->GetName() :
+                            l.GetMaterial()->GetName() >= r.GetMaterial()->GetName();
+                    });
+                    break;
+                case 1:
+                    std::ranges::sort(mats, [&sortSpecs](const gfx::MaterialRef& l, const gfx::MaterialRef& r)
+                    {
+                        return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
+                            l.GetMaterial()->GetSourceFilename() < r.GetMaterial()->GetSourceFilename() :
+                            l.GetMaterial()->GetSourceFilename() >= r.GetMaterial()->GetSourceFilename();
+                    });
+                    break;
+                case 2:
+                    std::ranges::sort(mats, [&sortSpecs](const gfx::MaterialRef& l, const gfx::MaterialRef& r)
+                    {
+                        return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
+                            l.GetRefCount() < r.GetRefCount() : l.GetRefCount() >= r.GetRefCount();
+                    });
+                    break;
+                }
+            }
+
+            for(const auto& matRef : mats)
+            {
+                auto* mat = matRef.GetMaterial();                
+                if (!mat)
+                    continue;
+
+                ImGui::PushID(mat);
+                ImGui::TableNextRow();
+
+                ImGui::TableSetColumnIndex(0);
+                bool isSelected = (m_SelectedMaterial == mat);
+                if (ImGui::Selectable(mat->GetName().c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
+                {
+                    m_SelectedMaterial = mat;
+                }
+
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(mat->GetSourceFilename().c_str());
+
+                ImGui::TableNextColumn();
+                ImGui::Text("%d", matRef.GetRefCount() - 1);
+
+                ImGui::PopID();                
+            }
+
+            ImGui::EndTable();
+        }
+        ImGui::EndChild();
+    }
+
+    // Right panel
+    ImGui::SameLine();
+    if (ImGui::BeginChild("##materials_panel_right", ImVec2(0, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_AlwaysVerticalScrollbar))
+    {
+        if (auto* mat = m_SelectedMaterial)
+        {
+            ImGui::Text("%s", mat->GetName().c_str());
+            ImGui::Separator();
+
+            bool matDirty = false;
+
+            int domain = (int)mat->GetDomain();
+            if (ImGui::Combo("Domain##mat", &domain,
+                "Opaque\0Alpha Tested\0Alpha Blended\0\0"))
+            {
+                mat->SetDomain((gfx::MaterialDomain)domain);
+                matDirty = true;
+            }
+            
+            int cullMode = (int)mat->GetCullMode();
+            if (ImGui::Combo("Cull Mode##mat", &cullMode,
+                "Back\0Front\0None\0\0"))
+            {
+                mat->SetCullMode((rhi::CullMode)cullMode);
+                matDirty = true;
+            }
+
+            float3 baseColor = mat->GetBaseColor();
+            if (ImGui::ColorEdit3("Base Color##mat", &baseColor.x, ImGuiColorEditFlags_Float))
+            {
+                mat->SetBaseColor(baseColor);
+                matDirty = true;
+            }
+
+            float3 emissiveColor = mat->GetEmissiveColor();
+            if (ImGui::ColorEdit3("Emissive Color##mat", &emissiveColor.x, ImGuiColorEditFlags_Float))
+            {
+                mat->SetEmissiveColor(emissiveColor);
+                matDirty = true;
+            }
+
+            float opacity = mat->GetOpacity();
+            if (ImGui::SliderFloat("Opacity##mat", &opacity, 0.f, 1.f))
+            {
+                mat->SetOpacity(opacity);
+                matDirty = true;
+            }
+
+            float metallic = mat->GetMetallicFactor();
+            if (ImGui::SliderFloat("Metallic##mat", &metallic, 0.f, 1.f))
+            {
+                mat->SetMetallicFactor(metallic);
+                matDirty = true;
+            }
+
+            float roughness = mat->GetRoughnessFactor();
+            if (ImGui::SliderFloat("Roughness##mat", &roughness, 0.f, 1.f))
+            {
+                mat->SetRoughnessFactor(roughness);
+                matDirty = true;
+            }
+
+            float alphaCutoff = mat->GetAlphaCutoff();
+            if (ImGui::SliderFloat("Alpha Cutoff##mat", &alphaCutoff, 0.f, 1.f))
+            {
+                mat->SetAlphaCutoff(alphaCutoff);
+                matDirty = true;
+            }
+
+            auto baseColorTexture = mat->GetBaseColorTexture();
+            if (BuildTextureShowOpenClear("Base Color Texture", baseColorTexture, true, false))
+            {
+                mat->SetBaseColorTexture(baseColorTexture);
+                matDirty = true;
+            }
+
+            auto metalRoughTexture = mat->GetMetalRoughTexture();
+            if (BuildTextureShowOpenClear("Metal-Rough Texture", metalRoughTexture, false, false))
+            {
+                mat->SetMetalRoughTexture(metalRoughTexture);
+                matDirty = true;
+            }
+
+            auto normalTexture = mat->GetNormalTexture();
+            if (BuildTextureShowOpenClear("Normal Texture", normalTexture, false, true))
+            {
+                mat->SetNormalTexture(normalTexture);
+                matDirty = true;
+            }
+
+            auto emissiveTexture = mat->GetEmissiveTexture();
+            if (BuildTextureShowOpenClear("Emissive Texture", emissiveTexture, false, false))
+            {
+                mat->SetEmissiveTexture(emissiveTexture);
+                matDirty = true;
+            }
+
+            auto occlusionTexture = mat->GetOcclusionTexture();
+            if (BuildTextureShowOpenClear("Occlusion Texture", occlusionTexture, false, false))
+            {
+                mat->SetOcclusionTexture(occlusionTexture);
+                matDirty = true;
+            }
+
+            if (matDirty)
+            {
+                deviceManager->GetGpuSceneBuffers()->SetDirtyMaterial(mat);
+            }
+        }
+        ImGui::EndChild();
+    }
+
+    ImGui::End();
+}
+
 void alm::fw::FrameworkUI::BuildTonemappingSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Tonemapping"))
@@ -2245,6 +2477,83 @@ bool alm::fw::FrameworkUI::BuildRSBufferView(RenderStageBufferView* rsBufferView
     buffer->Unmap();
 
     return rsBufferView->memEditor->Open;
+}
+
+bool alm::fw::FrameworkUI::BuildTextureShowOpenClear(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
+    bool sRGB, bool isNormalTex)
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
+    bool matDirty = false;
+
+    std::string title = "<empty>";
+    if (loadedTex)
+    {
+        size_t pos = loadedTex->id.find_last_of('/');
+        if (pos != std::string::npos)
+        {
+            title = loadedTex->id.substr(pos + 1);
+        }
+        else
+        {
+            title = loadedTex->id;
+        }
+    }
+
+    ImGui::PushID(id);
+
+    ImGui::SeparatorText(id);
+
+    float buttonsWidth = ImGui::CalcItemWidth();
+    float buttonWidth = (buttonsWidth / 3) - (style.ItemInnerSpacing.x * 1);
+
+    ImGui::BeginDisabled(!loadedTex);
+    if (ImGui::Button("Show", ImVec2(buttonWidth, 0.f)))
+    {
+        AddTextureWindow(title, loadedTex->texture.get_weak());
+    }
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Open", ImVec2(buttonWidth, 0.f)))
+    {
+        std::string path = OpenFileNativeDialog(loadedTex ? loadedTex->id : std::string{}, {
+            { "Image files", "*.png;*.tga;*.jpg;*.jpeg;*.dds" },
+            { "TGA", "*.tga" },
+            { "PNG", "*.png" },
+            { "JPEG", "*.jpg;*.jpeg" },
+            { "DDS", "*.dds" } });
+        if (!path.empty())
+        {
+            alm::gfx::TextureCache::Flags flags = alm::gfx::TextureCache::Flags::GenerateMips;
+            if (isNormalTex)
+                flags |= alm::gfx::TextureCache::Flags::IsNormalMap;
+
+            auto loadResult = GetDeviceManager()->GetTextureCache()->Load(path, flags);
+            if (loadResult)
+            {
+                loadResult->second.Wait();
+                loadedTex = loadResult->first;
+                matDirty = true;
+            }
+        }
+    }
+
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!loadedTex);
+    if (ImGui::Button("Clear", ImVec2(buttonWidth, 0.f)))
+    {
+        loadedTex.reset();
+        matDirty = true;
+    }
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+
+    ImGui::TextUnformatted(title.c_str());
+
+    ImGui::PopID();
+    return matDirty;
 }
 
 std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters)

@@ -118,16 +118,12 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
     MaterialSample result = DefaultMaterialSample();
     
     // Base Color
-    float3 baseColor;
+    float3 baseColor = mat.baseColor.rgb;
+    result.opacity = mat.baseColor.a;
     if ((textures.MaterialTextureSample_Flags & MaterialTextureSample_ValidBaseColor) != 0)
     {
-        baseColor = textures.baseColor.rgb;
-        result.opacity = textures.baseColor.a;
-    }
-    else
-    {
-        baseColor = mat.baseColor.rgb;
-        result.opacity = mat.baseColor.a;
+        baseColor *= textures.baseColor.rgb;
+        result.opacity *= textures.baseColor.a;
     }
     
     // Emissive
