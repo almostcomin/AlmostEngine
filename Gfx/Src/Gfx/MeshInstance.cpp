@@ -3,10 +3,12 @@
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
 #include "Gfx/GpuSceneBuffers.h"
+#include "Gfx/SceneGraphNode.h"
 
 alm::gfx::MeshInstance::MeshInstance(std::shared_ptr<alm::gfx::Mesh> mesh) :
 	m_Mesh{ mesh },
-	m_MeshSceneIndex{ UINT32_MAX }
+	m_MeshSceneIndex{ UINT32_MAX },
+	m_BatchId{ UINT32_MAX }
 {
 	m_RenderFlags = SceneRenderFlags::Default;
 }
@@ -22,6 +24,12 @@ bool alm::gfx::MeshInstance::HasBounds() const
 const alm::aabox3f& alm::gfx::MeshInstance::GetBounds() const
 {
 	return m_Mesh ? m_Mesh->GetBounds() : alm::aabox3f::get_empty();
+}
+
+const alm::aabox3f& alm::gfx::MeshInstance::GetWorldBounds() const
+{
+	auto node = GetNode();
+	return node ? node->GetWorldBounds(SceneContentType::Meshes) : aabox3f::get_empty();
 }
 
 alm::gfx::SceneContentFlags alm::gfx::MeshInstance::GetContentFlags() const

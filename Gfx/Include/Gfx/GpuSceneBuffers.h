@@ -2,8 +2,10 @@
 
 #include "Gfx/ResourceRefCount.h"
 #include "Gfx/GpuSceneBuffersHandle.h"
+#include "Gfx/MaterialDomain.h"
 #include "RHI/ResourceState.h"
 #include "RHI/ShaderViews.h"
+#include "RHI/RasterizerState.h"
 #include "Interop/RenderResources.h"
 
 namespace alm::rhi
@@ -27,11 +29,11 @@ class GpuSceneBuffers
 {
 public:
 
-	static constexpr size_t kStaticInstanceCount	= 8192;
-	static constexpr size_t kTransientInstanceCount	= 65536;
-	static constexpr size_t kMaterialCount			= 1024;
-	static constexpr size_t kTerrainMaterialCount	= 8;
-	static constexpr size_t kMeshRefCount			= 4096;
+	static constexpr uint32_t kStaticInstanceCount		= 8192;
+	static constexpr uint32_t kTransientInstanceCount	= 65536;
+	static constexpr uint32_t kMaterialCount			= 1024;
+	static constexpr uint32_t kTerrainMaterialCount		= 8;
+	static constexpr uint32_t kMeshRefCount				= 4096;
 
 	enum class MaterialType
 	{
@@ -66,6 +68,8 @@ public:
 	};
 
 public:
+
+	static constexpr uint32_t MaxInstances() { return kStaticInstanceCount + kTransientInstanceCount; }
 
 	GpuSceneBuffers(rhi::Device* device);
 	~GpuSceneBuffers();
@@ -115,7 +119,12 @@ public:
 	rhi::BufferReadOnlyView GetMaterialsBufferView() const;
 	rhi::BufferReadOnlyView GetTerrainMaterialsBufferView() const;
 	rhi::BufferReadOnlyView GetInstancesBufferView(GpuSceneBuffersHandle handle) const;
+	rhi::BufferReadOnlyView GetInstancesCullDataBufferView(GpuSceneBuffersHandle handle) const;
 	rhi::BufferReadOnlyView GetHeightmapPatchDataBufferView(GpuSceneBuffersHandle handle) const;
+	rhi::BufferReadOnlyView GetBatchTableBufferView(GpuSceneBuffersHandle handle) const;
+
+	size_t GetInstancesCount(GpuSceneBuffersHandle handle) const;
+	size_t GetBatchTableSize(GpuSceneBuffersHandle handle) const;
 
 	void UpdateGpuBuffers(rhi::ICommandList* commandList);
 	void FlushTransients(GpuSceneBuffersHandle handle, rhi::ICommandList* commandList);
@@ -131,20 +140,36 @@ private:
 
 	struct SceneState
 	{
+		struct BucketInfo
+		{ 
+			uint32_t FirstBatch;
+			uint32_t BatchCount; 
+		};
+
 		MeshInstanceLeafsContainer MeshInstances;						// Only static (not transient instances)
 		RefreshState MeshInstancesState;								// Deferred updates if the static instance buffer
 
 		rhi::BufferOwner MeshInstancesBuffer;							// interop::InstanceData (static + transient)
-		rhi::BufferOwner HeightmapPatchDataBuffer;						// interop::HeightmapPatchData (transient only)
-
-		// TODO: Consider having a single pre-allocated triple-buffered staging buffer
 		rhi::BufferOwner TransientInstacesStagingBuffer;				// Staging buffer for transient instances
 		interop::InstanceData* TransientInstancesDataPtr = nullptr;		// Cached pointer to TransientInstacesStagingBuffer mapped ptr
+
+		rhi::BufferOwner HeightmapPatchDataBuffer;						// interop::HeightmapPatchData (transient only)
 		rhi::BufferOwner HeightmapPatchDataStagingBuffer;				// Staging buffer for heightmap patch data
 		interop::HeightmapPatchData* HeightmapPatchDataPtr = nullptr;	// Cached pointer to HeightmapPatchDataStagingBuffer mapped ptr
 
+		rhi::BufferOwner MeshInstanceCullDataBuffer;					// interop::InstanceCullData (static + transient). 1:1 with MeshInstancesBuffer
+		rhi::BufferOwner TransientInstanceCullDataBuffer;				// Staging buffer for transient instanice - cull data
+		interop::InstanceCullData* TransientInstanceCullDataPtr;		// Cached pointer to TransientInstanceCullDataBuffer mapped ptr
+
 		uint32_t TransientsAllocated = 0;								// Next index free in the transient instances region
 		uint32_t HeighmapPatchesAllocated = 0;							// Next index free in the HeightmapPatch buffer
+
+		std::vector<interop::BatchTableEntry> BatchTable;
+		BucketInfo Buckets[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
+		rhi::BufferOwner BatchTableBuffer;
+		bool BatchLayoutDirty = true;
+
+		bool DataInitialized = false;
 
 		std::string DebugName;
 	};
@@ -163,12 +188,17 @@ private:
 		const Indices& indices,
 		size_t& srcIdx, SerializeFn serializeFn);
 
-	template<typename ElemT, typename SerializeFn>
-	void UpdateGpuBufferGeneric(rhi::ICommandList* commandList, rhi::BufferOwner& buffer, RefreshState& state, const std::string& debugName,
-		SerializeFn&& serializeFn);
+	template<typename ElemT, typename SerializeFn, typename InvalidateFn = std::nullptr_t>
+	void UpdateGpuBufferGeneric(rhi::ICommandList* commandList, rhi::BufferOwner& buffer, const RefreshState& state, const std::string& debugName,
+		SerializeFn&& serializeFn, InvalidateFn&& invalidateFn = nullptr);
 
 	// returns <base_index, pointer_data>
 	std::pair<uint32_t, interop::InstanceData*> AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count);
+
+	void RebuildBatchTable(SceneState& ss);
+	void UploadBatchTable(SceneState& ss, rhi::ICommandList* commandList);
+
+	void InitializeMeshInstanceCullData(SceneState& ss, rhi::ICommandList* commandList);
 
 private:
 

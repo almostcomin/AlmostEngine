@@ -7,6 +7,7 @@
 #include "RHI/dx12/ResourceState.h"
 #include "RHI/dx12/PipelineState.h"
 #include "RHI/dx12/Framebuffer.h"
+#include "RHI/dx12/CommandSignature.h"
 #include "RHI/dx12/TimerQuery.h"
 #include "RHI/dx12/GpuDevice.h"
 #include "RHI/dx12/Utils.h"
@@ -50,6 +51,7 @@ void alm::rhi::dx12::CommandList::Open()
 
 	m_DrawCalls = 0;
 	m_DispatchCalls = 0;
+	m_ExecuteIndirectCalls = 0;
 	m_PrimitiveCount = 0;
 
 	m_BeginTimerQueries.clear();
@@ -474,6 +476,17 @@ void alm::rhi::dx12::CommandList::Dispatch(uint32_t threadGroupCountX, uint32_t 
 	m_D3d12Commandlist->Dispatch(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 
 	++m_DispatchCalls;
+}
+
+void alm::rhi::dx12::CommandList::ExecuteIndirect(ICommandSignature* commandSig, IBuffer* argBuffer, uint64_t argOffset,
+	IBuffer* countBuffer, uint64_t countOffset, uint32_t maxCommands)
+{
+	m_D3d12Commandlist->ExecuteIndirect(
+		commandSig->GetNativeResource(), maxCommands,
+		argBuffer->GetNativeResource(), argOffset,
+		countBuffer ? countBuffer->GetNativeResource() : nullptr, countOffset);
+
+	++m_ExecuteIndirectCalls;
 }
 
 void alm::rhi::dx12::CommandList::Discard(IBuffer* buffer)

@@ -24,6 +24,7 @@ enum class BufferViewType
 	Uniform = 0,
 	ReadOnly = 1,
 	ReadWrite = 2,
+	IndirectArguments = 3,
 
 	_Size
 };
@@ -43,7 +44,8 @@ enum class BufferShaderUsage
 	None = 0x0,
 	Uniform = 0x1 << (int)BufferViewType::Uniform,
 	ReadOnly = 0x1 << (int)BufferViewType::ReadOnly,
-	ReadWrite = 0x1 << (int)BufferViewType::ReadWrite
+	ReadWrite = 0x1 << (int)BufferViewType::ReadWrite,
+	IndirectArguments = 0x1 << (int)BufferViewType::IndirectArguments
 };
 ENUM_CLASS_FLAG_OPERATORS(BufferShaderUsage)
 

@@ -29,6 +29,7 @@ class IRenderable
 {
 public:
     virtual ~IRenderable() = default;
+
     virtual void CollectDrawInfos(const VisibleSetContext& context, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const = 0;
 };
 

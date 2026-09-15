@@ -73,7 +73,7 @@ void alm::gfx::RenderGraphBuilder::AddTextureDependency(RGTextureHandle textureH
 void alm::gfx::RenderGraphBuilder::AddBufferDependency(RGBufferHandle bufferHandle, RenderGraph::AccessMode accessMode,
 													  rhi::ResourceState inputState, rhi::ResourceState outputState)
 {
-	assert(bufferHandle.IsValid(), "Invalid handle!");
+	assert(bufferHandle.IsValid() && "Invalid handle!");
 
 	switch (accessMode)
 	{

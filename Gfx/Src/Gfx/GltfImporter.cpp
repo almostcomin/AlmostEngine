@@ -579,6 +579,11 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         std::unique_ptr<alm::gfx::Material> mat =
             std::make_unique<alm::gfx::Material>(srcMat.name ? srcMat.name : "<null>", path.c_str());
 
+        if (mat->GetName() == "material_041")
+        {
+            puts("hola");
+        }
+
         if (srcMat.has_pbr_specular_glossiness)
         {
             LOG_ERROR("Material {} unsupported mode: Specular-Glossiness", srcMat.name);

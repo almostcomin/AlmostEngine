@@ -5,6 +5,7 @@
 #include "Gfx/Scene.h"
 #include "Gfx/Camera.h"
 #include "Gfx/RenderView.h"
+#include "Gfx/RenderStages/GPUCullingRenderStage.h"
 #include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "Gfx/RenderStages/DebugRenderStage.h"
 #include "Gfx/RenderStages/DepthPrepassRenderStage.h"
@@ -515,6 +516,7 @@ void alm::fw::App::InitRenderStages()
 
 	// Lets create a default set of render stages
 	{
+		auto gpuCullingRS = gfx::RenderStageFactory::CreateShared<gfx::GPUCullingRenderStage>();
 		auto shadowmapRS = gfx::RenderStageFactory::CreateShared<gfx::ShadowmapRenderStage>();
 		auto depthPrepassRS = gfx::RenderStageFactory::CreateShared<gfx::DepthPrepassRenderStage>();
 		auto linearizeDepthRS = gfx::RenderStageFactory::CreateShared<gfx::LinearizeDepthRenderStage>();
@@ -544,6 +546,7 @@ void alm::fw::App::InitRenderStages()
 		// Add stages to render graph.
 		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
 		renderGraph->SetRenderStages({
+			gpuCullingRS,
 			shadowmapRS,
 			depthPrepassRS,
 			linearizeDepthRS,
@@ -562,6 +565,7 @@ void alm::fw::App::InitRenderStages()
 
 		// Define default render mode
 		renderGraph->SetRenderMode("Default", {
+			gpuCullingRS.get(),
 			shadowmapRS.get(),
 			depthPrepassRS.get(),
 			linearizeDepthRS.get(),
@@ -579,6 +583,7 @@ void alm::fw::App::InitRenderStages()
 
 		// Define wireframe render mode
 		renderGraph->SetRenderMode("Wireframe", {
+			gpuCullingRS.get(),
 			depthPrepassRS.get(),
 			wireframeRS.get(),
 			debugRS.get(),

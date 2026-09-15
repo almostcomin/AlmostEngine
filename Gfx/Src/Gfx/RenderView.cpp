@@ -332,6 +332,12 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->camProjMatrix = m_Camera->GetProjectionMatrix();
 		sceneShaderConstant->camWorldPos = m_Camera->GetPosition();
 		sceneShaderConstant->camZNear = m_Camera->GetZNear();
+		const math::frustum3f& frustumPlanes = m_Camera->GetFrustum();
+		for (int i = 0; i < 6; ++i)
+		{
+			auto plane = frustumPlanes.get_planes()[i];
+			sceneShaderConstant->frustumPlanes[i] = float4{ plane.normal.x, plane.normal.y, plane.normal.z, plane.d };
+		}
 	}
 	else
 	{
@@ -340,6 +346,10 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->camProjMatrix = float4x4{ 1.f };
 		sceneShaderConstant->camWorldPos = float3{ 0.f };
 		sceneShaderConstant->camZNear = 0.f;
+		for (int i = 0; i < 6; ++i)
+		{
+			sceneShaderConstant->frustumPlanes[i] = float4{ 0.f, 0.f, 0.f, 0.f };
+		}
 	}
 	sceneShaderConstant->invCamViewProjMatrix = glm::inverse(sceneShaderConstant->camViewProjMatrix);
 	sceneShaderConstant->invCamViewMatrix = glm::inverse(sceneShaderConstant->camViewMatrix);

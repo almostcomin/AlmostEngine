@@ -23,6 +23,7 @@ namespace alm::rhi
     };
 
     class IResource;
+    struct CommandSignatureDesc;
 
 	class Device
 	{
@@ -41,6 +42,7 @@ namespace alm::rhi
         virtual GraphicsPipelineStateOwner CreateGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, const FramebufferInfo& fbInfo, const std::string& debugName) = 0;
         virtual ComputePipelineStateOwner CreateComputePipelineState(const ComputePipelineStateDesc& desc, const std::string& debugName) = 0;
         virtual FenceOwner CreateFence(uint64_t initialVale, const std::string& debugName) = 0;
+        virtual CommandSignatureOwner CreateCommandSignature(const CommandSignatureDesc& desc, const std::string& debugName) = 0;
         virtual TimerQueryOwner CreateTimerQuery(const std::string& debugName) = 0;
 
         virtual StorageRequirements GetStorageRequirements(const BufferDesc& desc) = 0;

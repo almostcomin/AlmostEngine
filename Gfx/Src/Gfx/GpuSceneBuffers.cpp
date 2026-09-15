@@ -4,6 +4,7 @@
 #include "Gfx/Material.h"
 #include "Gfx/TerrainMaterial.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/VisibleSetContext.h"
 #include "RHI/Buffer.h"
 #include "RHI/Device.h"
 
@@ -102,6 +103,17 @@ static void SerializeMeshInstance(const alm::gfx::MeshInstance* mi, interop::Ins
 	dest->inverseModelMatrix = glm::inverse(worldMtx);
 }
 
+static void SerializeMeshInstanceCullData(const alm::gfx::MeshInstance* mi, interop::InstanceCullData* dest)
+{
+	const alm::aabox3f& boxBounds = mi->GetWorldBounds();
+	float3 center = boxBounds.center();
+	float radius = glm::length(boxBounds.extents());
+
+	dest->BoundsSphere = float4{ center.x, center.y, center.z, radius };
+	dest->BatchId = mi->GetBatchId();
+	dest->Flags = (uint32_t)mi->GetRenderFlags();
+}
+
 alm::gfx::GpuSceneBuffers::GpuSceneBuffers(rhi::Device* device) : m_Device{ device }
 {
 	m_MaterialsBuffer = CreateBuffer<interop::MaterialData>(kMaterialCount, rhi::ResourceState::SHADER_RESOURCE, "Materials GPU Buffer");
@@ -126,9 +138,20 @@ alm::gfx::GpuSceneBuffersHandle alm::gfx::GpuSceneBuffers::RequestSceneHandle(co
 {
 	GpuSceneBuffersHandle handle;
 	handle.idx = m_SceneStates.insert({});
+
 	m_SceneStates[handle.idx].DebugName = debugName;
+
 	m_SceneStates[handle.idx].MeshInstancesBuffer = CreateBuffer<interop::InstanceData>(kStaticInstanceCount + kTransientInstanceCount,
-		rhi::ResourceState::SHADER_RESOURCE, std::format("{}|Instances Buffer", debugName));
+		rhi::ResourceState::SHADER_RESOURCE, std::format("{}: Instances Buffer", debugName));
+
+	m_SceneStates[handle.idx].MeshInstanceCullDataBuffer = CreateBuffer<interop::InstanceCullData>(kStaticInstanceCount + kTransientInstanceCount,
+		rhi::ResourceState::SHADER_RESOURCE, std::format("{}: CullInstance Buffer", debugName));
+
+	m_SceneStates[handle.idx].BatchTableBuffer = CreateBuffer<interop::BatchTableEntry>(kStaticInstanceCount + kTransientInstanceCount,
+		rhi::ResourceState::SHADER_RESOURCE, std::format("{}: BatchTable Buffer", debugName));
+
+	m_SceneStates[handle.idx].BatchLayoutDirty = true;
+	m_SceneStates[handle.idx].DataInitialized = false;
 
 	return handle;
 }
@@ -251,11 +274,14 @@ uint32_t alm::gfx::GpuSceneBuffers::RegisterMeshInstance(GpuSceneBuffersHandle h
 	uint32_t idx = m_SceneStates[handle.idx].MeshInstances.insert(mi);
 	m_SceneStates[handle.idx].MeshInstancesState.NewIndices.insert(idx);
 	m_SceneStates[handle.idx].MeshInstancesState.RemovedIndices.fast_erase(idx);
+	mi->SetLeafSceneIndex(idx);
 
 	// Add mesh
 	mi->SetMeshSceneIndex(RegisterMesh(mi->GetMesh().get(), MaterialType::Standard));
 
-	mi->SetLeafSceneIndex(idx);
+	// Invalidate Batch table
+	m_SceneStates[handle.idx].BatchLayoutDirty = true;
+
 	return idx;
 }
 
@@ -374,6 +400,10 @@ void alm::gfx::GpuSceneBuffers::UnregisterMeshInstance(GpuSceneBuffersHandle han
 	m_SceneStates[handle.idx].MeshInstancesState.NewIndices.fast_erase(idx);
 
 	mi->SetLeafSceneIndex(UINT32_MAX);
+
+	// Invalidate Batch table
+	mi->SetBatchId(UINT32_MAX);
+	m_SceneStates[handle.idx].BatchLayoutDirty = true;
 }
 
 void alm::gfx::GpuSceneBuffers::SetDirtyMaterial(const gfx::Material* mat)
@@ -391,6 +421,12 @@ void alm::gfx::GpuSceneBuffers::SetDirtyTerrainMaterial(uint32_t idx)
 	if (m_TerrainMaterials.valid_index(idx))
 	{
 		m_TerrainMaterialsState.DirtyIndices.insert(idx);
+
+		// Invalidate Batch table. Actually we have to invalidate all scene states
+		for (auto& sceneState : m_SceneStates)
+		{
+			sceneState.BatchLayoutDirty = true;
+		}
 	}
 }
 
@@ -404,6 +440,12 @@ void alm::gfx::GpuSceneBuffers::SetDirtyMaterial(uint32_t idx)
 	if (m_Materials.valid_index(idx))
 	{
 		m_MaterialsState.DirtyIndices.insert(idx);
+
+		// Invalidate Batch table. Actually we have to invalidate all scene states
+		for (auto& sceneState : m_SceneStates)
+		{
+			sceneState.BatchLayoutDirty = true;
+		}
 	}
 }
 
@@ -459,6 +501,12 @@ void alm::gfx::GpuSceneBuffers::RebindMeshMaterial(const Mesh* mesh, MaterialTyp
 	m_MeshMaterialIndices[meshIdx].Type = materialType;
 
 	SetDirtyMesh(meshIdx);
+
+	// Invalidate Batch table. Actually we have to invalidate all scene states
+	for (auto& sceneState : m_SceneStates)
+	{
+		sceneState.BatchLayoutDirty = true;
+	}
 }
 
 alm::gfx::GpuSceneBuffers::HeightmapPatchesAllocation alm::gfx::GpuSceneBuffers::AllocateTransientHeightmapPatches(
@@ -550,6 +598,13 @@ alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetInstancesBufferView(G
 		m_SceneStates[handle.idx].MeshInstancesBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
 
+alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetInstancesCullDataBufferView(GpuSceneBuffersHandle handle) const
+{
+	assert(m_SceneStates.valid_index(handle.idx));
+	return m_SceneStates[handle.idx].MeshInstanceCullDataBuffer ?
+		m_SceneStates[handle.idx].MeshInstanceCullDataBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
+}
+
 alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetHeightmapPatchDataBufferView(GpuSceneBuffersHandle handle) const
 {
 	assert(m_SceneStates.valid_index(handle.idx));
@@ -557,34 +612,90 @@ alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetHeightmapPatchDataBuf
 		m_SceneStates[handle.idx].HeightmapPatchDataBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
 
+alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetBatchTableBufferView(GpuSceneBuffersHandle handle) const
+{
+	assert(m_SceneStates.valid_index(handle.idx));
+	return m_SceneStates[handle.idx].BatchTableBuffer ?
+		m_SceneStates[handle.idx].BatchTableBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
+}
+
+size_t alm::gfx::GpuSceneBuffers::GetInstancesCount(GpuSceneBuffersHandle handle) const
+{
+	assert(m_SceneStates.valid_index(handle.idx));
+	return m_SceneStates[handle.idx].MeshInstances.size();
+}
+
+size_t alm::gfx::GpuSceneBuffers::GetBatchTableSize(GpuSceneBuffersHandle handle) const
+{
+	assert(m_SceneStates.valid_index(handle.idx));
+	return m_SceneStates[handle.idx].BatchTable.size();
+}
+
 void alm::gfx::GpuSceneBuffers::UpdateGpuBuffers(rhi::ICommandList* commandList)
 {
+	// Materials
 	UpdateGpuBufferGeneric<interop::MaterialData>(commandList, m_MaterialsBuffer, m_MaterialsState, "Materials GPU Buffer",
 		[this](uint32_t matIdx, interop::MaterialData* dst)
 		{
 			SerializeMaterial(m_Materials[matIdx].get(), dst);
 		});
+	m_MaterialsState = {};
 
+	// Terrain materials
 	UpdateGpuBufferGeneric<interop::TerrainMaterialData>(commandList, m_TerrainMaterialsBuffer, m_TerrainMaterialsState, "TerrainMaterials GPU Buffer",
 		[this](uint32_t matIdx, interop::TerrainMaterialData* dst)
 		{
 			SerializeTerrainMaterial(m_TerrainMaterials[matIdx].get(), dst);
 		});
+	m_TerrainMaterialsState = {};
 
+	// Meshes
 	UpdateGpuBufferGeneric<interop::MeshData>(commandList, m_MeshesBuffer, m_MeshesState, "Meshes GPU Buffer",
 		[this](uint32_t meshIdx, interop::MeshData* dst)
 		{
 			SerializeMesh(m_Meshes[meshIdx].get(), m_MeshMaterialIndices[meshIdx].Index, dst);
 		});
+	m_MeshesState = {};
 
+	// Scene
 	for (auto& sceneState : m_SceneStates)
 	{
+		// First time data initialization
+		if (!sceneState.DataInitialized)
+		{
+			InitializeMeshInstanceCullData(sceneState, commandList);
+			sceneState.DataInitialized = true;
+		}
+
+		// Batch table
+		if (sceneState.BatchLayoutDirty)
+		{
+			RebuildBatchTable(sceneState);
+			UploadBatchTable(sceneState, commandList);
+			sceneState.BatchLayoutDirty = false;
+		}
+
+		// Instances
 		UpdateGpuBufferGeneric<interop::InstanceData>(commandList, sceneState.MeshInstancesBuffer, sceneState.MeshInstancesState,
 			std::format("{}|Instances Buffer", sceneState.DebugName),
-		[&](uint32_t miIdx, interop::InstanceData* dst)
-		{
-			SerializeMeshInstance(sceneState.MeshInstances[miIdx], dst);
-		});
+			[&](uint32_t miIdx, interop::InstanceData* dst)
+			{
+				SerializeMeshInstance(sceneState.MeshInstances[miIdx], dst);
+			});
+
+		// Instance cull data
+		UpdateGpuBufferGeneric<interop::InstanceCullData>(commandList, sceneState.MeshInstanceCullDataBuffer, sceneState.MeshInstancesState,
+			std::format("{}|InstanceCullData Buffer", sceneState.DebugName),
+			[&](uint32_t miIdx, interop::InstanceCullData* dst)
+			{
+				SerializeMeshInstanceCullData(sceneState.MeshInstances[miIdx], dst);
+			},
+			[&](uint32_t /*miIdx*/, interop::InstanceCullData* dst)
+			{
+				dst->BatchId = 0xffffffff;
+			});
+
+		sceneState.MeshInstancesState = {};
 	}
 }
 
@@ -600,16 +711,23 @@ void alm::gfx::GpuSceneBuffers::FlushTransients(GpuSceneBuffersHandle handle, rh
 
 		commandList->BeginMarker("Flush Transient Instances");
 
-		commandList->PushBarrier(rhi::Barrier::Buffer(ss.MeshInstancesBuffer.get(),
-			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
+		commandList->PushBarriers({
+			rhi::Barrier::Buffer(ss.MeshInstancesBuffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST),
+			rhi::Barrier::Buffer(ss.MeshInstanceCullDataBuffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST) });
 
 		commandList->CopyBufferToBuffer(
 			ss.MeshInstancesBuffer.get(), kStaticInstanceCount * sizeof(interop::InstanceData),
 			ss.TransientInstacesStagingBuffer.get(), 0,
 			ss.TransientsAllocated * sizeof(interop::InstanceData));
 
-		commandList->PushBarrier(rhi::Barrier::Buffer(ss.MeshInstancesBuffer.get(),
-			rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+		commandList->CopyBufferToBuffer(
+			ss.MeshInstanceCullDataBuffer.get(), kStaticInstanceCount * sizeof(interop::InstanceCullData),
+			ss.TransientInstanceCullDataBuffer.get(), 0,
+			ss.TransientsAllocated * sizeof(interop::InstanceCullData));
+
+		commandList->PushBarriers({
+			rhi::Barrier::Buffer(ss.MeshInstancesBuffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE),
+			rhi::Barrier::Buffer(ss.MeshInstanceCullDataBuffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE) });
 
 		commandList->EndMarker();
 
@@ -705,9 +823,9 @@ void alm::gfx::GpuSceneBuffers::UploadIndices(rhi::ICommandList* commandList, rh
 	}
 }
 
-template<typename ElemT, typename SerializeFn>
-void alm::gfx::GpuSceneBuffers::UpdateGpuBufferGeneric(rhi::ICommandList* commandList, rhi::BufferOwner& buffer, RefreshState& state,
-	const std::string& debugName, SerializeFn&& serializeFn)
+template<typename ElemT, typename SerializeFn, typename InvalidateFn>
+void alm::gfx::GpuSceneBuffers::UpdateGpuBufferGeneric(rhi::ICommandList* commandList, rhi::BufferOwner& buffer, const RefreshState& state,
+	const std::string& debugName, SerializeFn&& serializeFn, InvalidateFn&& invalidateFn)
 {
 	// 1. Grow Gpu buffer if needed
 	rhi::ResourceState bufferState = rhi::ResourceState::SHADER_RESOURCE;
@@ -717,8 +835,9 @@ void alm::gfx::GpuSceneBuffers::UpdateGpuBufferGeneric(rhi::ICommandList* comman
 		bufferState = GrowBufferIfNeeded<ElemT>(commandList, buffer, max_idx + 1, debugName);
 	}
 
-	// 2. Upload pending changes (adds + dirty)
-	const size_t numItems = state.NewIndices.size() + state.DirtyIndices.size();
+	// 2. Upload pending changes (adds + dirty + removes)
+	const size_t numItems = state.NewIndices.size() + state.DirtyIndices.size() +
+		(std::is_null_pointer_v<InvalidateFn> ? 0 : state.RemovedIndices.size());
 	if (numItems > 0)
 	{
 		assert(buffer);
@@ -743,16 +862,15 @@ void alm::gfx::GpuSceneBuffers::UpdateGpuBufferGeneric(rhi::ICommandList* comman
 
 		UploadIndices<ElemT>(commandList, buffer.get(), uploadBuffer.get(), uploadData, state.NewIndices, stagingDataIdx, serializeFn);
 		UploadIndices<ElemT>(commandList, buffer.get(), uploadBuffer.get(), uploadData, state.DirtyIndices, stagingDataIdx, serializeFn);
+		if constexpr (!std::is_null_pointer_v<InvalidateFn>)
+		{
+			UploadIndices<ElemT>(commandList, buffer.get(), uploadBuffer.get(), uploadData, state.RemovedIndices, stagingDataIdx, invalidateFn);
+		}
 
 		uploadBuffer->Unmap();
 		commandList->PushBarrier(
 			rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 	}
-
-	state = {};
-
-	// Note that state.RemovedIndices is not used for anything. Because removed indices require no action in terms of data modification.
-	// We could surely remove it, but we are going to keep it on case we need it for something in the future.
 }
 
 std::pair<uint32_t, interop::InstanceData*> alm::gfx::GpuSceneBuffers::AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count)
@@ -784,4 +902,135 @@ std::pair<uint32_t, interop::InstanceData*> alm::gfx::GpuSceneBuffers::AllocateT
 	ss.TransientsAllocated += count;
 
 	return { baseIdx, ptr };
+}
+
+void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
+{
+	static constexpr int kNumBuckets = (int)MaterialDomain::_Size * (int)rhi::CullMode::_Size;
+
+	ss.BatchTable.clear();
+	std::fill(&ss.Buckets[0][0], &ss.Buckets[0][0] + kNumBuckets, SceneState::BucketInfo{ 0, 0 });
+
+	if (ss.MeshInstances.empty())
+		return;
+
+	// 1. Gather rows
+	std::vector<RenderableDrawInfo> rows;
+	rows.reserve(ss.MeshInstances.size());
+	for (const MeshInstance* mi : ss.MeshInstances)
+	{
+		if (mi->GetMeshSceneIndex() == UINT32_MAX)
+			continue;
+
+		mi->CollectDrawInfos(VisibleSetContext{}, this, rows);
+		if (rows.back().MaterialIndex == UINT32_MAX)
+		{
+			LOG_WARNING("MeshInstance without material -> Excluded from BatchTable");
+			rows.pop_back();
+		}
+	}
+
+	// 2. Stable sort: (domain, cull, BatchKey)
+	std::stable_sort(rows.begin(), rows.end(), [](const auto& a, const auto& b) 
+	{
+		if (a.MaterialDomain != b.MaterialDomain) 
+			return a.MaterialDomain < b.MaterialDomain;
+		if (a.CullMode != b.CullMode)
+			return a.CullMode < b.CullMode;
+		return a.BatchKey < b.BatchKey;
+	});
+
+	// 3. Runs = Fill BatchTable + BatchsIds + Buckets
+	uint32_t regionOffset = 0, batchId = 0, runStart = 0;
+	for (size_t i = 0; i <= rows.size(); ++i)
+	{
+		bool boundary = (i == rows.size())
+			|| rows[i].MaterialDomain != rows[runStart].MaterialDomain
+			|| rows[i].CullMode != rows[runStart].CullMode
+			|| rows[i].BatchKey != rows[runStart].BatchKey;
+		if (!boundary)
+			continue;
+
+		const auto& first = rows[runStart];
+		const uint32_t count = uint32_t(i - runStart);
+
+		ss.BatchTable.push_back(interop::BatchTableEntry{
+			first.MeshIndex,
+			first.MaterialIndex,
+			first.TransientBaseIndex,
+			regionOffset,
+			count,
+			(uint32_t)first.IndexCount });
+
+		auto& bucket = ss.Buckets[(int)first.MaterialDomain][(int)first.CullMode];
+		if (bucket.BatchCount == 0)
+			bucket.FirstBatch = batchId;   // first bucket batch
+		++bucket.BatchCount;
+
+		for (uint32_t r = runStart; r < i; ++r)
+		{
+			MeshInstance* mi = ss.MeshInstances[rows[r].InstanceIdx];
+			if (mi->GetBatchId() != batchId)
+			{
+				mi->SetBatchId(batchId);
+				if (!ss.MeshInstancesState.NewIndices.has(rows[r].InstanceIdx))
+				{
+					ss.MeshInstancesState.DirtyIndices.insert(rows[r].InstanceIdx);
+				}
+			}
+		}
+
+		regionOffset += count;
+		++batchId;
+		runStart = uint32_t(i);
+	}
+}
+
+void alm::gfx::GpuSceneBuffers::UploadBatchTable(SceneState& ss, rhi::ICommandList* commandList)
+{
+	const size_t bytes = ss.BatchTable.size() * sizeof(interop::BatchTableEntry);
+	if (bytes == 0)
+		return;
+
+	assert(bytes <= ss.BatchTableBuffer->GetDesc().sizeBytes);
+
+	rhi::BufferDesc stagingDesc{ .memoryAccess = rhi::MemoryAccess::Upload, .sizeBytes = bytes };
+	auto staging = m_Device->CreateBuffer(stagingDesc, rhi::ResourceState::COPY_SRC, "BatchTable staging");
+	memcpy(staging->Map(), ss.BatchTable.data(), bytes); staging->Unmap();
+
+	commandList->PushBarrier(rhi::Barrier::Buffer(ss.BatchTableBuffer.get(),
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
+	commandList->CopyBufferToBuffer(ss.BatchTableBuffer.get(), 0, staging.get(), 0, bytes);
+	commandList->PushBarrier(rhi::Barrier::Buffer(ss.BatchTableBuffer.get(),
+		rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
+}
+
+void alm::gfx::GpuSceneBuffers::InitializeMeshInstanceCullData(SceneState& ss, rhi::ICommandList* commandList)
+{
+	rhi::BufferDesc desc{
+		.memoryAccess = rhi::MemoryAccess::Upload,
+		.sizeBytes = (kStaticInstanceCount + kTransientInstanceCount) * sizeof(interop::InstanceCullData) };
+	assert(desc.sizeBytes == ss.MeshInstanceCullDataBuffer->GetDesc().sizeBytes);
+
+	rhi::BufferOwner uploadBuffer = m_Device->CreateBuffer(desc, rhi::ResourceState::COPY_SRC,
+		std::format("{} - CullInstance Staging", ss.DebugName));
+
+	auto* dstData = (interop::InstanceCullData*)uploadBuffer->Map();
+	for (int i = 0; i < kStaticInstanceCount + kTransientInstanceCount; ++i)
+	{
+		dstData[i].BoundsSphere = float4{ 0.f, 0.f, 0.f, 0.f };
+		dstData[i].BatchId = 0xffffffff;
+		dstData[i].Flags = 0;
+	}
+
+	commandList->PushBarrier(rhi::Barrier::Buffer(
+		ss.MeshInstanceCullDataBuffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
+
+	commandList->CopyBufferToBuffer(
+		ss.MeshInstanceCullDataBuffer.get(), 0,
+		uploadBuffer.get(), 0,
+		desc.sizeBytes);
+
+	commandList->PushBarrier(rhi::Barrier::Buffer(
+		ss.MeshInstanceCullDataBuffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE));
 }

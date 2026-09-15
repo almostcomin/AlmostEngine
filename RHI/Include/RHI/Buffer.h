@@ -34,6 +34,8 @@ public:
 
     virtual void Swap(IBuffer& other) = 0;
 
+    ResourceType GetResourceType() const override { return ResourceType::Buffer; }
+
 protected:
 
     IBuffer(Device* device, const std::string& debugName) : IResource{ device, debugName } {};

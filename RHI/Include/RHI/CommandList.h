@@ -11,6 +11,7 @@ namespace alm::rhi
 
 class IGraphicsPipelineState;
 class IFramebuffer;
+class ICommandSignature;
 struct ViewportState;
 
 enum class QueueType : uint8_t
@@ -122,6 +123,9 @@ public:
 	virtual void DrawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount, uint32_t startVertex) = 0;
 
 	virtual void Dispatch(uint32_t threadGroupCountX, uint32_t threadGroupCountY, uint32_t threadGroupCountZ) = 0;
+
+	virtual void ExecuteIndirect(ICommandSignature* commandSig, IBuffer* argBuffer, uint64_t argOffset,
+		IBuffer* countBuffer, uint64_t countOffset, uint32_t maxCommands) = 0;
 
 	virtual void Discard(IBuffer* buffer) = 0;
 	virtual void Discard(ITexture* texture, int mipLevel = -1, int arraySlice = -1) = 0;

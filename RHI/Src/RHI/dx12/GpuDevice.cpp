@@ -11,6 +11,7 @@
 #include "RHI/dx12/Shader.h"
 #include "RHI/dx12/ResourceState.h"
 #include "RHI/dx12/PipelineState.h"
+#include "RHI/dx12/CommandSignature.h"
 #include "RHI/dx12/TimerQuery.h"
 #include "RHI/dx12/Utils.h"
 #include <pix3.h>
@@ -236,7 +237,7 @@ alm::rhi::BufferOwner alm::rhi::dx12::GpuDevice::CreateBuffer(const BufferDesc& 
 	d3d12Desc.SampleDesc.Count = 1;
 	d3d12Desc.SampleDesc.Quality = 0;
 	d3d12Desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	d3d12Desc.Flags = (fixedDesc.shaderUsage & BufferShaderUsage::ReadWrite) == 0 ?
+	d3d12Desc.Flags = (fixedDesc.shaderUsage & (BufferShaderUsage::ReadWrite | BufferShaderUsage::IndirectArguments)) == 0 ?
 		D3D12_RESOURCE_FLAG_NONE : D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	// TODO: D3D12MA
@@ -472,6 +473,34 @@ alm::rhi::FenceOwner alm::rhi::dx12::GpuDevice::CreateFence(uint64_t initialVale
 	d3d12Fence->SetName(ws_nmame.c_str());
 
 	return InsertNewResource<IFence>(new Fence{ d3d12Fence.Get(), this, debugName });
+}
+
+alm::rhi::CommandSignatureOwner alm::rhi::dx12::GpuDevice::CreateCommandSignature(const CommandSignatureDesc& desc, const std::string& debugName)
+{
+	D3D12_INDIRECT_ARGUMENT_DESC argDesc{};
+	switch (desc.commandType) /* DRAW / DRAW_INDEXED / DISPATCH / DISPATCH_MESH */ 
+	{ 
+	case CommandSignatureDesc::CommandType::Draw:			argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;			break;
+	case CommandSignatureDesc::CommandType::DrawIndexed:	argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;	break;
+	case CommandSignatureDesc::CommandType::Dispatch:		argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;		break;
+	case CommandSignatureDesc::CommandType::DispatchMesh:	argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;	break;
+	default:
+		assert(0);
+	}
+
+	D3D12_COMMAND_SIGNATURE_DESC d3dDesc{};
+	d3dDesc.ByteStride = CommandSignatureDesc::GetStride(desc.commandType);
+	d3dDesc.NumArgumentDescs = 1;
+	d3dDesc.pArgumentDescs = &argDesc;
+
+	ComPtr<ID3D12CommandSignature> signature;
+	HRESULT hr = m_D3d12Device->CreateCommandSignature(&d3dDesc, nullptr, IID_PPV_ARGS(&signature));
+	HR_RETURN_NULL(hr);
+
+	auto ws_name = ToWide(debugName.c_str());
+	signature->SetName(ws_name.c_str());
+
+	return InsertNewResource<ICommandSignature>(new CommandSignature{ signature.Get(), desc, d3dDesc.ByteStride, this, debugName });
 }
 
 alm::rhi::TimerQueryOwner alm::rhi::dx12::GpuDevice::CreateTimerQuery(const std::string& debugName)

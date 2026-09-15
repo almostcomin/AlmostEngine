@@ -58,6 +58,13 @@ namespace interop
         float4x4 inverseModelMatrix;
     };
 
+    struct InstanceCullData
+    {
+        float4 BoundsSphere;    // xyz = center, w = radius
+        uint BatchId;
+        uint Flags;             // CastShadows, etc.
+    };
+
     struct MeshData
     {
         BufferReadOnlyIndex indexBufferDI;
@@ -189,10 +196,11 @@ namespace interop
         float4x4 invCamProjMatrix;              // offset 92
         float3 camWorldPos;                     // offset 108
         float camZNear;
+        float4 frustumPlanes[6];                // offset 112
 
         // Shadomap matrices
-        float4x4 shadowMapWorldToClipMatrix;    // offset 112
-        float4x4 shadowMapViewToClipMatrix;     // offset 128
+        float4x4 shadowMapWorldToClipMatrix;    // offset 136
+        float4x4 shadowMapViewToClipMatrix;     // offset 152
         // Clouds shadowmap
         float4x4 CloudsShadowmapWorldToClipMatrix;
         float3 CloudsShadowmapSunPosition;
@@ -266,6 +274,43 @@ namespace interop
         uint meshIndex;                     // Index into MeshData Buffer
         uint materialIndex;                 // Index into MaterialData Buffer
         uint extraDataBaseIdx;              // Base offset for shader-specific extra data buffers. Heightmap PatchData base for instance.
+    };
+
+    struct BatchTableEntry
+    {
+        uint MeshIndex;
+        uint MaterialIndex;
+        uint ExtraDataBaseIdx;
+        uint RegionOffset;
+        uint MaxInstances;
+        uint IndexCount;
+    };
+
+    struct IndirectDrawCommand
+    {
+        uint VertexCountPerInstance;        // = IndexCount (prefill desde BatchTable)
+        uint InstanceCount;
+        uint StartVertexLocation;
+        uint StartInstanceLocation;
+    };
+
+    struct VisibleInstancePayload
+    {
+        uint InstanceIndex;
+        uint MeshIndex;
+        uint MaterialIndex;
+        uint ExtraDataBaseIdx;
+    };
+
+    struct CullingConstants
+    {
+        BufferUniformIndex SceneDI;         // SceneConstants
+        BufferReadWriteIndex ArgsDI;        // IndirectDrawCommand (UAV)
+        BufferReadWriteIndex PayloadDI;     // VisibleInstancePayload (UAV)
+        BufferReadOnlyIndex  BatchTableDI;
+        BufferReadOnlyIndex  CullDataDI;
+        uint BatchCount;                    // = BatchTable.size()
+        uint InstanceCount;                 // Alive static instances
     };
 
     struct DeferredLightingConstants

@@ -29,7 +29,6 @@ namespace alm::rhi::dx12
 		void CreateSRV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, alm::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);
 		void CreateUAV(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, alm::rhi::Format format, uint32_t offsetBytes, size_t sizeBytes);
 
-		ResourceType GetResourceType() const override { return ResourceType::Buffer; }
 		NativeResource GetNativeResource() override { return m_Resource.Get(); }
 
 	protected:

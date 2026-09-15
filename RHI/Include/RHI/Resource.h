@@ -21,6 +21,7 @@ namespace alm::rhi
 		Shader,
 		GraphicsPipelineState,
 		ComputePipelineState,
+		CommandSignature,
 		TimerQuery
 	};
 

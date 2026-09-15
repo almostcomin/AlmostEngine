@@ -64,6 +64,9 @@ namespace alm::rhi::dx12
 
 		void Dispatch(uint32_t threadGroupCountX, uint32_t threadGroupCountY, uint32_t threadGroupCountZ) override;
 
+		void ExecuteIndirect(ICommandSignature* commandSig, IBuffer* argBuffer, uint64_t argOffset,
+			IBuffer* countBuffer, uint64_t countOffset, uint32_t maxCommands) override;
+
 		void Discard(IBuffer* buffer) override;
 		void Discard(ITexture* texture, int mipLevel, int arraySlice) override;
 
@@ -100,6 +103,7 @@ namespace alm::rhi::dx12
 
 		uint32_t m_DrawCalls;
 		uint32_t m_DispatchCalls;
+		uint32_t m_ExecuteIndirectCalls;
 		uint32_t m_PrimitiveCount;
 	};
 }

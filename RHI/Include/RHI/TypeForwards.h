@@ -13,6 +13,7 @@ class IShader;
 class IFramebuffer;
 class IGraphicsPipelineState;
 class IComputePipelineState;
+class ICommandSignature;
 class ITimerQuery;
 
 using BufferOwner = alm::unique<IBuffer>;
@@ -38,6 +39,9 @@ using GraphicsPipelineStateHandle = alm::weak<IGraphicsPipelineState>;
 
 using ComputePipelineStateOwner = alm::unique<IComputePipelineState>;
 using ComputePipelineStateHandle = alm::weak<IComputePipelineState>;
+
+using CommandSignatureOwner = alm::unique<ICommandSignature>;
+using CommandSignatureHandle = alm::weak<ICommandSignature>;
 
 using TimerQueryOwner = alm::unique<ITimerQuery>;
 using TimerQueryHandle = alm::weak<ITimerQuery>;

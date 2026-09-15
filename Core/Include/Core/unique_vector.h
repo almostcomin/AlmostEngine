@@ -29,6 +29,11 @@ struct unique_vector
 		return { idx, true };
 	}
 
+	bool has(const T& value) const
+	{
+		return m_lookup.find(value) != m_lookup.end();
+	}
+
 	const T& operator[](index_type i) const { return m_data[i]; }
 	T& operator[](index_type i) { return m_data[i]; }
 
