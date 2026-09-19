@@ -631,6 +631,12 @@ size_t alm::gfx::GpuSceneBuffers::GetBatchTableSize(GpuSceneBuffersHandle handle
 	return m_SceneStates[handle.idx].BatchTable.size();
 }
 
+const alm::gfx::GpuSceneBuffers::BucketInfoArray* alm::gfx::GpuSceneBuffers::GetBucketInfo(GpuSceneBuffersHandle handle) const
+{
+	assert(m_SceneStates.valid_index(handle.idx));
+	return &(m_SceneStates[handle.idx].Buckets);
+}
+
 void alm::gfx::GpuSceneBuffers::UpdateGpuBuffers(rhi::ICommandList* commandList)
 {
 	// Materials
@@ -692,7 +698,9 @@ void alm::gfx::GpuSceneBuffers::UpdateGpuBuffers(rhi::ICommandList* commandList)
 			},
 			[&](uint32_t /*miIdx*/, interop::InstanceCullData* dst)
 			{
+				dst->BoundsSphere = float4{ 0.f, 0.f, 0.f, 0.f };
 				dst->BatchId = 0xffffffff;
+				dst->Flags = 0u;
 			});
 
 		sceneState.MeshInstancesState = {};
@@ -909,7 +917,7 @@ void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
 	static constexpr int kNumBuckets = (int)MaterialDomain::_Size * (int)rhi::CullMode::_Size;
 
 	ss.BatchTable.clear();
-	std::fill(&ss.Buckets[0][0], &ss.Buckets[0][0] + kNumBuckets, SceneState::BucketInfo{ 0, 0 });
+	std::fill(&ss.Buckets[0][0], &ss.Buckets[0][0] + kNumBuckets, BucketInfo{ 0, 0 });
 
 	if (ss.MeshInstances.empty())
 		return;

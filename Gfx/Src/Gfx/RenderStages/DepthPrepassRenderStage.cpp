@@ -13,8 +13,15 @@
 void alm::gfx::DepthPrepassRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneDepthTexture = builder.CreateDepthTarget("SceneDepth", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::D24S8);
+	m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
+	m_IndirectArgsBuffer = builder.GetBufferHandle("IndirectArgsBuffer");
 
-	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddBufferDependency(m_IndirectArgsBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
 }
 
 void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle commandList)
@@ -22,6 +29,8 @@ void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle comma
 	auto scene = GetScene();
 	if (!scene)
 		return;
+
+	auto* deviceManager = GetDeviceManager();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -33,10 +42,22 @@ void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle comma
 	interop::DepthPrepassStageConstants shaderConstants;
 	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
 	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();
+	shaderConstants.payloadDI = m_RenderGraph->GetBufferReadOnlyView(m_PayloadBuffer);
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
+	if (deviceManager->GPUDrivenEnabled())
+	{
+		MaterialPassRenderer::IndirectDrawParams params{
+			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get(),
+			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
+
+		m_MaterialPassRenderer_GpuCull.DrawIndirect(params, commandList.get());
+	}
+	else
+	{
+		m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
+	}
 
 	commandList->EndRenderPass();
 }
@@ -57,7 +78,9 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 	{
 		alm::gfx::ShaderFactory* shaderFactory = GetDeviceManager()->GetShaderFactory();
 		m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_vs", rhi::ShaderType::Vertex);
+		m_VS_Opaque_GpuCull = shaderFactory->LoadShader("DepthPrepass_OP_GC_vs", rhi::ShaderType::Vertex);
 		m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_vs", rhi::ShaderType::Vertex);
+		m_VS_AlphaTest_GpuCull = shaderFactory->LoadShader("DepthPrepass_AT_GC_vs", rhi::ShaderType::Vertex);
 		m_PS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_ps", rhi::ShaderType::Pixel);
 		m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 	}
@@ -87,6 +110,11 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), nullptr);
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), nullptr);
+
+		m_MaterialPassRenderer_GpuCull.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage_GPUCull", device);
+		m_MaterialPassRenderer_GpuCull.AddDomain(MaterialDomain::Opaque, m_VS_Opaque_GpuCull.get_weak(), nullptr);
+		m_MaterialPassRenderer_GpuCull.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest_GpuCull.get_weak(), m_PS_AlphaTest.get_weak());
+		//m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), nullptr); // TODO
 	}
 }
 
@@ -94,6 +122,7 @@ void alm::gfx::DepthPrepassRenderStage::OnDetached()
 {
 	GetDeviceManager()->GetDevice()->ReleaseQueued(std::move(m_FB));
 	m_MaterialPassRenderer = {};
+	m_MaterialPassRenderer_GpuCull = {};
 }
 
 void alm::gfx::DepthPrepassRenderStage::OnBackbufferResize()
@@ -110,4 +139,5 @@ void alm::gfx::DepthPrepassRenderStage::OnBackbufferResize()
 
 	// Re-create PSO
 	m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+	m_MaterialPassRenderer_GpuCull.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

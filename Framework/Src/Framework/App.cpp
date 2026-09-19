@@ -400,6 +400,7 @@ bool alm::fw::App::InitInternal()
 	const int fpsCap = GetStartupArgInt("fps_cap").value_or(0);
 	const bool graphicsDebug = GetStartupArgBool("gd").value_or(false);
 	const bool shadersDebug = GetStartupArgBool("shaders_debug").value_or(false);
+	const bool gpuDriven = GetStartupArgBool("gpu_driven").value_or(true);
 
 	LOG_INFO("Parsing startup arguments: Done");
 
@@ -407,6 +408,7 @@ bool alm::fw::App::InitInternal()
 	LOG_INFO("   fps_cap:       {}", fpsCap);
 	LOG_INFO("   gd:            {}", graphicsDebug);
 	LOG_INFO("   shaders_debug: {}", shadersDebug);
+	LOG_INFO("   gpu_driven:	{}", gpuDriven);
 
 	LOG_INFO("Init device manager...");
 	{
@@ -418,6 +420,7 @@ bool alm::fw::App::InitInternal()
 			.VSyncEnabled = vSync,
 			.FPSCap = fpsCap,
 			.ShadersDebug = shadersDebug,
+			.GPUDriven = gpuDriven,
 			.ForceSDR = false
 		};
 		m_DeviceManager->Init(initParams);

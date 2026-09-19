@@ -74,6 +74,7 @@ public:
         int FPSCap = 0;
 
         bool ShadersDebug = false;
+        bool GPUDriven = true;
 
         bool EnableComputeQueue = true;
         bool EnableCopyQueue = true;
@@ -158,6 +159,8 @@ public:
     virtual const std::string& GetBackEndHWName() const = 0;
 
     float GetGPUFrameTime(); // Millisec
+
+    bool GPUDrivenEnabled() const;
 
     alm::rhi::Device* GetDevice() { return m_Device.get(); }
 

@@ -37,4 +37,18 @@ struct RasterizerState
 	uint32_t forcedSampleCount = 0;
 };
 
+inline const char* GetCullModeString(CullMode cull)
+{
+	static const char* debugStrings[] =
+	{
+		"Back",
+		"Front",
+		"None"
+	};
+
+	static_assert(std::size(debugStrings) == (int)CullMode::_Size);
+
+	return debugStrings[(int)cull];
+};
+
 } // namespace st::rhi

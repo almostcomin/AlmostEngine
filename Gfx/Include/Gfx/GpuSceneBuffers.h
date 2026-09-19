@@ -67,6 +67,13 @@ public:
 		interop::HeightmapPatchData* HeightmapPatchesPtr;
 	};
 
+	struct BucketInfo
+	{
+		uint32_t FirstBatch;
+		uint32_t BatchCount;
+	};
+	using BucketInfoArray = BucketInfo[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
+
 public:
 
 	static constexpr uint32_t MaxInstances() { return kStaticInstanceCount + kTransientInstanceCount; }
@@ -126,6 +133,8 @@ public:
 	size_t GetInstancesCount(GpuSceneBuffersHandle handle) const;
 	size_t GetBatchTableSize(GpuSceneBuffersHandle handle) const;
 
+	const BucketInfoArray* GetBucketInfo(GpuSceneBuffersHandle handle) const;
+
 	void UpdateGpuBuffers(rhi::ICommandList* commandList);
 	void FlushTransients(GpuSceneBuffersHandle handle, rhi::ICommandList* commandList);
 
@@ -140,12 +149,6 @@ private:
 
 	struct SceneState
 	{
-		struct BucketInfo
-		{ 
-			uint32_t FirstBatch;
-			uint32_t BatchCount; 
-		};
-
 		MeshInstanceLeafsContainer MeshInstances;						// Only static (not transient instances)
 		RefreshState MeshInstancesState;								// Deferred updates if the static instance buffer
 
@@ -165,7 +168,7 @@ private:
 		uint32_t HeighmapPatchesAllocated = 0;							// Next index free in the HeightmapPatch buffer
 
 		std::vector<interop::BatchTableEntry> BatchTable;
-		BucketInfo Buckets[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
+		BucketInfoArray Buckets;
 		rhi::BufferOwner BatchTableBuffer;
 		bool BatchLayoutDirty = true;
 

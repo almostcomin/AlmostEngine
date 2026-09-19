@@ -231,12 +231,14 @@ namespace interop
     {
         BufferUniformIndex sceneDI;         // SceneConstants
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
     };
 
     struct GBufferStageConstats
     {
         BufferUniformIndex sceneDI;         // SceneConstants
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
         uint DebugChannel;                  // GBuffersRenderStage::DebugChannel
     };
 

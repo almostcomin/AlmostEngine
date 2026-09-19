@@ -764,9 +764,9 @@ alm::rhi::BufferUniformView alm::rhi::dx12::GpuDevice::CreateBufferUniformView(I
 alm::rhi::BufferReadOnlyView alm::rhi::dx12::GpuDevice::CreateBufferReadOnlyView(IBuffer* buffer, uint32_t start, int size)
 {
 	const auto& desc = buffer->GetDesc();
-	if (!has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly))
+	if (!has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly | BufferShaderUsage::ReadWrite))
 	{
-		LOG_ERROR("Can't create CBV: Buffer not created with BufferShaderUsage::ReadOnly");
+		LOG_ERROR("Can't create SRV: Buffer not created with BufferShaderUsage::ReadOnly | BufferShaderUsage::ReadWrite");
 		return {};
 	}
 

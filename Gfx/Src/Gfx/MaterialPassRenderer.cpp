@@ -5,6 +5,7 @@
 #include "Gfx/MeshInstance.h"
 #include "RHI/Device.h"
 #include "RHI/PipelineState.h"
+#include "RHI/CommandSignature.h"
 #include "Interop/RenderResources.h"
 
 alm::gfx::MaterialPassRenderer::MaterialPassRenderer() : m_PSOs{}, m_ValidDomains{}, m_Device { nullptr }
@@ -17,6 +18,10 @@ void alm::gfx::MaterialPassRenderer::Init(const alm::rhi::GraphicsPipelineStateD
 	m_FBInfo = fbInfo;
 	m_BaseDebugName = baseDebugName;
 	m_Device = device;
+
+	m_CommandSignature = device->CreateCommandSignature(
+		rhi::CommandSignatureDesc{ .commandType = rhi::CommandSignatureDesc::CommandType::Draw },
+		baseDebugName);
 }
 
 void alm::gfx::MaterialPassRenderer::Reset()
@@ -30,6 +35,7 @@ void alm::gfx::MaterialPassRenderer::Reset()
 		m_ValidDomains[domain] = false;
 	}
 
+	m_CommandSignature = {};
 	m_BasePSODesc = {};
 	m_FBInfo = {};
 	m_BaseDebugName = {};
@@ -137,8 +143,7 @@ void alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(const alm::gfx::Rend
 			if (!PSO)
 			{
 				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
-					GetMaterialDomainString(domainBase.first),
-					cullBase.first == rhi::CullMode::Back ? "Back" : cullBase.first == rhi::CullMode::Front ? "Front" : "None",
+					GetMaterialDomainString(domainBase.first), rhi::GetCullModeString(cullBase.first),
 					m_BaseDebugName);
 				continue;
 			}
@@ -178,6 +183,32 @@ void alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(const alm::gfx::Rend
 			commandList->DrawInstanced(drawInfo.IndexCount, drawInfos.size() - prevIdx, 0);
 
 			visibleInstanceIndex += drawInfos.size();
+		}
+	}
+}
+
+void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& params, alm::rhi::ICommandList* commandList) const
+{
+	for (int domainIdx = 0; domainIdx < (int)MaterialDomain::_Size; ++domainIdx)
+	{
+		if (!m_ValidDomains[domainIdx])
+			continue;
+
+		const MaterialDomain domain = (MaterialDomain)domainIdx;
+		for (int cullModeIdx = 0; cullModeIdx < (int)rhi::CullMode::_Size; ++cullModeIdx)
+		{
+			const rhi::CullMode cull = (rhi::CullMode)cullModeIdx;
+			const auto& bucket = (*params.Buckets)[domainIdx][cullModeIdx];
+			if (bucket.BatchCount == 0)
+				continue;
+
+			commandList->SetPipelineState(GetPSO(domain, cull));
+			commandList->BeginMarker(std::format("{} - {}:{}", m_BaseDebugName, GetMaterialDomainString(domain), rhi::GetCullModeString(cull)).c_str());
+
+			commandList->ExecuteIndirect(m_CommandSignature.get(), params.ArgsBuffer,
+				bucket.FirstBatch * sizeof(interop::IndirectDrawCommand), nullptr, 0, bucket.BatchCount);
+
+			commandList->EndMarker();
 		}
 	}
 }

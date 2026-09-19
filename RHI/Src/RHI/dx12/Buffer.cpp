@@ -19,7 +19,7 @@ alm::rhi::dx12::Buffer::Buffer(const BufferDesc& desc, ID3D12Resource* buffer, D
     {
         m_UniformView = device->CreateBufferUniformView(this);
     }
-    if (has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly))
+    if (has_any_flag(desc.shaderUsage, BufferShaderUsage::ReadOnly | BufferShaderUsage::ReadWrite))
     {
         m_ReadOnlyView = device->CreateBufferReadOnlyView(this);
     }

@@ -31,11 +31,11 @@ alm::Blob alm::rhi::ShaderCompiler::Compile(const std::string& shaderName, Shade
         switch (shaderType)
         {
         case ShaderType::Vertex:
-            return L"vs_6_6";
+            return L"vs_6_8";
         case ShaderType::Pixel:
-            return L"ps_6_6";
+            return L"ps_6_8";
         case ShaderType::Compute:
-            return L"cs_6_6";
+            return L"cs_6_8";
         default:
             return L"";
         }

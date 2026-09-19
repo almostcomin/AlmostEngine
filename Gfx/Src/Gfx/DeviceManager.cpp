@@ -261,3 +261,8 @@ float alm::gfx::DeviceManager::GetGPUFrameTime()
 
 	return result;
 }
+
+bool alm::gfx::DeviceManager::GPUDrivenEnabled() const
+{
+	return m_DeviceParams.GPUDriven;
+}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gfx/MaterialDomain.h"
+#include "Gfx/GpuSceneBuffers.h"
 #include "RHI/PipelineState.h"
 #include "RHI/Framebuffer.h"
 
@@ -23,6 +24,14 @@ class MaterialPassRenderer
 {
 public:
 
+	struct IndirectDrawParams
+	{
+		rhi::IBuffer* ArgsBuffer;
+		const GpuSceneBuffers::BucketInfoArray* Buckets;
+	};
+
+public:
+
 	MaterialPassRenderer();
 	
 	void Init(const alm::rhi::GraphicsPipelineStateDesc& baseDesc, const alm::rhi::FramebufferInfo& fbInfo,
@@ -36,6 +45,7 @@ public:
 	rhi::IGraphicsPipelineState* GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const;
 
 	void DrawRenderSetInstanced(const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const;
+	void DrawIndirect(const IndirectDrawParams& params, alm::rhi::ICommandList* commandList) const;
 
 	const std::string& GetDebugName() const { return m_BaseDebugName; }
 
@@ -58,6 +68,8 @@ private:
 	std::array<CullPSOs, (int)MaterialDomain::_Size> m_PSOs;
 	std::array<bool, (int)MaterialDomain::_Size> m_ValidDomains;
 	alm::rhi::FramebufferInfo m_FBInfo;
+
+	alm::rhi::CommandSignatureOwner m_CommandSignature;
 
 	std::string m_BaseDebugName;
 	rhi::Device* m_Device;

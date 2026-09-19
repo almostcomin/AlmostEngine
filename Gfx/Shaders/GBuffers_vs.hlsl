@@ -10,22 +10,34 @@ struct VS_OUTPUT
     float4 pos : SV_POSITION;
     float3 normal : NORMAL;
     float4 tangent : TANGENT; // xyz = tangent, w = handedness (-1 or +1)    
-    float2 uv : TEXCOORD0;
+    float2 uv : TEXCOORD0;    
+    nointerpolation uint materialIndex : MATERIAL;
 };
 
 [RootSignature(BindlessRootSignature)]
 VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
 {
+    VS_OUTPUT output;
+    
     ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[StageConstants.sceneDI];
     ByteAddressBuffer instancesIndexBuffer = ResourceDescriptorHeap[StageConstants.instancesDI];
+    StructuredBuffer<interop::VisibleInstancePayload> payloadBuffer = ResourceDescriptorHeap[StageConstants.payloadDI];
     StructuredBuffer<interop::InstanceData> instancesDataBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
     StructuredBuffer<interop::MeshData> meshesDataBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
-    
+                
+#if GPU_CULL
+    interop::VisibleInstancePayload vp = payloadBuffer[instanceID];
+    interop::InstanceData instanceData = instancesDataBuffer[vp.InstanceIndex];
+    interop::MeshData meshData = meshesDataBuffer[vp.MeshIndex];
+    output.materialIndex = vp.MaterialIndex;
+#else
     uint actualInstanceId = instanceID + DrawConstants.baseInstanceIdx;
     uint instanceIndex = instancesIndexBuffer.Load(actualInstanceId * 4);
     interop::InstanceData instanceData = instancesDataBuffer[instanceIndex];
-    interop::MeshData meshData = meshesDataBuffer[DrawConstants.meshIndex];
-            
+    interop::MeshData meshData = meshesDataBuffer[DrawConstants.meshIndex];    
+    output.materialIndex = DrawConstants.materialIndex;
+#endif
+    
     ByteAddressBuffer indexBuffer = ResourceDescriptorHeap[meshData.indexBufferDI];
     ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[meshData.vertexBufferDI];
     
@@ -51,8 +63,6 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     float3 tangentWorld = normalize(mul(instanceData.modelMatrix, float4(tangent.xyz, 0.0)).xyz);
     float3 tangentView = normalize(mul((float3x3)sceneData.camViewMatrix, tangentWorld));
             
-    // Output
-    VS_OUTPUT output;
     output.pos = posClip;
     output.normal = normalView;
     output.tangent = float4(tangentView, tangent.w);
