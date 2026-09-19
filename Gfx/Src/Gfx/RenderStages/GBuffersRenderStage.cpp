@@ -36,6 +36,9 @@ void alm::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 		m_GBuffer3Texture = builder.CreateColorTarget("GBuffer3", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
 
 		m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+
+		m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
+		m_IndirectArgsBuffer = builder.GetBufferHandle("IndirectArgsBuffer");
 	}
 
 	// Request RT access
@@ -44,6 +47,11 @@ void alm::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddTextureDependency(m_GBuffer2Texture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 	builder.AddTextureDependency(m_GBuffer3Texture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+
+	builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddBufferDependency(m_IndirectArgsBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
 }
 
 void alm::gfx::GBuffersRenderStage::Render(alm::rhi::CommandListHandle commandList)
@@ -53,6 +61,7 @@ void alm::gfx::GBuffersRenderStage::Render(alm::rhi::CommandListHandle commandLi
 	{
 		return;
 	}
+	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -69,13 +78,25 @@ void alm::gfx::GBuffersRenderStage::Render(alm::rhi::CommandListHandle commandLi
 	interop::GBufferStageConstats shaderConstants;
 	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
 	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();
+	shaderConstants.payloadDI = m_RenderGraph->GetBufferReadOnlyView(m_PayloadBuffer);
 	shaderConstants.DebugChannel = (uint)m_DebugChannel;
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_MaterialPassRenderer.DrawRenderSetInstanced(
-		GetRenderView()->GetCameraVisibleSet(),
-		commandList.get());
+	if (deviceManager->GPUDrivenEnabled())
+	{
+		MaterialPassRenderer::IndirectDrawParams params{
+			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get(),
+			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
+
+		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
+	}
+	else
+	{
+		m_MaterialPassRenderer.DrawRenderSetInstanced(
+			GetRenderView()->GetCameraVisibleSet(),
+			commandList.get());
+	}
 
 	commandList->EndRenderPass();
 }
@@ -99,7 +120,14 @@ void alm::gfx::GBuffersRenderStage::OnAttached()
 	// Load shaders
 	{
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("GBuffers_vs", rhi::ShaderType::Vertex);
+		if (deviceManager->GPUDrivenEnabled())
+		{
+			m_VS = shaderFactory->LoadShader("GBuffers_GC_vs", rhi::ShaderType::Vertex);
+		}
+		else
+		{
+			m_VS = shaderFactory->LoadShader("GBuffers_vs", rhi::ShaderType::Vertex);
+		}
 		m_VS_Terrain = shaderFactory->LoadShader("GBuffers_Terrain_vs", rhi::ShaderType::Vertex);
 		m_PS_Opaque = shaderFactory->LoadShader("GBuffers_OP_ps", rhi::ShaderType::Pixel);
 		m_PS_AlphaTest = shaderFactory->LoadShader("GBuffers_AT_ps", rhi::ShaderType::Pixel);

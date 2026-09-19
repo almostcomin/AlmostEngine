@@ -47,6 +47,8 @@ private:
 	RGTextureHandle m_GBuffer2Texture;
 	RGTextureHandle m_GBuffer3Texture;
 	RGTextureHandle m_SceneDepthTexture;
+	RGBufferHandle m_PayloadBuffer;
+	RGBufferHandle m_IndirectArgsBuffer;
 
 	alm::rhi::ShaderOwner m_VS;
 	alm::rhi::ShaderOwner m_VS_Terrain;

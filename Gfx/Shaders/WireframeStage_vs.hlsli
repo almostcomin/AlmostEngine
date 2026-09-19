@@ -2,16 +2,12 @@
 #include "BindlessRS.hlsli"
 #include "Common.hlsli"
 
-ConstantBuffer<interop::DepthPrepassStageConstants> StageConstants : register(b0);
+ConstantBuffer<interop::WireframeStageConstats> StageConstants : register(b0);
 ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
 
 struct VS_OUTPUT
 {
     float4 pos : SV_POSITION;
-#if ALPHA_TEST
-    float2 uv : TEXCOORD0;
-    nointerpolation uint materialIndex : MATERIAL;
-#endif    
 };
 
 [RootSignature(BindlessRootSignature)]
@@ -21,21 +17,16 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
 #endif
 )
 {
-    VS_OUTPUT output;
-    
     ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[StageConstants.sceneDI];
     StructuredBuffer<interop::InstanceData> instancesDataBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
     StructuredBuffer<interop::MeshData> meshesDataBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
-    
+        
 #if GPU_CULL
     StructuredBuffer<interop::VisibleInstancePayload> payloadBuffer = ResourceDescriptorHeap[StageConstants.payloadDI];
     
     interop::VisibleInstancePayload vp = payloadBuffer[startInstance + instanceID];
     interop::InstanceData instanceData = instancesDataBuffer[vp.InstanceIndex];
-    interop::MeshData meshData = meshesDataBuffer[vp.MeshIndex];
-#if ALPHA_TEST    
-    output.materialIndex = vp.MaterialIndex;
-#endif
+    interop::MeshData meshData = meshesDataBuffer[vp.MeshIndex];    
 #else
     ByteAddressBuffer instancesIndexBuffer = ResourceDescriptorHeap[StageConstants.instancesDI];
     
@@ -43,9 +34,6 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     uint instanceIndex = instancesIndexBuffer.Load(actualInstanceId * 4);
     interop::InstanceData instanceData = instancesDataBuffer[instanceIndex];
     interop::MeshData meshData = meshesDataBuffer[DrawConstants.meshIndex];
-#if ALPHA_TEST
-    output.materialIndex = DrawConstants.materialIndex;
-#endif
 #endif
     
     ByteAddressBuffer indexBuffer = ResourceDescriptorHeap[meshData.indexBufferDI];
@@ -60,12 +48,9 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     // Transform
     float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
     float4 posClip = mul(sceneData.camViewProjMatrix, posWorld);
-
-#if ALPHA_TEST    
-    float2 uv0 = LoadVertexAttributeFloat2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Offset);
-    output.uv = uv0;    
-#endif    
-    
+            
+    // Output
+    VS_OUTPUT output;
     output.pos = posClip;
     return output;
 }

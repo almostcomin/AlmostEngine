@@ -29,7 +29,6 @@ void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle comma
 	auto scene = GetScene();
 	if (!scene)
 		return;
-
 	auto* deviceManager = GetDeviceManager();
 
 	commandList->BeginRenderPass(
@@ -52,7 +51,7 @@ void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle comma
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get(),
 			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
 
-		m_MaterialPassRenderer_GpuCull.DrawIndirect(params, commandList.get());
+		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
 	}
 	else
 	{
@@ -64,7 +63,8 @@ void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle comma
 
 void alm::gfx::DepthPrepassRenderStage::OnAttached()
 {
-	rhi::Device* device = GetDeviceManager()->GetDevice();
+	auto* deviceManager = GetDeviceManager();
+	rhi::Device* device = deviceManager->GetDevice();
 
 	// Create Framebuffer
 	{
@@ -77,10 +77,16 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 	// Load shaders
 	{
 		alm::gfx::ShaderFactory* shaderFactory = GetDeviceManager()->GetShaderFactory();
-		m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_vs", rhi::ShaderType::Vertex);
-		m_VS_Opaque_GpuCull = shaderFactory->LoadShader("DepthPrepass_OP_GC_vs", rhi::ShaderType::Vertex);
-		m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_vs", rhi::ShaderType::Vertex);
-		m_VS_AlphaTest_GpuCull = shaderFactory->LoadShader("DepthPrepass_AT_GC_vs", rhi::ShaderType::Vertex);
+		if (deviceManager->GPUDrivenEnabled())
+		{
+			m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_GC_vs", rhi::ShaderType::Vertex);
+			m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_GC_vs", rhi::ShaderType::Vertex);
+		}
+		else
+		{
+			m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_vs", rhi::ShaderType::Vertex);
+			m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_vs", rhi::ShaderType::Vertex);
+		}
 		m_PS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_ps", rhi::ShaderType::Pixel);
 		m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 	}
@@ -110,11 +116,6 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), nullptr);
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), nullptr);
-
-		m_MaterialPassRenderer_GpuCull.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage_GPUCull", device);
-		m_MaterialPassRenderer_GpuCull.AddDomain(MaterialDomain::Opaque, m_VS_Opaque_GpuCull.get_weak(), nullptr);
-		m_MaterialPassRenderer_GpuCull.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest_GpuCull.get_weak(), m_PS_AlphaTest.get_weak());
-		//m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), nullptr); // TODO
 	}
 }
 
@@ -122,7 +123,6 @@ void alm::gfx::DepthPrepassRenderStage::OnDetached()
 {
 	GetDeviceManager()->GetDevice()->ReleaseQueued(std::move(m_FB));
 	m_MaterialPassRenderer = {};
-	m_MaterialPassRenderer_GpuCull = {};
 }
 
 void alm::gfx::DepthPrepassRenderStage::OnBackbufferResize()
@@ -139,5 +139,4 @@ void alm::gfx::DepthPrepassRenderStage::OnBackbufferResize()
 
 	// Re-create PSO
 	m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
-	m_MaterialPassRenderer_GpuCull.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

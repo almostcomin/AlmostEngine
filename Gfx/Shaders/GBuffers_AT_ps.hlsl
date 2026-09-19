@@ -1,4 +1,3 @@
 #define ALPHA_TEST 1
-#define GPU_CULL 0
 
 #include "GBuffers_ps.hlsli"

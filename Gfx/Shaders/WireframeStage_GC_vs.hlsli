@@ -1,3 +1,3 @@
-#define GPU_CULL 0
+#define GPU_CULL 1
 
 #include "WireframeStage_vs.hlsli"

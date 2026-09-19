@@ -163,7 +163,7 @@ alm::rhi::dx12::GpuDevice::GpuDevice(const alm::rhi::dx12::DeviceDesc& desc) :
 	}
 
 	m_HeapDirectlyIndexedSupported = m_SM_6_6_Supported && m_Options.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3;
-	m_ExtendedCommandInfoSupported = false;// m_SM_6_8_Supported&& hasOptions21&& m_Options21.ExtendedCommandInfoSupported;
+	m_ExtendedCommandInfoSupported = m_SM_6_8_Supported && hasOptions21 && m_Options21.ExtendedCommandInfoSupported;
 
 	//
 	// Create Query Heap

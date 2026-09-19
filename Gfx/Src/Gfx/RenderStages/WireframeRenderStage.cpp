@@ -22,6 +22,9 @@ void alm::gfx::WireframeRenderStage::Setup(RenderGraphBuilder& builder)
 		m_ToneMappedTexture = builder.CreateTexture("ToneMapped", RenderGraph::TextureResourceType::RenderTarget,
 			RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
 		m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+
+		m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
+		m_IndirectArgsBuffer = builder.GetBufferHandle("IndirectArgsBuffer");
 	}
 
 	// Request texture access access
@@ -30,6 +33,11 @@ void alm::gfx::WireframeRenderStage::Setup(RenderGraphBuilder& builder)
 			rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 		builder.AddTextureDependency(m_ToneMappedTexture, RenderGraph::AccessMode::Write,
 			rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+
+		builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+		builder.AddBufferDependency(m_IndirectArgsBuffer, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
 	}
 }
 
@@ -40,6 +48,7 @@ void alm::gfx::WireframeRenderStage::Render(alm::rhi::CommandListHandle commandL
 	{
 		return;
 	}
+	auto* deviceManager = GetDeviceManager();
 
 	commandList->BeginRenderPass(
 		m_FB.get(),
@@ -51,12 +60,22 @@ void alm::gfx::WireframeRenderStage::Render(alm::rhi::CommandListHandle commandL
 	interop::WireframeStageConstats shaderConstants;
 	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
 	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();
+	shaderConstants.payloadDI = m_RenderGraph->GetBufferReadOnlyView(m_PayloadBuffer);
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_MaterialPassRenderer.DrawRenderSetInstanced(
-		GetRenderView()->GetCameraVisibleSet(),
-		commandList.get());
+	if (deviceManager->GPUDrivenEnabled())
+	{
+		MaterialPassRenderer::IndirectDrawParams params{
+			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get(),
+			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
+
+		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
+	}
+	else
+	{
+		m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
+	}
 
 	commandList->EndRenderPass();
 }
@@ -79,7 +98,15 @@ void alm::gfx::WireframeRenderStage::OnAttached()
 	// Load shaders
 	{
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("WireframeStage_vs", rhi::ShaderType::Vertex);
+		if (deviceManager->GPUDrivenEnabled())
+		{
+			m_VS = shaderFactory->LoadShader("WireframeStage_GC_vs", rhi::ShaderType::Vertex);
+		}
+		else
+		{
+			m_VS = shaderFactory->LoadShader("WireframeStage_vs", rhi::ShaderType::Vertex);
+		}
+
 		m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 		m_PS = shaderFactory->LoadShader("WireframeStage_ps", rhi::ShaderType::Pixel);
 	}
@@ -130,6 +157,7 @@ void alm::gfx::WireframeRenderStage::OnDetached()
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_PS));
+	device->ReleaseQueued(std::move(m_VS_Terrain));
 	device->ReleaseQueued(std::move(m_VS));
 }
 
