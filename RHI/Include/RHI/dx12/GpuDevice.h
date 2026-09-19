@@ -86,6 +86,10 @@ namespace alm::rhi::dx12
 
 		const Stats& GetStats() const override { return m_LastStats; }
 
+		bool SupportBindless() const override { return m_HeapDirectlyIndexedSupported; }
+		bool SupportGPUDriven() const override { return m_ExtendedCommandInfoSupported; }
+		std::pair<int, int> GetMaxShaderModelSupported() const override;
+
 		Queue* GetQueue(QueueType type) { return &m_Queues[(int)type]; }
 
 		DescriptorHeap* GetDepthStencilViewHeap() { return &m_DepthStencilViewHeap; }
@@ -162,6 +166,7 @@ namespace alm::rhi::dx12
 		D3D12_FEATURE_DATA_D3D12_OPTIONS5 m_Options5 = {};
 		D3D12_FEATURE_DATA_D3D12_OPTIONS6 m_Options6 = {};
 		D3D12_FEATURE_DATA_D3D12_OPTIONS7 m_Options7 = {};
+		D3D12_FEATURE_DATA_D3D12_OPTIONS21 m_Options21 = {};
 
 		bool m_MeshletsSupported = false;
 		bool m_RayTracingSupported = false;
@@ -169,6 +174,9 @@ namespace alm::rhi::dx12
 		bool m_SamplerFeedbackSupported = false;
 		bool m_VariableRateShadingSupported = false;
 		bool m_HeapDirectlyIndexedSupported = false;
+		bool m_ExtendedCommandInfoSupported = false;
+		bool m_SM_6_6_Supported = false;
+		bool m_SM_6_8_Supported = false;
 
 		HANDLE m_FenceEvent;
 

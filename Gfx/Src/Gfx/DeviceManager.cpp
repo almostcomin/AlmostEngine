@@ -33,10 +33,10 @@ alm::gfx::DeviceManager* alm::gfx::DeviceManager::Create(alm::gfx::GraphicsAPI a
 	return nullptr;
 }
 
-bool alm::gfx::DeviceManager::Init(const DeviceParams& params)
+alm::gfx::DeviceManager::InitResult alm::gfx::DeviceManager::Init(const DeviceParams& params)
 {
-	bool ok = InternalInit(params);
-	if (ok)
+	InitResult result = InternalInit(params);
+	if (result == InitResult::Succeeded)
 	{
 		m_ShaderFactory = std::make_unique<alm::gfx::ShaderFactory>(params.ShadersDebug, m_Device.get());
 		m_DataUploader = std::make_unique<alm::gfx::DataUploader>(m_ShaderFactory.get(), m_Device.get());
@@ -55,7 +55,7 @@ bool alm::gfx::DeviceManager::Init(const DeviceParams& params)
 		}
 	}
 
-	return ok;
+	return result;
 }
 
 void alm::gfx::DeviceManager::Shutdown()

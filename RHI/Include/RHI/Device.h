@@ -97,6 +97,10 @@ namespace alm::rhi
 
         virtual const Stats& GetStats() const = 0;
 
+        virtual bool SupportBindless() const = 0;
+        virtual bool SupportGPUDriven() const = 0;
+        virtual std::pair<int, int> GetMaxShaderModelSupported() const = 0;
+
         virtual void Shutdown() = 0;
 
         virtual void SetDebugCaptureWindow(void* windowHandle) = 0;

@@ -179,7 +179,7 @@ bool alm::gfx::dx12::DeviceManager::Present(uint32_t* opt_microSec)
     return SUCCEEDED(result);
 }
 
-bool alm::gfx::dx12::DeviceManager::InternalInit(const DeviceParams& params)
+alm::gfx::dx12::DeviceManager::InitResult alm::gfx::dx12::DeviceManager::InternalInit(const DeviceParams& params)
 {
     m_DeviceParams = params;
 
@@ -188,11 +188,20 @@ bool alm::gfx::dx12::DeviceManager::InternalInit(const DeviceParams& params)
     {
         LOG_ERROR("ERROR in CreateDXGIFactory2.\n"
             "For more info, get log from debug D3D runtime: (1) Install DX SDK, and enable Debug D3D from DX Control Panel Utility. (2) Install and start DbgView. (3) Try running the program again.\n");
-        return false;
+        return InitResult::GenericError;
     }
 
-    CreateDevice();
-    CreateSwapChain();
+    bool bOk = CreateDevice();
+    if(!bOk)
+        return InitResult::GenericError;
+    if (!m_Device->SupportBindless())
+        return InitResult::BindlessNotSupported;
+    if(params.GPUDriven && !m_Device->SupportGPUDriven())
+        return InitResult::GPUDrivenNotSupported;
+
+    bOk = CreateSwapChain();
+    if(!bOk)
+        return InitResult::GenericError;
 
     // reset the back buffer size state to enforce a resize event
     m_BackBufferWidth = 0;
@@ -206,7 +215,7 @@ bool alm::gfx::dx12::DeviceManager::InternalInit(const DeviceParams& params)
         m_Device->SetDebugCaptureWindow((void*)hWnd);
     }
 
-    return true;
+    return InitResult::Succeeded;
 };
 
 void alm::gfx::dx12::DeviceManager::InternalShutdown()

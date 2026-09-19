@@ -127,6 +127,7 @@ alm::rhi::dx12::GpuDevice::GpuDevice(const alm::rhi::dx12::DeviceDesc& desc) :
 	bool hasOptions5 = SUCCEEDED(m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &m_Options5, sizeof(m_Options5)));
 	bool hasOptions6 = SUCCEEDED(m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &m_Options6, sizeof(m_Options6)));
 	bool hasOptions7 = SUCCEEDED(m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &m_Options7, sizeof(m_Options7)));
+	bool hasOptions21 = SUCCEEDED(m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS21, &m_Options21, sizeof(m_Options21)));
 
 	if (SUCCEEDED(m_D3d12Device->QueryInterface(IID_PPV_ARGS(&m_D3d12Device2))) && hasOptions7)
 	{
@@ -152,10 +153,17 @@ alm::rhi::dx12::GpuDevice::GpuDevice(const alm::rhi::dx12::DeviceDesc& desc) :
 	{
 		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = { D3D_SHADER_MODEL_6_6 };
 		bool hasShaderModel = SUCCEEDED(m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel)));
-
-		m_HeapDirectlyIndexedSupported = m_Options.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3 &&
-			hasShaderModel && shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_6;
+		m_SM_6_6_Supported = hasShaderModel && shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_6;
 	}
+
+	{
+		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = { D3D_SHADER_MODEL_6_8 };
+		bool hasShaderModel = SUCCEEDED(m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel)));
+		m_SM_6_8_Supported = hasShaderModel && shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_8;
+	}
+
+	m_HeapDirectlyIndexedSupported = m_SM_6_6_Supported && m_Options.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3;
+	m_ExtendedCommandInfoSupported = false;// m_SM_6_8_Supported&& hasOptions21&& m_Options21.ExtendedCommandInfoSupported;
 
 	//
 	// Create Query Heap
@@ -916,6 +924,15 @@ void alm::rhi::dx12::GpuDevice::Shutdown()
 		}
 		m_LivingResources.clear();
 	}
+}
+
+std::pair<int, int> alm::rhi::dx12::GpuDevice::GetMaxShaderModelSupported() const
+{
+	if (m_SM_6_8_Supported)
+		return { 6, 8 };
+	if (m_SM_6_6_Supported)
+		return { 6, 6 };
+	return { 0, 0 };
 }
 
 void alm::rhi::dx12::GpuDevice::ReleaseTimerQuery(dx12::TimerQuery* timerQuery)

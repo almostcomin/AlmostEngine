@@ -77,7 +77,8 @@ void alm::fw::App::Run(const AppArgs& args)
 {
 	m_StartupArgs = args;
 
-	InitInternal();
+	if (!InitInternal())
+		return;
 	Initialize();
 
 	MainLoop();
@@ -423,7 +424,23 @@ bool alm::fw::App::InitInternal()
 			.GPUDriven = gpuDriven,
 			.ForceSDR = false
 		};
-		m_DeviceManager->Init(initParams);
+		alm::gfx::DeviceManager::InitResult result = m_DeviceManager->Init(initParams);
+		if (result != alm::gfx::DeviceManager::InitResult::Succeeded)
+		{
+			const char* reason = nullptr;
+			switch (result)
+			{
+			case alm::gfx::DeviceManager::InitResult::BindlessNotSupported:
+				reason = "Bindless not supported"; break;
+			case alm::gfx::DeviceManager::InitResult::GPUDrivenNotSupported:
+				reason = "GPU Driven not supported"; break;
+			default:
+				reason = "Undefined";
+			}
+
+			LOG_ERROR("Failed to init device, reason: {}", reason);
+			return false;
+		}
 	}
 	LOG_INFO("Init device manager: Done");
 

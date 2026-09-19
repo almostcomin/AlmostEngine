@@ -44,7 +44,7 @@ public:
 
 private:
 
-	bool InternalInit(const DeviceParams& params) override;
+	InitResult InternalInit(const DeviceParams& params) override;
 	void InternalShutdown() override;
 
 	bool CreateDevice();

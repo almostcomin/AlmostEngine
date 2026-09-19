@@ -96,11 +96,21 @@ public:
         float cpuIdleMs;
     };
 
+    enum InitResult
+    {
+        Succeeded,
+        BindlessNotSupported,
+        GPUDrivenNotSupported,
+        GenericError
+    };
+
+public:
+
     static DeviceManager* Create(alm::gfx::GraphicsAPI api);
 
     virtual ~DeviceManager();
 
-    bool Init(const DeviceParams& params);
+    InitResult Init(const DeviceParams& params);
     void Shutdown();
 
     void Update();
@@ -184,7 +194,7 @@ protected:
 
 private:
 
-    virtual bool InternalInit(const DeviceParams& params) = 0;
+    virtual InitResult InternalInit(const DeviceParams& params) = 0;
     virtual void InternalShutdown() = 0;
 
 private:
