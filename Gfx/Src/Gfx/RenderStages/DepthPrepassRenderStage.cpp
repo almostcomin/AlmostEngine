@@ -26,7 +26,7 @@ void alm::gfx::DepthPrepassRenderStage::Setup(RenderGraphBuilder& builder)
 
 void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
-	auto scene = GetScene();
+	auto* scene = GetScene();
 	if (!scene)
 		return;
 	auto* deviceManager = GetDeviceManager();

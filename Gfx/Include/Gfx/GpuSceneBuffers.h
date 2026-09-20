@@ -167,9 +167,16 @@ private:
 		uint32_t TransientsAllocated = 0;								// Next index free in the transient instances region
 		uint32_t HeighmapPatchesAllocated = 0;							// Next index free in the HeightmapPatch buffer
 
+		// One entry per (domain, cullMode, batchKey)
 		std::vector<interop::BatchTableEntry> BatchTable;
+		// Used by MaterialPassRenderer::DrawIndirect indicates the number of instances that share (domain, cullmode)
+		// that is, the number of instances that can be draw with a single call to ExecuteIndirect since they share PSO.
+		// It also indicates the location (FirstBatch) in the IndirectDrawCommand of the first instance of the bucket
 		BucketInfoArray Buckets;
+		// GPU version of BatchTable
 		rhi::BufferOwner BatchTableBuffer;
+		// If a new instance is added or an exisiting one is removed or any material propery changes, this invalidates
+		// the whole BatchTable
 		bool BatchLayoutDirty = true;
 
 		bool DataInitialized = false;

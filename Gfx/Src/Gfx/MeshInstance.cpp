@@ -8,7 +8,7 @@
 alm::gfx::MeshInstance::MeshInstance(std::shared_ptr<alm::gfx::Mesh> mesh) :
 	m_Mesh{ mesh },
 	m_MeshSceneIndex{ UINT32_MAX },
-	m_BatchId{ UINT32_MAX }
+	m_BatchIndex{ UINT32_MAX }
 {
 	m_RenderFlags = SceneRenderFlags::Default;
 }

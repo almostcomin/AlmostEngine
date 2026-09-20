@@ -110,7 +110,7 @@ static void SerializeMeshInstanceCullData(const alm::gfx::MeshInstance* mi, inte
 	float radius = glm::length(boxBounds.extents());
 
 	dest->BoundsSphere = float4{ center.x, center.y, center.z, radius };
-	dest->BatchId = mi->GetBatchId();
+	dest->BatchIndex = mi->GetBatchIndex();
 	dest->Flags = (uint32_t)mi->GetRenderFlags();
 }
 
@@ -402,7 +402,7 @@ void alm::gfx::GpuSceneBuffers::UnregisterMeshInstance(GpuSceneBuffersHandle han
 	mi->SetLeafSceneIndex(UINT32_MAX);
 
 	// Invalidate Batch table
-	mi->SetBatchId(UINT32_MAX);
+	mi->SetBatchIndex(UINT32_MAX);
 	m_SceneStates[handle.idx].BatchLayoutDirty = true;
 }
 
@@ -699,7 +699,7 @@ void alm::gfx::GpuSceneBuffers::UpdateGpuBuffers(rhi::ICommandList* commandList)
 			[&](uint32_t /*miIdx*/, interop::InstanceCullData* dst)
 			{
 				dst->BoundsSphere = float4{ 0.f, 0.f, 0.f, 0.f };
-				dst->BatchId = 0xffffffff;
+				dst->BatchIndex = 0xffffffff;
 				dst->Flags = 0u;
 			});
 
@@ -922,7 +922,7 @@ void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
 	if (ss.MeshInstances.empty())
 		return;
 
-	// 1. Gather rows
+	// 1. Gather rows: All potentially visible MeshInstances
 	std::vector<RenderableDrawInfo> rows;
 	rows.reserve(ss.MeshInstances.size());
 	for (const MeshInstance* mi : ss.MeshInstances)
@@ -949,7 +949,8 @@ void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
 	});
 
 	// 3. Runs = Fill BatchTable + BatchsIds + Buckets
-	uint32_t regionOffset = 0, batchId = 0, runStart = 0;
+	// BatchTable: 
+	uint32_t regionOffset = 0, batchIndex = 0, runStart = 0;
 	for (size_t i = 0; i <= rows.size(); ++i)
 	{
 		bool boundary = (i == rows.size())
@@ -972,24 +973,25 @@ void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
 
 		auto& bucket = ss.Buckets[(int)first.MaterialDomain][(int)first.CullMode];
 		if (bucket.BatchCount == 0)
-			bucket.FirstBatch = batchId;   // first bucket batch
+			bucket.FirstBatch = batchIndex;   // first bucket batch
 		++bucket.BatchCount;
 
 		for (uint32_t r = runStart; r < i; ++r)
 		{
 			MeshInstance* mi = ss.MeshInstances[rows[r].InstanceIdx];
-			if (mi->GetBatchId() != batchId)
+			if (mi->GetBatchIndex() != batchIndex)
 			{
-				mi->SetBatchId(batchId);
+				mi->SetBatchIndex(batchIndex);
 				if (!ss.MeshInstancesState.NewIndices.has(rows[r].InstanceIdx))
 				{
+					// Needs to set DirtyIndices to update InstanceCullData
 					ss.MeshInstancesState.DirtyIndices.insert(rows[r].InstanceIdx);
 				}
 			}
 		}
 
 		regionOffset += count;
-		++batchId;
+		++batchIndex;
 		runStart = uint32_t(i);
 	}
 }
@@ -1027,7 +1029,7 @@ void alm::gfx::GpuSceneBuffers::InitializeMeshInstanceCullData(SceneState& ss, r
 	for (int i = 0; i < kStaticInstanceCount + kTransientInstanceCount; ++i)
 	{
 		dstData[i].BoundsSphere = float4{ 0.f, 0.f, 0.f, 0.f };
-		dstData[i].BatchId = 0xffffffff;
+		dstData[i].BatchIndex = 0xffffffff;
 		dstData[i].Flags = 0;
 	}
 

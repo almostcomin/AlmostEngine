@@ -9,7 +9,7 @@ namespace alm::math
 // six planes, normals pointing outside of the volume
 struct frustum3f
 {
-    enum
+    enum plane_type
     {
         near_plane = 0,
         far_plane,
@@ -39,6 +39,18 @@ struct frustum3f
         planes[right_plane] = plane3f{ row3 - row0 };
         planes[top_plane] = plane3f{ row3 - row1 };
         planes[bottom_plane] = plane3f{ row3 + row1 };
+    }
+
+    const plane3f& operator[](plane_type idx) const
+    {
+        assert(idx >= 0 && idx < PLANE_COUNT);
+        return planes[idx];
+    }
+
+    const plane3f& operator[](int idx) const
+    {
+        assert(idx >= 0 && idx < PLANE_COUNT);
+        return planes[idx];
     }
 
     std::span<const plane3f, PLANE_COUNT> get_planes() const

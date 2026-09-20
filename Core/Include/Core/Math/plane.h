@@ -33,6 +33,11 @@ struct plane
 		normalize();
 	}
 
+	explicit operator glm::vec<N + 1, T, glm::defaultp>() const
+	{
+		return glm::vec<N + 1, T, glm::defaultp>{ normal, d };
+	}
+
 	// Distance to a point
 	T distance(const vec_t p) const
 	{

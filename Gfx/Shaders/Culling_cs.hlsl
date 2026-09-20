@@ -1,9 +1,52 @@
+//--------------------------------------------------------------------------
+// GPU cull, dispatch 2/2:
+// Frustum-culls every static instance, fused for both frustums in one dispatch (single InstanceCullData load):
+//   camera -> frustumPlanes      -> camera args/payload
+//   shadow -> shadowCasterPlanes -> shadow args/payload
+//
+// 1 thread = 1 static instance. For each visible instance:
+// InterlockedAdd(cmds[batchIndex].InstanceCount) reserves the slot AND is the visibility mark;
+// payload is written at [RegionOffset + slot].
+//
+// Consumed via ExecuteIndirect: one command per BatchTableEntry, zero InstanceCount = no-op.
+// VS reads payload[startInstance + instanceID].
+//
+// Guards: BatchIndex == INVALID_INDEX -> unassigned/erased slot.
+//--------------------------------------------------------------------------
+
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
+#include "RenderFlags.hlsli"
 
 static const uint INVALID_INDEX = 0xFFFFFFFFu;
 
 ConstantBuffer<interop::CullingConstants> StageConstants : register(b0);
+
+bool TestSphereFrustum(float4 p[6], float4 s)
+{
+    [unroll]
+    for (int i = 0; i < 6; ++i)
+    {
+        if (dot(p[i].xyz, s.xyz) + p[i].w < -s.w)
+            return false;
+    }
+    return true;
+}
+
+void Scatter(
+    RWStructuredBuffer<interop::IndirectDrawCommand> cmdsBuffer,
+    RWStructuredBuffer<interop::VisibleInstancePayload> payloadBuffer,
+    interop::BatchTableEntry bte,
+    uint batchIndex, uint instanceIdx)
+{
+    uint slot;
+    InterlockedAdd(cmdsBuffer[batchIndex].InstanceCount, 1, slot); // Reserve room AND marks to render
+        
+    payloadBuffer[bte.RegionOffset + slot].InstanceIndex = instanceIdx;
+    payloadBuffer[bte.RegionOffset + slot].MeshIndex = bte.MeshIndex;
+    payloadBuffer[bte.RegionOffset + slot].MaterialIndex = bte.MaterialIndex;
+    payloadBuffer[bte.RegionOffset + slot].ExtraDataBaseIdx = bte.ExtraDataBaseIdx;
+}
 
 [RootSignature(BindlessRootSignature)]
 [numthreads(256, 1, 1)]
@@ -15,29 +58,25 @@ void main(uint DTid : SV_DispatchThreadID)
     ConstantBuffer<interop::SceneConstants> sceneConstants = ResourceDescriptorHeap[StageConstants.SceneDI];
     StructuredBuffer<interop::InstanceCullData> cullDataBuffer = ResourceDescriptorHeap[StageConstants.CullDataDI];
     StructuredBuffer<interop::BatchTableEntry> batchTable = ResourceDescriptorHeap[StageConstants.BatchTableDI];
-    RWStructuredBuffer<interop::IndirectDrawCommand> cmds = ResourceDescriptorHeap[StageConstants.ArgsDI];
-    RWStructuredBuffer<interop::VisibleInstancePayload> payload = ResourceDescriptorHeap[StageConstants.PayloadDI];
+    RWStructuredBuffer<interop::IndirectDrawCommand> cameraArgs = ResourceDescriptorHeap[StageConstants.CameraArgsDI];
+    RWStructuredBuffer<interop::VisibleInstancePayload> cameraPayload = ResourceDescriptorHeap[StageConstants.CameraPayloadDI];
+    RWStructuredBuffer<interop::IndirectDrawCommand> shadowArgs = ResourceDescriptorHeap[StageConstants.ShadowArgsDI];
+    RWStructuredBuffer<interop::VisibleInstancePayload> shadowPayload = ResourceDescriptorHeap[StageConstants.ShadowPayloadDI];    
     
     const interop::InstanceCullData cullData = cullDataBuffer[DTid];
-    if (cullData.BatchId == INVALID_INDEX)
+    if (cullData.BatchIndex == INVALID_INDEX)
         return;
     
-    // Frustum vs sphere
-    [unroll]
-    for (int p = 0; p < 6; ++p)
+    interop::BatchTableEntry bte = batchTable[cullData.BatchIndex];
+    
+    if (TestSphereFrustum(sceneConstants.frustumPlanes, cullData.BoundsSphere))
     {
-        const float4 plane = sceneConstants.frustumPlanes[p];
-        if (dot(plane.xyz, cullData.BoundsSphere.xyz) + plane.w < -cullData.BoundsSphere.w)
-            return;
+        Scatter(cameraArgs, cameraPayload, bte, cullData.BatchIndex, DTid);
     }
     
-    const interop::BatchTableEntry bte = batchTable[cullData.BatchId];
-    
-    uint slot;
-    InterlockedAdd(cmds[cullData.BatchId].InstanceCount, 1, slot); // Reserva room AND marks to render
-    
-    payload[bte.RegionOffset + slot].InstanceIndex = DTid;
-    payload[bte.RegionOffset + slot].MeshIndex = bte.MeshIndex;
-    payload[bte.RegionOffset + slot].MaterialIndex = bte.MaterialIndex;
-    payload[bte.RegionOffset + slot].ExtraDataBaseIdx = bte.ExtraDataBaseIdx;
+    if (StageConstants.ShadowEnabled && (cullData.Flags & RF_CAST_SHADOWS) &&
+        TestSphereFrustum(sceneConstants.shadowCasterPlanes, cullData.BoundsSphere))
+    {
+        Scatter(shadowArgs, shadowPayload, bte, cullData.BatchIndex, DTid);
+    }
 }

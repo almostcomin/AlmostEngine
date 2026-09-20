@@ -20,9 +20,23 @@ void alm::gfx::GPUCullingRenderStage::Setup(RenderGraphBuilder& builder)
 		.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::VisibleInstancePayload),
 		.stride = sizeof(interop::VisibleInstancePayload) });
 
+	m_ShadowIndirectArgsBuffer = builder.CreateBuffer("ShadowIndirectArgsBuffer", rhi::BufferDesc{
+		.shaderUsage = rhi::BufferShaderUsage::ReadWrite | rhi::BufferShaderUsage::IndirectArguments,
+		.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::IndirectDrawCommand),
+		.stride = sizeof(interop::IndirectDrawCommand) });
+
+	m_ShadowPayloadBuffer = builder.CreateBuffer("ShadowPayloadBuffer", rhi::BufferDesc{
+		.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
+		.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::VisibleInstancePayload),
+		.stride = sizeof(interop::VisibleInstancePayload) });
+
 	builder.AddBufferDependency(m_IndirectArgsBuffer, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 	builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+	builder.AddBufferDependency(m_ShadowIndirectArgsBuffer, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+	builder.AddBufferDependency(m_ShadowPayloadBuffer, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 }
 
@@ -41,20 +55,24 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 
 	interop::CullingConstants shaderConstants;
 	shaderConstants.SceneDI = GetRenderView()->GetSceneBufferUniformView();
-	shaderConstants.ArgsDI = m_RenderGraph->GetBufferReadWriteView(m_IndirectArgsBuffer);
-	shaderConstants.PayloadDI = m_RenderGraph->GetBufferReadWriteView(m_PayloadBuffer);
+	shaderConstants.CameraArgsDI = m_RenderGraph->GetBufferReadWriteView(m_IndirectArgsBuffer);
+	shaderConstants.CameraPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_PayloadBuffer);
+	shaderConstants.ShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowIndirectArgsBuffer);
+	shaderConstants.ShadowPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowPayloadBuffer);
 	shaderConstants.BatchTableDI = gpuSceneBuffers->GetBatchTableBufferView(scene->GetGpuSceneBuffersHandle());
 	shaderConstants.CullDataDI = gpuSceneBuffers->GetInstancesCullDataBufferView(scene->GetGpuSceneBuffersHandle());
 	shaderConstants.BatchCount = batchCount;
 	shaderConstants.InstanceCount = instanceCount;
+	shaderConstants.ShadowEnabled = GetRenderView()->IsShadowmapValid();
 
 	commandList->PushComputeConstants(0, shaderConstants);
 
 	commandList->SetPipelineState(m_PreparePSO.get());
 	commandList->Dispatch(DivRoundUp(batchCount, 256u), 1, 1);
 
-	commandList->PushBarrier(rhi::Barrier::Memory(
-		m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get()));
+	commandList->PushBarriers({
+		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get()),
+		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_ShadowIndirectArgsBuffer).get()) });
 
 	commandList->SetPipelineState(m_CullingPSO.get());
 	commandList->Dispatch(DivRoundUp(instanceCount, 256u), 1, 1);

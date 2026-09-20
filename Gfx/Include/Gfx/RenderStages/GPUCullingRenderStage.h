@@ -20,8 +20,11 @@ private:
 
 private:
 
-	RGBufferHandle m_PayloadBuffer;
 	RGBufferHandle m_IndirectArgsBuffer;
+	RGBufferHandle m_PayloadBuffer;
+
+	RGBufferHandle m_ShadowIndirectArgsBuffer;
+	RGBufferHandle m_ShadowPayloadBuffer;
 
 	alm::rhi::ShaderOwner m_PrepareCS;
 	alm::rhi::ShaderOwner m_CullingCS;

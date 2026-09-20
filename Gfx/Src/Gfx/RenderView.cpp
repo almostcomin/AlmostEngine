@@ -335,8 +335,11 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		const math::frustum3f& frustumPlanes = m_Camera->GetFrustum();
 		for (int i = 0; i < 6; ++i)
 		{
-			auto plane = frustumPlanes.get_planes()[i];
-			sceneShaderConstant->frustumPlanes[i] = float4{ plane.normal.x, plane.normal.y, plane.normal.z, plane.d };
+			sceneShaderConstant->frustumPlanes[i] = float4{ frustumPlanes[i] };
+		}
+		for (int i = 0; i < 6; ++i)
+		{
+			sceneShaderConstant->shadowCasterPlanes[i] = float4{ m_ShadowCullPlanes[i] };
 		}
 	}
 	else
@@ -349,6 +352,10 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		for (int i = 0; i < 6; ++i)
 		{
 			sceneShaderConstant->frustumPlanes[i] = float4{ 0.f, 0.f, 0.f, 0.f };
+		}
+		for (int i = 0; i < 6; ++i)
+		{
+			sceneShaderConstant->shadowCasterPlanes[i] = float4{ 0.f, 0.f, 0.f, 0.f };
 		}
 	}
 	sceneShaderConstant->invCamViewProjMatrix = glm::inverse(sceneShaderConstant->camViewProjMatrix);
@@ -478,6 +485,7 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	const aabox3d searchVolumeWorldD = cameraBoundsSun.transform(glm::inverse(sunViewMatrixD));
 	const aabox3f searchVolumeWorld(searchVolumeWorldD);  // back to float for the cull
 	const auto searchPlanes = searchVolumeWorld.getClipPlanes();
+	m_ShadowCullPlanes = searchPlanes;
 
 	VisibleSetContext context{
 		.HeightmapInstances = &m_HeightmapInstances,

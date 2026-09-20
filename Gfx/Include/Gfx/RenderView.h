@@ -147,6 +147,7 @@ private:
 	// Matrices for cascade shadowmap
 	float4x4 m_ShadowMapWorldToClipMatrix;
 	float4x4 m_ViewToShadowMapClipMatrix;
+	std::array<plane3f, 6> m_ShadowCullPlanes;
 
 	// Matrices for clouds shadowmap
 	float4x4 m_CloudsShadowMapWorldToClipMatrix;

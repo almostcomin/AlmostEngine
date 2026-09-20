@@ -71,8 +71,16 @@ void alm::gfx::ShadowmapRenderStage::InitResources()
 	// Load shaders
 	{
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_vs", rhi::ShaderType::Vertex);
-		m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_vs", rhi::ShaderType::Vertex);
+		if (deviceManager->GPUDrivenEnabled())
+		{
+			m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_GC_vs", rhi::ShaderType::Vertex);
+			m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_GC_vs", rhi::ShaderType::Vertex);
+		}
+		else
+		{
+			m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_vs", rhi::ShaderType::Vertex);
+			m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_vs", rhi::ShaderType::Vertex);
+		}
 		m_VS_Terrain = shaderFactory->LoadShader("CascadeShadowmap_Terrain_vs", rhi::ShaderType::Vertex);
 
 		//m_PS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_ps", rhi::ShaderType::Pixel);
@@ -138,33 +146,56 @@ void alm::gfx::ShadowmapRenderStage::RecreatePSO()
 void alm::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_ShadowMapTexture = builder.CreateDepthTarget("Shadowmap", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
+	m_ShadowPayloadBuffer = builder.GetBufferHandle("ShadowPayloadBuffer");
+	m_ShadowIndirectArgsBuffer = builder.GetBufferHandle("ShadowIndirectArgsBuffer");
 
-	builder.AddTextureDependency(m_ShadowMapTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	builder.AddTextureDependency(m_ShadowMapTexture, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	builder.AddBufferDependency(m_ShadowPayloadBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddBufferDependency(m_ShadowIndirectArgsBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
 }
 
 void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
-	if (GetRenderView()->IsShadowmapValid())
+	auto* scene = GetScene();
+	if (!scene)
+		return;
+	if (!GetRenderView()->IsShadowmapValid())
+		return;
+	auto* deviceManager = GetDeviceManager();
+
+	commandList->BeginRenderPass(
+		m_FB.get(),
+		{},
+		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
+		{},
+		rhi::RenderPassFlags::None);
+
+	interop::ShadowmapStageConstats shaderConstants;
+	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
+	shaderConstants.instancesDI = GetRenderView()->GetShadowMapVisibilityBufferROView();
+	shaderConstants.payloadDI = m_RenderGraph->GetBufferReadOnlyView(m_ShadowPayloadBuffer);
+
+	commandList->PushGraphicsConstants(0, shaderConstants);
+
+	if (deviceManager->GPUDrivenEnabled())
 	{
-		commandList->BeginRenderPass(
-			m_FB.get(),
-			{},
-			rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::DepthZero() },
-			{},
-			rhi::RenderPassFlags::None);
+		MaterialPassRenderer::IndirectDrawParams params{
+			.ArgsBuffer = m_RenderGraph->GetBuffer(m_ShadowIndirectArgsBuffer).get(),
+			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
 
-		interop::ShadowmapStageConstats shaderConstants;
-		shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
-		shaderConstants.instancesDI = GetRenderView()->GetShadowMapVisibilityBufferROView();
-
-		commandList->PushGraphicsConstants(0, shaderConstants);
-
+		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
+	}
+	else
+	{
 		m_MaterialPassRenderer.DrawRenderSetInstanced(
 			GetRenderView()->GetShadowMapVisibleSet(),
 			commandList.get());
-
-		commandList->EndRenderPass();
 	}
+
+	commandList->EndRenderPass();
 }
 
 void alm::gfx::ShadowmapRenderStage::OnAttached()

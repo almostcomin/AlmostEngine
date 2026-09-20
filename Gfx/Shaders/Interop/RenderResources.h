@@ -61,7 +61,7 @@ namespace interop
     struct InstanceCullData
     {
         float4 BoundsSphere;    // xyz = center, w = radius
-        uint BatchId;
+        uint BatchIndex;
         uint Flags;             // CastShadows, etc.
     };
 
@@ -201,6 +201,7 @@ namespace interop
         // Shadomap matrices
         float4x4 shadowMapWorldToClipMatrix;    // offset 136
         float4x4 shadowMapViewToClipMatrix;     // offset 152
+        float4 shadowCasterPlanes[6];           // offset 112
         // Clouds shadowmap
         float4x4 CloudsShadowmapWorldToClipMatrix;
         float3 CloudsShadowmapSunPosition;
@@ -246,6 +247,7 @@ namespace interop
     {
         BufferUniformIndex sceneDI;         // SceneConstants
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
     };
 
     struct WBOITAccumStageConstants
@@ -307,13 +309,16 @@ namespace interop
 
     struct CullingConstants
     {
-        BufferUniformIndex SceneDI;         // SceneConstants
-        BufferReadWriteIndex ArgsDI;        // IndirectDrawCommand (UAV)
-        BufferReadWriteIndex PayloadDI;     // VisibleInstancePayload (UAV)
+        BufferUniformIndex SceneDI;             // SceneConstants
+        BufferReadWriteIndex CameraArgsDI;      // IndirectDrawCommand
+        BufferReadWriteIndex CameraPayloadDI;   // VisibleInstancePayload
+        BufferReadWriteIndex ShadowArgsDI;      // IndirectDrawCommand
+        BufferReadWriteIndex ShadowPayloadDI;   // VisibleInstancePayload
         BufferReadOnlyIndex  BatchTableDI;
-        BufferReadOnlyIndex  CullDataDI;
-        uint BatchCount;                    // = BatchTable.size()
-        uint InstanceCount;                 // Alive static instances
+        BufferReadOnlyIndex  CullDataDI;        // InstanceCullData
+        uint BatchCount;                        // = BatchTable.size()
+        uint InstanceCount;                     // Alive static instances
+        uint ShadowEnabled;
     };
 
     struct DeferredLightingConstants

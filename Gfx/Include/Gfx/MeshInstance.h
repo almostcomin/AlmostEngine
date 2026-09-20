@@ -36,20 +36,20 @@ public:
 	const std::shared_ptr<alm::gfx::Mesh>& GetMesh() const { return m_Mesh; }
 
 	uint32_t GetMeshSceneIndex() const { return m_MeshSceneIndex; }
-	uint32_t GetBatchId() const { return m_BatchId; }
+	uint32_t GetBatchIndex() const { return m_BatchIndex; }
 
 	// IRenderable interface
 	void CollectDrawInfos(const VisibleSetContext& context, const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const override;
 
 	//-- To be called by GpuSceneBuffers
 	void SetMeshSceneIndex(uint32_t i) { m_MeshSceneIndex = i; }
-	void SetBatchId(uint32_t k) { m_BatchId = k; }
+	void SetBatchIndex(uint32_t i) { m_BatchIndex = i; }
 
 private:
 
 	std::shared_ptr<alm::gfx::Mesh> m_Mesh;
 	uint32_t m_MeshSceneIndex;
-	uint32_t m_BatchId;
+	uint32_t m_BatchIndex;
 };
 
 } // namespace 
