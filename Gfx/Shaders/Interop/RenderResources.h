@@ -257,6 +257,7 @@ namespace interop
         float2 oneOverShadowmapResolution;
         TextureSampledViewIndex SSAO_DI;
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
     };
 
     struct WBOITResolveStageConstants

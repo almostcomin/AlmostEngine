@@ -27,6 +27,8 @@ private:
 	RGTextureHandle m_SceneDepthTexture;
 	RGTextureHandle m_ShadowmapTexture;
 	RGTextureHandle m_AmbientOcclusionTexture;
+	RGBufferHandle m_PayloadBuffer;
+	RGBufferHandle m_IndirectArgsBuffer;
 
 	alm::rhi::ShaderOwner m_VS;
 	alm::rhi::ShaderOwner m_PS;

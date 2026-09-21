@@ -17,12 +17,23 @@ void alm::gfx::WBOITAccumRenderStage::Setup(RenderGraphBuilder& builder)
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 	m_ShadowmapTexture = builder.GetTextureHandle("Shadowmap");
 	m_AmbientOcclusionTexture = builder.GetTextureHandle("AmbientOcclusion");
+	m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
+	m_IndirectArgsBuffer = builder.GetBufferHandle("IndirectArgsBuffer");
 
-	builder.AddTextureDependency(m_AccumWOITTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	builder.AddTextureDependency(m_RevealageWOITTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
-	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
-	builder.AddTextureDependency(m_ShadowmapTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	builder.AddTextureDependency(m_AmbientOcclusionTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_AccumWOITTexture, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	builder.AddTextureDependency(m_RevealageWOITTexture, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	builder.AddTextureDependency(m_ShadowmapTexture, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddTextureDependency(m_AmbientOcclusionTexture, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	builder.AddBufferDependency(m_IndirectArgsBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
 }
 
 void alm::gfx::WBOITAccumRenderStage::Render(alm::rhi::CommandListHandle commandList)
@@ -32,6 +43,7 @@ void alm::gfx::WBOITAccumRenderStage::Render(alm::rhi::CommandListHandle command
 	{
 		return;
 	}
+	auto* deviceManager = GetDeviceManager();
 
 	float2 shadowMapResolution = { 0.f, 0.f };
 	auto shadowmapTex = m_RenderGraph->GetTexture(m_ShadowmapTexture);
@@ -54,15 +66,27 @@ void alm::gfx::WBOITAccumRenderStage::Render(alm::rhi::CommandListHandle command
 	shaderConstants.sceneDI = GetRenderView()->GetSceneBufferUniformView();
 	shaderConstants.shadowMapDI = GetRenderView()->IsShadowmapValid() ? 
 		m_RenderGraph->GetTextureSampledView(m_ShadowmapTexture) : interop::TextureSampledViewIndex{};
-	shaderConstants.oneOverShadowmapResolution = 1.f / shadowMapResolution;
+	shaderConstants.oneOverShadowmapResolution = shadowmapTex ? 1.f / shadowMapResolution : float2{ 0.f, 0.f };
 	shaderConstants.SSAO_DI = m_RenderGraph->GetTextureSampledView(m_AmbientOcclusionTexture);
 	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();
+	shaderConstants.payloadDI = m_RenderGraph->GetBufferReadOnlyView(m_PayloadBuffer);
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
-	m_MaterialPassRenderer.DrawRenderSetInstanced(
-		GetRenderView()->GetCameraVisibleSet(),
-		commandList.get());
+	if (deviceManager->GPUDrivenEnabled())
+	{
+		MaterialPassRenderer::IndirectDrawParams params{
+			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get(),
+			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
+
+		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
+	}
+	else
+	{
+		m_MaterialPassRenderer.DrawRenderSetInstanced(
+			GetRenderView()->GetCameraVisibleSet(),
+			commandList.get());
+	}
 
 	commandList->EndRenderPass();
 }
@@ -84,7 +108,14 @@ void alm::gfx::WBOITAccumRenderStage::OnAttached()
 	// Load shaders
 	{
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
-		m_VS = shaderFactory->LoadShader("WBOITAccumulation_vs", rhi::ShaderType::Vertex);
+		if (deviceManager->GPUDrivenEnabled())
+		{
+			m_VS = shaderFactory->LoadShader("WBOITAccumulation_GC_vs", rhi::ShaderType::Vertex);
+		}
+		else
+		{
+			m_VS = shaderFactory->LoadShader("WBOITAccumulation_vs", rhi::ShaderType::Vertex);
+		}
 		m_PS = shaderFactory->LoadShader("WBOITAccumulation_ps", rhi::ShaderType::Pixel);
 	}
 

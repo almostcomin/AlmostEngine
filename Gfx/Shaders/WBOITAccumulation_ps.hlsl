@@ -5,7 +5,6 @@
 #include "Shadowmap.hlsli"
 
 ConstantBuffer<interop::WBOITAccumStageConstants> StageConstants : register(b0);
-ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
 
 struct PS_INPUT
 {
@@ -14,6 +13,7 @@ struct PS_INPUT
     float4 tangent : TANGENT; // xyz = tangent, w = handedness (-1 or +1)
     float2 uv : TEXCOORD0;
     float3 posView : TEXCOORD1;
+    nointerpolation uint materialIndex : MATERIAL;
 };
 
 struct PS_OUTPUT
@@ -33,7 +33,7 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     StructuredBuffer<interop::SpotLightData> spotLightsDataBuffer = ResourceDescriptorHeap[sceneData.spotLightsDataDI];    
     
     // Get surface material
-    interop::MaterialData matData = materialsBuffer[DrawConstants.materialIndex];
+    interop::MaterialData matData = materialsBuffer[input.materialIndex];
     MaterialTextureSample texturesSample = SampleMaterialTextures(input.uv, matData);
     MaterialSample surfaceMat = EvaluateSceneMaterial(input.normal, input.tangent, matData, texturesSample, isFrontFace);
     

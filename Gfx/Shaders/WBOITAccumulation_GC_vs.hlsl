@@ -1,4 +1,4 @@
 
-#define GPU_CULL 0
+#define GPU_CULL 1
 
 #include "WBOITAccumulation_vs.hlsli"
