@@ -21,6 +21,7 @@
 #include "Gfx/RenderStages/BloomRenderStage.h"
 #include "Gfx/RenderStages/SimpleSkyRenderStage.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
+#include "Gfx/RenderStages/CloudsShadowMapRenderStage.h"
 #include "Gfx/ImGUIViewportsRenderer.h"
 #include "Gfx/GltfImporter.h"
 #include "Gfx/SceneGraph.h"
@@ -536,6 +537,11 @@ void alm::fw::App::InitRenderStages()
 
 	// Lets create a default set of render stages
 	{
+		std::shared_ptr<gfx::SimpleSkyRenderStage> simpleSkyRS;
+		std::shared_ptr<gfx::SkyRenderStage> skyRS;
+		std::shared_ptr<gfx::CloudsRenderStage> cloudsRS;
+		std::shared_ptr<gfx::CloudsShadowmapRenderStage> cloudsSMRS;
+
 		auto gpuCullingRS = gfx::RenderStageFactory::CreateShared<gfx::GPUCullingRenderStage>();
 		auto shadowmapRS = gfx::RenderStageFactory::CreateShared<gfx::ShadowmapRenderStage>();
 		auto depthPrepassRS = gfx::RenderStageFactory::CreateShared<gfx::DepthPrepassRenderStage>();
@@ -543,7 +549,6 @@ void alm::fw::App::InitRenderStages()
 		auto SSAORS = gfx::RenderStageFactory::CreateShared<gfx::SSAORenderStage>();
 		auto GBuffersRS = gfx::RenderStageFactory::CreateShared<gfx::GBuffersRenderStage>();
 		auto deferredLightingRS = gfx::RenderStageFactory::CreateShared<gfx::DeferredLightingRenderStage>();
-		auto simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SimpleSkyRenderStage>();
 		auto WBOITAccumRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
 		auto WBOITResolveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
 		auto bloomRS = gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
@@ -551,6 +556,18 @@ void alm::fw::App::InitRenderStages()
 		auto debugRS = gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
 		auto wireframeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
 		auto compositeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
+
+		switch (m_RenderStageSetMode)
+		{
+		case RenderStageSetMode::Default_SimpleSky:
+			simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SimpleSkyRenderStage>();
+			break;
+		case RenderStageSetMode::Default_FullAtmos:
+			cloudsSMRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsShadowmapRenderStage>();
+			skyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::SkyRenderStage>();
+			cloudsRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsRenderStage>();
+			break;
+		}
 
 		std::shared_ptr<alm::gfx::ImGuiRenderStage> ImGuiRS;
 		if (GetUIRenderStageType() != gfx::RenderStageType_None)
@@ -565,15 +582,18 @@ void alm::fw::App::InitRenderStages()
 
 		// Add stages to render graph.
 		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
-		renderGraph->SetRenderStages({
+		std::vector< std::shared_ptr<alm::gfx::RenderStage>> renderStagesList = {
 			gpuCullingRS,
 			shadowmapRS,
 			depthPrepassRS,
 			linearizeDepthRS,
 			GBuffersRS,
 			SSAORS,
+			cloudsSMRS,
 			deferredLightingRS,
 			simpleSkyRS,
+			skyRS,
+			cloudsRS,
 			WBOITAccumRS,
 			WBOITResolveRS,
 			bloomRS,
@@ -581,25 +601,36 @@ void alm::fw::App::InitRenderStages()
 			debugRS,
 			ImGuiRS,
 			compositeRS,
-			wireframeRS });
+			wireframeRS };
+		// Remove the null ones
+		std::erase_if(renderStagesList, [](const auto& sp) { return !sp; });
 
-		// Define default render mode
-		renderGraph->SetRenderMode("Default", {
+		renderGraph->SetRenderStages(renderStagesList);
+
+		// Define default render mode.
+		std::vector<alm::gfx::RenderStage*> defaultRenderMode = {
 			gpuCullingRS.get(),
 			shadowmapRS.get(),
 			depthPrepassRS.get(),
 			linearizeDepthRS.get(),
 			GBuffersRS.get(),
 			SSAORS.get(),
+			cloudsSMRS.get(),
 			deferredLightingRS.get(),
 			simpleSkyRS.get(),
+			skyRS.get(),
+			cloudsRS.get(),
 			WBOITAccumRS.get(),
 			WBOITResolveRS.get(),
 			bloomRS.get(),
 			toneMappingRS.get(),
 			debugRS.get(),
 			ImGuiRS.get(),
-			compositeRS.get() });
+			compositeRS.get() };
+		// Remove the null ones
+		std::erase_if(defaultRenderMode, [](const auto& p) { return !p; });
+
+		renderGraph->SetRenderMode("Default", defaultRenderMode);
 
 		// Define wireframe render mode
 		renderGraph->SetRenderMode("Wireframe", {

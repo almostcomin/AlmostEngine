@@ -35,7 +35,9 @@ public:
     enum class RenderStageSetMode
     {
         None,
-        Default,
+        Default_NoSky,
+        Default_SimpleSky,
+        Default_FullAtmos,
         User
     };
     

@@ -727,12 +727,12 @@ void alm::gfx::GpuSceneBuffers::FlushTransients(GpuSceneBuffersHandle handle, rh
 			ss.MeshInstancesBuffer.get(), kStaticInstanceCount * sizeof(interop::InstanceData),
 			ss.TransientInstacesStagingBuffer.get(), 0,
 			ss.TransientsAllocated * sizeof(interop::InstanceData));
-
+/*
 		commandList->CopyBufferToBuffer(
 			ss.MeshInstanceCullDataBuffer.get(), kStaticInstanceCount * sizeof(interop::InstanceCullData),
 			ss.TransientInstanceCullDataBuffer.get(), 0,
 			ss.TransientsAllocated * sizeof(interop::InstanceCullData));
-
+*/
 		commandList->PushBarriers({
 			rhi::Barrier::Buffer(ss.MeshInstancesBuffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE),
 			rhi::Barrier::Buffer(ss.MeshInstanceCullDataBuffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::SHADER_RESOURCE) });
