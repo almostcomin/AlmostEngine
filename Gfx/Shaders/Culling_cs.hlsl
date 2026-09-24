@@ -6,7 +6,7 @@
 //
 // 1 thread = 1 static instance. For each visible instance:
 // InterlockedAdd(cmds[batchIndex].InstanceCount) reserves the slot AND is the visibility mark;
-// payload is written at [RegionOffset + slot].
+// payload is written at [PayloadRegionOffset + slot].
 //
 // Consumed via ExecuteIndirect: one command per BatchTableEntry, zero InstanceCount = no-op.
 // VS reads payload[startInstance + instanceID].
@@ -42,10 +42,10 @@ void Scatter(
     uint slot;
     InterlockedAdd(cmdsBuffer[batchIndex].InstanceCount, 1, slot); // Reserve room AND marks to render
         
-    payloadBuffer[bte.RegionOffset + slot].InstanceIndex = instanceIdx;
-    payloadBuffer[bte.RegionOffset + slot].MeshIndex = bte.MeshIndex;
-    payloadBuffer[bte.RegionOffset + slot].MaterialIndex = bte.MaterialIndex;
-    payloadBuffer[bte.RegionOffset + slot].ExtraDataBaseIdx = bte.ExtraDataBaseIdx;
+    payloadBuffer[bte.PayloadRegionOffset + slot].InstanceIndex = instanceIdx;
+    payloadBuffer[bte.PayloadRegionOffset + slot].MeshIndex = bte.MeshIndex;
+    payloadBuffer[bte.PayloadRegionOffset + slot].MaterialIndex = bte.MaterialIndex;
+    payloadBuffer[bte.PayloadRegionOffset + slot].ExtraDataBaseIdx = bte.ExtraDataBaseIdx;
 }
 
 [RootSignature(BindlessRootSignature)]

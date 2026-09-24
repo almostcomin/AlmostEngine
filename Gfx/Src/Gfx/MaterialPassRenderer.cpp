@@ -189,6 +189,8 @@ void alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(const alm::gfx::Rend
 
 void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& params, alm::rhi::ICommandList* commandList) const
 {
+	assert(params.ArgsBuffer && params.Buckets);
+		
 	for (int domainIdx = 0; domainIdx < (int)MaterialDomain::_Size; ++domainIdx)
 	{
 		if (!m_ValidDomains[domainIdx])
@@ -202,13 +204,48 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 			if (bucket.BatchCount == 0)
 				continue;
 
-			commandList->SetPipelineState(GetPSO(domain, cull));
-			commandList->BeginMarker(std::format("{} - {}:{}", m_BaseDebugName, GetMaterialDomainString(domain), rhi::GetCullModeString(cull)).c_str());
+			rhi::IGraphicsPipelineState* PSO = GetPSO(domain, cull);
+			if (!PSO)
+			{
+				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
+					GetMaterialDomainString(domain), rhi::GetCullModeString(cull),
+					m_BaseDebugName);
+				continue;
+			}
+			commandList->SetPipelineState(PSO);
+
+			commandList->BeginMarker(std::format("{}:Static - {}:{}", m_BaseDebugName,
+				GetMaterialDomainString(domain), rhi::GetCullModeString(cull)).c_str());
 
 			commandList->ExecuteIndirect(m_CommandSignature.get(), params.ArgsBuffer,
-				bucket.FirstBatch * sizeof(interop::IndirectDrawCommand), nullptr, 0, bucket.BatchCount);
+				bucket.FirstBatchIndex * sizeof(interop::IndirectDrawCommand), nullptr, 0, bucket.BatchCount);
 
 			commandList->EndMarker();
 		}
+	}
+
+	for (const auto& t : params.Transients)
+	{
+		if (!m_ValidDomains[(int)t.Domain])
+			continue;
+
+		rhi::IGraphicsPipelineState* PSO = GetPSO(t.Domain, t.Cull);
+		if (!PSO)
+		{
+			LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
+				GetMaterialDomainString(t.Domain), rhi::GetCullModeString(t.Cull),
+				m_BaseDebugName);
+			continue;
+		}
+		commandList->SetPipelineState(GetPSO(t.Domain, t.Cull));
+
+
+		commandList->BeginMarker(std::format("{}:{} - {}:{}", m_BaseDebugName, t.DebugName.empty() ? "Transient" : t.DebugName,
+			GetMaterialDomainString(t.Domain), rhi::GetCullModeString(t.Cull)).c_str());
+		
+		commandList->ExecuteIndirect(m_CommandSignature.get(), params.ArgsBuffer,
+			t.FirstBatchIndex * sizeof(interop::IndirectDrawCommand), nullptr, 0, t.BatchCount);
+
+		commandList->EndMarker();
 	}
 }

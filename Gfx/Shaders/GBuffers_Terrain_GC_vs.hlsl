@@ -1,3 +1,3 @@
 
-#define GPU_CULL 0
+#define GPU_CULL 1
 #include "GBuffers_Terrain_vs.hlsli"

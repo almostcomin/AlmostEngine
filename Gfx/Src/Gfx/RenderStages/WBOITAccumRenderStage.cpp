@@ -77,7 +77,8 @@ void alm::gfx::WBOITAccumRenderStage::Render(alm::rhi::CommandListHandle command
 	{
 		MaterialPassRenderer::IndirectDrawParams params{
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get(),
-			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
+			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
+			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
 
 		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
 	}

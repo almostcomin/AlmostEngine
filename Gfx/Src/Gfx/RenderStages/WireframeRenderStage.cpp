@@ -68,7 +68,8 @@ void alm::gfx::WireframeRenderStage::Render(alm::rhi::CommandListHandle commandL
 	{
 		MaterialPassRenderer::IndirectDrawParams params{
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get(),
-			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
+			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
+			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
 
 		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
 	}
@@ -101,13 +102,14 @@ void alm::gfx::WireframeRenderStage::OnAttached()
 		if (deviceManager->GPUDrivenEnabled())
 		{
 			m_VS = shaderFactory->LoadShader("WireframeStage_GC_vs", rhi::ShaderType::Vertex);
+			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_GC_vs", rhi::ShaderType::Vertex);
 		}
 		else
 		{
 			m_VS = shaderFactory->LoadShader("WireframeStage_vs", rhi::ShaderType::Vertex);
+			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 		}
 
-		m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 		m_PS = shaderFactory->LoadShader("WireframeStage_ps", rhi::ShaderType::Pixel);
 	}
 

@@ -161,8 +161,8 @@ public:
     alm::gfx::UploadBuffer*         GetUploadBuffer()           { return m_UploadBuffer.get(); }
     alm::gfx::GpuSceneBuffers*      GetGpuSceneBuffers()        { return m_GpuSceneBuffers.get(); }
 
+    uint32_t GetFramesInFlightCount() const { return m_SwapChainFramebuffers.size(); }
     uint64_t GetFrameIndex() const { return m_FrameIndex; }
-    uint32_t GetSwapchainBufferCount() const { return m_SwapChainFramebuffers.size(); }
     uint32_t GetFrameModuleIndex() const;
 
     virtual rhi::ColorSpace GetColorSpace() const = 0;

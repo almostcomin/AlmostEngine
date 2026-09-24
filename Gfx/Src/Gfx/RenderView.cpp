@@ -79,7 +79,7 @@ alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* 
 	rhi::CommandListParams params{
 		.queueType = rhi::QueueType::Graphics
 	};
-	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
+	for (int i = 0; i < m_DeviceManager->GetFramesInFlightCount(); ++i)
 	{
 		m_BeginCommandLists.push_back(device->CreateCommandList(
 			params, std::format("{} - BeginCmdList[{}]", m_DebugName, i)));
@@ -229,12 +229,17 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec, const Mous
 		m_ResetPrevFrameCamera = false;
 	}
 
-	// Update heightmaps
+	// Transients
 	if (m_Scene)
 	{
-		const auto& fbInfo = frameBuffer->GetFramebufferInfo();
-		UpdateHeightmaps({ fbInfo.width, fbInfo.height }, beginCommandList);
-		// Upload transients (for heightmap only atm)
+		gpuSceneBuffers->ResetTransients(m_Scene->GetGpuSceneBuffersHandle());
+
+		// Update heightmaps, the only transients for the moment
+		{
+			const auto& fbInfo = frameBuffer->GetFramebufferInfo();
+			UpdateHeightmaps({ fbInfo.width, fbInfo.height }, beginCommandList);
+		}
+		
 		gpuSceneBuffers->FlushTransients(m_Scene->GetGpuSceneBuffersHandle(), beginCommandList);
 	}
 

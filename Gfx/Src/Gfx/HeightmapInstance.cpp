@@ -170,7 +170,7 @@ void alm::gfx::HeightmapInstance::CollectDrawInfos(const GpuSceneBuffers* gpuSce
 			.BatchKey = (reinterpret_cast<uintptr_t>(this) << 16) | uintptr_t(meshIndex),
 			.InstanceIdx = m_InstancesAllocBaseIdx + i,
 			.MeshIndex = meshIndex,
-			.MaterialIndex = gpuSceneBuffers->GetMaterialIndexFromMeshIdx(meshIndex).Index,
+			.MaterialIndex = gpuSceneBuffers->GetMaterialIndexFromMeshIndex(meshIndex).Index,
 			.TransientBaseIndex = m_PatchesAllocBaseIndex + i,
 			.IndexCount = m_SceneHeightmap->GetHeightmap()->GetPatchIndicesCount(heighmapMeshVariantIndex) 
 		});
@@ -206,13 +206,18 @@ std::string alm::gfx::HeightmapInstance::DumpTesselationInfo() const
 alm::aabox3f alm::gfx::HeightmapInstance::GetAABoxWorldSpace(const QuadNodeCoord& node) const
 {
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
-
-	float2 heightRange = heightmap->GetPatchHeightRange(node.Level, node.CellIndex);
+	const float2 heightRange = heightmap->GetPatchHeightRange(node.Level, node.CellIndex);
 
 	aabox3f localBounds = node.Bounds(heightmap->GetVirtualSize(), heightRange.x, heightRange.y);
 	aabox3f worldBounds = localBounds.transform(m_SceneHeightmap->GetWorldTransform());
 
 	return worldBounds;
+}
+
+float4 alm::gfx::HeightmapInstance::GetSphereBoundsWorldSpace(const QuadNodeCoord& node) const
+{
+	alm::aabox3f worldBounds = GetAABoxWorldSpace(node);
+	return float4{ worldBounds.center(), glm::length(worldBounds.extents()) };
 }
 
 bool alm::gfx::HeightmapInstance::ShouldSubdivideMetric(const QuadNodeCoord& coord, const Camera* camera, const uint2& fbSize)
@@ -567,6 +572,9 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 {
 	ZoneScoped;
 
+	if (m_LeafNodes.empty())
+		return;
+
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 	const auto& dataSource = heightmap->GetSource();
 	rhi::TextureSampledView textureView = heightmap->GetHeightsTexture()->GetSampledView();
@@ -585,9 +593,18 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 
 	float2 uvScale = heightmap->GetUVScale();
 
-	GpuSceneBuffers::HeightmapPatchesAllocation alloc = gpuSceneBuffers->AllocateTransientHeightmapPatches(gpuBuffersHandle, m_LeafNodes.size());
+	GpuSceneBuffers::HeightmapPatchesAllocation alloc =
+		gpuSceneBuffers->AllocateTransientHeightmapPatches(gpuBuffersHandle, m_LeafNodes.size());
+	if (alloc.InstancesDataPtr == nullptr)
+	{
+		LOG_ERROR("Failed allocating Heightmap Patches");
+		return;
+	}
+
 	for (size_t i = 0; i < m_LeafNodes.size(); ++i)
 	{
+		const uint32_t meshVariantIndex = m_LeafNodes[i].GetMeshVariantIndex();
+		const uint32_t meshIndex = m_SceneHeightmap->GetPatchMeshGpuIndex(meshVariantIndex);
 		const QuadNodeCoord& coord = m_LeafNodes[i];
 		const float2 minUV = coord.MinUV();
 		const float sizeUV = coord.SizeUV();
@@ -599,8 +616,20 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 		const float4x4 worldMatrix = nodeWorldMatrix * localTransform.GetMatrix();
 		const float4x4 inverseWorldMatrix = glm::inverse(worldMatrix);
 
+		// Instance data
 		alloc.InstancesDataPtr[i].modelMatrix = worldMatrix;
 		alloc.InstancesDataPtr[i].inverseModelMatrix = inverseWorldMatrix;
+		// Cull data
+		alloc.CullDataBufferPtr[i].BoundsSphere = GetSphereBoundsWorldSpace(m_LeafNodes[i]);
+		alloc.CullDataBufferPtr[i].BatchIndex = alloc.FirstBatchIndex + i;
+		alloc.CullDataBufferPtr[i].Flags = (uint32_t)SceneRenderFlags::Default;
+		// Batch table
+		alloc.BatchTableEntriesPtr[i].MeshIndex = meshIndex;
+		alloc.BatchTableEntriesPtr[i].MaterialIndex = gpuSceneBuffers->GetMaterialIndexFromMeshIndex(meshIndex).Index;
+		alloc.BatchTableEntriesPtr[i].ExtraDataBaseIdx = alloc.PatchesBaseIndex + i; // Per patch
+		alloc.BatchTableEntriesPtr[i].PayloadRegionOffset = alloc.FirstPayloadRegion + i;
+		alloc.BatchTableEntriesPtr[i].IndexCount = m_SceneHeightmap->GetHeightmap()->GetPatchIndicesCount(meshVariantIndex);
+		// Heightmap patch
 		alloc.HeightmapPatchesPtr[i].MinUV = minUV;
 		alloc.HeightmapPatchesPtr[i].UVScale = uvScale;
 		alloc.HeightmapPatchesPtr[i].SizeUV = sizeUV;

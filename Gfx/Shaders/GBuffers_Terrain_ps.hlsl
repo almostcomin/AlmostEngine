@@ -5,7 +5,6 @@
 #include "GBuffersCommon.hlsli"
 
 ConstantBuffer<interop::GBufferStageConstats> StageConstants : register(b0);
-ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
 
 struct PS_INPUT
 {
@@ -14,6 +13,7 @@ struct PS_INPUT
     float4 tangent                  : TANGENT;          // xyz = tangent, w = handedness (-1 or +1)    
     float2 uv                       : TEXCOORD0;
     float3 posWorld                 : TEXCOORD1;
+    nointerpolation uint materialIndex : MATERIAL;
     nointerpolation uint patchIndex : PATCH_INDEX;
     float3 debugConnectionColor     : COLOR0;
 };
@@ -27,7 +27,7 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     StructuredBuffer<interop::TerrainMaterialData> materialsBuffer = ResourceDescriptorHeap[sceneData.terrainMaterialsBufferDI];    
     StructuredBuffer<interop::HeightmapPatchData> patchDataBuffer = ResourceDescriptorHeap[sceneData.patchDataBufferDI];
     
-    interop::TerrainMaterialData matData = materialsBuffer[DrawConstants.materialIndex];    
+    interop::TerrainMaterialData matData = materialsBuffer[input.materialIndex];    
     interop::HeightmapPatchData patchData = patchDataBuffer[input.patchIndex];
     
     Texture2D<float> heightsTexture = ResourceDescriptorHeap[patchData.HeightmapTextureDI];

@@ -49,7 +49,9 @@ void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle comma
 	{
 		MaterialPassRenderer::IndirectDrawParams params{
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get(),
-			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
+			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
+			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle())
+		};
 
 		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
 	}
@@ -81,14 +83,15 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 		{
 			m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_GC_vs", rhi::ShaderType::Vertex);
 			m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_GC_vs", rhi::ShaderType::Vertex);
+			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_GC_vs", rhi::ShaderType::Vertex);
 		}
 		else
 		{
 			m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_vs", rhi::ShaderType::Vertex);
 			m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_vs", rhi::ShaderType::Vertex);
+			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 		}
 		m_PS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_ps", rhi::ShaderType::Pixel);
-		m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 	}
 
 	// Create PSO

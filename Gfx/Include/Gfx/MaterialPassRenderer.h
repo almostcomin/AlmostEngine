@@ -26,8 +26,9 @@ public:
 
 	struct IndirectDrawParams
 	{
-		rhi::IBuffer* ArgsBuffer;
-		const GpuSceneBuffers::BucketInfoArray* Buckets;
+		rhi::IBuffer* ArgsBuffer = nullptr;
+		const GpuSceneBuffers::BucketInfoArray* Buckets = nullptr;
+		const std::span<const GpuSceneBuffers::TransientRecord> Transients;
 	};
 
 public:

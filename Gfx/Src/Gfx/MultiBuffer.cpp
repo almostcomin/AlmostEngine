@@ -19,7 +19,7 @@ void alm::gfx::MultiBuffer::InitRaw(const alm::rhi::BufferShaderUsage usage, siz
 {
 	Release();
 
-	m_Buffers.resize(deviceManager->GetSwapchainBufferCount());
+	m_Buffers.resize(deviceManager->GetFramesInFlightCount());
 
 	m_MemoryAccess = alm::rhi::MemoryAccess::Default;
 	m_Usage = usage;
@@ -35,7 +35,7 @@ void alm::gfx::MultiBuffer::InitStructured(const alm::rhi::BufferShaderUsage usa
 {
 	Release();
 
-	m_Buffers.resize(deviceManager->GetSwapchainBufferCount());
+	m_Buffers.resize(deviceManager->GetFramesInFlightCount());
 
 	m_MemoryAccess = alm::rhi::MemoryAccess::Default;
 	m_Usage = usage;
@@ -50,7 +50,7 @@ void alm::gfx::MultiBuffer::InitUniformBuffer(size_t sizeBytes, alm::gfx::Device
 {
 	Release();
 
-	m_Buffers.resize(deviceManager->GetSwapchainBufferCount());
+	m_Buffers.resize(deviceManager->GetFramesInFlightCount());
 
 	m_MemoryAccess = alm::rhi::MemoryAccess::Upload;
 	m_Usage = alm::rhi::BufferShaderUsage::Uniform;
@@ -73,7 +73,7 @@ void alm::gfx::MultiBuffer::Release()
 void alm::gfx::MultiBuffer::Reset()
 {
 	m_Buffers.clear();
-	m_Buffers.resize(m_DeviceManager->GetSwapchainBufferCount());
+	m_Buffers.resize(m_DeviceManager->GetFramesInFlightCount());
 	m_SizeBytes = 0;
 }
 

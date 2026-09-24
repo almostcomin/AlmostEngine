@@ -287,8 +287,7 @@ namespace interop
         uint MeshIndex;
         uint MaterialIndex;
         uint ExtraDataBaseIdx;
-        uint RegionOffset;
-        uint MaxInstances;
+        uint PayloadRegionOffset;
         uint IndexCount;
     };
 
@@ -296,7 +295,7 @@ namespace interop
     {
         uint VertexCountPerInstance;        // = IndexCount (prefill desde BatchTable)
         uint InstanceCount;
-        uint StartVertexLocation;
+        uint StartVertexLocation;           // Always prefilled to 0; no vertex-buffer indirection, so the draw ignores it
         uint StartInstanceLocation;
     };
 
@@ -317,8 +316,8 @@ namespace interop
         BufferReadWriteIndex ShadowPayloadDI;   // VisibleInstancePayload
         BufferReadOnlyIndex  BatchTableDI;
         BufferReadOnlyIndex  CullDataDI;        // InstanceCullData
-        uint BatchCount;                        // = BatchTable.size()
-        uint InstanceCount;                     // Alive static instances
+        uint BatchCount;                        // BatchTable.size()
+        uint InstanceCount;                     // Static capacity + transient instances allocated this cycle
         uint ShadowEnabled;
     };
 

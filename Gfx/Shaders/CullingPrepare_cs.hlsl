@@ -6,7 +6,8 @@
 // D3D12_DRAW_ARGUMENTS, 16 bytes).
 //
 // InstanceCount always starts at 0 (Culling_cs increments it atomically every frame).
-// StartInstanceLocation = RegionOffset: payload region base, recovered in the VS via SV_StartInstanceLocation.
+// StartInstanceLocation = PayloadRegionOffset: payload region base, recovered in the VS via SV_StartInstanceLocation.
+
 //--------------------------------------------------------------------------
 
 #include "Interop/RenderResources.h"
@@ -31,7 +32,7 @@ void main(uint DTid : SV_DispatchThreadID)
     cmd.VertexCountPerInstance = bte.IndexCount;
     cmd.InstanceCount = 0;
     cmd.StartVertexLocation = 0;
-    cmd.StartInstanceLocation = bte.RegionOffset;
+    cmd.StartInstanceLocation = bte.PayloadRegionOffset;
     
     cameraArgs[DTid] = cmd;
     shadowArgs[DTid] = cmd;

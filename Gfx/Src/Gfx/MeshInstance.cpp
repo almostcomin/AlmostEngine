@@ -50,7 +50,7 @@ void alm::gfx::MeshInstance::CollectDrawInfos(const VisibleSetContext&, const Gp
 		(uintptr_t)(m_Mesh.get()),				// BatchKey
 		GetLeafSceneIndex(),					// InstanceIdx
 		m_MeshSceneIndex,						// MeshIndex
-		gpuSceneBuffers->GetMaterialIndexFromMeshIdx(m_MeshSceneIndex).Index, // MaterialIndex
+		gpuSceneBuffers->GetMaterialIndexFromMeshIndex(m_MeshSceneIndex).Index, // MaterialIndex
 		UINT32_MAX,								// TransientBaseIndex (not used)
 		m_Mesh->GetIndexCount()					// IndexCount
 	);

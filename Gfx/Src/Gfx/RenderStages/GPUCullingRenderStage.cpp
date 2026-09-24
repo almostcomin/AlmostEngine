@@ -51,7 +51,7 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 	}
 
 	const uint32_t batchCount = gpuSceneBuffers->GetBatchTableSize(scene->GetGpuSceneBuffersHandle());
-	const uint32_t instanceCount = GpuSceneBuffers::kStaticInstanceCount;
+	const uint32_t instanceCount = gpuSceneBuffers->GetRenderInstancesCount(scene->GetGpuSceneBuffersHandle());
 
 	interop::CullingConstants shaderConstants;
 	shaderConstants.SceneDI = GetRenderView()->GetSceneBufferUniformView();

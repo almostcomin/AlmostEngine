@@ -85,6 +85,7 @@ public:
 	std::string DumpTesselationInfo() const;
 
 	aabox3f GetAABoxWorldSpace(const QuadNodeCoord& node) const;
+	float4 GetSphereBoundsWorldSpace(const QuadNodeCoord& node) const; // {posx, posy, posz, radius}
 
 	const std::vector<QuadNodeCoord>& GetLeafNodes() const { return m_LeafNodes; }
 

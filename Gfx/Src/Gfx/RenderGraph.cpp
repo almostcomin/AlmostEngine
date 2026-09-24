@@ -76,7 +76,7 @@ alm::gfx::RenderGraph::RenderGraph(RenderView* renderView, const char* debugName
 	rhi::CommandListParams params{
 		.queueType = rhi::QueueType::Graphics
 	};
-	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount(); ++i)
+	for (int i = 0; i < m_DeviceManager->GetFramesInFlightCount(); ++i)
 	{
 		m_CommandLists.push_back(device->CreateCommandList(params, m_DebugName));
 	}
@@ -132,13 +132,13 @@ void alm::gfx::RenderGraph::SetRenderStages(const std::vector<std::shared_ptr<Re
 	{
 		auto rsd = new StageData;
 		rsd->renderStage = rs;
-		rsd->timerQueries.reserve(m_DeviceManager->GetSwapchainBufferCount() * 2);
+		rsd->timerQueries.reserve(m_DeviceManager->GetFramesInFlightCount() * 2);
 		rsd->cpuElapsed.resize(8, 0.f); // 8 samples
 		m_RenderStages.emplace_back(rsd);
 	}
 
 	// Init timer queries
-	for (int i = 0; i < m_DeviceManager->GetSwapchainBufferCount() * 2; ++i)
+	for (int i = 0; i < m_DeviceManager->GetFramesInFlightCount() * 2; ++i)
 	{
 		for (auto& rsd : m_RenderStages)
 		{

@@ -75,15 +75,15 @@ void alm::gfx::ShadowmapRenderStage::InitResources()
 		{
 			m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_GC_vs", rhi::ShaderType::Vertex);
 			m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_GC_vs", rhi::ShaderType::Vertex);
+			m_VS_Terrain = shaderFactory->LoadShader("CascadeShadowmap_Terrain_GC_vs", rhi::ShaderType::Vertex);
 		}
 		else
 		{
 			m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_vs", rhi::ShaderType::Vertex);
 			m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_vs", rhi::ShaderType::Vertex);
+			m_VS_Terrain = shaderFactory->LoadShader("CascadeShadowmap_Terrain_vs", rhi::ShaderType::Vertex);
 		}
-		m_VS_Terrain = shaderFactory->LoadShader("CascadeShadowmap_Terrain_vs", rhi::ShaderType::Vertex);
 
-		//m_PS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_ps", rhi::ShaderType::Pixel);
 		m_PS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_ps", rhi::ShaderType::Pixel);
 	}
 
@@ -184,7 +184,8 @@ void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandL
 	{
 		MaterialPassRenderer::IndirectDrawParams params{
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_ShadowIndirectArgsBuffer).get(),
-			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()) };
+			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
+			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
 
 		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
 	}

@@ -29,11 +29,11 @@ class GpuSceneBuffers
 {
 public:
 
-	static constexpr uint32_t kStaticInstanceCount		= 8192;
-	static constexpr uint32_t kTransientInstanceCount	= 65536;
-	static constexpr uint32_t kMaterialCount			= 1024;
-	static constexpr uint32_t kTerrainMaterialCount		= 8;
-	static constexpr uint32_t kMeshRefCount				= 4096;
+	static constexpr uint32_t kMaxStaticInstanceCount		= 8192;
+	static constexpr uint32_t kMaxTransientInstanceCount	= 65536;
+	static constexpr uint32_t kMaxMaterialCount				= 1024;
+	static constexpr uint32_t kMaxTerrainMaterialCount		= 256;
+	static constexpr uint32_t kMaxMeshRefCount				= 4096;
 
 	enum class MaterialType
 	{
@@ -52,11 +52,27 @@ public:
 	using TerrainMaterialRefCount = ResourceRefCount<const TerrainMaterial>;
 	using MeshRefCount = ResourceRefCount<const Mesh>;
 
-	using MeshInstanceLeafsContainer = alm::stable_vector<MeshInstance*, kStaticInstanceCount>;
-	using MaterialsContainer = alm::unique_stable_vector<MaterialRefCount, kMaterialCount>;
-	using TerrainMaterialsContainer = alm::unique_stable_vector<TerrainMaterialRefCount, kMaterialCount>;
-	using MeshesContainer = alm::unique_stable_vector<MeshRefCount, kMeshRefCount>;
+	using MeshInstanceLeafsContainer = alm::stable_vector<MeshInstance*, kMaxStaticInstanceCount>;
+	using MaterialsContainer = alm::unique_stable_vector<MaterialRefCount, kMaxMaterialCount>;
+	using TerrainMaterialsContainer = alm::unique_stable_vector<TerrainMaterialRefCount, kMaxTerrainMaterialCount>;
+	using MeshesContainer = alm::unique_stable_vector<MeshRefCount, kMaxMeshRefCount>;
 	using MeshMaterialIndicesContainer = std::array<MaterialIndexEntry, MeshesContainer::max_elements>;
+
+	struct BucketInfo
+	{
+		uint32_t FirstBatchIndex;
+		uint32_t BatchCount;
+	};
+	using BucketInfoArray = BucketInfo[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
+
+	struct TransientRecord
+	{
+		MaterialDomain Domain;
+		rhi::CullMode Cull;
+		uint32_t FirstBatchIndex;
+		uint32_t BatchCount;
+		std::string DebugName;
+	};
 
 	struct HeightmapPatchesAllocation
 	{
@@ -64,19 +80,16 @@ public:
 		uint32_t PatchesBaseIndex;
 		uint32_t Count;
 		interop::InstanceData* InstancesDataPtr;
+		interop::InstanceCullData* CullDataBufferPtr;
+		interop::BatchTableEntry* BatchTableEntriesPtr;
 		interop::HeightmapPatchData* HeightmapPatchesPtr;
+		uint32_t FirstBatchIndex;
+		uint32_t FirstPayloadRegion;
 	};
-
-	struct BucketInfo
-	{
-		uint32_t FirstBatch;
-		uint32_t BatchCount;
-	};
-	using BucketInfoArray = BucketInfo[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
 
 public:
 
-	static constexpr uint32_t MaxInstances() { return kStaticInstanceCount + kTransientInstanceCount; }
+	static constexpr uint32_t MaxInstances() { return kMaxStaticInstanceCount + kMaxTransientInstanceCount; }
 
 	GpuSceneBuffers(rhi::Device* device);
 	~GpuSceneBuffers();
@@ -120,7 +133,7 @@ public:
 	const MeshesContainer& GetMeshes() const { return m_Meshes; }
 
 	MaterialIndexEntry GetMaterialIndexFromMesh(const gfx::Mesh* mesh) const;
-	MaterialIndexEntry GetMaterialIndexFromMeshIdx(uint32_t meshIdx) const;
+	MaterialIndexEntry GetMaterialIndexFromMeshIndex(uint32_t meshIdx) const;
 
 	rhi::BufferReadOnlyView GetMeshesBufferView() const;
 	rhi::BufferReadOnlyView GetMaterialsBufferView() const;
@@ -130,12 +143,19 @@ public:
 	rhi::BufferReadOnlyView GetHeightmapPatchDataBufferView(GpuSceneBuffersHandle handle) const;
 	rhi::BufferReadOnlyView GetBatchTableBufferView(GpuSceneBuffersHandle handle) const;
 
-	size_t GetInstancesCount(GpuSceneBuffersHandle handle) const;
+	// Returns kMaxStaticInstanceCount + TransientsAllocated.
+	// The static part may contain holes, so the whole buffer must be processed.
+	// The transient part is contiguous, so we can stop at the current allocation.
+	size_t GetRenderInstancesCount(GpuSceneBuffersHandle handle) const;
+
 	size_t GetBatchTableSize(GpuSceneBuffersHandle handle) const;
 
 	const BucketInfoArray* GetBucketInfo(GpuSceneBuffersHandle handle) const;
+	std::span<const TransientRecord> GetTransientRecords(GpuSceneBuffersHandle handle) const;
 
 	void UpdateGpuBuffers(rhi::ICommandList* commandList);
+
+	void ResetTransients(GpuSceneBuffersHandle handle);
 	void FlushTransients(GpuSceneBuffersHandle handle, rhi::ICommandList* commandList);
 
 private:
@@ -150,38 +170,60 @@ private:
 	struct SceneState
 	{
 		MeshInstanceLeafsContainer MeshInstances;						// Only static (not transient instances)
-		RefreshState MeshInstancesState;								// Deferred updates if the static instance buffer
+		RefreshState MeshInstancesState;								// Deferred updates for the static instance buffer
 
 		rhi::BufferOwner MeshInstancesBuffer;							// interop::InstanceData (static + transient)
 		rhi::BufferOwner TransientInstacesStagingBuffer;				// Staging buffer for transient instances
 		interop::InstanceData* TransientInstancesDataPtr = nullptr;		// Cached pointer to TransientInstacesStagingBuffer mapped ptr
 
+		rhi::BufferOwner MeshInstanceCullDataBuffer;					// interop::InstanceCullData (static + transient). 1:1 with MeshInstancesBuffer
+		rhi::BufferOwner TransientInstanceCullDataStagingBuffer;		// Staging buffer for transient instances - cull data
+		interop::InstanceCullData* TransientInstanceCullDataPtr = nullptr; // Cached pointer to TransientInstanceCullDataBuffer mapped ptr
+
 		rhi::BufferOwner HeightmapPatchDataBuffer;						// interop::HeightmapPatchData (transient only)
 		rhi::BufferOwner HeightmapPatchDataStagingBuffer;				// Staging buffer for heightmap patch data
 		interop::HeightmapPatchData* HeightmapPatchDataPtr = nullptr;	// Cached pointer to HeightmapPatchDataStagingBuffer mapped ptr
 
-		rhi::BufferOwner MeshInstanceCullDataBuffer;					// interop::InstanceCullData (static + transient). 1:1 with MeshInstancesBuffer
-		rhi::BufferOwner TransientInstanceCullDataBuffer;				// Staging buffer for transient instanice - cull data
-		interop::InstanceCullData* TransientInstanceCullDataPtr;		// Cached pointer to TransientInstanceCullDataBuffer mapped ptr
-
 		uint32_t TransientsAllocated = 0;								// Next index free in the transient instances region
 		uint32_t HeighmapPatchesAllocated = 0;							// Next index free in the HeightmapPatch buffer
+		std::vector<TransientRecord> TransientRecords;
 
 		// One entry per (domain, cullMode, batchKey)
 		std::vector<interop::BatchTableEntry> BatchTable;
-		// Used by MaterialPassRenderer::DrawIndirect indicates the number of instances that share (domain, cullmode)
-		// that is, the number of instances that can be draw with a single call to ExecuteIndirect since they share PSO.
-		// It also indicates the location (FirstBatch) in the IndirectDrawCommand of the first instance of the bucket
-		BucketInfoArray Buckets;
 		// GPU version of BatchTable
 		rhi::BufferOwner BatchTableBuffer;
-		// If a new instance is added or an exisiting one is removed or any material propery changes, this invalidates
+		rhi::BufferOwner TransientBatchTableStagingBuffer;
+		interop::BatchTableEntry* TransientBatchTablePtr = nullptr;
+
+		// Used by MaterialPassRenderer::DrawIndirect indicates the number of instances that share (domain, cullmode)
+		// that is, the number of instances that can be draw with a single call to ExecuteIndirect since they share PSO.
+		// It also indicates the location (FirstBatchIndex) in the args buffer of the bucket's first batch command.
+		BucketInfoArray Buckets;
+		// If a new instance is added or an existing one is removed or any material property changes, this invalidates
 		// the whole BatchTable
 		bool BatchLayoutDirty = true;
+
+		// Number of static entries in the BatchTableBuffer.
+		// The BatchTableBuffer contains both static + transients instances.
+		// StaticBatchCount marks the end of the static instances and the begining of the transient ones.
+		uint32_t StaticBatchCount = 0;
+		// Number of static instances in the BatchTable. It *should* be the same as MeshInstances.size(),
+		// but invalid (not registered) isntances are removed.
+		uint32_t StaticPayloadTotal = 0;
 
 		bool DataInitialized = false;
 
 		std::string DebugName;
+	};
+
+	struct TransientInstanceAllocation
+	{
+		uint32_t BaseInstanceIndex; // Slot in the MeshInstancesBuffer & MeshInstanceCullDataBuffer
+		interop::InstanceData* InstancesBufferPtr;
+		interop::InstanceCullData* CullDataBufferPtr;
+		interop::BatchTableEntry* BatchTableBufferPtr;
+		uint32_t FirstBatchIndex;
+		uint32_t FirstPayloadRegion;
 	};
 
 private:
@@ -202,8 +244,9 @@ private:
 	void UpdateGpuBufferGeneric(rhi::ICommandList* commandList, rhi::BufferOwner& buffer, const RefreshState& state, const std::string& debugName,
 		SerializeFn&& serializeFn, InvalidateFn&& invalidateFn = nullptr);
 
-	// returns <base_index, pointer_data>
-	std::pair<uint32_t, interop::InstanceData*> AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count);
+	// 1 batch = 1 payload slot = 1 transient instance
+	TransientInstanceAllocation AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count, MaterialDomain domain, rhi::CullMode cullMode,
+		const std::string& optDebugName = {});
 
 	void RebuildBatchTable(SceneState& ss);
 	void UploadBatchTable(SceneState& ss, rhi::ICommandList* commandList);
