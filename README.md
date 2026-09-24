@@ -14,6 +14,7 @@
 - glTF file loader
 - Physically Based Rendering (PBR)
 - Fully bindless pipeline
+- GPU-driven rendering: GPU frustum culling + indirect draws (SM 6.8 required)
 - WBOIT
 - Directional, point and spot lights
 - Shadow mapping
@@ -60,7 +61,6 @@ python BuildEngine.py --target win-dx12-clang [--config {Debug,Release,RelWithDe
 - MBOIT
 - Bloom in compute
 - DXR / Raytracing
-- GPU Driven Rendering
 - Image Based Lighting
 - Cascaded Shadow Maps
 - Depth of Field
