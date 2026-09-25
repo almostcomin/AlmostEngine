@@ -7,7 +7,7 @@
 
 static alm::rhi::ShaderModel ParseRequiredModel(alm::WeakBlob src, alm::rhi::ShaderModel fallback)
 {
-	const std::string_view src_view(reinterpret_cast<const char*>(src.data()), src.size());
+	const std::string_view src_view{ reinterpret_cast<const char*>(src.data()), src.size() };
 	constexpr std::string_view prefix = "ALM_REQUIRE_SM(";
 
 	size_t pos = src_view.find("ALM_REQUIRE_SM(");
@@ -24,6 +24,46 @@ static alm::rhi::ShaderModel ParseRequiredModel(alm::WeakBlob src, alm::rhi::Sha
 		return alm::rhi::ShaderModel::SM_6_8;
 
 	return fallback;
+}
+
+static void SaveDepsFile(const std::filesystem::path& depsPath, const std::string& toolchainString, const std::vector<std::string>& deps)
+{
+	// Save deps
+	alm::fs::File depsFile{ depsPath.string(), alm::fs::OpenMode::Write };
+	assert(depsFile.IsOpen());
+
+	auto writeResult = depsFile.WriteLine(toolchainString);
+	assert(writeResult);
+
+	for (const auto& depString : deps)
+	{
+		writeResult = depsFile.WriteLine(depString);
+		assert(writeResult);
+	}
+	depsFile.Close();
+}
+
+static std::pair<std::string, std::vector<std::string>> LoadDepsFile(const std::filesystem::path& depsPath)
+{
+	alm::fs::File depsFile{ depsPath.string(), alm::fs::OpenMode::Read };
+	if (!depsFile.IsOpen())
+		return {};
+
+	auto readResult = depsFile.ReadLine();
+	if (!readResult)
+		return {};
+	std::string toolchain = std::move(*readResult);
+
+	std::vector<std::string> deps;
+	while (true)
+	{
+		readResult = depsFile.ReadLine();
+		if (!readResult)
+			break;
+		deps.emplace_back(std::move(*readResult));
+	}
+
+	return { toolchain, deps };
 }
 
 alm::gfx::ShaderFactory::ShaderFactory(bool shadersDebug, alm::rhi::Device* device) : 
@@ -43,28 +83,75 @@ alm::rhi::ShaderOwner alm::gfx::ShaderFactory::LoadShader(const std::string& nam
 			"_shaders" / 
 			(m_ShadersDebug ? "_debug" : "_release") /
 			(name + ".bin");
+		std::filesystem::path depsPath = binPath;
+		depsPath.replace_extension(".deps");
 
 		const bool srcExists = std::filesystem::exists(srcPath);
 		const bool binExists = std::filesystem::exists(binPath);
+		const bool depsExists = std::filesystem::exists(depsPath);
 		bool compileShader = false;
 
 		if (!srcExists)
 		{
-			LOG_WARNING("Source shader '{}' not found", srcPath.string());
+			LOG_ERROR("Source shader '{}' not found", srcPath.string());
+			return {};
 		}
 
-		if (!binExists)
+		fs::File srcFile{ srcPath.string() };
+		auto readResult = srcFile.Read();
+		if (!readResult)
+		{
+			LOG_ERROR("Failed loading shader file '{}', error: {}", srcPath.string(), readResult.error());
+			return {};
+		}
+		srcFile.Close();
+
+		rhi::ShaderModel shaderModel = ParseRequiredModel(alm::WeakBlob{ *readResult }, rhi::ShaderModel::SM_6_6);
+		if (!m_Device->IsShaderModelSupported(shaderModel))
+		{
+			LOG_ERROR("Error on shader '{}': Required SM {} not supported", srcPath.string(), GetShaderModelString(shaderModel));
+			return {};
+		}
+
+		std::string toolchainString = alm::rhi::ShaderCompiler::GetToolchainString(
+			shaderType, shaderModel, "main", m_ShadersDebug);
+
+		bool cacheValid = binExists && depsExists;
+		if (!cacheValid)
 		{
 			compileShader = true;
 		}
-		else if (srcExists)
+		else
 		{
-			//auto sourceTime = std::filesystem::last_write_time(srcPath);
-			//auto binTime = std::filesystem::last_write_time(binPath);
-			
-			// Actually we should check also all the chain of include files to check if any of them has changed...
-			// for the moment, recompile always
-			compileShader = true;//compileShader = sourceTime > binTime;
+			auto binTime = std::filesystem::last_write_time(binPath);
+			auto depsTime = std::filesystem::last_write_time(depsPath);
+			auto sourceTime = std::filesystem::last_write_time(srcPath);
+
+			if (sourceTime > binTime || sourceTime > depsTime)
+			{
+				compileShader = true;
+			}
+			else
+			{
+				auto deps = LoadDepsFile(depsPath);
+				if (deps.first != toolchainString)
+				{
+					compileShader = true;
+				}
+				else
+				{
+					for (const auto& dep : deps.second)
+					{
+						std::error_code ec;
+						auto depTime = std::filesystem::last_write_time(dep, ec);
+						if (ec || depTime > binTime || depTime > depsTime)
+						{
+							compileShader = true;
+							break;
+						}
+					}
+				}
+			}
 		}
 
 		alm::Blob byteCode;
@@ -77,52 +164,43 @@ alm::rhi::ShaderOwner alm::gfx::ShaderFactory::LoadShader(const std::string& nam
 				auto readResult = file.Read();
 				assert(readResult);
 				byteCode = std::move(*readResult);
+				
+				LOG_INFO("Shader '{}' loaded from cache", binPath.string());
 			}
 		}
 		else
 		{
-			fs::File srcFile{ srcPath.string() };
-			if (!srcFile.IsOpen())
+			auto startTime = std::chrono::steady_clock::now();
+			rhi::ShaderCompiler::CompilationResult compilationResult = alm::rhi::ShaderCompiler::Compile(
+				srcPath.filename().string(), shaderType, alm::WeakBlob{ *readResult }, ToWide(SHADERS_SRC_FOLDER),
+				"main", m_ShadersDebug, shaderModel);
+			auto elapsed = std::chrono::steady_clock::now() - startTime;
+
+			if (compilationResult.CompiledBlob)
 			{
-				LOG_ERROR("Shader source file '{}' not found", srcPath.string());
+				LOG_INFO("Shader '{}' compiled OK in {} ms", srcPath.string(), std::chrono::duration<float>(elapsed) * 1000.f);
+				byteCode = std::move(compilationResult.CompiledBlob);
+
+				// Save bin
+				fs::File binFile{ binPath.string(), fs::OpenMode::Write };
+				assert(binFile.IsOpen());
+				auto writeResult = binFile.Write(byteCode.data(), byteCode.size());
+				if (!writeResult)
+				{
+					LOG_ERROR("Faileds writing shader file '{}'", binPath.string());
+				}
+				binFile.Close();
+
+				// Save deps
+				auto depsPath = binPath;
+				depsPath.replace_extension(".deps");
+				SaveDepsFile(depsPath, toolchainString, compilationResult.Dependencies);
 			}
 			else
 			{
-				auto readResult = srcFile.Read();
-				assert(readResult);
-				srcFile.Close();
-
-				rhi::ShaderModel sm = ParseRequiredModel(alm::WeakBlob{ *readResult }, rhi::ShaderModel::SM_6_6);
-				if(!m_Device->IsShaderModelSupported(sm))
-				{
-					LOG_ERROR("Failed shader compilation '{}': Required SM {} not supported", srcPath.string(), GetShaderModelString(sm));
-					return {};
-				}
-
-				LOG_INFO("Compiling shader '{}'...", srcPath.string());
-				auto startTime = std::chrono::steady_clock::now();
-				byteCode = alm::rhi::ShaderCompiler::Compile(srcPath.filename().string(), shaderType, alm::WeakBlob{ *readResult },
-					SHADERS_SRC_FOLDER, "main", m_ShadersDebug, sm);
-				auto elapsed = std::chrono::steady_clock::now() - startTime;
-
-				if (byteCode)
-				{
-					LOG_INFO("Shader '{}' compiled OK in {} ms", srcPath.string(), std::chrono::duration<float>(elapsed) * 1000.f);
-
-					// Save bin
-					fs::File binFile{ binPath.string(), fs::OpenMode::Write };
-					assert(binFile.IsOpen());
-					auto writeResult = binFile.Write(byteCode.data(), byteCode.size());
-					if (!writeResult)
-					{
-						LOG_ERROR("Faileds writing shader file '{}'", binPath.string());
-					}
-				}
-				else
-				{
-					LOG_ERROR("Failed shader compilation '{}'", srcPath.string());
-				}
+				LOG_ERROR("Failed shader compilation '{}'", srcPath.string());
 			}
+
 		}
 
 		if (byteCode)

@@ -432,9 +432,9 @@ bool alm::fw::App::InitInternal()
 			switch (result)
 			{
 			case alm::gfx::DeviceManager::InitResult::BindlessNotSupported:
-				reason = "Bindless not supported"; break;
+				reason = "Bindless not supported. Shader Model 6.6 required."; break;
 			case alm::gfx::DeviceManager::InitResult::GPUDrivenNotSupported:
-				reason = "GPU Driven not supported"; break;
+				reason = "GPU Driven not supported. Shader Model 6.8 required."; break;
 			default:
 				reason = "Undefined";
 			}

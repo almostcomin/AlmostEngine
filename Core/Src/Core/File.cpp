@@ -64,13 +64,9 @@ void alm::fs::File::Close()
 std::expected<alm::Blob, std::string> alm::fs::File::Read(int size)
 {
 	if (!m_FileStream.is_open())
-	{
 		return std::unexpected("File is not opened");
-	}
 	if (m_Mode != OpenMode::Read)
-	{
 		return std::unexpected("Invalid open mode for a read operation");
-	}
 
 	size_t pos = m_FileStream.tellg();
 	if (size < 0)
@@ -95,19 +91,52 @@ std::expected<alm::Blob, std::string> alm::fs::File::Read(int size)
 	return alm::Blob( (uint8_t*)mem, (size_t)size );
 }
 
+std::expected<std::string, std::string> alm::fs::File::ReadLine()
+{
+	if (!m_FileStream.is_open())
+		return std::unexpected("File is not opened");
+	if (m_Mode != OpenMode::Read)
+		return std::unexpected("Invalid open mode for a read operation");
+
+	std::string line;
+	if (!std::getline(m_FileStream, line))
+	{
+		if (m_FileStream.eof())
+			return std::unexpected("End of file reached");
+		return std::unexpected("Failed to read line");
+	}
+
+	if (!line.empty() && line.back() == '\r')
+		line.pop_back();
+
+	return line;
+}
+
 std::expected<size_t, std::string> alm::fs::File::Write(const void* data, size_t size)
 {
 	if (!m_FileStream.is_open())
-	{
 		return std::unexpected("File is not opened");
-	}
 	if (m_Mode != OpenMode::Write)
-	{
 		return std::unexpected("Invalid open mode for a write operation");
-	}
 
 	m_FileStream.write((const char*)data, size);
 	return size;
+}
+
+std::expected<size_t, std::string> alm::fs::File::WriteLine(std::string_view sw)
+{
+    if (!m_FileStream.is_open())
+        return std::unexpected("File is not opened");
+    if (m_Mode != OpenMode::Write)
+        return std::unexpected("Invalid open mode for a write operation");
+
+    m_FileStream.write(sw.data(), sw.size());
+    m_FileStream.write("\r\n", 2);
+
+    if (!m_FileStream)
+        return std::unexpected("Failed to write line to file");
+
+    return sw.size() + 2;
 }
 
 bool alm::fs::File::IsOpen() const

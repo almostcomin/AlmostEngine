@@ -74,6 +74,7 @@ public:
         else
             return 0;
     }
+
     uint32_t Release() noexcept 
     { 
         if (ptr_)
@@ -84,6 +85,19 @@ public:
         }
         else
             return 0;
+    }
+
+    T* Detach() noexcept
+    {
+        T* temp = ptr_;
+        ptr_ = nullptr;
+        return temp;
+    }
+
+    void Attach(T* ptr) noexcept
+    {
+        Release();
+        ptr_ = ptr;
     }
 
 private:

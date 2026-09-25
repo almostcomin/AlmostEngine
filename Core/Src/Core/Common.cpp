@@ -48,9 +48,16 @@ std::string alm::MakeUniqueStringId()
 
 std::wstring alm::ToWide(const char* utf8)
 {
+    if (!utf8) return {};
+
     int size = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, nullptr, 0);
+    if (size <= 0) return {};
+
     std::wstring wide(size, 0);
     MultiByteToWideChar(CP_UTF8, 0, utf8, -1, wide.data(), size);
+
+    // Remove the null terminator, already included with -1
+    wide.resize(size - 1);
     return wide;
 }
 

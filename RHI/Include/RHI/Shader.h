@@ -35,6 +35,30 @@ namespace alm::rhi
     };
     ENUM_CLASS_FLAG_OPERATORS(ShaderType)
 
+    inline const char* GetShaderTypeString(ShaderType type)
+    {
+        switch (type)
+        {
+        case ShaderType::Compute: return "Compute";
+        case ShaderType::Vertex: return "Vertex";
+        case ShaderType::Hull: return "Hull";
+        case ShaderType::Domain: return "Domain";
+        case ShaderType::Geometry: return "Geometry";
+        case ShaderType::Pixel: return "Pixel";
+        case ShaderType::Amplification: return "Amplification";
+        case ShaderType::Mesh: return "Mesh";
+        case ShaderType::RayGeneration: return "RayGeneration";
+        case ShaderType::AnyHit: return "AnyHit";
+        case ShaderType::ClosestHit: return "ClosestHit";
+        case ShaderType::Miss: return "Miss";
+        case ShaderType::Intersection: return "Intersection";
+        case ShaderType::Callable: return "Callable";
+        default:
+            assert(0);
+            return "<unknown>";
+        }
+    }
+
     struct ShaderDesc
     {
         ShaderType Type = ShaderType::None;

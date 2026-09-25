@@ -57,3 +57,7 @@ set_target_properties(RHI PROPERTIES
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
+
+target_compile_definitions(RHI PRIVATE
+    RHI_DXC_TAG="${SHADERMAKE_DXC_VERSION}_${SHADERMAKE_DXC_DATE}"
+)

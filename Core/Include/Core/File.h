@@ -29,10 +29,12 @@ public:
 	// Reads from current pos size bytes. If size < 0, reads to the end of the file.
 	// Error if open mode is not read
 	std::expected<alm::Blob, std::string> Read(int size = -1);
+	std::expected<std::string, std::string> ReadLine();
 
 	// Writes from eof size bytes.
 	// Error if open mode is not write
 	std::expected<size_t, std::string> Write(const void* data, size_t size);
+	std::expected<size_t, std::string> WriteLine(std::string_view sw);
 
 	std::fstream& GetStream() { return m_FileStream; }
 
