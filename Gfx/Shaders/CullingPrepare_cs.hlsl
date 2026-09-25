@@ -10,6 +10,8 @@
 
 //--------------------------------------------------------------------------
 
+// ALM_REQUIRE_SM(6.8)
+
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 

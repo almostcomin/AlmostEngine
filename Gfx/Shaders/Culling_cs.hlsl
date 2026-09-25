@@ -14,6 +14,8 @@
 // Guards: BatchIndex == INVALID_INDEX -> unassigned/erased slot.
 //--------------------------------------------------------------------------
 
+// ALM_REQUIRE_SM(6.8)
+
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 #include "RenderFlags.hlsli"

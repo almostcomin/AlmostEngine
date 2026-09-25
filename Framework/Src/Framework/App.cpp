@@ -410,7 +410,7 @@ bool alm::fw::App::InitInternal()
 	LOG_INFO("   fps_cap:       {}", fpsCap);
 	LOG_INFO("   gd:            {}", graphicsDebug);
 	LOG_INFO("   shaders_debug: {}", shadersDebug);
-	LOG_INFO("   gpu_driven:	{}", gpuDriven);
+	LOG_INFO("   gpu_driven:    {}", gpuDriven);
 
 	LOG_INFO("Init device manager...");
 	{

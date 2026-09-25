@@ -15,8 +15,8 @@ namespace
     alm::ComPtr<IDxcIncludeHandler> IncludeHandler;
 } // anonymouse namespace
 
-alm::Blob alm::rhi::ShaderCompiler::Compile(const std::string& shaderName, ShaderType shaderType, const alm::WeakBlob& srcData, const std::string& includeFolder,
-    const std::string& entryPoint, bool debugMode)
+alm::Blob alm::rhi::ShaderCompiler::Compile(const std::string& shaderName, ShaderType shaderType, const alm::WeakBlob& srcData,
+    const std::string& includeFolder, const std::string& entryPoint, bool debugMode, alm::rhi::ShaderModel model)
 {
     if (!Utils)
     {
@@ -25,19 +25,31 @@ alm::Blob alm::rhi::ShaderCompiler::Compile(const std::string& shaderName, Shade
         CHECK(Utils->CreateDefaultIncludeHandler(&IncludeHandler));
     }
 
+    const wchar_t* sm = nullptr;
+    switch (model)
+    {
+    case ShaderModel::SM_6_8:
+        sm = L"6_8";
+        break;
+    case ShaderModel::SM_6_6:
+    default:
+        sm = L"6_6";
+        break;
+    }
+
     // Setup compilation arguments.
-    const std::wstring targetProfile = [=]()
+    const std::wstring targetProfile = [&]()
     {
         switch (shaderType)
         {
         case ShaderType::Vertex:
-            return L"vs_6_8";
+            return std::wstring(L"vs_") + sm;
         case ShaderType::Pixel:
-            return L"ps_6_8";
+            return std::wstring(L"ps_") + sm;
         case ShaderType::Compute:
-            return L"cs_6_8";
+            return std::wstring(L"cs_") + sm;
         default:
-            return L"";
+            return std::wstring{};
         }
     }();
 

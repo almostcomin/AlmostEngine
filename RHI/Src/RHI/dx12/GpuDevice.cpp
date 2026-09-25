@@ -935,6 +935,21 @@ std::pair<int, int> alm::rhi::dx12::GpuDevice::GetMaxShaderModelSupported() cons
 	return { 0, 0 };
 }
 
+bool alm::rhi::dx12::GpuDevice::IsShaderModelSupported(rhi::ShaderModel sm) const
+{
+	auto [smh, sml] = GetMaxShaderModelSupported();
+	switch (sm)
+	{
+	case ShaderModel::SM_6_6:
+		return smh >= 6 && sml >= 6;
+	case ShaderModel::SM_6_8:
+		return smh >= 6 && sml >= 8;
+	default:
+		assert(0);
+		return false;
+	}
+}
+
 void alm::rhi::dx12::GpuDevice::ReleaseTimerQuery(dx12::TimerQuery* timerQuery)
 {
 	uint32_t beginIdx = timerQuery->GetBeginQueryIndex();

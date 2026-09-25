@@ -10,6 +10,7 @@
 #include "RHI/Shader.h"
 #include "RHI/PipelineState.h"
 #include "RHI/Common.h"
+#include "RHI/ShaderModel.h"
 
 namespace alm::rhi
 {
@@ -100,6 +101,7 @@ namespace alm::rhi
         virtual bool SupportBindless() const = 0;
         virtual bool SupportGPUDriven() const = 0;
         virtual std::pair<int, int> GetMaxShaderModelSupported() const = 0;
+        virtual bool IsShaderModelSupported(rhi::ShaderModel sm) const = 0;
 
         virtual void Shutdown() = 0;
 
