@@ -652,7 +652,8 @@ void alm::fw::App::MainLoop()
 	auto lastTime = appStartTime;
 	auto fpsLastTime = appStartTime;
 	uint32_t fpsFrameCount = 0;
-	uint32_t cpuIdleUSec = 0;
+	// Idle measured inside Render of iteration N is contained in the elapsed time measured at iteration N + 1
+	float cpuIdleMs = 0.f;
 
 	while (!requestQuit)
 	{
@@ -668,7 +669,7 @@ void alm::fw::App::MainLoop()
 		// Update timers
 		{
 			m_CPUTimeMilliSec = elapsedSec * 1000;
-			m_CPUIdleTimeMilliSec = (float)cpuIdleUSec / 1000;
+			m_CPUIdleTimeMilliSec = cpuIdleMs;
 
 			m_GPUTimeMilliSec = (std::max)(m_DeviceManager->GetGPUFrameTime(), 0.f);
 
@@ -772,6 +773,7 @@ void alm::fw::App::MainLoop()
 		};
 
 		auto renderResult = m_DeviceManager->Render(totalSec, elapsedSec, mouseState);
+		cpuIdleMs = renderResult.cpuIdleMs;
 
 		// Apply UI settings
 		{
