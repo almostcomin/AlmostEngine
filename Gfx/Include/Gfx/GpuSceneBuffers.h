@@ -29,11 +29,11 @@ class GpuSceneBuffers
 {
 public:
 
-	static constexpr uint32_t kMaxStaticInstanceCount		= 8192;
+	static constexpr uint32_t kMaxStaticInstanceCount		= 65536;
 	static constexpr uint32_t kMaxTransientInstanceCount	= 65536;
-	static constexpr uint32_t kMaxMaterialCount				= 1024;
+	static constexpr uint32_t kMaxMaterialCount				= 4096;
 	static constexpr uint32_t kMaxTerrainMaterialCount		= 256;
-	static constexpr uint32_t kMaxMeshRefCount				= 4096;
+	static constexpr uint32_t kMaxMeshRefCount				= 8192;
 
 	enum class MaterialType
 	{
