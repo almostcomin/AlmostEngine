@@ -26,7 +26,7 @@ namespace alm::fw
 namespace alm::fw
 {
 
-class App : public alm::noncopyable_nonmovable
+class FrameworkApp : public alm::noncopyable_nonmovable
 {
 public:
 
@@ -43,8 +43,8 @@ public:
     
 public:
 
-    App(const std::string& name, RenderStageSetMode renderStageSetMode);
-    virtual ~App();
+    FrameworkApp(const std::string& name, RenderStageSetMode renderStageSetMode);
+    virtual ~FrameworkApp();
 
     void Run(const AppArgs& args);
 
@@ -112,4 +112,4 @@ private:
 } // namespace alm
 
 // To be implemented by final app
-std::unique_ptr<alm::fw::App> CreateApp();
+std::unique_ptr<alm::fw::FrameworkApp> CreateApp();

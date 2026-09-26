@@ -1,5 +1,5 @@
 #include "Framework/FrameworkPCH.h"
-#include "Framework/App.h"
+#include "Framework/FrameworkApp.h"
 #include "Framework/UI/FrameworkUI.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/Scene.h"
@@ -39,9 +39,9 @@
 namespace
 {
 
-alm::fw::App::AppArgs ParseArgs(int argc, char* argv[])
+alm::fw::FrameworkApp::AppArgs ParseArgs(int argc, char* argv[])
 {
-	alm::fw::App::AppArgs args;
+	alm::fw::FrameworkApp::AppArgs args;
 	for (int i = 1; i < argc - 1; i++)
 	{
 		if (argv[i][0] == '-')
@@ -64,7 +64,7 @@ int SDL_main(int argc, char* argv[])
 	return 0;
 }
 
-alm::fw::App::App(const std::string& name, RenderStageSetMode renderStageSetMode) :
+alm::fw::FrameworkApp::FrameworkApp(const std::string& name, RenderStageSetMode renderStageSetMode) :
 	m_FrameworkUI{ nullptr },
 	m_Window{ nullptr },
 	m_Name{ name },
@@ -72,10 +72,10 @@ alm::fw::App::App(const std::string& name, RenderStageSetMode renderStageSetMode
 	m_ArrowMeshScale{ 1.f }
 {}
 
-alm::fw::App::~App()
+alm::fw::FrameworkApp::~FrameworkApp()
 {}
 
-void alm::fw::App::Run(const AppArgs& args)
+void alm::fw::FrameworkApp::Run(const AppArgs& args)
 {
 	m_StartupArgs = args;
 
@@ -89,7 +89,7 @@ void alm::fw::App::Run(const AppArgs& args)
 	ShutdownInternal();
 }
 
-std::optional<bool> alm::fw::App::GetStartupArgBool(const std::string& key)
+std::optional<bool> alm::fw::FrameworkApp::GetStartupArgBool(const std::string& key)
 {
 	auto it = m_StartupArgs.find(key);
 	if (it == m_StartupArgs.end())
@@ -98,7 +98,7 @@ std::optional<bool> alm::fw::App::GetStartupArgBool(const std::string& key)
 	return it->second == "0" ? false : true;
 }
 
-std::optional<std::string> alm::fw::App::GetStartupArgString(const std::string& key)
+std::optional<std::string> alm::fw::FrameworkApp::GetStartupArgString(const std::string& key)
 {
 	auto it = m_StartupArgs.find(key);
 	if (it == m_StartupArgs.end())
@@ -107,7 +107,7 @@ std::optional<std::string> alm::fw::App::GetStartupArgString(const std::string& 
 	return it->second;
 }
 
-std::optional<int> alm::fw::App::GetStartupArgInt(const std::string& key)
+std::optional<int> alm::fw::FrameworkApp::GetStartupArgInt(const std::string& key)
 {
 	auto it = m_StartupArgs.find(key);
 	if (it == m_StartupArgs.end())
@@ -122,7 +122,7 @@ std::optional<int> alm::fw::App::GetStartupArgInt(const std::string& key)
 	return std::nullopt;
 }
 
-void alm::fw::App::RefreshUIData()
+void alm::fw::FrameworkApp::RefreshUIData()
 {
 	alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
 	auto shadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
@@ -184,7 +184,7 @@ void alm::fw::App::RefreshUIData()
 	}
 }
 
-void alm::fw::App::ShowArrow(const gfx::Transform& transform)
+void alm::fw::FrameworkApp::ShowArrow(const gfx::Transform& transform)
 {
 	// Lazy load
 	if (!m_ArrowMeshY)
@@ -223,7 +223,7 @@ void alm::fw::App::ShowArrow(const gfx::Transform& transform)
 	m_ArrowMeshY->SetLocalTransform(transform);
 }
 
-void alm::fw::App::HideArrow()
+void alm::fw::FrameworkApp::HideArrow()
 {
 	if (m_ArrowMeshY)
 	{
@@ -238,7 +238,7 @@ void alm::fw::App::HideArrow()
 	}
 }
 
-void alm::fw::App::ShowNormal(const uint2& screenPos)
+void alm::fw::FrameworkApp::ShowNormal(const uint2& screenPos)
 {
 	auto* renderGraph = m_MainRenderView->GetRenderGraph().get();
 	auto gBuffer2TexHandle = renderGraph->GetTextureHandle("GBuffer2");
@@ -352,17 +352,17 @@ void alm::fw::App::ShowNormal(const uint2& screenPos)
 	m_FrameworkUI->AddBottomBarText(std::format("Pos: {{{:1.1f}, {:1.1f}, {:1.1f}}}", worldPos.x, worldPos.y, worldPos.z));
 }
 
-void alm::fw::App::HideNormal()
+void alm::fw::FrameworkApp::HideNormal()
 {
 	HideArrow();
 }
 
-alm::gfx::RenderStageTypeID alm::fw::App::GetUIRenderStageType() const
+alm::gfx::RenderStageTypeID alm::fw::FrameworkApp::GetUIRenderStageType() const
 { 
 	return alm::fw::FrameworkUI::StaticType(); 
 }
 
-bool alm::fw::App::InitInternal()
+bool alm::fw::FrameworkApp::InitInternal()
 {
 	LOG_INFO("Init SDL...");
 	{
@@ -508,7 +508,7 @@ bool alm::fw::App::InitInternal()
 	return true;
 }
 
-void alm::fw::App::ShutdownInternal()
+void alm::fw::FrameworkApp::ShutdownInternal()
 {
 	m_MainCamera.reset();
 	m_MainRenderView.reset();
@@ -525,7 +525,7 @@ void alm::fw::App::ShutdownInternal()
 	SDL_Quit();
 }
 
-void alm::fw::App::InitRenderStages()
+void alm::fw::FrameworkApp::InitRenderStages()
 {
 	if (m_RenderStageSetMode == RenderStageSetMode::None)
 		return;
@@ -649,7 +649,7 @@ void alm::fw::App::InitRenderStages()
 	}
 }
 
-void alm::fw::App::MainLoop()
+void alm::fw::FrameworkApp::MainLoop()
 {
 	bool requestQuit = false;
 	auto appStartTime = std::chrono::steady_clock::now();

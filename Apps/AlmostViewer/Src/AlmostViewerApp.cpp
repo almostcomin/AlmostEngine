@@ -1,5 +1,5 @@
 #include "Framework/FrameworkPCH.h"
-#include "Framework/App.h"
+#include "Framework/FrameworkApp.h"
 #include "Framework/CameraController.h"
 #include "UI/StructureUI.h"
 #include "Gfx/RenderView.h"
@@ -18,11 +18,11 @@
 #include <SDL3/SDL.h>
 #include <imgui/imgui_impl_sdl3.h>
 
-class AlmostViewerApp : public alm::fw::App
+class AlmostViewerApp : public alm::fw::FrameworkApp
 {
 public:
 
-	AlmostViewerApp() : alm::fw::App{ "Almost Viewer", alm::fw::App::RenderStageSetMode::Default_SimpleSky } {}
+	AlmostViewerApp() : alm::fw::FrameworkApp{ "Almost Viewer", alm::fw::FrameworkApp::RenderStageSetMode::Default_SimpleSky } {}
 	~AlmostViewerApp() override = default;
 
 	bool Initialize() override
@@ -213,7 +213,7 @@ private:
 	bool m_RequestQuit = false;	
 };
 
-std::unique_ptr<alm::fw::App> CreateApp()
+std::unique_ptr<alm::fw::FrameworkApp> CreateApp()
 {
-	return std::unique_ptr<alm::fw::App>{ new AlmostViewerApp };
+	return std::unique_ptr<alm::fw::FrameworkApp>{ new AlmostViewerApp };
 }

@@ -1,5 +1,5 @@
 #include "Framework/FrameworkPCH.h"
-#include "Framework/App.h"
+#include "Framework/FrameworkApp.h"
 #include "Framework/CameraController.h"
 #include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "Gfx/RenderStages/DebugRenderStage.h"
@@ -38,14 +38,14 @@
 #include "OutdoorsUI.h"
 #include <SDL3/SDL_keyboard.h>
 
-class OutdoorsApp : public alm::fw::App
+class OutdoorsApp : public alm::fw::FrameworkApp
 {
 public:
 
 	static constexpr float kEarthRadius = 6360000.f / 10.f;
 	static constexpr float3 kEarthPos = { 0.f, -kEarthRadius, 0.f };
 
-	OutdoorsApp() : alm::fw::App{ "OutdoorsApp", alm::fw::App::RenderStageSetMode::Default_FullAtmos } {}
+	OutdoorsApp() : alm::fw::FrameworkApp{ "OutdoorsApp", alm::fw::FrameworkApp::RenderStageSetMode::Default_FullAtmos } {}
 	~OutdoorsApp() override = default;
 
 	bool Initialize() override
@@ -374,7 +374,7 @@ private:
 	bool m_Wireframe = false;
 };
 
-std::unique_ptr<alm::fw::App> CreateApp()
+std::unique_ptr<alm::fw::FrameworkApp> CreateApp()
 {
-	return std::unique_ptr<alm::fw::App>{ new OutdoorsApp };
+	return std::unique_ptr<alm::fw::FrameworkApp>{ new OutdoorsApp };
 }
