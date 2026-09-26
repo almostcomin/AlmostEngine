@@ -38,7 +38,8 @@ float4 main(PS_INPUT input) : SV_Target
     }
 
     float dist = distance(input.worldPos, sceneData.camWorldPos);
-    float fade = 1.0f - smoothstep(Constants.fadeStartDist, Constants.fadeEndDist, dist);
+    if (dist > Constants.cutDistance)
+        discard;
 
-    return float4(color, baseAlpha * fade);
+    return float4(color, baseAlpha);
 }

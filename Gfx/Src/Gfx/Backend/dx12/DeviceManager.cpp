@@ -139,6 +139,15 @@ uint64_t alm::gfx::dx12::DeviceManager::BeginFrame(uint32_t* opt_microSec)
     {
         *opt_microSec = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
     }
+
+    m_FrameIndex++; // Next frame
+
+    // The fence wait above guarantees the GPU has completed all the work submitted up to
+    // (and including) the frame that used this back buffer: frame N - F. Releasing the stale
+    // resources of that frame bucket here is exact: we never free resources still in flight
+    // (this used to run in Present(), one frame too early).
+    m_Device->NextFrame();
+
     return m_FrameFenceEvents[bufferIndex].second;
 }
 
@@ -168,9 +177,6 @@ bool alm::gfx::dx12::DeviceManager::Present(uint32_t* opt_microSec)
     m_FrameFence->SetEventOnCompletion(m_FrameIndex, m_FrameFenceEvents[bufferIndex].first);
     m_FrameFenceEvents[bufferIndex].second = m_FrameIndex;
     m_GraphicsQueue->Signal(m_FrameFence.Get(), m_FrameIndex);
-
-    m_FrameIndex++; // Next frame
-    m_Device->NextFrame();
 
     if (opt_microSec)
     {

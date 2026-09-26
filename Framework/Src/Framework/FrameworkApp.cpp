@@ -641,6 +641,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			gpuCullingRS.get(),
 			depthPrepassRS.get(),
 			wireframeRS.get(),
+			gridRS.get(),
 			debugRS.get(),
 			ImGuiRS.get(),
 			compositeRS.get() });

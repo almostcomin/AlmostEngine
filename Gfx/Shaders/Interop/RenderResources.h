@@ -362,8 +362,8 @@ namespace interop
     {
         BufferUniformIndex sceneDI;
         BufferReadOnlyIndex gridVerticesDI;
-        float fadeStartDist;
-        float fadeEndDist;
+        float cutDistance;
+        float _padding0;
     };
 
     struct GridVertex
