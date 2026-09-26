@@ -125,6 +125,8 @@ public:
 
 	void SetDirtyMeshInstance(GpuSceneBuffersHandle handle, const gfx::MeshInstance* mi);
 
+	void InvalidateBatchLayout(GpuSceneBuffersHandle handle);
+
 	void RebindMeshMaterial(const Mesh* mesh, MaterialType materialType);
 
 	HeightmapPatchesAllocation AllocateTransientHeightmapPatches(GpuSceneBuffersHandle handle, uint32_t count);
@@ -143,11 +145,8 @@ public:
 	rhi::BufferReadOnlyView GetHeightmapPatchDataBufferView(GpuSceneBuffersHandle handle) const;
 	rhi::BufferReadOnlyView GetBatchTableBufferView(GpuSceneBuffersHandle handle) const;
 
-	// Returns kMaxStaticInstanceCount + TransientsAllocated.
-	// The static part may contain holes, so the whole buffer must be processed.
-	// The transient part is contiguous, so we can stop at the current allocation.
-	size_t GetRenderInstancesCount(GpuSceneBuffersHandle handle) const;
-
+	size_t GetStaticInstanceScanCount(GpuSceneBuffersHandle handle) const;
+	size_t GetTransientInstancesCount(GpuSceneBuffersHandle handle) const;
 	size_t GetBatchTableSize(GpuSceneBuffersHandle handle) const;
 
 	const BucketInfoArray* GetBucketInfo(GpuSceneBuffersHandle handle) const;

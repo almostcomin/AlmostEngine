@@ -317,7 +317,9 @@ namespace interop
         BufferReadOnlyIndex  BatchTableDI;
         BufferReadOnlyIndex  CullDataDI;        // InstanceCullData
         uint BatchCount;                        // BatchTable.size()
-        uint InstanceCount;                     // Static capacity + transient instances allocated this cycle
+        uint StaticInstanceCount;
+        uint TotalInstanceCount;                // Static + transient
+        uint StaticInstanceCapacity;
         uint ShadowEnabled;
     };
 

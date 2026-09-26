@@ -51,7 +51,8 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 	}
 
 	const uint32_t batchCount = gpuSceneBuffers->GetBatchTableSize(scene->GetGpuSceneBuffersHandle());
-	const uint32_t instanceCount = gpuSceneBuffers->GetRenderInstancesCount(scene->GetGpuSceneBuffersHandle());
+	const uint32_t staticInstanceCount = gpuSceneBuffers->GetStaticInstanceScanCount(scene->GetGpuSceneBuffersHandle());
+	const uint32_t transientInstanceCount = gpuSceneBuffers->GetTransientInstancesCount(scene->GetGpuSceneBuffersHandle());
 
 	interop::CullingConstants shaderConstants;
 	shaderConstants.SceneDI = GetRenderView()->GetSceneBufferUniformView();
@@ -62,7 +63,9 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 	shaderConstants.BatchTableDI = gpuSceneBuffers->GetBatchTableBufferView(scene->GetGpuSceneBuffersHandle());
 	shaderConstants.CullDataDI = gpuSceneBuffers->GetInstancesCullDataBufferView(scene->GetGpuSceneBuffersHandle());
 	shaderConstants.BatchCount = batchCount;
-	shaderConstants.InstanceCount = instanceCount;
+	shaderConstants.StaticInstanceCount = staticInstanceCount;
+	shaderConstants.TotalInstanceCount = staticInstanceCount + transientInstanceCount;
+	shaderConstants.StaticInstanceCapacity = alm::gfx::GpuSceneBuffers::kMaxStaticInstanceCount;
 	shaderConstants.ShadowEnabled = GetRenderView()->IsShadowmapValid();
 
 	commandList->PushComputeConstants(0, shaderConstants);
@@ -75,7 +78,7 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_ShadowIndirectArgsBuffer).get()) });
 
 	commandList->SetPipelineState(m_CullingPSO.get());
-	commandList->Dispatch(DivRoundUp(instanceCount, 256u), 1, 1);
+	commandList->Dispatch(DivRoundUp(staticInstanceCount + transientInstanceCount, 256u), 1, 1);
 }
 
 void alm::gfx::GPUCullingRenderStage::OnAttached()

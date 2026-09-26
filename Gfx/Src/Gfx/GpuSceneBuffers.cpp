@@ -467,6 +467,12 @@ void alm::gfx::GpuSceneBuffers::SetDirtyMeshInstance(GpuSceneBuffersHandle handl
 	m_SceneStates[handle.idx].MeshInstancesState.DirtyIndices.insert(mi->GetLeafSceneIndex());
 }
 
+void alm::gfx::GpuSceneBuffers::InvalidateBatchLayout(GpuSceneBuffersHandle handle)
+{
+	assert(m_SceneStates.valid_index(handle.idx));
+	m_SceneStates[handle.idx].BatchLayoutDirty = true;
+}
+
 void alm::gfx::GpuSceneBuffers::RebindMeshMaterial(const Mesh* mesh, MaterialType materialType)
 {
 	auto meshIdx = m_Meshes.find(mesh);
@@ -625,10 +631,16 @@ alm::rhi::BufferReadOnlyView alm::gfx::GpuSceneBuffers::GetBatchTableBufferView(
 		m_SceneStates[handle.idx].BatchTableBuffer->GetReadOnlyView() : rhi::BufferReadOnlyView{};
 }
 
-size_t alm::gfx::GpuSceneBuffers::GetRenderInstancesCount(GpuSceneBuffersHandle handle) const
+size_t alm::gfx::GpuSceneBuffers::GetStaticInstanceScanCount(GpuSceneBuffersHandle handle) const
 {	
 	assert(m_SceneStates.valid_index(handle.idx));
-	return kMaxStaticInstanceCount + m_SceneStates[handle.idx].TransientsAllocated;
+	return m_SceneStates[handle.idx].MeshInstances.storage_size();
+}
+
+size_t alm::gfx::GpuSceneBuffers::GetTransientInstancesCount(GpuSceneBuffersHandle handle) const
+{
+	assert(m_SceneStates.valid_index(handle.idx));
+	return m_SceneStates[handle.idx].TransientsAllocated;
 }
 
 size_t alm::gfx::GpuSceneBuffers::GetBatchTableSize(GpuSceneBuffersHandle handle) const
@@ -996,11 +1008,23 @@ void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
 	// 1. Gather rows: All potentially visible MeshInstances
 	std::vector<RenderableDrawInfo> rows;
 	rows.reserve(ss.MeshInstances.size());
-	for (const MeshInstance* mi : ss.MeshInstances)
+	for (MeshInstance* mi : ss.MeshInstances)
 	{
 		if (mi->GetMeshSceneIndex() == UINT32_MAX)
 		{
 			LOG_ERROR("Static mesh instance not registered");
+			continue;
+		}
+
+		if (!mi->IsVisible())
+		{
+			// Excluded from the table: sanitize the stale batch index, otherwise a later
+			// re-serialization (e.g. SetVisible) would scatter it into a shifted batch
+			if (mi->GetBatchIndex() != UINT32_MAX)
+			{
+				mi->SetBatchIndex(UINT32_MAX);
+				ss.MeshInstancesState.DirtyIndices.insert(mi->GetLeafSceneIndex());
+			}
 			continue;
 		}
 
@@ -1009,6 +1033,12 @@ void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
 		{
 			LOG_WARNING("MeshInstance without material -> Excluded from BatchTable");
 			rows.pop_back();
+
+			if (mi->GetBatchIndex() != UINT32_MAX)
+			{
+				mi->SetBatchIndex(UINT32_MAX);
+				ss.MeshInstancesState.DirtyIndices.insert(mi->GetLeafSceneIndex());
+			}
 		}
 	}
 

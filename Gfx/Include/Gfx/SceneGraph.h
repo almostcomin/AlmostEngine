@@ -113,6 +113,8 @@ public:
     // Called when leaf content has changed
     void ReportLeafDirty(const SceneGraphLeaf* leaf);
 
+    void ReportBatchLayoutChanged();
+
     // Updates world transforms, bounds and content flags for dirty nodes.
     // Updates the GpuSceneBuffers accordly.
     void Update();

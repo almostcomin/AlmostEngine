@@ -486,7 +486,7 @@ alm::rhi::FenceOwner alm::rhi::dx12::GpuDevice::CreateFence(uint64_t initialVale
 alm::rhi::CommandSignatureOwner alm::rhi::dx12::GpuDevice::CreateCommandSignature(const CommandSignatureDesc& desc, const std::string& debugName)
 {
 	D3D12_INDIRECT_ARGUMENT_DESC argDesc{};
-	switch (desc.commandType) /* DRAW / DRAW_INDEXED / DISPATCH / DISPATCH_MESH */ 
+	switch (desc.commandType)
 	{ 
 	case CommandSignatureDesc::CommandType::Draw:			argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;			break;
 	case CommandSignatureDesc::CommandType::DrawIndexed:	argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;	break;

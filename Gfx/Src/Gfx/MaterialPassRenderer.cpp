@@ -237,8 +237,7 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 				m_BaseDebugName);
 			continue;
 		}
-		commandList->SetPipelineState(GetPSO(t.Domain, t.Cull));
-
+		commandList->SetPipelineState(PSO);
 
 		commandList->BeginMarker(std::format("{}:{} - {}:{}", m_BaseDebugName, t.DebugName.empty() ? "Transient" : t.DebugName,
 			GetMaterialDomainString(t.Domain), rhi::GetCullModeString(t.Cull)).c_str());

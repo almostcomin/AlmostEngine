@@ -59,6 +59,9 @@ public:
 	void SetVisible(bool b);
 	void SetCastShadows(bool b);
 
+	bool IsVisible() const;
+	bool CastShadows() const;
+
 protected:
 
 	SceneRenderFlags m_RenderFlags = SceneRenderFlags::None;

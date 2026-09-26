@@ -186,6 +186,11 @@ void alm::gfx::SceneGraph::ReportLeafDirty(const SceneGraphLeaf* leaf)
     }
 }
 
+void alm::gfx::SceneGraph::ReportBatchLayoutChanged()
+{
+    m_GpuSceneBuffers->InvalidateBatchLayout(m_GpuBuffersHandle);
+}
+
 bool alm::gfx::SceneGraph::Raycast(const float3& origin, const float3 dir, RaycastHit& out_closest) const
 {
     // Note: world bounds must be up to date (Update() called before).

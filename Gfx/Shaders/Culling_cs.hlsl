@@ -12,6 +12,7 @@
 // VS reads payload[startInstance + instanceID].
 //
 // Guards: BatchIndex == INVALID_INDEX -> unassigned/erased slot.
+//         Flags without RF_VISIBLE    -> hidden instance, never scatters.
 //--------------------------------------------------------------------------
 
 // ALM_REQUIRE_SM(6.8)
@@ -54,7 +55,7 @@ void Scatter(
 [numthreads(256, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
 {
-    if (DTid >= StageConstants.InstanceCount)
+    if (DTid >= StageConstants.TotalInstanceCount)
         return;
     
     ConstantBuffer<interop::SceneConstants> sceneConstants = ResourceDescriptorHeap[StageConstants.SceneDI];
@@ -65,10 +66,16 @@ void main(uint DTid : SV_DispatchThreadID)
     RWStructuredBuffer<interop::IndirectDrawCommand> shadowArgs = ResourceDescriptorHeap[StageConstants.ShadowArgsDI];
     RWStructuredBuffer<interop::VisibleInstancePayload> shadowPayload = ResourceDescriptorHeap[StageConstants.ShadowPayloadDI];    
     
-    const interop::InstanceCullData cullData = cullDataBuffer[DTid];
+    uint slot = (DTid < StageConstants.StaticInstanceCount) ? 
+        DTid : StageConstants.StaticInstanceCapacity + (DTid - StageConstants.StaticInstanceCount);
+    
+    const interop::InstanceCullData cullData = cullDataBuffer[slot];
     if (cullData.BatchIndex == INVALID_INDEX)
         return;
-    
+    // Hidden instance: never scatters (camera or shadow), even if its cull data is stale
+    if (!(cullData.Flags & RF_VISIBLE))
+        return;
+
     interop::BatchTableEntry bte = batchTable[cullData.BatchIndex];
     
     if (TestSphereFrustum(sceneConstants.frustumPlanes, cullData.BoundsSphere))

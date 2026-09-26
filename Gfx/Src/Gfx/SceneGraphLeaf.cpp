@@ -30,6 +30,9 @@ const float4x4& alm::gfx::SceneGraphLeaf::GetWorldTransform() const
 
 void alm::gfx::SceneGraphLeaf::SetVisible(bool b)
 {
+	if (IsVisible() == b)
+		return;
+
 	if (b)
 	{
 		m_RenderFlags |= SceneRenderFlags::Visible;
@@ -38,10 +41,27 @@ void alm::gfx::SceneGraphLeaf::SetVisible(bool b)
 	{
 		m_RenderFlags &= ~SceneRenderFlags::Visible;
 	}
+
+	// Re-serialize the GPU cull data (flags) of renderable leaves.
+	// The BatchTable rebuild also excludes invisible instances (GpuSceneBuffers::RebuildBatchTable),
+	// but until the cull data is re-uploaded the kernel would still scatter this instance.
+	if (m_SceneIndex != UINT32_MAX && AsRenderable())
+		OnContentChanged();
+
+	// Showing an instance re-enters it into the BatchTable -> structural change
+	// (hide stays O(1): the RF_VISIBLE kernel guard hides it without a rebuild)
+	if (b && m_Node)
+	{
+		if (auto* graph = m_Node->m_Graph)
+			graph->ReportBatchLayoutChanged();
+	}
 }
 
 void alm::gfx::SceneGraphLeaf::SetCastShadows(bool b)
 {
+	if (CastShadows() == b)
+		return;
+
 	if (b)
 	{
 		m_RenderFlags |= SceneRenderFlags::CastShadows;
@@ -50,4 +70,18 @@ void alm::gfx::SceneGraphLeaf::SetCastShadows(bool b)
 	{
 		m_RenderFlags &= ~SceneRenderFlags::CastShadows;
 	}
+
+	// Re-serialize the GPU cull data (flags) of renderable leaves, same as SetVisible
+	if (m_SceneIndex != UINT32_MAX && AsRenderable())
+		OnContentChanged();
+}
+
+bool alm::gfx::SceneGraphLeaf::IsVisible() const
+{
+	return (m_RenderFlags & SceneRenderFlags::Visible) != 0;
+}
+
+bool alm::gfx::SceneGraphLeaf::CastShadows() const
+{
+	return (m_RenderFlags & SceneRenderFlags::CastShadows) != 0;
 }
