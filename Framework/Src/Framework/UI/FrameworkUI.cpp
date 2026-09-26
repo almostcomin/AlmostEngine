@@ -18,7 +18,9 @@
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
+#include "Gfx/RenderStages/GridRenderStage.h"
 #include "RHI/Device.h"
+#include "ImGuizmo/ImGuizmo.h"
 #include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
 #include <SDL3/SDL.h>
 #include <commdlg.h>
@@ -728,6 +730,22 @@ void alm::fw::FrameworkUI::BuildMainMenu()
                 m_ShowRenderStages = !m_ShowRenderStages;
             if (ImGui::MenuItem("Material Panel", "Ctrl+M", m_ShowMaterials))
                 m_ShowMaterials = !m_ShowMaterials;
+
+            if (ImGui::BeginMenu("Grid"))
+            {
+                auto gridRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GridRenderStage>();
+                if (gridRS)
+                {
+                    bool visible = gridRS->IsVisible();
+                    if (ImGui::MenuItem("Visible", NULL, visible))
+                        gridRS->SetVisible(!visible);
+
+                    float extent = gridRS->GetExtent();
+                    if (ImGui::SliderFloat("Extent", &extent, 10.f, 1000.f, "%.0f", ImGuiSliderFlags_Logarithmic))
+                        gridRS->SetExtent(extent);
+                }
+                ImGui::EndMenu();
+            }
 
             ImGui::EndMenu();
         }

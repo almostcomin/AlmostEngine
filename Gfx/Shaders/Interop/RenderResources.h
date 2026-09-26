@@ -356,6 +356,20 @@ namespace interop
         TextureSampledViewIndex GBuffer2DI;
     };
 
+    struct GridStageConstants
+    {
+        BufferUniformIndex sceneDI;
+        BufferReadOnlyIndex gridVerticesDI;
+        float fadeStartDist;
+        float fadeEndDist;
+    };
+
+    struct GridVertex
+    {
+        float3 pos;
+        uint colorIdx; // 0: minor, 1: major, 2: X axis, 3: Z axis
+    };
+
     struct AABB
     {
         float3 min;

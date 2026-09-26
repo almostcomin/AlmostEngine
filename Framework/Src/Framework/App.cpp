@@ -13,6 +13,7 @@
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
+#include "Gfx/RenderStages/GridRenderStage.h"
 #include "Gfx/RenderStages/LinearizeDepthRenderStage.h"
 #include "Gfx/RenderStages/SSAORenderStage.h"
 #include "Gfx/RenderStages/WireframeRenderStage.h"
@@ -553,6 +554,7 @@ void alm::fw::App::InitRenderStages()
 		auto WBOITResolveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
 		auto bloomRS = gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
 		auto toneMappingRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ToneMappingRenderStage>();
+		auto gridRS = gfx::RenderStageFactory::CreateShared<alm::gfx::GridRenderStage>();
 		auto debugRS = gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
 		auto wireframeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
 		auto compositeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
@@ -598,6 +600,7 @@ void alm::fw::App::InitRenderStages()
 			WBOITResolveRS,
 			bloomRS,
 			toneMappingRS,
+			gridRS,
 			debugRS,
 			ImGuiRS,
 			compositeRS,
@@ -624,6 +627,7 @@ void alm::fw::App::InitRenderStages()
 			WBOITResolveRS.get(),
 			bloomRS.get(),
 			toneMappingRS.get(),
+			gridRS.get(),
 			debugRS.get(),
 			ImGuiRS.get(),
 			compositeRS.get() };
