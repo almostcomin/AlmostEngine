@@ -114,6 +114,8 @@ public:
 
 	void RegisterMainMenuItem(const std::string& name, std::function<void()> item);
 
+	void SetSelectedNode(const alm::weak<alm::gfx::SceneGraphNode>& node);
+
 	std::function<void(const char*)> m_RequestLoadFile;
 	std::function<void(const char*)> m_RequestMergeFile;
 	std::function<void()> m_RequestClose;
@@ -261,8 +263,6 @@ private:
 	ImGuiTextFilter m_MaterialFilter;
 
 	int2 m_ContextMenuPos;
-	gfx::RaycastHit m_ContextMenuHit{};
-	bool m_ContextMenuHitValid = false;
 };
 
 } // namespace alm::fw

@@ -19,6 +19,7 @@
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
 #include "Gfx/RenderStages/GridRenderStage.h"
+#include "Gfx/RenderStages/ObjectOutlineRenderStage.h"
 #include "RHI/Device.h"
 #include "ImGuizmo/ImGuizmo.h"
 #include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
@@ -510,6 +511,9 @@ void alm::fw::FrameworkUI::Init(SDL_Window* window, weak<gfx::Scene> scene, weak
 
 void alm::fw::FrameworkUI::BuildUI()
 {
+    if (m_SelectedNode && m_SelectedNode.expired())
+        SetSelectedNode(nullptr);
+
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_M))
         m_ShowMaterials = !m_ShowMaterials;
 
@@ -591,6 +595,25 @@ void alm::fw::FrameworkUI::AddRenderStageBufferWindow(alm::gfx::RenderStageTypeI
 void alm::fw::FrameworkUI::RegisterMainMenuItem(const std::string& name, std::function<void()> item)
 {
     m_MainMenuAdditionalItems.emplace_back(name, item);
+}
+
+void alm::fw::FrameworkUI::SetSelectedNode(const alm::weak<alm::gfx::SceneGraphNode>& node)
+{
+    m_SelectedNode = node;
+
+    auto outlineRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::ObjectOutlineRenderStage>();
+    if (outlineRS)
+    {
+        if (m_SelectedNode && m_SelectedNode->GetLeaf() && m_SelectedNode->GetLeaf()->GetType() == gfx::SceneGraphLeaf::Type::MeshInstance)
+        {
+            auto meshInstance = alm::checked_pointer_cast<gfx::MeshInstance>(m_SelectedNode->GetLeaf());
+            outlineRS->SetSelectedObject(meshInstance);
+        }
+        else
+        {
+            outlineRS->SetSelectedObject(nullptr);
+        }
+    }
 }
 
 void alm::fw::FrameworkUI::SetRenderStats(float fps, float cpuTime, float cpuIdleTime, float gpuTime)
@@ -885,7 +908,7 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
         return;
     }
     if (!m_SelectedNode || m_SelectedNode.expired())
-        m_SelectedNode = m_Scene->GetSceneGraph()->GetRoot();
+        SetSelectedNode(m_Scene->GetSceneGraph()->GetRoot());
 
     if (ImGui::BeginChild("##scene_graph_panel_left", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
     {
@@ -922,7 +945,7 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
                     ImGui::PopID();
 
                 if (ImGui::IsItemFocused())
-                    m_SelectedNode = node->weak_from_this();
+                    SetSelectedNode(node->weak_from_this());
 
                 if (m_ScrollToSelectedNode && node == m_SelectedNode.get())
                 {
@@ -1107,14 +1130,14 @@ void alm::fw::FrameworkUI::BuildContextMenu()
     // Begin()/End(). Use the fullscreen window as an input-less ID scope host for the popup.
     BeginFullScreenWindow();
 
-    auto tryOpenAt = [this](const float2& mousePos) -> bool
+    auto tryOpenAt = [this](const float2& mousePos) -> std::optional<gfx::RaycastHit>
     {
-        m_ContextMenuHitValid = false;
+        SetSelectedNode(nullptr);
 
         auto sceneGraph = m_Scene ? m_Scene->GetSceneGraph() : nullptr;
         auto camera = m_RenderViewUI ? m_RenderViewUI->GetCamera() : nullptr;
         if (!sceneGraph || !camera)
-            return false;
+            return {};
 
         const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
         auto [origin, dir] = camera->ScreenToWorldRay(
@@ -1123,16 +1146,13 @@ void alm::fw::FrameworkUI::BuildContextMenu()
 
         gfx::RaycastHit hit{};
         if (!sceneGraph->Raycast(origin, dir, hit))
-            return false;
-
-        m_ContextMenuHit = hit;
-        m_ContextMenuHitValid = true;
+            return {};
 
         // Popup positions live in ImGui space (OS-absolute when ViewportsEnable is set)
         const ImGuiViewport* vp = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + mousePos.x, vp->Pos.y + mousePos.y));
         ImGui::OpenPopup("##ContextMenu");
-        return true;
+        return hit;
     };
 
     // Right-click on the 3D viewport: the dockspace PassthruCentralNode registers a hit-test hole
@@ -1143,7 +1163,11 @@ void alm::fw::FrameworkUI::BuildContextMenu()
     {
         float mouseX = 0.f, mouseY = 0.f;
         SDL_GetMouseState(&mouseX, &mouseY); // window-relative, same space as ScreenToWorldRay
-        tryOpenAt({ (int)mouseX, (int)mouseY });
+        auto hitResult = tryOpenAt({ (int)mouseX, (int)mouseY });
+        if (hitResult)
+        {
+            SetSelectedNode(hitResult->Node->weak_from_this());
+        }
     }
 
     if (ImGui::BeginPopup("##ContextMenu"))
@@ -1155,24 +1179,34 @@ void alm::fw::FrameworkUI::BuildContextMenu()
         if (ImGui::IsKeyPressed(ImGuiKey_Escape))
             ImGui::CloseCurrentPopup();
 
-        ImGui::TextUnformatted(m_ContextMenuHit.Node->GetName().c_str());
-        ImGui::Separator();
-
-        if (ImGui::MenuItem("Node"))
+        if (m_SelectedNode && !m_SelectedNode.expired())
         {
-            m_SelectedNode = m_ContextMenuHit.Node->weak_from_this();
-            m_ShowSceneGraphWindow = true;
+            ImGui::TextUnformatted(m_SelectedNode->GetName().c_str());
+            ImGui::Separator();
 
-            m_ExpandAncestors.clear();
-            for (auto parent = m_ContextMenuHit.Node->GetParent(); parent; parent = parent->GetParent())
-                m_ExpandAncestors.push_back(parent);
-            m_ScrollToSelectedNode = true;
+            if (ImGui::MenuItem("Open World Outliner"))
+            {
+                m_ShowSceneGraphWindow = true;
+
+                m_ExpandAncestors.clear();
+                for (auto parent = m_SelectedNode->GetParent(); parent; parent = parent->GetParent())
+                    m_ExpandAncestors.push_back(parent);
+                m_ScrollToSelectedNode = true;
+            }
+
+            if (ImGui::MenuItem("Open Material Panel"))
+            {
+                if (m_SelectedNode->GetLeaf()->GetType() == gfx::SceneGraphLeaf::Type::MeshInstance)
+                {
+                    auto meshInstance = alm::checked_pointer_cast<gfx::MeshInstance>(m_SelectedNode->GetLeaf());
+                    m_SelectedMaterial = meshInstance->GetMesh()->GetMaterial();
+                    m_ShowMaterials = true;
+                }
+            }
         }
-
-        if (ImGui::MenuItem("Material"))
+        else
         {
-            m_SelectedMaterial = m_ContextMenuHit.Instance->GetMesh()->GetMaterial();
-            m_ShowMaterials = true;
+            ImGui::CloseCurrentPopup();
         }
 
         ImGui::EndPopup();

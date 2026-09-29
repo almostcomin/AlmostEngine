@@ -47,6 +47,7 @@ enum class BlendOp : uint8_t
 enum class ColorMask : uint8_t
 {
 	// These values are equal to their counterparts in DX11, DX12, and Vulkan.
+	None = 0,
 	Red = 1,
 	Green = 2,
 	Blue = 4,

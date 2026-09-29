@@ -408,12 +408,46 @@ void alm::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const 
 	const RenderPassOp& depthRenderPassOp, const RenderPassOp& stencilRenderPassOp, RenderPassFlags rpFlags)
 {
 	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
-	
-	m_CurrentFB = alm::checked_pointer_cast<rhi::IFramebuffer>(_fb->weak_from_this());
 	Framebuffer* fb = checked_cast<Framebuffer*>(_fb);
 
+#if 0
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[c_MaxRenderTargets];
+	uint32_t boundCount = 0;
+	for (int i = 0; i < fb->RTVs.size(); ++i)
+	{
+		const D3D12_CPU_DESCRIPTOR_HANDLE h = gpuDevice->GetRenderTargetViewHeap()->GetCpuHandle(fb->RTVs[i]);
+		if (rtvRenderPassOp[i].loadOp == RenderPassOp::LoadOp::Clear)
+			m_D3d12Commandlist->ClearRenderTargetView(h, &rtvRenderPassOp[i].clearValue.color.x, 0, nullptr);
+		if (rtvRenderPassOp[i].loadOp != RenderPassOp::LoadOp::NoAccess)
+			rtvHandles[boundCount++] = h;
+	}
+
+	if (fb->DSV != c_InvalidDescriptorIndex)
+	{
+		const uint32_t clearFlags =
+			(depthRenderPassOp.loadOp == RenderPassOp::LoadOp::Clear ? D3D12_CLEAR_FLAG_DEPTH : 0) |
+			(stencilRenderPassOp.loadOp == RenderPassOp::LoadOp::Clear ? D3D12_CLEAR_FLAG_STENCIL : 0);
+		if (clearFlags)
+		{
+			m_D3d12Commandlist->ClearDepthStencilView(
+				gpuDevice->GetDepthStencilViewHeap()->GetCpuHandle(fb->DSV), (D3D12_CLEAR_FLAGS)clearFlags,
+				depthRenderPassOp.clearValue.depthStencil.depth,
+				stencilRenderPassOp.clearValue.depthStencil.stencil, 0, nullptr);
+		}
+		const D3D12_CPU_DESCRIPTOR_HANDLE h = gpuDevice->GetDepthStencilViewHeap()->GetCpuHandle(fb->DSV);
+		m_D3d12Commandlist->OMSetRenderTargets(boundCount, rtvHandles, FALSE, &h);
+	}
+	else
+	{
+		m_D3d12Commandlist->OMSetRenderTargets(boundCount, rtvHandles, FALSE, nullptr);
+	}
+
+#else
+
 	D3D12_RENDER_PASS_RENDER_TARGET_DESC RTVs[c_MaxRenderTargets] = {};
-	for (int rtv_idx = 0; rtv_idx < fb->RTVs.size(); ++rtv_idx)
+	assert(fb->RTVs.size() == rtvRenderPassOp.size());
+	for (int rtv_idx = 0; rtv_idx < std::min(fb->RTVs.size(), rtvRenderPassOp.size()); ++rtv_idx)
 	{
 		RTVs[rtv_idx].cpuDescriptor = gpuDevice->GetRenderTargetViewHeap()->GetCpuHandle(fb->RTVs[rtv_idx]);
 
@@ -444,6 +478,9 @@ void alm::rhi::dx12::CommandList::BeginRenderPass(rhi::IFramebuffer* _fb, const 
 
 	m_D3d12Commandlist->BeginRenderPass(fb->RTVs.size(), RTVs, fb->DSV == c_InvalidDescriptorIndex ? nullptr : &DSV, flags);
 
+#endif
+
+	m_CurrentFB = alm::checked_pointer_cast<rhi::IFramebuffer>(_fb->weak_from_this());
 	// Set fullscreen viewport
 	SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
 		(float)fb->GetFramebufferInfo().width, (float)fb->GetFramebufferInfo().height }));

@@ -166,6 +166,10 @@ D3D12_DEPTH_STENCIL_DESC alm::rhi::dx12::GetDepthStencilState(const alm::rhi::De
 	ret.FrontFace.StencilDepthFailOp = GetStencilOp(depthStencilState.frontFaceStencil.depthFailOp);
 	ret.FrontFace.StencilPassOp = GetStencilOp(depthStencilState.frontFaceStencil.passOp);
 	ret.FrontFace.StencilFunc = GetComparisonFunc(depthStencilState.frontFaceStencil.func);
+	ret.BackFace.StencilFailOp = GetStencilOp(depthStencilState.backFaceStencil.failOp);
+	ret.BackFace.StencilDepthFailOp = GetStencilOp(depthStencilState.backFaceStencil.depthFailOp);
+	ret.BackFace.StencilPassOp = GetStencilOp(depthStencilState.backFaceStencil.passOp);
+	ret.BackFace.StencilFunc = GetComparisonFunc(depthStencilState.backFaceStencil.func);
 
 	return ret;
 }

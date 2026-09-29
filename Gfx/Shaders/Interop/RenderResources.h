@@ -680,6 +680,16 @@ namespace interop
         uint level;
         float errWorld;
     };
+
+    struct ObjectOutlineConstants
+    {
+        BufferUniformIndex SceneDI;         // SceneConstants
+        uint InstanceIndex;
+        uint MeshIndex;
+        float ThicknessPx;
+        float4 Color;
+        float ViewportHeight;
+    };
 }
 
 #endif // __SHADERS_INTEROP_RENDERRESOURCES_H__

@@ -23,6 +23,7 @@
 #include "Gfx/RenderStages/SimpleSkyRenderStage.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderStages/CloudsShadowMapRenderStage.h"
+#include "Gfx/RenderStages/ObjectOutlineRenderStage.h"
 #include "Gfx/ImGUIViewportsRenderer.h"
 #include "Gfx/GltfImporter.h"
 #include "Gfx/SceneGraph.h"
@@ -556,6 +557,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 		auto toneMappingRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ToneMappingRenderStage>();
 		auto gridRS = gfx::RenderStageFactory::CreateShared<alm::gfx::GridRenderStage>();
 		auto debugRS = gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
+		auto outlineRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ObjectOutlineRenderStage>();
 		auto wireframeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
 		auto compositeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
 
@@ -602,6 +604,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			toneMappingRS,
 			gridRS,
 			debugRS,
+			outlineRS,
 			ImGuiRS,
 			compositeRS,
 			wireframeRS };
@@ -629,6 +632,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			toneMappingRS.get(),
 			gridRS.get(),
 			debugRS.get(),
+			outlineRS.get(),
 			ImGuiRS.get(),
 			compositeRS.get() };
 		// Remove the null ones
@@ -643,6 +647,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			wireframeRS.get(),
 			gridRS.get(),
 			debugRS.get(),
+			outlineRS.get(),
 			ImGuiRS.get(),
 			compositeRS.get() });
 

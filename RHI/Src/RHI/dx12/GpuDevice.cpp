@@ -1241,7 +1241,7 @@ D3D12_RESOURCE_DESC alm::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc&
 	d3d12Desc.Width = desc.width;
 	d3d12Desc.Height = desc.height;
 	d3d12Desc.MipLevels = desc.mipLevels;
-	d3d12Desc.Format = formatMap.srvFormat;
+	d3d12Desc.Format = IsDepthFormat(desc.format) ? formatMap.typelessFormat : formatMap.srvFormat;
 	d3d12Desc.SampleDesc.Count = desc.sampleCount;
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
 	if (!has_any_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
