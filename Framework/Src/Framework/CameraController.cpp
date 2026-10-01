@@ -6,6 +6,9 @@ alm::fw::CameraController::~CameraController() = default;
 
 void alm::fw::CameraController::Update(float deltaTime)
 {
+	if (!m_Enabled || !m_Camera)
+		return;
+
 	const float3& camFwd = m_Camera->GetForward();
 	const float3& camRight = m_Camera->GetRight();
 
@@ -22,7 +25,7 @@ void alm::fw::CameraController::Update(float deltaTime)
 
 bool alm::fw::CameraController::OnSDLEvent(const SDL_Event& event)
 {
-	if (!m_Camera)
+	if (!m_Enabled || !m_Camera)
 		return false;
 
 	bool eventProcessed = false;

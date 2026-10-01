@@ -55,6 +55,12 @@ public:
 			{
 				m_RequestLoadFile = path;
 			}
+			else
+			{
+				const alm::aabox3f bounds{ float3{-1.f}, float3{1.f} };
+				m_MainCamera->SetPosition(float3{ -1000.f, 500.f, 1000.f });
+				m_MainCamera->Frame(bounds);
+			}
 		}
 
 		return true;

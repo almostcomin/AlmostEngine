@@ -29,6 +29,15 @@
 
 namespace
 {
+    // ImGuizmo gizmo state (for the selected node). File-local on purpose: it only exists
+    // to keep ImGuizmo out of the public FrameworkUI header.
+    ImGuizmo::OPERATION g_GizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE g_GizmoMode = ImGuizmo::WORLD;
+    bool g_GizmoUseSnap = false;
+    float g_GizmoSnap[3] = { 1.f, 1.f, 1.f };
+    bool g_GizmoDragging = false;
+    alm::gfx::Transform g_GizmoDragStartTransform;
+
     struct RSDepActionResult
     {
         bool hovered;
@@ -51,7 +60,7 @@ namespace
         ImGui::TextUnformatted(buffer);
     }
 
-    void PropertyRowText(const char* label, const char* value)
+    void PropertyRowText(const char* label, const char* value, std::function<void()> onClick = nullptr)
     {
         ImGui::TableNextRow();
         // Label
@@ -62,10 +71,25 @@ namespace
         ImGui::TableNextColumn();
         ImGui::PushID(value);
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
-        ImGui::BeginDisabled();
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputText("##value", (char*)value, strlen(value), ImGuiInputTextFlags_ReadOnly);
-        ImGui::EndDisabled();
+        if (onClick)
+        {
+            // A button clearly reads as clickable (a disabled InputText suggests the text is editable).
+            // ImGui centers button labels, so the text is drawn manually on top, left-aligned.
+            const ImVec2 buttonPos = ImGui::GetCursorScreenPos();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (ImGui::Button("##value", ImVec2(-FLT_MIN, 0.f)))
+                onClick();
+            ImGui::SameLine();
+            ImGui::SetCursorScreenPos(ImVec2(buttonPos.x + ImGui::GetStyle().FramePadding.x, buttonPos.y));
+            ImGui::TextUnformatted(value);
+        }
+        else
+        {
+            ImGui::BeginDisabled();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::InputText("##value", (char*)value, strlen(value) + 1, ImGuiInputTextFlags_ReadOnly);
+            ImGui::EndDisabled();
+        }
         ImGui::PopStyleColor();
         ImGui::PopID();
     }
@@ -138,70 +162,7 @@ namespace
         }
     }
 
-    void BuildTexture(const char* title, const alm::gfx::LoadedTexture& diffuseTex)
-    {
-        ImGui::SeparatorText(title);
-        auto desc = diffuseTex.texture->GetDesc();
-
-        ImGui::BeginTable("texId", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
-        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 16.0f);
-        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-        PropertyRowText("id", diffuseTex.id.c_str());
-        ImGui::EndTable();
-
-        ImGui::BeginTable("##texDesc", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
-        ImGui::TableSetupColumn("txt0", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn("val0", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("txt1", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn("val1", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-
-        auto propString = [](const char* label, const char* value)
-        {
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            TextRightAligned(label);
-            ImGui::TableNextColumn();
-            ImGui::PushID(label);
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
-            ImGui::BeginDisabled();
-            ImGui::SetNextItemWidth(-FLT_MIN);
-            ImGui::InputText("##value", (char*)value, strlen(value), ImGuiInputTextFlags_ReadOnly);
-            ImGui::EndDisabled();
-            ImGui::PopStyleColor();
-            ImGui::PopID();
-        };
-
-        auto propInt = [](const char* label, int value)
-        {
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            TextRightAligned(label);
-            ImGui::TableNextColumn();
-            ImGui::PushID(label);
-            ImGui::BeginDisabled();
-            ImGui::SetNextItemWidth(-FLT_MIN);
-            ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
-            ImGui::EndDisabled();
-            ImGui::PopID();
-        };
-
-        // First row
-        ImGui::TableNextRow();
-        propInt("Width", desc.width);
-        propInt("Height", desc.width);
-        // Second row
-        ImGui::TableNextRow();
-        propInt("Depth", desc.depth);
-        propInt("ArraySize", desc.arraySize);
-        // Third row
-        ImGui::TableNextRow();
-        propInt("Mip levels", desc.mipLevels);
-        propString("Dimension", GetTextureDimensionText(desc.dimension));
-
-        ImGui::EndTable();
-    }
-
-    void BuildMeshInstanceLeaf(const alm::gfx::MeshInstance* leaf)
+    void BuildMeshInstanceLeaf(alm::fw::FrameworkUI* ui, const alm::gfx::MeshInstance* leaf)
     {
         const auto& mesh = leaf->GetMesh();
 
@@ -297,19 +258,8 @@ namespace
                 ImGui::BeginTable("MatProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
                 ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 40.0f);
                 ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-                PropertyRowText("Name", mat->GetName().c_str());
+                PropertyRowText("Name", mat->GetName().c_str(), [ui, mat]() { ui->OpenMaterialPanel(mat); });
                 ImGui::EndTable();
-
-                if (auto tex = mat->GetBaseColorTexture())
-                    BuildTexture("Diffuse texture", *tex);
-                if (auto tex = mat->GetMetalRoughTexture())
-                    BuildTexture("Metal-rough texture", *tex);
-                if (auto tex = mat->GetNormalTexture())
-                    BuildTexture("Normal texture", *tex);
-                if (auto tex = mat->GetEmissiveTexture())
-                    BuildTexture("Emissive texture", *tex);
-                if (auto tex = mat->GetOcclusionTexture())
-                    BuildTexture("Occlusion texture", *tex);
             }
         }
     }
@@ -513,26 +463,115 @@ void alm::fw::FrameworkUI::BuildUI()
 {
     if (m_SelectedNode && m_SelectedNode.expired())
         SetSelectedNode(nullptr);
+    // ESC deselects the node, but not while the gizmo is being dragged: there ESC cancels the
+    // drag itself (handled in BuildGizmo) and the selection is kept.
+    // NOTE: IsUsingAny() must be used here: IsUsing() compares against ImGuizmo's own ID stack
+    // and always returns false when queried outside the gizmo's PushID scope.
+    if (m_SelectedNode && ImGui::IsKeyChordPressed(ImGuiKey_Escape) && !ImGuizmo::IsUsingAny())
+        SetSelectedNode(nullptr);
 
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_M))
         m_ShowMaterials = !m_ShowMaterials;
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_G))
+        SetGridVisible(!IsGridVisible());
 
-    ImGui::DockSpaceOverViewport(
+    // DockSpaceOverViewport generates its dockspace ID inside its host window (window-relative
+    // ID seed), so we must use the ID it returns: computing GetID("DockSpace") elsewhere yields
+    // a different hash and the central node lookup would fail.
+    ImGuiID dockspaceId = ImGui::DockSpaceOverViewport(
         0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
 
     BuildMainMenu();
     BuildBottomBar();
 
     BuildSettingsWindow();
-    BuildSceneGraphWindow();
+    BuildWorldOutliner();
     BuildRenderStagesWindow();
     BuildMaterialsWindow();
 
-    BuildContextMenu();
+    BuildViewportPicking();
 
     BuildLumninanceHistogram();
     BuildTextureWindows();
     BuildRSViews();
+
+    BuildGizmo(dockspaceId);
+}
+
+void alm::fw::FrameworkUI::BuildGizmo(ImGuiID dockspaceId)
+{
+    if (!m_SelectedNode)
+        return;
+
+    ImGuizmo::SetOrthographic(false);
+    // Keep the gizmo axes fixed to the world axes (+X/+Y/+Z): without this ImGuizmo flips
+    // each axis towards the camera when it sits on the negative half of that axis.
+    ImGuizmo::AllowAxisFlip(false);
+    ImGuizmo::BeginFrame();
+    ImGuizmo::PushID(m_SelectedNode.get());
+    ImGuizmo::Enable(true);
+
+    // Gizmo hotkeys (ignored while typing in text fields)
+    ImGuiIO& io = ImGui::GetIO();
+    if (!io.WantTextInput)
+    {
+        if (ImGui::IsKeyPressed(ImGuiKey_T))
+            g_GizmoOperation = ImGuizmo::TRANSLATE;
+        if (ImGui::IsKeyPressed(ImGuiKey_E))
+            g_GizmoOperation = ImGuizmo::SCALE;
+        if (ImGui::IsKeyPressed(ImGuiKey_R))
+            g_GizmoOperation = ImGuizmo::ROTATE;
+    }
+
+    // The scene renders into the central dock node area (PassthruCentralNode)
+    if (ImGuiDockNode* centralNode = ImGui::DockBuilderGetCentralNode(dockspaceId))
+    {
+        ImGuizmo::SetRect(centralNode->Pos.x, centralNode->Pos.y, centralNode->Size.x, centralNode->Size.y);
+
+        auto camera = m_RenderViewUI->GetCamera();
+        float4x4 view = camera->GetViewMatrix();
+        float4x4 proj = camera->GetProjectionMatrix();
+
+        auto* node = m_SelectedNode.get();
+        float4x4 world = node->GetWorldTransform();
+
+        ImGuizmo::Manipulate(
+            glm::value_ptr(view),
+            glm::value_ptr(proj),
+            g_GizmoOperation,
+            g_GizmoMode,
+            glm::value_ptr(world));
+
+        const bool usingNow = ImGuizmo::IsUsing();
+        if (usingNow && !g_GizmoDragging)
+            g_GizmoDragStartTransform = node->GetLocalTransform(); // drag start: snapshot for ESC-cancel
+
+        if (usingNow && ImGui::IsKeyPressed(ImGuiKey_Escape))
+        {
+            // ESC cancels the drag: revert the node to the transform captured at drag start
+            // and drop ImGuizmo's using state (otherwise it stays stuck while the button is held).
+            node->SetLocalTransform(g_GizmoDragStartTransform);
+            ImGuizmo::Enable(false);
+            g_GizmoDragging = false;
+        }
+        else if (usingNow)
+        {
+            g_GizmoDragging = true;
+
+            // Convert the edited world matrix back to the node's local transform
+            float4x4 parentWorld = float4x4_I;
+            if (const auto* parent = node->GetParent())
+                parentWorld = parent->GetWorldTransform();
+
+            node->SetLocalTransform(gfx::Transform{ glm::inverse(parentWorld) * world });
+        }
+        else
+        {
+            g_GizmoDragging = false;
+        }
+    }
+
+    ImGuizmo::PopID();
 }
 
 void alm::fw::FrameworkUI::AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture)
@@ -614,6 +653,49 @@ void alm::fw::FrameworkUI::SetSelectedNode(const alm::weak<alm::gfx::SceneGraphN
             outlineRS->SetSelectedObject(nullptr);
         }
     }
+}
+
+void alm::fw::FrameworkUI::SetGridVisible(bool b)
+{
+    auto gridRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GridRenderStage>();
+    if (gridRS)
+    {
+        bool visible = gridRS->IsVisible();
+        if (visible != b)
+        {
+            gridRS->SetVisible(b);
+        }
+    }
+}
+
+bool alm::fw::FrameworkUI::IsGridVisible() const
+{
+    auto gridRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GridRenderStage>();
+    if (gridRS)
+    {
+        return gridRS->IsVisible();
+    }
+    return false;
+}
+
+void alm::fw::FrameworkUI::OpenMaterialPanel(alm::gfx::Material* material)
+{
+    m_SelectedMaterial = material;
+    m_ShowMaterials = true;
+    m_ScrollToSelectedMaterial = true;
+}
+
+void alm::fw::FrameworkUI::OpenWorldOutliner()
+{
+    m_ShowWorldOutliner = true;
+
+    if (!m_SelectedNode || m_SelectedNode.expired())
+        return;
+
+    m_ExpandAncestors.clear();
+    for (auto parent = m_SelectedNode->GetParent(); parent; parent = parent->GetParent())
+        m_ExpandAncestors.push_back(parent);
+    m_ScrollToSelectedNode = true;
 }
 
 void alm::fw::FrameworkUI::SetRenderStats(float fps, float cpuTime, float cpuIdleTime, float gpuTime)
@@ -747,8 +829,17 @@ void alm::fw::FrameworkUI::BuildMainMenu()
         {
             if (ImGui::MenuItem("Settings", NULL, m_ShowSettings))
                 m_ShowSettings = !m_ShowSettings;
-            if (ImGui::MenuItem("Scene Graph", NULL, m_ShowSceneGraphWindow))
-                m_ShowSceneGraphWindow = !m_ShowSceneGraphWindow;
+            if (ImGui::MenuItem("World Outliner", NULL, m_ShowWorldOutliner))
+            {
+                if (!m_ShowWorldOutliner)
+                {
+                    OpenWorldOutliner();
+                }
+                else
+                {
+                    m_ShowWorldOutliner = false;
+                }
+            }
             if (ImGui::MenuItem("Render Stages", NULL, m_ShowRenderStages))
                 m_ShowRenderStages = !m_ShowRenderStages;
             if (ImGui::MenuItem("Material Panel", "Ctrl+M", m_ShowMaterials))
@@ -756,6 +847,7 @@ void alm::fw::FrameworkUI::BuildMainMenu()
 
             if (ImGui::BeginMenu("Grid"))
             {
+                bool visible = IsGridVisible();
                 auto gridRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GridRenderStage>();
                 if (gridRS)
                 {
@@ -896,21 +988,19 @@ void alm::fw::FrameworkUI::BuildSettingsWindow()
     ImGui::End();
 }
 
-void alm::fw::FrameworkUI::BuildSceneGraphWindow()
+void alm::fw::FrameworkUI::BuildWorldOutliner()
 {
-    if (!m_ShowSceneGraphWindow)
+    if (!m_ShowWorldOutliner)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(800, 1000), ImGuiCond_Once);
-    if (!ImGui::Begin("Scene view", &m_ShowSceneGraphWindow, ImGuiWindowFlags_None))
+    ImGui::SetNextWindowSize(ImVec2(1300, 1000), ImGuiCond_Once);
+    if (!ImGui::Begin("World Outliner", &m_ShowWorldOutliner, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
     }
-    if (!m_SelectedNode || m_SelectedNode.expired())
-        SetSelectedNode(m_Scene->GetSceneGraph()->GetRoot());
 
-    if (ImGui::BeginChild("##scene_graph_panel_left", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
+    if (ImGui::BeginChild("##world_outliner_panel_left", ImVec2(450, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
     {
         // Left side
         if (ImGui::BeginTable("##tree", 1, ImGuiTableFlags_RowBg))
@@ -933,7 +1023,7 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
                 tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
                 tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
                 tree_flags |= ImGuiTreeNodeFlags_DefaultOpen;
-                if (node == m_SelectedNode.get())
+                if (m_SelectedNode && m_SelectedNode.get() == node)
                     tree_flags |= ImGuiTreeNodeFlags_Selected;
                 if (node->GetChildrenCount() == 0)
                     tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
@@ -944,7 +1034,7 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
                 if (!node_open)
                     ImGui::PopID();
 
-                if (ImGui::IsItemFocused())
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
                     SetSelectedNode(node->weak_from_this());
 
                 if (m_ScrollToSelectedNode && node == m_SelectedNode.get())
@@ -982,7 +1072,7 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
 
     // Right side
     ImGui::SameLine();
-    if (ImGui::BeginChild("##scene_graph_panel_right", ImVec2(0, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_AlwaysVerticalScrollbar))
+    if (ImGui::BeginChild("##world_outliner_panel_right", ImVec2(0, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_AlwaysVerticalScrollbar))
     {
         if (const auto& node = m_SelectedNode)
         {
@@ -1096,7 +1186,7 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
                 switch (leaf->GetType())
                 {
                 case alm::gfx::SceneGraphLeaf::Type::MeshInstance:
-                    BuildMeshInstanceLeaf(alm::checked_cast<const alm::gfx::MeshInstance*>(leaf));
+                    BuildMeshInstanceLeaf(this, alm::checked_cast<const alm::gfx::MeshInstance*>(leaf));
                     break;
                 case alm::gfx::SceneGraphLeaf::Type::Camera:
                     assert(0);
@@ -1124,13 +1214,10 @@ void alm::fw::FrameworkUI::BuildSceneGraphWindow()
     ImGui::End();
 }
 
-void alm::fw::FrameworkUI::BuildContextMenu()
+void alm::fw::FrameworkUI::BuildViewportPicking()
 {
-    // OpenPopup()/BeginPopup*() require a current window, but BuildUI() runs outside of any
-    // Begin()/End(). Use the fullscreen window as an input-less ID scope host for the popup.
-    BeginFullScreenWindow();
-
-    auto tryOpenAt = [this](const float2& mousePos) -> std::optional<gfx::RaycastHit>
+    // Deselects and raycasts the 3D viewport at the given mouse position (window-relative).
+    auto trySelectAt = [this](const float2& mousePos) -> std::optional<gfx::RaycastHit>
     {
         SetSelectedNode(nullptr);
 
@@ -1148,71 +1235,33 @@ void alm::fw::FrameworkUI::BuildContextMenu()
         if (!sceneGraph->Raycast(origin, dir, hit))
             return {};
 
-        // Popup positions live in ImGui space (OS-absolute when ViewportsEnable is set)
-        const ImGuiViewport* vp = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + mousePos.x, vp->Pos.y + mousePos.y));
-        ImGui::OpenPopup("##ContextMenu");
         return hit;
     };
 
     // Right-click on the 3D viewport: the dockspace PassthruCentralNode registers a hit-test hole
     // so the viewport counts as "void" (no hovered ImGui window). Ignore right-drag releases
-    // (camera controls). Only opens if the ray hits an object.
+    // (camera controls). A double right-click opens the World Outliner on the selected node.
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && !ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Right) &&
         !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
     {
         float mouseX = 0.f, mouseY = 0.f;
         SDL_GetMouseState(&mouseX, &mouseY); // window-relative, same space as ScreenToWorldRay
-        auto hitResult = tryOpenAt({ (int)mouseX, (int)mouseY });
+        auto hitResult = trySelectAt({ (int)mouseX, (int)mouseY });
         if (hitResult)
         {
             SetSelectedNode(hitResult->Node->weak_from_this());
-        }
-    }
 
-    if (ImGui::BeginPopup("##ContextMenu"))
-    {
-        // Middle-click outside closes (left/right are handled by ImGui itself, middle is not)
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle) && !ImGui::IsWindowHovered())
-            ImGui::CloseCurrentPopup();
-
-        if (ImGui::IsKeyPressed(ImGuiKey_Escape))
-            ImGui::CloseCurrentPopup();
-
-        if (m_SelectedNode && !m_SelectedNode.expired())
-        {
-            ImGui::TextUnformatted(m_SelectedNode->GetName().c_str());
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("Open World Outliner"))
-            {
-                m_ShowSceneGraphWindow = true;
-
-                m_ExpandAncestors.clear();
-                for (auto parent = m_SelectedNode->GetParent(); parent; parent = parent->GetParent())
-                    m_ExpandAncestors.push_back(parent);
-                m_ScrollToSelectedNode = true;
-            }
-
-            if (ImGui::MenuItem("Open Material Panel"))
-            {
-                if (m_SelectedNode->GetLeaf()->GetType() == gfx::SceneGraphLeaf::Type::MeshInstance)
-                {
-                    auto meshInstance = alm::checked_pointer_cast<gfx::MeshInstance>(m_SelectedNode->GetLeaf());
-                    m_SelectedMaterial = meshInstance->GetMesh()->GetMaterial();
-                    m_ShowMaterials = true;
-                }
-            }
+            // NOTE: IsMouseDoubleClicked() is only valid on the press frame of the second click
+            // (io.MouseClickedCount is zeroed every frame and only filled on clicks). On this
+            // release frame, read the persistent click counter instead (stays valid after release).
+            if (ImGui::GetIO().MouseClickedLastCount[ImGuiMouseButton_Right] >= 2)
+                OpenWorldOutliner();
         }
         else
         {
-            ImGui::CloseCurrentPopup();
+            SetSelectedNode(nullptr);
         }
-
-        ImGui::EndPopup();
     }
-
-    EndFullScreenWindow();
 }
 
 void alm::fw::FrameworkUI::BuildRenderModesSettings()
@@ -1826,7 +1875,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
     }
 
     // Left panel
-    if (ImGui::BeginChild("##materials_panel_left", ImVec2(300, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
+    if (ImGui::BeginChild("##materials_panel_left", ImVec2(400, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
     {
         m_MaterialFilter.Draw("Filter");
 
@@ -1904,6 +1953,12 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
                     m_SelectedMaterial = mat;
                 }
 
+                if (m_ScrollToSelectedMaterial && isSelected)
+                {
+                    ImGui::SetScrollHereY(0.5f);
+                    m_ScrollToSelectedMaterial = false;
+                }
+
                 ImGui::TableNextColumn();
                 ImGui::TextUnformatted(mat->GetSourceFilename().c_str());
 
@@ -1914,6 +1969,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
             }
 
             ImGui::EndTable();
+            m_ScrollToSelectedMaterial = false;
         }
         ImGui::EndChild();
     }

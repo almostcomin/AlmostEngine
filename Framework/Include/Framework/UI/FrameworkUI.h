@@ -116,6 +116,12 @@ public:
 
 	void SetSelectedNode(const alm::weak<alm::gfx::SceneGraphNode>& node);
 
+	// Selects the material and opens the Material Panel (e.g. clicking the material name button in the World Outliner)
+	void OpenMaterialPanel(alm::gfx::Material* material);
+
+	void SetGridVisible(bool b);
+	bool IsGridVisible() const;
+
 	std::function<void(const char*)> m_RequestLoadFile;
 	std::function<void(const char*)> m_RequestMergeFile;
 	std::function<void()> m_RequestClose;
@@ -184,11 +190,14 @@ private:
 	void BuildBottomBar();
 
 	void BuildSettingsWindow();
-	void BuildSceneGraphWindow();
+	void BuildWorldOutliner();
 	void BuildRenderStagesWindow();
 	void BuildMaterialsWindow();
 
-	void BuildContextMenu();
+	void BuildViewportPicking();
+
+	void BuildGizmo(ImGuiID dockspaceId);
+	void OpenWorldOutliner();
 
 	void BuildRenderModesSettings();
 	void BuildCameraSettings(float availWidth);
@@ -223,7 +232,7 @@ protected:
 	bool m_ShowBottomBar = true;
 
 	bool m_ShowSettings = false;
-	bool m_ShowSceneGraphWindow = false;
+	bool m_ShowWorldOutliner = false;
 	bool m_ShowRenderStages = false;
 	bool m_ShowMaterials = false;
 
@@ -260,9 +269,8 @@ private:
 	std::vector<std::pair<std::string, const std::function<void()>>> m_MainMenuAdditionalItems;
 
 	gfx::Material* m_SelectedMaterial = nullptr;
+	bool m_ScrollToSelectedMaterial = false;
 	ImGuiTextFilter m_MaterialFilter;
-
-	int2 m_ContextMenuPos;
 };
 
 } // namespace alm::fw
