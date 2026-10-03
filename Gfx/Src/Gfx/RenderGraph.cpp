@@ -10,20 +10,6 @@
 
 namespace
 {
-	int GetActualSize(int desired, int ref)
-	{
-		if (desired > 0)
-		{
-			return desired;
-		}
-		if (desired == 0)
-		{
-			return ref;
-		}
-
-		return ref / -desired;
-	}
-
 	alm::rhi::ResourceState GetInitialState(alm::gfx::RenderGraph::TextureResourceType type)
 	{
 		switch (type)
@@ -430,7 +416,7 @@ void alm::gfx::RenderGraph::OnSceneChanged()
 	}
 }
 
-void alm::gfx::RenderGraph::OnRenderTargetChanged(const int2& newSize)
+void alm::gfx::RenderGraph::OnRenderTargetSizeChanged(const int2& newSize, const int2& newViewportSize)
 {
 	alm::unique_vector<RGFramebufferHandle> framebuffersToUpdate;
 
@@ -440,13 +426,17 @@ void alm::gfx::RenderGraph::OnRenderTargetChanged(const int2& newSize)
 		auto& declTex = it.second;
 		if (declTex->texture && (declTex->requestedWidth <= 0 || declTex->requestedHeight <= 0))
 		{
-			rhi::TextureDesc newDesc = declTex->texture->GetDesc();
-			newDesc.width = GetActualSize(declTex->requestedWidth, newSize.x);
-			newDesc.height = GetActualSize(declTex->requestedHeight, newSize.y);
+			uint2 newTexSize = GetActualTextureSize(declTex.get(), newSize, newViewportSize);
+			rhi::TextureDesc desc = declTex->texture->GetDesc();
+			if (desc.width == newTexSize.x && desc.height == newTexSize.y)
+				continue;
+
+			desc.width = newTexSize.x;
+			desc.height = newTexSize.y;
 
 			m_DeviceManager->GetDevice()->ReleaseImmediately(std::move(declTex->texture));
 			declTex->texture = m_DeviceManager->GetDevice()->CreateTexture(
-				newDesc, GetInitialState(declTex->type), declTex->id);
+				desc, GetInitialState(declTex->type), declTex->id);
 
 			for (auto& fbHandle : declTex->framebuffers)
 			{
@@ -487,7 +477,7 @@ void alm::gfx::RenderGraph::OnRenderTargetChanged(const int2& newSize)
 }
 
 alm::gfx::RGTextureHandle alm::gfx::RenderGraph::CreateTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type,
-																	   int width, int height, int arraySize, alm::rhi::Format format, bool needsUAV)
+	int width, int height, SizeSpace sizeSpace, int arraySize, alm::rhi::Format format, bool needsUAV)
 {
 	assert(!m_IsRendering);
 
@@ -509,9 +499,12 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraph::CreateTexture(RenderStage* rend
 		}
 	}
 
-	rhi::TextureDesc desc{
-		.width = (uint32_t)GetActualSize(width, m_RenderView->GetFramebuffer()->GetFramebufferInfo().width),
-		.height = (uint32_t)GetActualSize(height, m_RenderView->GetFramebuffer()->GetFramebufferInfo().height),
+	uint2 texSize = GetActualTextureSize(int2{ width, height },
+		m_RenderView->GetBackbufferSize(), m_RenderView->GetBackbufferViewportSize(), sizeSpace);
+	rhi::TextureDesc desc
+	{
+		.width = texSize.x,
+		.height = texSize.y,
 		.arraySize = (uint32_t)arraySize,
 		.format = format,
 		.shaderUsage = GetTextureShaderUsage(type, needsUAV) };
@@ -523,6 +516,7 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraph::CreateTexture(RenderStage* rend
 		.type = type,
 		.requestedWidth = width,
 		.requestedHeight = height,
+		.sizeSpace = sizeSpace,
 		.arraySize = arraySize,
 		.format = format,
 		.needsUAV = needsUAV,
@@ -560,37 +554,35 @@ bool alm::gfx::RenderGraph::RecreateTexture(RGTextureHandle handle, int width, i
 
 	declTex->requestedWidth = width;
 	declTex->requestedHeight = height;
+	declTex->sizeSpace = SizeSpace::Backbuffer;
 	declTex->arraySize = arraySize;
 	declTex->format = format;
 
 	if (declTex->texture)
 	{
-		rhi::TextureDesc desc{
-			.width = (uint32_t)GetActualSize(width, m_RenderView->GetFramebuffer()->GetFramebufferInfo().width),
-			.height = (uint32_t)GetActualSize(height, m_RenderView->GetFramebuffer()->GetFramebufferInfo().height),
-			.arraySize = (uint32_t)arraySize,
-			.format = format,
-			.shaderUsage = GetTextureShaderUsage(declTex->type, declTex->needsUAV) };
-
-		rhi::TextureOwner newTexture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(declTex->type), declTex->id);
-		rhi::TextureOwner& oldTexture = declTex->texture;
-
-		// Swap
-		oldTexture->Swap(*newTexture.get());
-
-		// newTexture (actually the old old since it has been swap-ed) would be released when the owner pointer gets out of scope
-		// but lets do it explicitly
-		m_DeviceManager->GetDevice()->ReleaseQueued(std::move(newTexture));
-
-		// Recreate debug view requests
-		auto it = std::find_if(m_TexViewRequests.begin(), m_TexViewRequests.end(), [handle](const TextureViewRequest* entry)
-			{ return entry->handle == handle; });
-		if (it != m_TexViewRequests.end())
-		{
-			m_DeviceManager->GetDevice()->ReleaseImmediately(std::move((*it)->tex));
-		}
+		InternalRecreateTexture(handle);
 	}
+	return true;
+}
 
+bool alm::gfx::RenderGraph::RecreateTexture(RGTextureHandle handle, int sizeDenom, SizeSpace sizeSpace, int arraySize, rhi::Format format)
+{
+	assert(!m_IsRendering);
+
+	// Check that texture has been already created
+	auto* declTex = GetDeclTex(handle);
+	assert(declTex);
+
+	declTex->requestedWidth = -sizeDenom;
+	declTex->requestedHeight = -sizeDenom;
+	declTex->sizeSpace = sizeSpace;
+	declTex->arraySize = arraySize;
+	declTex->format = format;
+
+	if (declTex->texture)
+	{
+		InternalRecreateTexture(handle);
+	}
 	return true;
 }
 
@@ -616,9 +608,10 @@ void alm::gfx::RenderGraph::EnableTexture(RGTextureHandle handle)
 	auto* declTex = GetDeclTex(handle);
 	if (!declTex->texture)
 	{
+		uint2 texSize = GetActualTextureSize(declTex, m_RenderView->GetBackbufferSize(), m_RenderView->GetBackbufferViewportSize());
 		rhi::TextureDesc desc{
-			.width = (uint32_t)GetActualSize(declTex->requestedWidth, m_RenderView->GetFramebuffer()->GetFramebufferInfo().width),
-			.height = (uint32_t)GetActualSize(declTex->requestedHeight, m_RenderView->GetFramebuffer()->GetFramebufferInfo().height),
+			.width = texSize.x,
+			.height = texSize.y,
 			.arraySize = (uint32_t)declTex->arraySize,
 			.format = declTex->format,
 			.shaderUsage = GetTextureShaderUsage(declTex->type, declTex->needsUAV) };
@@ -1008,9 +1001,9 @@ alm::rhi::BufferHandle alm::gfx::RenderGraph::GetBufferView(RGBufferViewTicket t
 	return (*it)->buffer.get_weak();
 }
 
-alm::rhi::FramebufferHandle alm::gfx::RenderGraph::GetFramebuffer()
+alm::rhi::FramebufferHandle alm::gfx::RenderGraph::GetBackbuffer()
 {
-	return m_RenderView->GetFramebuffer();
+	return m_RenderView->GetBackbuffer();
 }
 
 alm::gfx::RenderGraph::DeclaredTexture* alm::gfx::RenderGraph::GetDeclTex(RGTextureHandle handle)
@@ -1243,4 +1236,77 @@ void alm::gfx::RenderGraph::UpdateRequestedBufferFromTextureView(BufferViewReque
 		rhi::Barrier::Texture(srcTex.get(), rhi::ResourceState::COPY_SRC, srcTexState),
 		rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON) };
 	commandList->PushBarriers(exitBarriers);
+}
+
+uint2 alm::gfx::RenderGraph::GetActualTextureSize(const int2& desired, const uint2& backbufferSize,
+	const uint2& backbufferViewportVpSize, SizeSpace sizeSpace) const
+{
+	uint2 viewportSize = {};
+	switch (sizeSpace)
+	{
+	case SizeSpace::Backbuffer:
+		viewportSize = backbufferSize;
+		break;
+	case SizeSpace::SceneViewport:
+		viewportSize = backbufferViewportVpSize;
+		break;
+	}
+
+	uint2 result = {};
+	for (int i = 0; i < 2; ++i)
+	{
+		if (desired[i] == 0)
+		{
+			result[i] = viewportSize[i];
+		}
+		else if (desired[i] < 0)
+		{
+			result[i] = viewportSize[i] / -desired[i];
+		}
+		else
+		{
+			result[i] = desired[i];
+		}
+	}
+
+	return result;
+}
+
+uint2 alm::gfx::RenderGraph::GetActualTextureSize(const DeclaredTexture* declTex, const uint2& backbufferSize,
+	const uint2& backbufferViewportVpSize) const
+{
+	return GetActualTextureSize( uint2{ declTex->requestedWidth, declTex->requestedHeight },
+		backbufferSize, backbufferViewportVpSize, declTex->sizeSpace);
+}
+
+void alm::gfx::RenderGraph::InternalRecreateTexture(RGTextureHandle handle)
+{
+	auto* declTex = GetDeclTex(handle);
+	assert(declTex);
+
+	uint2 newTexSize = GetActualTextureSize(declTex, m_RenderView->GetBackbufferSize(), m_RenderView->GetBackbufferViewportSize());
+	rhi::TextureDesc desc{
+		.width = newTexSize.x,
+		.height = newTexSize.y,
+		.arraySize = (uint32_t)declTex->arraySize,
+		.format = declTex->format,
+		.shaderUsage = GetTextureShaderUsage(declTex->type, declTex->needsUAV) };
+
+	rhi::TextureOwner newTexture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(declTex->type), declTex->id);
+	rhi::TextureOwner& oldTexture = declTex->texture;
+
+	// Swap
+	oldTexture->Swap(*newTexture.get());
+
+	// newTexture (actually the old old since it has been swap-ed) would be released when the owner pointer gets out of scope
+	// but lets do it explicitly
+	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(newTexture));
+
+	// Recreate debug view requests
+	auto it = std::find_if(m_TexViewRequests.begin(), m_TexViewRequests.end(), [handle](const TextureViewRequest* entry)
+		{ return entry->handle == handle; });
+	if (it != m_TexViewRequests.end())
+	{
+		m_DeviceManager->GetDevice()->ReleaseImmediately(std::move((*it)->tex));
+	}
 }

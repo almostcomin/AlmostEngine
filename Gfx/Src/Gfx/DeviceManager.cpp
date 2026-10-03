@@ -99,25 +99,26 @@ alm::rhi::FramebufferHandle alm::gfx::DeviceManager::GetCurrentFramebuffer()
 	return m_SwapChainFramebuffers[GetCurrentBackBufferIndex()].get_weak();
 }
 
-bool alm::gfx::DeviceManager::UpdateWindowSize()
+std::pair<bool, uint2> alm::gfx::DeviceManager::UpdateWindowSize()
 {
 	int width, height;
 	if (SDL_GetWindowSize(m_DeviceParams.WindowHandle, (int*)&width, (int*)&height) == false)
 	{
 		LOG_ERROR("SDL_GetWindowSize failed");
-		return false;
+		return { false, uint2{ m_BackBufferWidth, m_BackBufferHeight }};
 	}
 
 	if (width == 0 || height == 0)
 	{
 		// window is minimized
 		m_WindowVisible = false;
-		return false;
+		return { false, uint2{ 0, 0 }};
 	}
 	m_WindowVisible = true;
 
 	if (int(m_BackBufferWidth) != width || int(m_BackBufferHeight) != height)
 	{
+		uint2 oldSize = { m_BackBufferWidth, m_BackBufferHeight };
 		for (auto& fb : m_SwapChainFramebuffers)
 		{
 			m_Device->ReleaseQueued(std::move(fb));
@@ -137,10 +138,10 @@ bool alm::gfx::DeviceManager::UpdateWindowSize()
 				.AddColorAttachment(GetBackBuffer(index)), std::format("Swapchain FrameBuffer[{}]", index));
 		}
 
-		return true;
+		return { true, oldSize };
 	}
 
-	return false;
+	return { false, uint2{ m_BackBufferWidth, m_BackBufferHeight } };
 }
 
 alm::gfx::DeviceManager::RenderResult alm::gfx::DeviceManager::Render(float totalSec, float elapsedSec, gfx::MouseState mouseState)

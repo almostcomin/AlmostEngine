@@ -386,6 +386,8 @@ namespace interop
         TextureSampledViewIndex uiTextureDI;
         uint colorSpace; // st::rhi::ColorSpace
         float paperWhiteNits;
+        float2 viewportOrigin;
+        float2 viewportSize;
     };
 
     struct TonemapConstants

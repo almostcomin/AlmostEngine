@@ -15,10 +15,18 @@ namespace alm::gfx
 
 		RenderGraphBuilder(RenderGraph* renderGraph, RenderStage* renderStage);
 
-		RGTextureHandle CreateColorTarget(const std::string& id, int width, int height, int arraySize, rhi::Format format);
-		RGTextureHandle CreateDepthTarget(const std::string& id, int width, int height, int arraySize, rhi::Format format);
+		RGTextureHandle CreateColorTarget(const std::string& id, int width, int height, int arraySize, rhi::Format format, bool needsUAV = false);
+		RGTextureHandle CreateColorTarget(const std::string& id, int sizeDenom, RenderGraph::SizeSpace sizeSpace, int arraySize, rhi::Format format,
+			bool needsUAV = false);
+
+		RGTextureHandle CreateDepthTarget(const std::string& id, int width, int height, int arraySize, rhi::Format format, bool needsUAV = false);
+		RGTextureHandle CreateDepthTarget(const std::string& id, int sizeDenom, RenderGraph::SizeSpace sizeSpace, int arraySize, rhi::Format format,
+			bool needsUAV = false);
+
 		RGTextureHandle CreateTexture(const std::string& id, RenderGraph::TextureResourceType type, int width, int height, int arraySize,
 			rhi::Format format, bool needsUAV);
+		RGTextureHandle CreateTexture(const std::string& id, RenderGraph::TextureResourceType type, int sizeDenom, RenderGraph::SizeSpace sizeSpace, 
+			int arraySize, rhi::Format format, bool needsUAV);
 
 		RGBufferHandle CreateBuffer(const std::string& id, const rhi::BufferDesc& desc);
 

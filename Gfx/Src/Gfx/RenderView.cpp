@@ -66,6 +66,8 @@ alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* 
 	m_PrevViewProjectionMatrix{ glm::identity<float4x4>() },
 	m_PrevCameraPosition{ 0.f, 0.f, 0.f },
 	m_ResetPrevFrameCamera{ true },
+	m_BackbufferViewportOrigin{ 0, 0 },
+	m_BackbufferViewportSize{ 0, 0 },
 	m_ViewportSwapChainId{ viewportId },
 	m_ShadowmapValid{ false },
 	m_CloudsShadowmapValid{ false },
@@ -101,6 +103,8 @@ alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* 
 		rhi::ResourceState::SHADER_RESOURCE, m_DeviceManager, "SpotLightsVisibleBuffer");
 
 	m_RenderGraph = alm::make_unique_with_weak<RenderGraph>(this, debugName);
+
+	ResetBackbufferViewport();
 }
 
 alm::gfx::RenderView::~RenderView()
@@ -136,11 +140,43 @@ void alm::gfx::RenderView::SetScene(alm::weak<Scene> scene)
 void alm::gfx::RenderView::SetCamera(std::shared_ptr<alm::gfx::Camera> camera)
 {
 	m_Camera = camera;
+	if (m_Camera)
+	{
+		m_Camera->SetAspect((float)m_BackbufferViewportSize.x / m_BackbufferViewportSize.y);
+	}
 }
 
-void alm::gfx::RenderView::SetOffscreenFrameBuffer(alm::rhi::FramebufferHandle frameBuffer)
+void alm::gfx::RenderView::SetOffscreenBackbuffer(alm::rhi::FramebufferHandle backbuffer)
 {
-	m_OffscreenFramebuffer = frameBuffer;
+	m_OffscreenBackbuffer = backbuffer;
+	ResetBackbufferViewport();
+}
+
+void alm::gfx::RenderView::SetBackbufferViewport(const uint2& origin, const uint2& size, bool force)
+{
+	m_BackbufferViewportOrigin = origin;
+
+	if (force || size != m_BackbufferViewportSize)
+	{
+		m_BackbufferViewportSize = size;
+
+		m_RenderGraph->OnRenderTargetSizeChanged(GetBackbufferSize(), m_BackbufferViewportSize);
+		if (m_Camera)
+		{
+			m_Camera->SetAspect((float)m_BackbufferViewportSize.x / m_BackbufferViewportSize.y);
+		}
+	}
+}
+
+void alm::gfx::RenderView::ResetBackbufferViewport()
+{
+	SetBackbufferViewport(uint2{ 0u }, GetBackbufferSize(), false);
+}
+
+uint2 alm::gfx::RenderView::GetBackbufferSize() const
+{
+	auto fb = GetBackbuffer();
+	return uint2{ fb->GetFramebufferInfo().width, fb->GetFramebufferInfo().height };
 }
 
 void alm::gfx::RenderView::RegisterHeightmap(const SceneHeightmap* sceneHeightmap)
@@ -157,11 +193,11 @@ void alm::gfx::RenderView::UnregisterHeightmap(const SceneHeightmap* sceneHeight
 	m_HeightmapInstances.erase(sceneHeightmap);
 }
 
-alm::rhi::FramebufferHandle alm::gfx::RenderView::GetFramebuffer()
+alm::rhi::FramebufferHandle alm::gfx::RenderView::GetBackbuffer() const
 {
-	if (m_OffscreenFramebuffer)
+	if (m_OffscreenBackbuffer)
 	{
-		return m_OffscreenFramebuffer;
+		return m_OffscreenBackbuffer;
 	}
 	if (m_ViewportSwapChainId != nullptr)
 	{
@@ -170,9 +206,9 @@ alm::rhi::FramebufferHandle alm::gfx::RenderView::GetFramebuffer()
 	return m_DeviceManager->GetCurrentFramebuffer();
 }
 
-alm::rhi::TextureHandle alm::gfx::RenderView::GetBackBuffer(int idx)
+alm::rhi::TextureHandle alm::gfx::RenderView::GetBackBufferColorRT(int idx)
 {
-	return GetFramebuffer()->GetBackBuffer(idx);
+	return GetBackbuffer()->GetColorTexture(idx);
 }
 
 alm::rhi::BufferUniformView alm::gfx::RenderView::GetSceneBufferUniformView()
@@ -190,21 +226,21 @@ alm::rhi::BufferReadOnlyView alm::gfx::RenderView::GetShadowMapVisibilityBufferR
 	return m_ShadowMapVisibleBuffer.GetReadOnlyView();
 }
 
-void alm::gfx::RenderView::OnWindowSizeChanged()
+void alm::gfx::RenderView::OnBackbufferResize(const uint2& oldSize, const uint2& newSize)
 {
-	// Actually we are only interested in this if we are rendering to the main swap chain BB
-	if (!m_OffscreenFramebuffer && !m_ViewportSwapChainId)
-	{
-		const auto newSize = m_DeviceManager->GetWindowDimensions();
-		m_RenderGraph->OnRenderTargetChanged(newSize);
-	}
+	const int2 bbDelta = int2(newSize) - int2(oldSize);
+	const uint2 size = uint2(glm::max(int2(m_BackbufferViewportSize) + bbDelta, int2(1, 1)));
+	const uint2 origin = glm::min(m_BackbufferViewportOrigin,
+		uint2(glm::max(int2(newSize) - int2(size), int2(0))));
+	
+	SetBackbufferViewport(origin, size);
 }
 
 void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec, const MouseState& mouseState)
 {
 	ZoneScoped
 
-	alm::rhi::FramebufferHandle frameBuffer = GetFramebuffer();
+	alm::rhi::FramebufferHandle frameBuffer = GetBackbuffer();
 	if (!frameBuffer)
 	{
 		LOG_ERROR("No frame buffer specified. Nothing to render");
@@ -270,7 +306,7 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec, const Mous
 	m_DeviceManager->GetDevice()->ExecuteCommandList(beginCommandList, alm::rhi::QueueType::Graphics);
 
 	// Render the stages
-	m_RenderGraph->Render(GetFramebuffer());
+	m_RenderGraph->Render(GetBackbuffer());
 
 	// Finish rendering
 	rhi::ICommandList* endCommandList = m_EndCommandLists[m_DeviceManager->GetFrameModuleIndex()].get();
@@ -316,7 +352,7 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 	interop::SceneConstants* sceneShaderConstant = (interop::SceneConstants*)m_SceneConstants.Map();
 	*sceneShaderConstant = {};
 
-	const float2 screenResolution = float2{ GetFramebuffer()->GetFramebufferInfo().width, GetFramebuffer()->GetFramebufferInfo().height };
+	const float2 screenResolution = float2{ GetBackbufferSize() };
 	sceneShaderConstant->screenResolution = screenResolution;
 	sceneShaderConstant->invScreenResolution = 1.0f / screenResolution;	
 	sceneShaderConstant->aspect = screenResolution.x / screenResolution.y;
@@ -756,7 +792,7 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 	commandList->EndMarker();
 }
 
-void alm::gfx::RenderView::UpdateHeightmaps(const uint2& frameBufferSize, rhi::ICommandList* commandList)
+void alm::gfx::RenderView::UpdateHeightmaps(const uint2& backbufferSize, rhi::ICommandList* commandList)
 {
 	ZoneScoped;
 
@@ -766,7 +802,7 @@ void alm::gfx::RenderView::UpdateHeightmaps(const uint2& frameBufferSize, rhi::I
 	{
 		for (auto& [_, instance] : m_HeightmapInstances)
 		{
-			instance->Update(m_Camera.get(), frameBufferSize, m_DeviceManager->GetGpuSceneBuffers(), m_Scene->GetGpuSceneBuffersHandle());
+			instance->Update(m_Camera.get(), backbufferSize, m_DeviceManager->GetGpuSceneBuffers(), m_Scene->GetGpuSceneBuffersHandle());
 		}
 	}
 

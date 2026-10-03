@@ -46,9 +46,18 @@ public:
 	void SetScene(alm::weak<Scene> scene);
 	void SetCamera(std::shared_ptr<Camera> camera);
 
-	// Sets render to an offscreen framebuffer. If not initialized or set to null, will render to 
-	// main onscreen framebuffer aka main framebuffer
-	void SetOffscreenFrameBuffer(alm::rhi::FramebufferHandle frameBuffer);
+	// Sets render to an offscreen backbuffer. If not initialized or set to null, will render to 
+	// main on-screen backbuffer
+	void SetOffscreenBackbuffer(alm::rhi::FramebufferHandle framebuffer);
+
+	// Sets the backbuffer viewport, that portion of the backbuffer that would be used for render
+	void SetBackbufferViewport(const uint2& origin, const uint2& size, bool force = false);
+	// Set the backbuffer viewport to the entire backbuffer
+	void ResetBackbufferViewport();
+
+	std::pair<uint2, uint2> GetBackbufferViewport() const { return { m_BackbufferViewportOrigin, m_BackbufferViewportSize }; }
+	const uint2& GetBackbufferViewportSize() const { return m_BackbufferViewportSize; }
+	uint2 GetBackbufferSize() const;
 
 	void RegisterHeightmap(const SceneHeightmap* sceneHeightmap);
 	void UnregisterHeightmap(const SceneHeightmap* sceneHeightmap);
@@ -56,9 +65,9 @@ public:
 	alm::weak<Scene> GetScene() { return m_Scene; }
 	std::shared_ptr<Camera> GetCamera() const { return m_Camera; }
 	alm::weak<RenderGraph> GetRenderGraph() { return m_RenderGraph.get_weak(); }
-	alm::rhi::FramebufferHandle GetFramebuffer();
-	alm::rhi::FramebufferHandle GetOffscreenFramebuffer() { return m_OffscreenFramebuffer; }
-	alm::rhi::TextureHandle GetBackBuffer(int idx = 0);
+	alm::rhi::FramebufferHandle GetBackbuffer() const;
+	alm::rhi::FramebufferHandle GetOffscreenBackbuffer() { return m_OffscreenBackbuffer; }
+	alm::rhi::TextureHandle GetBackBufferColorRT(int idx = 0);
 
 	const float4x4& GetPrevFrameViewProjMatrix() const { return m_PrevViewProjectionMatrix; }
 
@@ -76,7 +85,7 @@ public:
 
 	bool IsShadowmapValid() const { return m_ShadowmapValid; }
 
-	void OnWindowSizeChanged();
+	void OnBackbufferResize(const uint2& oldSize, const uint2& newSize);
 
 	void Render(double timeSec, float timeDeltaSec, const MouseState& mouseState);
 
@@ -103,7 +112,7 @@ private:
 	void UpdatePointLightsVisibleBuffer(rhi::ICommandList* commandList);
 	void UpdateSpotLightsVisibleBuffer(rhi::ICommandList* commandList);
 
-	void UpdateHeightmaps(const uint2& frameBufferSize, rhi::ICommandList* commandList);
+	void UpdateHeightmaps(const uint2& backbufferSize, rhi::ICommandList* commandList);
 
 	void GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
 		aabox3f* opt_outPrimaryBounds = nullptr, SceneContentType secondaryType = SceneContentType::_Size, aabox3f* opt_outSecondaryBounds = nullptr) const;
@@ -129,8 +138,11 @@ private:
 	// ImGui viewports
 	ViewportSwapChainId m_ViewportSwapChainId;
 
-	// Offscreen framebuffer
-	alm::rhi::FramebufferHandle m_OffscreenFramebuffer;
+	// Offscreen backbuffer
+	alm::rhi::FramebufferHandle m_OffscreenBackbuffer;
+	// Backbuffer viewport
+	uint2 m_BackbufferViewportOrigin;
+	uint2 m_BackbufferViewportSize;
 
 	// Bounds of the visible scene
 	aabox3f m_CameraVisibleBounds;

@@ -17,23 +17,23 @@ void alm::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 		// GBuffer0
 		//	RGB = Base color (albedo)
 		//	A = Opacity
-		m_GBuffer0Texture = builder.CreateColorTarget("GBuffer0", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
+		m_GBuffer0Texture = builder.CreateColorTarget("GBuffer0", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA8_UNORM);
 
 		// GBuffer1
 		//	RGB = SpecularF0
 		//	A = Occlusion
-		m_GBuffer1Texture = builder.CreateColorTarget("GBuffer1", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
+		m_GBuffer1Texture = builder.CreateColorTarget("GBuffer1", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA8_UNORM);
 
 		// GBuffer2
 		//	RG = Normal (encoded)
 		//  B = Roughness
 		//  A = Metalness
-		m_GBuffer2Texture = builder.CreateColorTarget("GBuffer2", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
+		m_GBuffer2Texture = builder.CreateColorTarget("GBuffer2", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT);
 
 		// GBuffer3
 		//	RGB = Emissive color
 		//	A = unused
-		m_GBuffer3Texture = builder.CreateColorTarget("GBuffer3", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
+		m_GBuffer3Texture = builder.CreateColorTarget("GBuffer3", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA8_UNORM);
 
 		m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 

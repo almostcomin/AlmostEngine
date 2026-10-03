@@ -21,12 +21,6 @@ class RenderGraph : public alm::enable_weak_from_this<RenderGraph>, private alm:
 {
 public:
 
-	// Use GetBackBufferSizeDenominator getting more denom values
-	static constexpr int c_BBSize = 0;
-	static constexpr int c_HalfBBSize = -2;
-	static constexpr int c_QuarterBBSize = -4;
-	static constexpr int c_EighthBBSize = -8;
-
 	enum TextureResourceType
 	{
 		RenderTarget,
@@ -38,6 +32,12 @@ public:
 	{
 		Read,
 		Write
+	};
+
+	enum SizeSpace
+	{
+		Backbuffer,
+		SceneViewport
 	};
 
 	struct TextureDependency
@@ -85,15 +85,14 @@ public:
 	void Render(alm::rhi::FramebufferHandle frameBuffer);
 
 	void OnSceneChanged();
-	void OnRenderTargetChanged(const int2& newSize);
+	void OnRenderTargetSizeChanged(const int2& newSize, const int2& newViewportSize);
 
-	RGTextureHandle CreateTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type, int width, int height, int arraySize,
-								rhi::Format format, bool needsUAV);
+	RGTextureHandle CreateTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type, int width, int height, SizeSpace sizeSpace,
+		int arraySize, rhi::Format format, bool needsUAV);
 	RGBufferHandle CreateBuffer(RenderStage* renderStage, const std::string& id, const rhi::BufferDesc& desc);
 
-	static int GetBackBufferSizeDenominator(int denom) { return -denom; }
-
 	bool RecreateTexture(RGTextureHandle handle, int width, int height, int arraySize, rhi::Format format);
+	bool RecreateTexture(RGTextureHandle handle, int sizeDenom, SizeSpace sizeSpace, int arraySize, rhi::Format format);
 	bool RecreateBuffer(RGBufferHandle handle, const rhi::BufferDesc& desc);
 
 	void EnableTexture(RGTextureHandle handle);
@@ -151,7 +150,7 @@ public:
 	rhi::TextureHandle GetTextureView(RGTextureViewTicket ticket);
 	rhi::BufferHandle GetBufferView(RGBufferViewTicket ticket);
 
-	alm::rhi::FramebufferHandle GetFramebuffer();
+	alm::rhi::FramebufferHandle GetBackbuffer();
 	RenderView* GetRenderView() { return m_RenderView; }
 	DeviceManager* GetDeviceManager() { return m_DeviceManager; }
 
@@ -164,6 +163,7 @@ private:
 		TextureResourceType type;
 		int requestedWidth;
 		int requestedHeight;
+		SizeSpace sizeSpace;
 		int arraySize;
 		rhi::Format format;
 		bool needsUAV;
@@ -232,6 +232,11 @@ private:
 		alm::rhi::ICommandList* commandList);
 	void UpdateRequestedBufferFromTextureView(BufferViewRequest* req, RenderStage* rs, const std::map<RGTextureHandle, rhi::ResourceState> resourceStates,
 		alm::rhi::ICommandList* commandList);
+
+	uint2 GetActualTextureSize(const int2& desired, const uint2& backbufferSize, const uint2& backbufferViewportVpSize, SizeSpace sizeSpace) const;
+	uint2 GetActualTextureSize(const DeclaredTexture* declTex, const uint2& backbufferSize, const uint2& backbufferViewportVpSize) const;
+
+	void InternalRecreateTexture(RGTextureHandle handle);
 
 private:
 

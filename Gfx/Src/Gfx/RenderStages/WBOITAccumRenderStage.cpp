@@ -10,9 +10,9 @@
 void alm::gfx::WBOITAccumRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_AccumWOITTexture = builder.CreateColorTarget(
-		"AccumWOIT", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
+		"AccumWOIT", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT);
 	m_RevealageWOITTexture = builder.CreateColorTarget(
-		"RevealageWOIT", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::R8_UNORM);
+		"RevealageWOIT", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::R8_UNORM);
 
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 	m_ShadowmapTexture = builder.GetTextureHandle("Shadowmap");

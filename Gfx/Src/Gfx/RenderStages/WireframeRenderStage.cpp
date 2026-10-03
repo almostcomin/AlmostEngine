@@ -20,7 +20,7 @@ void alm::gfx::WireframeRenderStage::Setup(RenderGraphBuilder& builder)
 		// Note that we create the ToneMapped resource here (as it does ToneMappingRenderStage).
 		// That should not be a probleam as far as the properties are the same in both places
 		m_ToneMappedTexture = builder.CreateTexture("ToneMapped", RenderGraph::TextureResourceType::RenderTarget,
-			RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT, true);
+			1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT, true);
 		m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 
 		m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");

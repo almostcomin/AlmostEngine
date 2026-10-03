@@ -5,6 +5,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/CommonResources.h"
 #include "Gfx/ShaderFactory.h"
+#include "Gfx/RenderView.h"
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
@@ -23,7 +24,10 @@ void alm::gfx::CompositeRenderStage::Setup(RenderGraphBuilder& builder)
 
 void alm::gfx::CompositeRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
-	auto fb = m_RenderGraph->GetFramebuffer();
+	auto fb = m_RenderGraph->GetBackbuffer();
+	auto [vpOrigin, vpSize] = GetRenderView()->GetBackbufferViewport();
+	const float2 fbSize = float2{ GetRenderView()->GetBackbufferSize() };
+
 	commandList->BeginRenderPass(
 		fb.get(),
 		{ rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Clear, rhi::RenderPassOp::StoreOp::Store, rhi::ClearValue::ColorBlack()} },
@@ -38,6 +42,8 @@ void alm::gfx::CompositeRenderStage::Render(alm::rhi::CommandListHandle commandL
 	shaderConstants.uiTextureDI = m_RenderGraph->GetTextureSampledView(m_ImGuiTexture);
 	shaderConstants.colorSpace = (uint)m_RenderGraph->GetDeviceManager()->GetColorSpace();
 	shaderConstants.paperWhiteNits = m_PaperWhiteNits;
+	shaderConstants.viewportOrigin = float2{ vpOrigin.x, vpOrigin.y } / fbSize;
+	shaderConstants.viewportSize = float2{ vpSize.x, vpSize.y } / fbSize;
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 
@@ -58,7 +64,7 @@ void alm::gfx::CompositeRenderStage::OnAttached()
 	{
 		alm::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
 		m_PSO = commonResurces->CreateFullscreenPassPSO(
-			m_RenderGraph->GetFramebuffer()->GetFramebufferInfo(),
+			m_RenderGraph->GetBackbuffer()->GetFramebufferInfo(),
 			m_PS.get_weak(),
 			"Composite Render Stage");
 	}
@@ -78,7 +84,7 @@ void alm::gfx::CompositeRenderStage::OnBackbufferResize()
 	{
 		alm::gfx::CommonResources* commonResurces = m_RenderGraph->GetDeviceManager()->GetCommonResources();
 		m_PSO = commonResurces->CreateFullscreenPassPSO(
-			m_RenderGraph->GetFramebuffer()->GetFramebufferInfo(),
+			m_RenderGraph->GetBackbuffer()->GetFramebufferInfo(),
 			m_PS.get_weak(),
 			"Composite Render Stage");
 	}

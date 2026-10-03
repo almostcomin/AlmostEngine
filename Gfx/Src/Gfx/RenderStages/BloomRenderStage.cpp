@@ -26,7 +26,8 @@ void alm::gfx::BloomRenderStage::SetMaxMipChainLenght(uint32_t v)
 
 void alm::gfx::BloomRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	m_BloomResultTexture = builder.CreateColorTarget("BloomResult", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA16_FLOAT);
+	m_BloomResultTexture = builder.CreateColorTarget("BloomResult", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT);
+	m_BloomResultTexture = builder.CreateColorTarget("BloomResult", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT);
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
 	m_FB = builder.RequestFramebuffer({ m_BloomResultTexture }, nullptr);
 

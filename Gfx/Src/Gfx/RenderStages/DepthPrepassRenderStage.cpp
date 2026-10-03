@@ -12,7 +12,7 @@
 
 void alm::gfx::DepthPrepassRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	m_SceneDepthTexture = builder.CreateDepthTarget("SceneDepth", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::D24S8);
+	m_SceneDepthTexture = builder.CreateDepthTarget("SceneDepth", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::D24S8);
 	m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
 	m_IndirectArgsBuffer = builder.GetBufferHandle("IndirectArgsBuffer");
 

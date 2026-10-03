@@ -25,7 +25,7 @@ public:
     const FramebufferDesc& GetDesc() const override { return desc; }
     const FramebufferInfo& GetFramebufferInfo() const override { return framebufferInfo; }
 
-    TextureHandle GetBackBuffer(uint32_t idx) override { assert(idx < c_MaxRenderTargets); return rtvTextures[idx]; }
+    TextureHandle GetColorTexture(uint32_t idx) override { assert(idx < c_MaxRenderTargets); return rtvTextures[idx]; }
     TextureHandle GetDepthStencil() override { return dsvTexture; }
 
     TextureColorTargetView GetColorTargetView(uint32_t idx) const override;

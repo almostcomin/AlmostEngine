@@ -482,7 +482,6 @@ bool alm::fw::FrameworkApp::InitInternal()
 	m_MainCamera = std::make_shared<alm::gfx::Camera>();
 	int windowWidth, windowHeight;
 	SDL_GetWindowSize(m_Window, (int*)&windowWidth, (int*)&windowHeight);
-	m_MainCamera->SetAspect((float)windowWidth / windowHeight);
 	m_MainCamera->SetPosition({ 0.f, 0.f, 5.f });
 
 	// Create main RenderView
@@ -768,12 +767,24 @@ void alm::fw::FrameworkApp::MainLoop()
 			m_FrameworkUI->SetRenderStats(m_FPS, m_CPUTimeMilliSec, m_CPUIdleTimeMilliSec, m_GPUTimeMilliSec);
 		}
 
-		if (m_DeviceManager->UpdateWindowSize())
+		auto windowResized = m_DeviceManager->UpdateWindowSize();
+		if (windowResized.first)
 		{
-			float2 newSize = m_DeviceManager->GetWindowDimensions();
-			m_MainCamera->SetAspect(newSize.x / newSize.y);
+			m_MainRenderView->OnBackbufferResize(windowResized.second, m_DeviceManager->GetWindowDimensions());
+		}
 
-			m_MainRenderView->OnWindowSizeChanged();
+		// Update render viewport. Don't do if we have jsut resized de viewport, since the GetCentralViewport returns a stale coords
+		if (m_FrameworkUI && !windowResized.first)
+		{
+			auto vp = m_FrameworkUI->GetCentralViewport();
+			if (vp)
+			{
+				m_MainRenderView->SetBackbufferViewport(vp->first, vp->second);
+			}
+			else
+			{
+				m_MainRenderView->ResetBackbufferViewport();
+			}
 		}
 
 		gfx::MouseState mouseState{

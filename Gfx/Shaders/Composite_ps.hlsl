@@ -19,8 +19,15 @@ struct PS_INPUT
 float4 main(PS_INPUT input) : SV_Target
 {
     Texture2D sceneTexture = ResourceDescriptorHeap[Constants.sceneTextureDI];
-    float4 sceneColor = sceneTexture.Sample(pointClampSampler, input.uv);
     
+    // Remap the backbuffer UV into and show black outside it (the UI is composited on top)
+    float2 sceneUV = (input.uv - Constants.viewportOrigin) / Constants.viewportSize;
+    float4 sceneColor = float4(0.0, 0.0, 0.0, 1.0);
+    if (all(sceneUV >= 0.0) && all(sceneUV <= 1.0))
+    {
+        sceneColor = sceneTexture.Sample(pointClampSampler, sceneUV);
+    }
+        
     Texture2D uiTexture = ResourceDescriptorHeap[Constants.uiTextureDI];
     float4 uiColor = uiTexture.Sample(pointClampSampler, input.uv);
     

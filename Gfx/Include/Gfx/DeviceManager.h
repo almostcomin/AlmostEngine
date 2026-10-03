@@ -144,9 +144,9 @@ public:
     
     bool IsWindowVisible() const { return m_WindowVisible; }
 
-    // Returns true if window size has changed, else returns false
+    // Returns <true, oldSize> if window size has changed, else returns <false, currentSize>
     // New window size can be obtained calling GetWindowDimensions
-    bool UpdateWindowSize();
+    std::pair<bool, uint2> UpdateWindowSize();
 
     RenderResult Render(float totalSec, float elapsedSec, gfx::MouseState mouseState);
 

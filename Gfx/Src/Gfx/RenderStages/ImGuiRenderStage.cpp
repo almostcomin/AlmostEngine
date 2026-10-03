@@ -10,6 +10,7 @@
 #include "Gfx/RenderGraphBuilder.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_sdl3.h>
+#include <imgui/imgui_internal.h>
 
 alm::gfx::ImGuiRenderStage::ImGuiRenderStage() = default;
 
@@ -67,7 +68,7 @@ alm::rhi::BufferOwner& alm::gfx::ImGuiRenderStage::GetCurrentIB(GeometryBuffers&
 
 void alm::gfx::ImGuiRenderStage::Setup(RenderGraphBuilder& builder)
 {
-    m_ImGuiTexture = builder.CreateColorTarget("ImGui", RenderGraph::c_BBSize, RenderGraph::c_BBSize, 1, rhi::Format::RGBA8_UNORM);
+    m_ImGuiTexture = builder.CreateColorTarget("ImGui", 1, RenderGraph::SizeSpace::Backbuffer, 1, rhi::Format::RGBA8_UNORM);
 
     builder.AddTextureDependency(m_ImGuiTexture, RenderGraph::AccessMode::Write,
         rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
@@ -85,7 +86,12 @@ void alm::gfx::ImGuiRenderStage::Render(alm::rhi::CommandListHandle commandList)
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
+    m_DockspaceId = ImGui::DockSpaceOverViewport(
+        0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
+
     BuildUI();
+
+    UpdateCentralNodeRect(m_DockspaceId);
 
     ImGui::Render();
 
@@ -183,6 +189,11 @@ bool alm::gfx::ImGuiRenderStage::Init()
         m_PSO = deviceManager->GetDevice()->CreateGraphicsPipelineState(m_BasePSODesc, m_FB->GetFramebufferInfo(), "ImGui PSO");
         assert(m_PSO);
     }
+
+    m_DockspaceId = 0;
+    m_CentralNodePos = uint2{ 0u };
+    m_CentralNodeSize = uint2{ 0u };
+    m_CentraNodeRectInitialized = false;
 
     return true;
 }
@@ -420,6 +431,13 @@ void alm::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBu
     }
 }
 
+std::optional<std::pair<uint2, uint2>> alm::gfx::ImGuiRenderStage::GetCentralNodeRect() const
+{
+    if(m_CentraNodeRectInitialized)
+        return std::pair<uint2, uint2>{ m_CentralNodePos, m_CentralNodeSize };
+    return {};
+}
+
 void alm::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2& size, const float2& uv0, const float2& uv1, int mip, int slice,
     ImGuiTexFlags flags)
 {
@@ -427,4 +445,15 @@ void alm::gfx::ImGuiRenderStage::ShowImage(rhi::TextureHandle tex, const float2&
     m_CurrentTextures.push_back(alm::unique<ImGuiTexture>{ imGuiTex });
 
     ImGui::Image(ImTextureRef{ imGuiTex }, ImVec2{ size.x, size.y }, ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
+}
+
+void alm::gfx::ImGuiRenderStage::UpdateCentralNodeRect(ImGuiID dockspaceId)
+{
+    ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(dockspaceId);
+    if (!central)
+        return;
+
+    m_CentralNodePos = uint2{ central->Pos.x, central->Pos.y };
+    m_CentralNodeSize = uint2{ central->Size.x, central->Size.y };
+    m_CentraNodeRectInitialized = true;
 }

@@ -470,16 +470,18 @@ void alm::fw::FrameworkUI::BuildUI()
     if (m_SelectedNode && ImGui::IsKeyChordPressed(ImGuiKey_Escape) && !ImGuizmo::IsUsingAny())
         SetSelectedNode(nullptr);
 
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S))
+        m_ShowSettings = true;
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_W))
+        m_ShowWorldOutliner = true;
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_R))
+        m_ShowRenderStages = true;
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_M))
-        m_ShowMaterials = !m_ShowMaterials;
+        m_ShowMaterials = true;
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_G))
         SetGridVisible(!IsGridVisible());
-
-    // DockSpaceOverViewport generates its dockspace ID inside its host window (window-relative
-    // ID seed), so we must use the ID it returns: computing GetID("DockSpace") elsewhere yields
-    // a different hash and the central node lookup would fail.
-    ImGuiID dockspaceId = ImGui::DockSpaceOverViewport(
-        0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_W))
+        SwitchWireframeRender();
 
     BuildMainMenu();
     BuildBottomBar();
@@ -495,7 +497,7 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildTextureWindows();
     BuildRSViews();
 
-    BuildGizmo(dockspaceId);
+    BuildGizmo(GetDockspaceId());
 }
 
 void alm::fw::FrameworkUI::BuildGizmo(ImGuiID dockspaceId)
@@ -678,6 +680,44 @@ bool alm::fw::FrameworkUI::IsGridVisible() const
     return false;
 }
 
+void alm::fw::FrameworkUI::SwitchWireframeRender()
+{
+    bool wireframeActive = m_RenderViewUI->GetRenderGraph()->GetCurrentRenderMode() == "Wireframe";
+    if (wireframeActive)
+    {
+        m_RenderViewUI->GetRenderGraph()->SetActiveRenderMode("Default");
+    }
+    else
+    {
+        m_RenderViewUI->GetRenderGraph()->SetActiveRenderMode("Wireframe");
+    }
+}
+
+std::optional<std::pair<uint2, uint2>> alm::fw::FrameworkUI::GetCentralViewport() const
+{
+    auto r = GetCentralNodeRect();
+    if (!r)
+        return {};
+
+    // With ViewportsEnable ImGui coordinates are OS-absolute (main viewport Pos = the OS window position).
+    // Make the origin window-relative, which is what the engine expects.
+    const ImGuiViewport* vp = ImGui::GetMainViewport();
+    const float2 relOrigin = glm::max(float2(r->first) - float2(vp->Pos.x, vp->Pos.y), float2(0.f));
+
+    // Clip the bottom against the status bar (it overlays the bottom strip of the work area)
+    float2 size = float2{ r->second };
+    if (m_ShowBottomBar)
+    {
+        const float statusBarTop = vp->Size.y - ImGui::GetFrameHeight(); // window-relative
+        size.y = std::max(0.f, std::min(relOrigin.y + size.y, statusBarTop) - relOrigin.y);
+    }
+
+    if (size.x < 1.f || size.y < 1.f)
+        return {};   // degenerate (minimized / fully covered): caller resets to full viewport
+
+    return std::pair<uint2, uint2>{ uint2(relOrigin), uint2(size) };
+}
+
 void alm::fw::FrameworkUI::OpenMaterialPanel(alm::gfx::Material* material)
 {
     m_SelectedMaterial = material;
@@ -827,9 +867,9 @@ void alm::fw::FrameworkUI::BuildMainMenu()
 
         if (ImGui::BeginMenu("View"))
         {
-            if (ImGui::MenuItem("Settings", NULL, m_ShowSettings))
+            if (ImGui::MenuItem("Settings", "Ctrl+S", m_ShowSettings))
                 m_ShowSettings = !m_ShowSettings;
-            if (ImGui::MenuItem("World Outliner", NULL, m_ShowWorldOutliner))
+            if (ImGui::MenuItem("World Outliner", "Ctrl+W", m_ShowWorldOutliner))
             {
                 if (!m_ShowWorldOutliner)
                 {
@@ -840,7 +880,7 @@ void alm::fw::FrameworkUI::BuildMainMenu()
                     m_ShowWorldOutliner = false;
                 }
             }
-            if (ImGui::MenuItem("Render Stages", NULL, m_ShowRenderStages))
+            if (ImGui::MenuItem("Render Stages", "Ctrl+R", m_ShowRenderStages))
                 m_ShowRenderStages = !m_ShowRenderStages;
             if (ImGui::MenuItem("Material Panel", "Ctrl+M", m_ShowMaterials))
                 m_ShowMaterials = !m_ShowMaterials;
@@ -852,7 +892,7 @@ void alm::fw::FrameworkUI::BuildMainMenu()
                 if (gridRS)
                 {
                     bool visible = gridRS->IsVisible();
-                    if (ImGui::MenuItem("Visible", NULL, visible))
+                    if (ImGui::MenuItem("Visible", "Ctrl+G", visible))
                         gridRS->SetVisible(!visible);
 
                     float extent = gridRS->GetExtent();
@@ -860,6 +900,12 @@ void alm::fw::FrameworkUI::BuildMainMenu()
                         gridRS->SetExtent(extent);
                 }
                 ImGui::EndMenu();
+            }
+
+            bool wireframeActive = m_RenderViewUI->GetRenderGraph()->GetCurrentRenderMode() == "Wireframe";
+            if (ImGui::MenuItem("Wireframe", "Ctrl+Alt+W", wireframeActive))
+            {
+                SwitchWireframeRender();
             }
 
             ImGui::EndMenu();

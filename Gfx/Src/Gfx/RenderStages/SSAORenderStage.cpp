@@ -15,9 +15,9 @@ void alm::gfx::SSAORenderStage::Setup(RenderGraphBuilder& builder)
 	// Create resources
 	{
 		m_AmbientOcclusionTexture = builder.CreateTexture("AmbientOcclusion", RenderGraph::TextureResourceType::ShaderResource, 
-			alm::gfx::RenderGraph::c_BBSize, alm::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
+			1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::R16_FLOAT, true);
 		m_AOBlurTempTexture = builder.CreateTexture("AOBlurTemp", RenderGraph::TextureResourceType::ShaderResource, 
-			alm::gfx::RenderGraph::c_BBSize, alm::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R16_FLOAT, true);
+			1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::R16_FLOAT, true);
 
 		m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
 		m_GBuffer2Texture = builder.GetTextureHandle("GBuffer2");

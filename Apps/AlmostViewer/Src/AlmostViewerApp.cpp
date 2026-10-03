@@ -150,17 +150,6 @@ public:
 		{
 			switch (event.key.key)
 			{
-			case SDLK_W:
-				if (event.key.mod & SDL_KMOD_CTRL)
-				{
-					if(!m_Wireframe)
-						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("Wireframe");
-					else
-						m_MainRenderView->GetRenderGraph()->SetActiveRenderMode("Default");
-					m_Wireframe = !m_Wireframe;
-				}
-				break;
-
 			case SDLK_KP_PLUS:
 			{
 				float speed = m_CameraController.GetSpeed();
@@ -210,8 +199,6 @@ private:
 	std::shared_ptr<alm::gfx::DeferredLightingRenderStage> m_LightingRS;
 
 	alm::fw::CameraController m_CameraController;
-
-	bool m_Wireframe = false;
 
 	std::string m_RequestLoadFile;
 	bool m_bMergeFile = false;

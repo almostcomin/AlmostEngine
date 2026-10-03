@@ -122,6 +122,10 @@ public:
 	void SetGridVisible(bool b);
 	bool IsGridVisible() const;
 
+	void SwitchWireframeRender();
+
+	std::optional<std::pair<uint2, uint2>> GetCentralViewport() const;
+
 	std::function<void(const char*)> m_RequestLoadFile;
 	std::function<void(const char*)> m_RequestMergeFile;
 	std::function<void()> m_RequestClose;

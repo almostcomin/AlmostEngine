@@ -20,11 +20,9 @@ void alm::gfx::CloudsRenderStage::Setup(RenderGraphBuilder& builder)
 	m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
 	m_CloudsShadowmapTexture = builder.GetTextureHandle("CloudsShadowmap");
 	m_CloudsTexture[0] = builder.CreateTexture("CloudsTexture[0]", RenderGraph::TextureResourceType::ShaderResource,
-		RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), 1,
-		rhi::Format::RGBA16_FLOAT, true);
+		m_RenderTargetDenom, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT, true);
 	m_CloudsTexture[1] = builder.CreateTexture("CloudsTexture[1]", RenderGraph::TextureResourceType::ShaderResource,
-		RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), 1,
-		rhi::Format::RGBA16_FLOAT, true);
+		m_RenderTargetDenom, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT, true);
 
 	m_CompositeFB = builder.RequestFramebuffer({ m_SceneColorTexture });
 
@@ -248,12 +246,8 @@ void alm::gfx::CloudsRenderStage::SetRenderTargetDenominator(int v)
 
 	m_RenderTargetDenom = v;
 	
-	m_RenderGraph->RecreateTexture(m_CloudsTexture[0],
-		RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), 1,
-		rhi::Format::RGBA16_FLOAT);
-	m_RenderGraph->RecreateTexture(m_CloudsTexture[1],
-		RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), RenderGraph::GetBackBufferSizeDenominator(m_RenderTargetDenom), 1,
-		rhi::Format::RGBA16_FLOAT);
+	m_RenderGraph->RecreateTexture(m_CloudsTexture[0], m_RenderTargetDenom, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT);
+	m_RenderGraph->RecreateTexture(m_CloudsTexture[1], m_RenderTargetDenom, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT);
 
 	m_CloudsTextureIdx = -1;
 }

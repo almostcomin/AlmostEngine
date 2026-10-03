@@ -11,7 +11,7 @@
 void alm::gfx::LinearizeDepthRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_LinearDepthTexture = builder.CreateTexture("LinearDepth", RenderGraph::TextureResourceType::ShaderResource,
-		alm::gfx::RenderGraph::c_BBSize, alm::gfx::RenderGraph::c_BBSize, 1, rhi::Format::R32_FLOAT, true);
+		1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::R32_FLOAT, true);
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read,

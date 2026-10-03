@@ -52,6 +52,9 @@ public:
 
 	void RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList);
 
+	ImGuiID GetDockspaceId() const { return m_DockspaceId; }
+	std::optional<std::pair<uint2, uint2>> GetCentralNodeRect() const;
+
 protected:
 
 	void Setup(RenderGraphBuilder& builder) override;
@@ -70,6 +73,8 @@ protected:
 
 	rhi::BufferOwner& GetCurrentVB(GeometryBuffers& geometryBuffers);
 	rhi::BufferOwner& GetCurrentIB(GeometryBuffers& geometryBuffers);
+
+	void UpdateCentralNodeRect(ImGuiID dockspaceId);
 
 private:
 
@@ -109,10 +114,11 @@ private:
 	GeometryBuffers m_GeometryBuffers;
 	std::vector<alm::unique<ImGuiTexture>> m_CurrentTextures;
 
-	float m_FPS = 0.f;
-	float m_CPUTime = 0.f;
-	float m_GPUTime = 0.f;
-	bool m_ShowBottomBar = true;
+	ImGuiID m_DockspaceId;
+
+	bool m_CentraNodeRectInitialized;
+	uint2 m_CentralNodePos;
+	uint2 m_CentralNodeSize;
 };
 
 }

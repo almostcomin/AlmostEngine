@@ -20,7 +20,7 @@ void alm::gfx::ImGuiViewportRenderStage::Setup(RenderGraphBuilder& builder)
 
 void alm::gfx::ImGuiViewportRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
-	auto fb = m_RenderGraph->GetFramebuffer();
+	auto fb = m_RenderGraph->GetBackbuffer();
 
 	commandList->BeginRenderPass(
 		fb.get(),
