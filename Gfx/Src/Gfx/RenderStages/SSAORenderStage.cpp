@@ -179,23 +179,12 @@ void alm::gfx::SSAORenderStage::OnDetached()
 
 void alm::gfx::SSAORenderStage::Passthrough(alm::rhi::CommandListHandle commandList)
 {
-	rhi::TextureHandle linearDepthTex = m_RenderGraph->GetTexture(m_LinearDepthTexture);
-	const uint32_t width = linearDepthTex->GetDesc().width;
-	const uint32_t height = linearDepthTex->GetDesc().height;
-
-	auto* commonResources = GetDeviceManager()->GetCommonResources();
-
-	commandList->SetPipelineState(commonResources->GetClearTexturePSO().get());
-
 	// Transition temp texture to keep validation happy
 	commandList->PushBarrier(rhi::Barrier::Texture(
-		m_RenderGraph->GetTexture(m_AOBlurTempTexture).get(),rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
+		m_RenderGraph->GetTexture(m_AOBlurTempTexture).get(), rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
 
-	interop::ClearTextureConstants shaderConstants;
-	shaderConstants.textureDI = m_RenderGraph->GetTextureStorageView(m_AmbientOcclusionTexture);
-	shaderConstants.textureDim = float2{ width, height };
-	shaderConstants.clearValue = float4{ 1.f };
-
-	commandList->PushComputeConstants(0, shaderConstants);
-	commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
+	// Clear AO texture to 1
+	auto* commonResources = GetDeviceManager()->GetCommonResources();
+	commonResources->ClearTexture2D_R(commandList.get(), m_RenderGraph->GetTexture(m_AmbientOcclusionTexture).get(), 1.f,
+		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 }

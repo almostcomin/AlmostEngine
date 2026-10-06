@@ -24,6 +24,7 @@
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderStages/CloudsShadowMapRenderStage.h"
 #include "Gfx/RenderStages/ObjectOutlineRenderStage.h"
+#include "Gfx/RenderStages/ExposureRenderStage.h"
 #include "Gfx/ImGUIViewportsRenderer.h"
 #include "Gfx/GltfImporter.h"
 #include "Gfx/SceneGraph.h"
@@ -131,6 +132,7 @@ void alm::fw::FrameworkApp::RefreshUIData()
 	auto skyRS = renderGraph->GetRenderStage<alm::gfx::SkyRenderStage>();
 	auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
 	auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
+	auto exposureRS = renderGraph->GetRenderStage<alm::gfx::ExposureRenderStage>();
 	auto bloomRS = renderGraph->GetRenderStage<alm::gfx::BloomRenderStage>();
 	auto tonemappingRS = renderGraph->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
 	auto compositeRS = renderGraph->GetRenderStage<alm::gfx::CompositeRenderStage>();
@@ -173,15 +175,19 @@ void alm::fw::FrameworkApp::RefreshUIData()
 		data.Bloom.MaxMip = bloomRS->GetMaxMipChainLenght();
 	}
 
+	if (exposureRS)
+	{
+		data.Exposure.MinLogLuminance = exposureRS->GetMinLogLuminance();
+		data.Exposure.LogLuminanceRange = exposureRS->GetLogLuminanceRange();
+		data.Exposure.AdaptationUpSpeed = exposureRS->GetAdaptationUpSpeed();
+		data.Exposure.AdaptationDownSpeed = exposureRS->GetAdaptationDownSpeed();
+		data.Exposure.MiddleGrayNits = exposureRS->GetMiddleGray() * compositeRS->GetPaperWhiteNits();
+		data.Exposure.SdrExposureBias = exposureRS->GetSDRExposureBias();
+	}
+	
 	if (tonemappingRS && compositeRS)
 	{
-		data.Tonemapping.MiddleGrayNits = tonemappingRS->GetSceneMiddleGray() * compositeRS->GetPaperWhiteNits();
 		data.Tonemapping.PaperWhiteNits = compositeRS->GetPaperWhiteNits();
-		data.Tonemapping.SdrExposureBias = tonemappingRS->GetSDRExposureBias();
-		data.Tonemapping.MinLogLuminance = tonemappingRS->GetMinLogLuminance();
-		data.Tonemapping.LogLuminanceRange = tonemappingRS->GetLogLuminanceRange();
-		data.Tonemapping.AdaptationUpSpeed = tonemappingRS->GetAdaptationUpSpeed();
-		data.Tonemapping.AdaptationDownSpeed = tonemappingRS->GetAdaptationDownSpeed();
 	}
 }
 
@@ -552,6 +558,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 		auto deferredLightingRS = gfx::RenderStageFactory::CreateShared<gfx::DeferredLightingRenderStage>();
 		auto WBOITAccumRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
 		auto WBOITResolveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
+		auto exposureRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ExposureRenderStage>();
 		auto bloomRS = gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
 		auto toneMappingRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ToneMappingRenderStage>();
 		auto gridRS = gfx::RenderStageFactory::CreateShared<alm::gfx::GridRenderStage>();
@@ -599,6 +606,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			cloudsRS,
 			WBOITAccumRS,
 			WBOITResolveRS,
+			exposureRS,
 			bloomRS,
 			toneMappingRS,
 			gridRS,
@@ -627,6 +635,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			cloudsRS.get(),
 			WBOITAccumRS.get(),
 			WBOITResolveRS.get(),
+			exposureRS.get(),
 			bloomRS.get(),
 			toneMappingRS.get(),
 			gridRS.get(),
@@ -806,6 +815,7 @@ void alm::fw::FrameworkApp::MainLoop()
 			auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
 			auto lightingRS = renderGraph->GetRenderStage<alm::gfx::DeferredLightingRenderStage>();
 			auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
+			auto exposureRS = renderGraph->GetRenderStage<alm::gfx::ExposureRenderStage>();
 			auto bloomRS = renderGraph->GetRenderStage<alm::gfx::BloomRenderStage>();
 			auto tonemappingRS = renderGraph->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
 			auto compositeRS = renderGraph->GetRenderStage<alm::gfx::CompositeRenderStage>();
@@ -874,16 +884,20 @@ void alm::fw::FrameworkApp::MainLoop()
 				bloomRS->SetMaxMipChainLenght(data.Bloom.MaxMip);
 			}
 
+			if (exposureRS)
+			{
+				exposureRS->SetMinLogLuminance(data.Exposure.MinLogLuminance);
+				exposureRS->SetLogLuminanceRange(data.Exposure.LogLuminanceRange);
+				exposureRS->SetAdaptationUpSpeed(data.Exposure.AdaptationUpSpeed);
+				exposureRS->SetAdaptationDownSpeed(data.Exposure.AdaptationDownSpeed);
+				// Scene middlegray is middle_gray_nits / paper_white_nits
+				exposureRS->SetMiddleGray(data.Exposure.MiddleGrayNits / data.Tonemapping.PaperWhiteNits);
+				exposureRS->SetSDRExposureBias(data.Exposure.SdrExposureBias);
+			}
+
 			if (tonemappingRS && compositeRS)
 			{
 				tonemappingRS->SetTonemappingEnabled(data.Tonemapping.Enabled);
-				// Scene middlegray is middle_gray_nits / paper_white_nits
-				tonemappingRS->SetSceneMiddleGray(data.Tonemapping.MiddleGrayNits / data.Tonemapping.PaperWhiteNits);
-				tonemappingRS->SetMinLogLuminance(data.Tonemapping.MinLogLuminance);
-				tonemappingRS->SetLogLuminanceRange(data.Tonemapping.LogLuminanceRange);
-				tonemappingRS->SetSDRExposureBias(data.Tonemapping.SdrExposureBias);
-				tonemappingRS->SetAdaptationUpSpeed(data.Tonemapping.AdaptationUpSpeed);
-				tonemappingRS->SetAdaptationDownSpeed(data.Tonemapping.AdaptationDownSpeed);
 			}
 		}
 

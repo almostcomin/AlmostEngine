@@ -2,6 +2,7 @@
 
 #include "RHI/Shader.h"
 #include "RHI/PipelineState.h"
+#include "RHI/ResourceState.h"
 
 namespace alm::rhi
 {
@@ -35,7 +36,6 @@ public:
 	rhi::ComputePipelineStateHandle GetBlitComputePSO() { return m_BlitComputePSO.get_weak(); }
 
 	rhi::ComputePipelineStateHandle GetClearBufferPSO() { return m_ClearBufferPSO.get_weak(); }
-	rhi::ComputePipelineStateHandle GetClearTexturePSO() { return m_ClearTexturePSO.get_weak(); }
 
 	rhi::ShaderHandle GetBlitVS() const { return m_BlitVS.get_weak(); }
 	rhi::ShaderHandle GetBlitPS() const { return m_BlitPS.get_weak(); }
@@ -48,6 +48,11 @@ public:
 
 	// Blue noise texture: 64x64 single channel
 	//rhi::TextureHandle GetBlueNoise_HDR_64x64_L() const;
+
+	void ClearTexture2D_RGBA(rhi::ICommandList* commandList, rhi::ITexture* texture, const float4& clearValue,
+		rhi::ResourceState currentState, rhi::ResourceState finalState);
+	void ClearTexture2D_R(rhi::ICommandList* commandList, rhi::ITexture* texture, float clearValue,
+		rhi::ResourceState currentState, rhi::ResourceState finalState);
 
 private:
 
@@ -65,8 +70,10 @@ private:
 	rhi::ShaderOwner m_ClearBufferCS;
 	rhi::ComputePipelineStateOwner m_ClearBufferPSO;
 
-	rhi::ShaderOwner m_ClearTextureCS;
-	rhi::ComputePipelineStateOwner m_ClearTexturePSO;
+	rhi::ShaderOwner m_ClearTexture_RGBA_CS;
+	rhi::ShaderOwner m_ClearTexture_R_CS;
+	rhi::ComputePipelineStateOwner m_ClearTexture_RGBA_PSO;
+	rhi::ComputePipelineStateOwner m_ClearTexture_R_PSO;
 };
 
 } // namespace st::gfx

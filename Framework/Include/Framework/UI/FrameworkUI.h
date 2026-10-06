@@ -81,14 +81,18 @@ public:
 
 		struct
 		{
-			bool Enabled = true;
-			float MiddleGrayNits = 0.18f;
-			float PaperWhiteNits = 203.f;
 			float MinLogLuminance = -10.f;
 			float LogLuminanceRange = 12.f;
 			float AdaptationUpSpeed = 2.f;
 			float AdaptationDownSpeed = 0.5f;
+			float MiddleGrayNits = 0.18f;
 			float SdrExposureBias = 0.5f;
+		} Exposure;
+
+		struct
+		{
+			bool Enabled = true;
+			float PaperWhiteNits = 203.f;
 		} Tonemapping;
 
 	} FrameworkData;
@@ -214,6 +218,7 @@ private:
 	void BuildMaterialChannelsSettings(float availWidth);
 	void BuildSSAOSettings(float availWidth);
 	void BuildBloomSettings(float availWidth);
+	void BuildExposureSettings(float availWidth);
 	void BuildTonemappingSettings(float availWidth);
 
 	void BuildLumninanceHistogram();

@@ -6,6 +6,7 @@
 #include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
 #include "Gfx/Math/Util.h"
+#include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
 alm::gfx::CommonResources::CommonResources(alm::gfx::ShaderFactory* shaderFactory, MaterialManager* materialManager, alm::rhi::Device* device) :
@@ -15,7 +16,8 @@ alm::gfx::CommonResources::CommonResources(alm::gfx::ShaderFactory* shaderFactor
 	m_BlitPS = m_ShaderFactory->LoadShader("Blit_ps", rhi::ShaderType::Pixel);
 	m_BlitCS = m_ShaderFactory->LoadShader("Blit_cs", rhi::ShaderType::Compute);
 	m_ClearBufferCS = m_ShaderFactory->LoadShader("ClearBuffer_cs", rhi::ShaderType::Compute);
-	m_ClearTextureCS = m_ShaderFactory->LoadShader("ClearTexture_cs", rhi::ShaderType::Compute);
+	m_ClearTexture_RGBA_CS = m_ShaderFactory->LoadShader("ClearTexture_RGBA_cs", rhi::ShaderType::Compute);
+	m_ClearTexture_R_CS = m_ShaderFactory->LoadShader("ClearTexture_R_cs", rhi::ShaderType::Compute);
 
 	// Create blit PSO desc
 	{
@@ -62,8 +64,10 @@ alm::gfx::CommonResources::CommonResources(alm::gfx::ShaderFactory* shaderFactor
 
 	// Compute ClearTexture PSO
 	{
-		m_ClearTexturePSO = m_Device->CreateComputePipelineState(
-			rhi::ComputePipelineStateDesc{ m_ClearTextureCS.get_weak() }, "ClearTexturePSO");
+		m_ClearTexture_RGBA_PSO = m_Device->CreateComputePipelineState(
+			rhi::ComputePipelineStateDesc{ m_ClearTexture_RGBA_CS.get_weak() }, "ClearTexture_RGBA_PSO");
+		m_ClearTexture_R_PSO = m_Device->CreateComputePipelineState(
+			rhi::ComputePipelineStateDesc{ m_ClearTexture_R_CS.get_weak() }, "ClearTexture_R_PSO");
 	}
 }
 
@@ -255,4 +259,64 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 	ibUploadSignal.Wait();
 
 	return std::shared_ptr<alm::gfx::Mesh>{ mesh };
+}
+
+void alm::gfx::CommonResources::ClearTexture2D_RGBA(rhi::ICommandList* commandList, rhi::ITexture* texture, const float4& clearValue,
+	rhi::ResourceState currentState, rhi::ResourceState finalState)
+{
+	const auto& desc = texture->GetDesc();
+
+	assert(desc.dimension == rhi::TextureDimension::Texture2D);
+	//assert(desc.format == rhi::Format::R32_FLOAT);
+	assert(texture->GetStorageView().IsValid());
+
+	if (currentState != rhi::ResourceState::UNORDERED_ACCESS)
+	{
+		commandList->PushBarrier(rhi::Barrier::Texture(texture, currentState, rhi::ResourceState::UNORDERED_ACCESS));
+	}
+
+	commandList->SetPipelineState(m_ClearTexture_RGBA_PSO.get());
+
+	interop::ClearTextureConstants shaderConstants;
+	shaderConstants.textureDI = texture->GetStorageView();
+	shaderConstants.textureDim = float2{ desc.width, desc.height };
+	shaderConstants.clearValue = clearValue;
+
+	commandList->PushComputeConstants(0, shaderConstants);
+	commandList->Dispatch(DivRoundUp(desc.width, 16u), DivRoundUp(desc.height, 16u), 1);
+
+	if (finalState != rhi::ResourceState::UNORDERED_ACCESS)
+	{
+		commandList->PushBarrier(rhi::Barrier::Texture(texture, rhi::ResourceState::UNORDERED_ACCESS, finalState));
+	}
+}
+
+void alm::gfx::CommonResources::ClearTexture2D_R(rhi::ICommandList* commandList, rhi::ITexture* texture, float clearValue,
+	rhi::ResourceState currentState, rhi::ResourceState finalState)
+{
+	const auto& desc = texture->GetDesc();
+
+	assert(desc.dimension == rhi::TextureDimension::Texture2D);
+	//assert(desc.format == rhi::Format::R32_FLOAT);
+	assert(texture->GetStorageView().IsValid());
+
+	if (currentState != rhi::ResourceState::UNORDERED_ACCESS)
+	{
+		commandList->PushBarrier(rhi::Barrier::Texture(texture, currentState, rhi::ResourceState::UNORDERED_ACCESS));
+	}
+
+	commandList->SetPipelineState(m_ClearTexture_R_PSO.get());
+
+	interop::ClearTextureConstants shaderConstants;
+	shaderConstants.textureDI = texture->GetStorageView();
+	shaderConstants.textureDim = float2{ desc.width, desc.height };
+	shaderConstants.clearValue = float4{ clearValue };
+
+	commandList->PushComputeConstants(0, shaderConstants);
+	commandList->Dispatch(DivRoundUp(desc.width, 16u), DivRoundUp(desc.height, 16u), 1);
+
+	if (finalState != rhi::ResourceState::UNORDERED_ACCESS)
+	{
+		commandList->PushBarrier(rhi::Barrier::Texture(texture, rhi::ResourceState::UNORDERED_ACCESS, finalState));
+	}
 }

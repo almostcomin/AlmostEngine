@@ -72,28 +72,14 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		m_CloudsTextureIdx = ++m_CloudsTextureIdx % 2;
 	}
 	int cloudsOtherIdx = (m_CloudsTextureIdx + 1) % 2;
-
 	uint2 cloudsTexDims = m_RenderGraph->GetTexture2dDimensions(m_CloudsTexture[m_CloudsTextureIdx]);
 
 	// Clear texture if requested
 	if (clearCloudsTextures)
 	{
 		auto* commonResources = GetDeviceManager()->GetCommonResources();
-		commandList->SetPipelineState(commonResources->GetClearTexturePSO().get());
-
-		commandList->PushBarrier(rhi::Barrier::Texture(m_RenderGraph->GetTexture(m_CloudsTexture[cloudsOtherIdx]).get(),
-			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::UNORDERED_ACCESS));
-
-		interop::ClearTextureConstants shaderConstants;
-		shaderConstants.textureDI = m_RenderGraph->GetTextureStorageView(m_CloudsTexture[cloudsOtherIdx]);
-		shaderConstants.textureDim = float2{ cloudsTexDims.x, cloudsTexDims.y };
-		shaderConstants.clearValue = float4{ 0.f, 0.f, 0.f, 1.f };
-
-		commandList->PushComputeConstants(0, shaderConstants);
-		commandList->Dispatch(DivRoundUp(cloudsTexDims.x, 16u), DivRoundUp(cloudsTexDims.y, 16u), 1);
-
-		commandList->PushBarrier(rhi::Barrier::Texture(m_RenderGraph->GetTexture(m_CloudsTexture[cloudsOtherIdx]).get(),
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
+		commonResources->ClearTexture2D_RGBA(commandList.get(), m_RenderGraph->GetTexture(m_CloudsTexture[cloudsOtherIdx]).get(),
+			float4{ 0.f, 0.f, 0.f, 1.f }, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	}
 
 	// Transitions

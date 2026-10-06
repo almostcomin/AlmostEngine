@@ -20,6 +20,7 @@
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
 #include "Gfx/RenderStages/GridRenderStage.h"
 #include "Gfx/RenderStages/ObjectOutlineRenderStage.h"
+#include "Gfx/RenderStages/ExposureRenderStage.h"
 #include "RHI/Device.h"
 #include "ImGuizmo/ImGuizmo.h"
 #include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
@@ -1029,6 +1030,7 @@ void alm::fw::FrameworkUI::BuildSettingsWindow()
     BuildMaterialChannelsSettings(availWidth);
     BuildSSAOSettings(availWidth);
     BuildBloomSettings(availWidth);
+    BuildExposureSettings(availWidth);
     BuildTonemappingSettings(availWidth);
 
     ImGui::End();
@@ -2135,6 +2137,48 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
     ImGui::End();
 }
 
+void alm::fw::FrameworkUI::BuildExposureSettings(float availWidth)
+{
+    if (ImGui::CollapsingHeader("Exposure"))
+    {
+        // Luminance
+
+        const float minLogLuminance = -20.f;
+        const float maxLogLuminance = 0.f;
+        ImGui::SliderScalar("Min log luminance", ImGuiDataType_Float, &FrameworkData.Exposure.MinLogLuminance,
+            &minLogLuminance, &maxLogLuminance, "%.3f");
+
+        const float minLogRange = 0.f;
+        const float maxLogRange = 36.f;
+        ImGui::SliderScalar("Log luminance range", ImGuiDataType_Float, &FrameworkData.Exposure.LogLuminanceRange,
+            &minLogRange, &maxLogRange, "%.3f");
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+        const float minLum = exp2(FrameworkData.Exposure.MinLogLuminance);
+        const float maxLum = minLum * std::exp2(FrameworkData.Exposure.LogLuminanceRange);
+        ImGui::Text("Luminance [%1.6f .. %1.6f]", minLum, maxLum);
+        ImGui::PopStyleColor();
+
+        ImGui::Spacing();
+
+        ImGui::SliderFloat("Middle Gray Nits", &FrameworkData.Exposure.MiddleGrayNits, 0.f, 1000.f);
+
+        const float minExposureBias = 0.f;
+        const float maxExposureBias = 1.f;
+        ImGui::SliderScalar("SDR Exposure Bias", ImGuiDataType_Float, &FrameworkData.Exposure.SdrExposureBias,
+            &minExposureBias, &maxExposureBias, "%.3f");
+
+        ImGui::Spacing();
+
+        ImGui::InputFloat("Dark to light adaptation speed", &FrameworkData.Exposure.AdaptationUpSpeed);
+        ImGui::InputFloat("Light to dark adaptation speed", &FrameworkData.Exposure.AdaptationDownSpeed);
+
+        ImGui::Spacing();
+
+        m_ShowLuminanceHistogram |= ImGui::Button("View Histogram");
+    }
+}
+
 void alm::fw::FrameworkUI::BuildTonemappingSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Tonemapping"))
@@ -2151,54 +2195,15 @@ void alm::fw::FrameworkUI::BuildTonemappingSettings(float availWidth)
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Luminance
-
-        const float minLogLuminance = -20.f;
-        const float maxLogLuminance = 0.f;
-        ImGui::SliderScalar("Min log luminance", ImGuiDataType_Float, &FrameworkData.Tonemapping.MinLogLuminance,
-            &minLogLuminance, &maxLogLuminance, "%.3f");
-
-        const float minLogRange = 0.f;
-        const float maxLogRange = 36.f;
-        ImGui::SliderScalar("Log luminance range", ImGuiDataType_Float, &FrameworkData.Tonemapping.LogLuminanceRange,
-            &minLogRange, &maxLogRange, "%.3f");
-
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-        const float minLum = exp2(FrameworkData.Tonemapping.MinLogLuminance);
-        const float maxLum = minLum * std::exp2(FrameworkData.Tonemapping.LogLuminanceRange);
-        ImGui::Text("Luminance [%1.6f .. %1.6f]", minLum, maxLum);
-        ImGui::PopStyleColor();
-
-        ImGui::Spacing();
-
-        ImGui::SliderFloat("Middle Gray Nits", &FrameworkData.Tonemapping.MiddleGrayNits, 0.f, 1000.f);
         ImGui::SliderFloat("Paper White Nits", &FrameworkData.Tonemapping.PaperWhiteNits, 0.f, 1000.f);
-
-        ImGui::Spacing();
-
-        ImGui::InputFloat("Dark to light adaptation speed", &FrameworkData.Tonemapping.AdaptationUpSpeed);
-        ImGui::InputFloat("Light to dark adaptation speed", &FrameworkData.Tonemapping.AdaptationDownSpeed);
-
-        ImGui::Spacing();
-
-        m_ShowLuminanceHistogram |= ImGui::Button("View Histogram");
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        const float minExposureBias = 0.f;
-        const float maxExposureBias = 1.f;
-        ImGui::SliderScalar("SDR Exposure Bias", ImGuiDataType_Float, &FrameworkData.Tonemapping.SdrExposureBias,
-            &minExposureBias, &maxExposureBias, "%.3f");
     }
 }
 
 void alm::fw::FrameworkUI::BuildLumninanceHistogram()
 {
-    auto tonemappingRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
+    auto exposureRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::ExposureRenderStage>();
 
-    if (!tonemappingRS || !m_ShowLuminanceHistogram)
+    if (!exposureRS || !m_ShowLuminanceHistogram)
         return;
 
     alm::gfx::RenderGraph* renderGraph = m_RenderViewUI->GetRenderGraph().get();
@@ -2206,7 +2211,7 @@ void alm::fw::FrameworkUI::BuildLumninanceHistogram()
     if (!m_LumHistogramBufferTicket.IsValid())
     {
         m_LumHistogramBufferTicket = renderGraph->RequestBufferView(
-            tonemappingRS->GetType(), alm::gfx::RenderGraph::AccessMode::Write, renderGraph->GetBufferHandle("LuminanceHistogram"));
+            exposureRS->GetType(), alm::gfx::RenderGraph::AccessMode::Write, renderGraph->GetBufferHandle("LuminanceHistogram"));
     }
     if (!m_LumHistogramBufferTicket.IsValid())
     {
@@ -2226,10 +2231,9 @@ void alm::fw::FrameworkUI::BuildLumninanceHistogram()
         return;
     }
 
-    alm::gfx::ToneMappingRenderStage::Stats stats = tonemappingRS->GetStats();
-
-    alm::rhi::TextureHandle toneMappedTex = renderGraph->GetTexture("ToneMapped");
-    assert(toneMappedTex);
+    alm::gfx::ExposureRenderStage::Stats stats = exposureRS->GetStats();
+    alm::rhi::TextureHandle exposedColorTex = renderGraph->GetTexture("ExposedColor");
+    assert(exposedColorTex);
 
     alm::rhi::BufferHandle buffer = renderGraph->GetBufferView(m_LumHistogramBufferTicket);
     if (buffer)

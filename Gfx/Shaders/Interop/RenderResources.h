@@ -392,14 +392,20 @@ namespace interop
 
     struct TonemapConstants
     {
-        TextureSampledViewIndex inputTextureDI;
-        TextureSampledViewIndex inputAvgLuminanceTextureDI; // 1x1 R32
-        TextureStorageViewIndex outputTextureDI;
-        float contrast;
-        float shoulder;
-        float2 bc;
-        float middleGray;
-        float sdrExposureBias;
+        TextureSampledViewIndex InputExposedTextureDI;
+        TextureSampledViewIndex InputBloomTextureDI;
+        TextureStorageViewIndex OutputTextureDI;
+        uint _padding0;
+        uint2 TextureDims;
+    };
+
+    struct ApplyExposureConstants
+    {
+        TextureSampledViewIndex InputSceneColorTextureDI;
+        TextureSampledViewIndex InputExposureTextureDI;
+        TextureStorageViewIndex OutputExposedColorTextureDI;
+        uint _padding;
+        uint2 TextureDim;
     };
 
     struct BuildLuminanceHistogramConstants
@@ -414,10 +420,13 @@ namespace interop
         float oneOverLogLuminanceRange;
     };
 
-    struct AvgLuminanceHistogramConstants
+    struct ComputeExposureConstants
     {
         BufferReadOnlyIndex inputHistogramBufferDI;
+        TextureSampledViewIndex inputPrevExposureTextureDI;
         TextureStorageViewIndex outputAvgLuminanceTextureDI;
+        TextureStorageViewIndex outputExposureTextureDI;
+        TextureStorageViewIndex outputExposureRatioTextureDI;
         BufferReadWriteIndex outputStatsBufferDI;
         uint pixelCount;
         float minLogLuminance;
@@ -425,6 +434,8 @@ namespace interop
         float timeDelta;
         float adaptionSpeedUp;
         float adaptionSpeedDown;
+        float middleGray;
+        float sdrExposureBias;
     };
 
     struct TonemappingStatsBuffer

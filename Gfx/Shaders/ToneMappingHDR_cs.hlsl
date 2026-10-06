@@ -16,25 +16,15 @@ ConstantBuffer<interop::TonemapConstants> Constants : register(b0);
 [numthreads(16, 16, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-    Texture2D<float4> inputTexture = ResourceDescriptorHeap[Constants.inputTextureDI];
-    Texture2D<float> avgLuminanceTexture = ResourceDescriptorHeap[Constants.inputAvgLuminanceTextureDI];
-    RWTexture2D<float4> outputTexture = ResourceDescriptorHeap[Constants.outputTextureDI];
+    Texture2D<float4> exposedTexture = ResourceDescriptorHeap[Constants.InputExposedTextureDI];
+    Texture2D<float4> bloomTexture = ResourceDescriptorHeap[Constants.InputBloomTextureDI];
+    RWTexture2D<float4> outputTexture = ResourceDescriptorHeap[Constants.OutputTextureDI];
     
-    uint2 outputSize;
-    outputTexture.GetDimensions(outputSize.x, outputSize.y);
-    
-    if (DTid.x >= outputSize.x || DTid.y >= outputSize.y)
+    if (any(DTid.xy > Constants.TextureDims))
         return;
     
-    // 1. Exposure adjustment
-    float avgLuminance = avgLuminanceTexture[uint2(0, 0)];
-    // Constants.middleGray is a multiplier of paper white, typically around 0.18
-    // For instance, if paper white is 200 nits, 0.18 * 200 = 36 nits.
-    float exposureAdjustment = Constants.middleGray / max(avgLuminance, 0.001);
-    float4 color = inputTexture[DTid.xy];
-    color.rgb *= exposureAdjustment;
-        
-    // 2. Soft rolloff on highlights
+    float4 color = exposedTexture[DTid.xy];
+    color.rgb += bloomTexture[DTid.xy].rgb;
     color.rgb = HDRHighlightRolloff(color.rgb, 5000.0, 10000.0);
         
     outputTexture[DTid.xy] = color;
