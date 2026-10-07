@@ -190,4 +190,14 @@ float InterleavedGradientNoise(float2 pos)
     return frac(52.9829189 * frac(0.06711056 * pos.x + 0.00583715 * pos.y));
 }
 
+float3 ApplyExposure(float3 color, uint exposureTexDI)
+{
+    if (exposureTexDI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D<float> exposureTex = ResourceDescriptorHeap[exposureTexDI];
+        color *= exposureTex.SampleLevel(pointClampSampler, float2(0.0, 0.0), 0.0).r;
+    }
+    return color;
+}
+
 #endif // __COMMON_HLSLI__

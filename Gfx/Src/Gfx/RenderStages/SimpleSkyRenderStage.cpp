@@ -68,6 +68,7 @@ void alm::gfx::SimpleSkyRenderStage::Render(alm::rhi::CommandListHandle commandL
 
 	interop::SimpleSkyConstants shaderConstants;
 	shaderConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
+	shaderConstants.exposureFactorTextureDI = GetRenderView()->GetPrevExposureSampledView();
 	shaderConstants.skyDataDI = m_ShaderCB.GetUniformView();
 
 	commandList->PushGraphicsConstants(0, shaderConstants);

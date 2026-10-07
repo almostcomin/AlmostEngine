@@ -1,5 +1,6 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
+#include "Common.hlsli"
 
 // Based on NVidia's Donut sample: https://github.com/NVIDIA-RTX/Donut
 
@@ -45,6 +46,8 @@ float4 main(PS_INPUT input) : SV_Target
     // length(ddx(dir)) is an approximation for acos(dot(dir, normalize(dir + ddx(dir))) for unit vectors with small derivatives
     float angularSizeOfPixel = max(length(ddx(direction)), length(ddy(direction)));
     float3 color = ProceduralSky(skyData, direction, angularSizeOfPixel);
+
+    color = ApplyExposure(color, Constants.exposureFactorTextureDI);
          
     return float4(color, 1.0);
 }

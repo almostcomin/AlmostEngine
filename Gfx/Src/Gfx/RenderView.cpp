@@ -334,6 +334,11 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec, const Mous
 	}
 }
 
+alm::rhi::TextureSampledView alm::gfx::RenderView::GetPrevExposureSampledView() const
+{
+	return m_PrevExposure ? m_PrevExposure->GetSampledView() : alm::rhi::TextureSampledView{ INVALID_DESCRIPTOR_INDEX };
+}
+
 alm::gfx::HeightmapInstance* alm::gfx::RenderView::GetHeightmapInstance(const SceneHeightmap* sceneHeightmap) const
 {
 	auto it = m_HeightmapInstances.find(sceneHeightmap);
@@ -451,6 +456,7 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->patchDataBufferDI = gpuSceneBuffers->GetHeightmapPatchDataBufferView(m_Scene->GetGpuSceneBuffersHandle());
 		sceneShaderConstant->terrainMaterialsBufferDI = gpuSceneBuffers->GetTerrainMaterialsBufferView();
 	}
+	sceneShaderConstant->exposureFactorTextureDI = GetPrevExposureSampledView();
 
 	m_SceneConstants.Unmap();
 }

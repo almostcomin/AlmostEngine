@@ -89,6 +89,9 @@ public:
 
 	void Render(double timeSec, float timeDeltaSec, const MouseState& mouseState);
 
+	void SetPrevExposure(rhi::TextureHandle t) { m_PrevExposure = t; }
+	rhi::TextureSampledView GetPrevExposureSampledView() const;
+
 	double GetTime() const { return m_TimeSec; }
 	float GetTimeDelta() const { return m_TimeDeltaSec; }
 	const MouseState& GetMouseState() const { return m_MouseState; }
@@ -190,6 +193,8 @@ private:
 
 	bool m_ShadowmapValid;
 	bool m_CloudsShadowmapValid;
+
+	rhi::TextureHandle m_PrevExposure;
 
 	double m_TimeSec;
 	float m_TimeDeltaSec;

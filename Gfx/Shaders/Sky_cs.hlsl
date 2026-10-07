@@ -317,7 +317,8 @@ void main(uint3 dispatchID : SV_DispatchThreadID)
     // For geometry pixels: sceneColor is attenuated by transmittance (distant objects appear
     // darker and tinted) and inscattering adds the atmospheric haze on top
     float3 sceneColor = colorTex[pixelPos].rgb;
-    float3 finalColor = sceneColor * scatter.transmittance + scatter.inscattering;
-
+    float3 inscattered = ApplyExposure(scatter.inscattering, Constants.exposureFactorTextureDI);    
+    float3 finalColor = sceneColor * scatter.transmittance + inscattered;
+    
     colorTex[pixelPos] = float4(finalColor, 1.0);
 }

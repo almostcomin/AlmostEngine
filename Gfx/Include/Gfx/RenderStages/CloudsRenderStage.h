@@ -66,6 +66,7 @@ private:
     rhi::ShaderOwner m_CloudsCS;
     rhi::ComputePipelineStateOwner m_CloudsPSO;
 
+    rhi::ShaderOwner m_CompositePS;
     rhi::GraphicsPipelineStateOwner m_CompositePSO;
 
     gfx::MultiBuffer m_CloudsCB;

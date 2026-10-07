@@ -16,15 +16,15 @@ ConstantBuffer<interop::TonemapConstants> Constants : register(b0);
 [numthreads(16, 16, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-    Texture2D<float4> exposedTexture = ResourceDescriptorHeap[Constants.InputExposedTextureDI];
-    Texture2D<float4> bloomTexture = ResourceDescriptorHeap[Constants.InputBloomTextureDI];
+    Texture2D<float4> inputTexture = ResourceDescriptorHeap[Constants.InputColorTextureDI];
+    Texture2D<float> exposureRatioTexture = ResourceDescriptorHeap[Constants.InputExposureRatioTextureDI];
     RWTexture2D<float4> outputTexture = ResourceDescriptorHeap[Constants.OutputTextureDI];
     
     if (any(DTid.xy > Constants.TextureDims))
         return;
     
-    float4 color = exposedTexture[DTid.xy];
-    color.rgb += bloomTexture[DTid.xy].rgb;
+    float4 color = inputTexture[DTid.xy];
+    color *= exposureRatioTexture[uint2(0, 0)];
     color.rgb = HDRHighlightRolloff(color.rgb, 5000.0, 10000.0);
         
     outputTexture[DTid.xy] = color;

@@ -1,5 +1,6 @@
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
+#include "Common.hlsli"
 
 ConstantBuffer<interop::WBOITResolveStageConstants> Constants : register(b0);
 
@@ -19,5 +20,8 @@ float4 main(PS_INPUT input) : SV_Target
     float revealage = revealageTex.SampleLevel(pointClampSampler, input.uv, 0);
 
     float3 color = accum.rgb / max(accum.a, 1e-5);
+    
+    color = ApplyExposure(color, Constants.exposureFactorTextureDI);
+    
     return float4(color, 1.0 - revealage);
 }

@@ -226,6 +226,8 @@ namespace interop
         BufferReadOnlyIndex materialsBufferDI;  // MaterialData
         BufferReadOnlyIndex terrainMaterialsBufferDI; // TerrainMaterialData
         BufferReadOnlyIndex patchDataBufferDI;  // HeightmapPatchData
+
+        TextureSampledViewIndex exposureFactorTextureDI;
     };
 
     struct DepthPrepassStageConstants
@@ -264,6 +266,7 @@ namespace interop
     {
         TextureSampledViewIndex accumDI;
         TextureSampledViewIndex revealageDI;
+        TextureSampledViewIndex exposureFactorTextureDI;
     };
 
     struct WireframeStageConstats
@@ -392,20 +395,11 @@ namespace interop
 
     struct TonemapConstants
     {
-        TextureSampledViewIndex InputExposedTextureDI;
-        TextureSampledViewIndex InputBloomTextureDI;
+        TextureSampledViewIndex InputColorTextureDI;
+        TextureSampledViewIndex InputExposureRatioTextureDI;
         TextureStorageViewIndex OutputTextureDI;
         uint _padding0;
         uint2 TextureDims;
-    };
-
-    struct ApplyExposureConstants
-    {
-        TextureSampledViewIndex InputSceneColorTextureDI;
-        TextureSampledViewIndex InputExposureTextureDI;
-        TextureStorageViewIndex OutputExposedColorTextureDI;
-        uint _padding;
-        uint2 TextureDim;
     };
 
     struct BuildLuminanceHistogramConstants
@@ -521,6 +515,7 @@ namespace interop
     struct SimpleSkyConstants
     {
         float4x4 matClipToTranslatedWorld;
+        TextureSampledViewIndex exposureFactorTextureDI;
         BufferUniformIndex skyDataDI; // SimpleSkyData
     };
 
@@ -553,6 +548,7 @@ namespace interop
     {
         float4x4 matClipToTranslatedWorld;
         float3 CameraPosition;
+        TextureSampledViewIndex exposureFactorTextureDI;
         BufferUniformIndex SkyDataDI;  // SkyData
     };
 
@@ -658,6 +654,12 @@ namespace interop
         BufferUniformIndex cloudsDataDI;        // CloudsData
         uint frameCounter;
         uint debugChannel;
+    };
+
+    struct CloudsCompositeConstants
+    {
+        TextureSampledViewIndex CloudsTextureDI;
+        TextureSampledViewIndex ExposureFactorTextureDI;
     };
 
     struct CloudsShadowmapData

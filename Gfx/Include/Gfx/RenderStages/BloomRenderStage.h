@@ -38,7 +38,7 @@ private:
 
 private:
 
-	RGTextureHandle m_ExposedColorTexture;
+	RGTextureHandle m_SceneColorTexture;
 	RGTextureHandle m_BloomResultTexture;
 	RGFramebufferHandle m_FB;
 

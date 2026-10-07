@@ -27,10 +27,10 @@ void alm::gfx::BloomRenderStage::SetMaxMipChainLenght(uint32_t v)
 void alm::gfx::BloomRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_BloomResultTexture = builder.CreateColorTarget("BloomResult", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT);
-	m_ExposedColorTexture = builder.GetTextureHandle("ExposedColor");
+	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
 	m_FB = builder.RequestFramebuffer({ m_BloomResultTexture }, nullptr);
 
-	builder.AddTextureDependency(m_ExposedColorTexture, RenderGraph::AccessMode::Read,
+	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	builder.AddTextureDependency(m_BloomResultTexture, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
@@ -41,7 +41,7 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	if (!m_BloomEnabled)
 	{
 		rhi::ITexture* dstTex = m_RenderGraph->GetTexture(m_BloomResultTexture).get();
-		rhi::ITexture* srcTex = m_RenderGraph->GetTexture(m_ExposedColorTexture).get();
+		rhi::ITexture* srcTex = m_RenderGraph->GetTexture(m_SceneColorTexture).get();
 
 		commandList->PushBarriers({
 			rhi::Barrier::Texture(dstTex, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::COPY_DST),
@@ -57,7 +57,7 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		return;
 	}
 
-	rhi::TextureHandle sceneColorTexture = m_RenderGraph->GetTexture(m_ExposedColorTexture);
+	rhi::TextureHandle sceneColorTexture = m_RenderGraph->GetTexture(m_SceneColorTexture);
 	const auto sceneColorTexDesc = sceneColorTexture->GetDesc();
 
 	// Progressively downsample through the mip chain
@@ -163,7 +163,7 @@ void alm::gfx::BloomRenderStage::OnAttached()
 	auto* commonResources = deviceManager->GetCommonResources();
 	auto* shaderFactory = deviceManager->GetShaderFactory();
 	auto* device = deviceManager->GetDevice();
-	rhi::TextureHandle sceneTex = m_RenderGraph->GetTexture(m_ExposedColorTexture);
+	rhi::TextureHandle sceneTex = m_RenderGraph->GetTexture(m_SceneColorTexture);
 	rhi::TextureHandle bloomTex = m_RenderGraph->GetTexture(m_BloomResultTexture);
 
 	// Create shaders
@@ -231,7 +231,7 @@ void alm::gfx::BloomRenderStage::ResetMipChain(bool immediate)
 	auto* deviceManager = m_RenderGraph->GetDeviceManager();
 	auto* device = deviceManager->GetDevice();
 	auto* commonResources = deviceManager->GetCommonResources();
-	rhi::TextureHandle sceneTex = m_RenderGraph->GetTexture(m_ExposedColorTexture);
+	rhi::TextureHandle sceneTex = m_RenderGraph->GetTexture(m_SceneColorTexture);
 	const auto& sceneTexDesc = sceneTex->GetDesc();
 
 	ReleaseMipChain(immediate);

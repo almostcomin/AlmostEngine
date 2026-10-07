@@ -39,18 +39,20 @@ void main(uint groupIndex : SV_GroupIndex)
     if (groupIndex == 0)
     {
         // HistogramShared[0] = SUM(count_i * i)
-        // countForThisBin = cpunt of bin 0, discarded pixels
+        // countForThisBin = count of bin 0, discarded pixels
         // Substract 1 because bin 0 is ignored
         float avgBin = (HistogramShared[0] / max((float)Constants.pixelCount - countForThisBin, 1.0)) - 1.0;
-        
+                
         float targetLuminance = exp2(((avgBin / 254.0) * Constants.logLuminanceRange) + Constants.minLogLuminance);
+        float prevExposure = prevExposureTex[uint2(0, 0)];
+        targetLuminance /= max(prevExposure, 1e-8);
+        
         float oldLuminance = luminanceOutput[uint2(0, 0)];
         float adaptionSpeed = targetLuminance > oldLuminance ?
             Constants.adaptionSpeedUp : Constants.adaptionSpeedDown;
 
         float newLuminance = oldLuminance + (targetLuminance - oldLuminance) * (1 - exp(-Constants.timeDelta * adaptionSpeed));        
         float exposure = Constants.middleGray / max(newLuminance, 0.001) * Constants.sdrExposureBias;
-        float prevExposure = prevExposureTex[uint2(0, 0)];
         
         luminanceOutput[uint2(0, 0)] = newLuminance;
         exposureOut[uint2(0, 0)] = exposure;

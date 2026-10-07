@@ -28,7 +28,7 @@ alm::gfx::ExposureRenderStage::Stats alm::gfx::ExposureRenderStage::GetStats()
 
 	m_StatsBufferReadBack->Unmap();
 
-	alm::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ExposedColorTexture);
+	alm::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_SceneColorTexture);
 	const uint32_t width = outputTexture->GetDesc().width;
 	const uint32_t height = outputTexture->GetDesc().height;
 
@@ -51,9 +51,6 @@ void alm::gfx::ExposureRenderStage::Setup(RenderGraphBuilder& builder)
 		m_ExposureRatioTexture = builder.CreateTexture("ExposureRatio", RenderGraph::TextureResourceType::ShaderResource,
 			1, 1, 1, rhi::Format::R32_FLOAT, true);
 
-		m_ExposedColorTexture = builder.CreateColorTarget("ExposedColor", 1, RenderGraph::SizeSpace::SceneViewport, 1,
-			rhi::Format::RGBA16_FLOAT, true);
-
 		m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
 	}
 
@@ -67,8 +64,6 @@ void alm::gfx::ExposureRenderStage::Setup(RenderGraphBuilder& builder)
 			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 		builder.AddTextureDependency(m_ExposureRatioTexture, RenderGraph::AccessMode::Write,
 			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
-		builder.AddTextureDependency(m_ExposedColorTexture, RenderGraph::AccessMode::Write,
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 	}
 }
 
@@ -79,13 +74,10 @@ void alm::gfx::ExposureRenderStage::Render(alm::rhi::CommandListHandle commandLi
 	UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
 
 	alm::rhi::TextureHandle inputTexture = m_RenderGraph->GetTexture(m_SceneColorTexture);
-	alm::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ExposedColorTexture);
 	alm::rhi::BufferHandle histogramBuffer = m_RenderGraph->GetBuffer(m_LuminanceHistogramBuffer);
 	alm::rhi::TextureHandle avgLuminanceTexture = m_RenderGraph->GetTexture(m_LuminanceAverageTexture);
-	const uint32_t width = outputTexture->GetDesc().width;
-	const uint32_t height = outputTexture->GetDesc().height;
-	assert(width == inputTexture->GetDesc().width);
-	assert(height == inputTexture->GetDesc().height);
+	const uint32_t width = inputTexture->GetDesc().width;
+	const uint32_t height = inputTexture->GetDesc().height;
 
 	if (m_ExposureTextureIndex < 0)
 	{
@@ -192,31 +184,15 @@ void alm::gfx::ExposureRenderStage::Render(alm::rhi::CommandListHandle commandLi
 		shaderConstants.adaptionSpeedUp = m_AdaptationUpSpeed;
 		shaderConstants.adaptionSpeedDown = m_AdaptationDownSpeed;
 		shaderConstants.middleGray = m_MiddleGray;
-		shaderConstants.sdrExposureBias = m_SdrExposureBias;
+		shaderConstants.sdrExposureBias = (deviceManager->GetColorSpace() == rhi::ColorSpace::SRGB) ? m_SdrExposureBias : 1.f;
 
 		commandList->PushComputeConstants(0, shaderConstants);
 		commandList->Dispatch(1, 1, 1);
 
-		commandList->EndMarker();
-	}
-
-	// Apply exposure
-	{
-		commandList->BeginMarker("Apply exposure");
-
-		commandList->PushBarrier(rhi::Barrier::Texture(m_ExposureTexture[m_ExposureTextureIndex].get(),
-			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE));
-
-		commandList->SetPipelineState(m_ApplyExposurePSO.get());
-
-		interop::ApplyExposureConstants shaderConstants;
-		shaderConstants.InputSceneColorTextureDI = inputTexture->GetSampledView();
-		shaderConstants.InputExposureTextureDI = m_ExposureTexture[m_ExposureTextureIndex]->GetSampledView();
-		shaderConstants.OutputExposedColorTextureDI = outputTexture->GetStorageView();
-		shaderConstants.TextureDim = uint2{ width, height };
-
-		commandList->PushComputeConstants(0, shaderConstants);
-		commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
+		// Return exposure texture to SHADER_RESOURCE
+		commandList->PushBarriers({
+			rhi::Barrier::Texture(m_ExposureTexture[m_ExposureTextureIndex].get(),
+				rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::SHADER_RESOURCE) });
 
 		commandList->EndMarker();
 	}
@@ -234,6 +210,9 @@ void alm::gfx::ExposureRenderStage::Render(alm::rhi::CommandListHandle commandLi
 			rhi::Barrier::Buffer(m_StatsBufferReadBack.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON),
 			rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COPY_SRC, rhi::ResourceState::COMMON) });
 	}
+
+	// Update the prev exposure texture (for the next frame)
+	GetRenderView()->SetPrevExposure(m_ExposureTexture[m_ExposureTextureIndex].get_weak());
 }
 
 void alm::gfx::ExposureRenderStage::OnAttached()
@@ -247,7 +226,6 @@ void alm::gfx::ExposureRenderStage::OnAttached()
 
 		m_BuildHistogramCS = shaderFactory->LoadShader("BuildLuminanceHistogram_cs", rhi::ShaderType::Compute);
 		m_ComputeExposureCS = shaderFactory->LoadShader("ComputeExposure_cs", rhi::ShaderType::Compute);
-		m_ApplyExposureCS = shaderFactory->LoadShader("ApplyExposure_cs", rhi::ShaderType::Compute);
 	}
 
 	// Create PSOs
@@ -256,8 +234,6 @@ void alm::gfx::ExposureRenderStage::OnAttached()
 			rhi::ComputePipelineStateDesc{ m_BuildHistogramCS.get_weak() }, "BuildHistogramPSO");
 		m_ComputeExposurePSO = device->CreateComputePipelineState(
 			rhi::ComputePipelineStateDesc{ m_ComputeExposureCS.get_weak() }, "ComputeExposurePSO");
-		m_ApplyExposurePSO = device->CreateComputePipelineState(
-			rhi::ComputePipelineStateDesc{ m_ApplyExposureCS.get_weak() }, "ApplyExposurePSO");
 	}
 
 	{
@@ -303,12 +279,10 @@ void alm::gfx::ExposureRenderStage::OnDetached()
 {
 	m_StatsBufferReadBack = nullptr;
 	m_StatsBuffer = nullptr;
-
-	m_ApplyExposurePSO = nullptr;
+	
 	m_ComputeExposurePSO = nullptr;
 	m_BuildHistogramPSO = nullptr;
 
-	m_ApplyExposureCS = nullptr;
 	m_ComputeExposureCS = nullptr;
 	m_BuildHistogramCS = nullptr;
 }

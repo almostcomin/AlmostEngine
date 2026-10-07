@@ -24,14 +24,11 @@ private:
 	void OnAttached() override;
 	void OnDetached() override;
 
-	void TonemapHDR(alm::rhi::CommandListHandle commandList);
-	void TonemapSDR(alm::rhi::CommandListHandle commandList);
-
 private:
 
 	RGTextureHandle m_ToneMappedTexture;
-	RGTextureHandle m_ExposedColorTexture;
 	RGTextureHandle m_BloomResultTexture;
+	RGTextureHandle m_ExposureRatioTexture;
 
 	rhi::ShaderOwner m_TonemappingSDR_CS;
 	rhi::ComputePipelineStateOwner m_TonemappingSDR_PSO;

@@ -5,6 +5,7 @@
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/CommonResources.h"
 #include "Gfx/RenderGraph.h"
+#include "Gfx/RenderView.h"
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
 
@@ -36,6 +37,7 @@ void alm::gfx::WBOITResolveRenderStage::Render(alm::rhi::CommandListHandle comma
 	interop::WBOITResolveStageConstants shaderConstants;
 	shaderConstants.accumDI = m_RenderGraph->GetTextureSampledView(m_AccumWOITTexture);
 	shaderConstants.revealageDI = m_RenderGraph->GetTextureSampledView(m_RevealageWOITTexture);
+	shaderConstants.exposureFactorTextureDI = GetRenderView()->GetPrevExposureSampledView();
 
 	commandList->PushGraphicsConstants(0, shaderConstants);
 

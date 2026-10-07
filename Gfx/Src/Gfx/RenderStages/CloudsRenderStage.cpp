@@ -165,8 +165,9 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 
 		commandList->SetPipelineState(m_CompositePSO.get());
 
-		interop::BlitGraphicsConstants shaderConstants;
-		shaderConstants.textureDI = m_RenderGraph->GetTextureSampledView(m_CloudsTexture[m_CloudsTextureIdx]);
+		interop::CloudsCompositeConstants shaderConstants;
+		shaderConstants.CloudsTextureDI = m_RenderGraph->GetTextureSampledView(m_CloudsTexture[m_CloudsTextureIdx]);
+		shaderConstants.ExposureFactorTextureDI = GetRenderView()->GetPrevExposureSampledView();
 
 		commandList->PushGraphicsConstants(0, shaderConstants);
 		commandList->Draw(3);
@@ -183,6 +184,7 @@ void alm::gfx::CloudsRenderStage::OnAttached()
 	auto* shaderFactory = deviceManager->GetShaderFactory();
 
 	m_CloudsCS = shaderFactory->LoadShader("Clouds_cs", rhi::ShaderType::Compute);
+	m_CompositePS = shaderFactory->LoadShader("CloudsComposite_ps", rhi::ShaderType::Pixel);
 
 	// Clouds PSO
 	{
@@ -203,10 +205,11 @@ void alm::gfx::CloudsRenderStage::OnAttached()
 
 		rhi::GraphicsPipelineStateDesc psoDesc{
 			.VS = commonResources->GetBlitVS(),
-			.PS = commonResources->GetBlitPS(),
+			.PS = m_CompositePS.get_weak(),
 			.blendState = blendState };
 
-		m_CompositePSO = device->CreateGraphicsPipelineState(psoDesc, m_RenderGraph->GetFrameBuffer(m_CompositeFB)->GetFramebufferInfo(), "CloudsRS_Composite");
+		m_CompositePSO = device->CreateGraphicsPipelineState(
+			psoDesc, m_RenderGraph->GetFrameBuffer(m_CompositeFB)->GetFramebufferInfo(), "CloudsRS_Composite");
 	}
 
 	m_CloudsCB.InitUniformBuffer(sizeof(interop::CloudsData), deviceManager, "CloudsConstantBuffer");
@@ -217,6 +220,7 @@ void alm::gfx::CloudsRenderStage::OnDetached()
 	m_CloudsCB.Release();
 	m_CloudsPSO.reset();
 	m_CloudsCS.reset();
+	m_CompositePS.reset();
 	m_CompositePSO.reset();
 }
 

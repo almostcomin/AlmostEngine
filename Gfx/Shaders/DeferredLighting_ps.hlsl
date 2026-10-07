@@ -3,6 +3,7 @@
 #include "Shading.hlsli"
 #include "Shadowmap.hlsli"
 #include "GBuffersCommon.hlsli"
+#include "Common.hlsli"
 
 // Keep in sync with alm::gfx::DeferredLightingRenderStage::MaterialChannel
 static const uint MaterialChannel_Disabled      = 0;
@@ -127,7 +128,7 @@ float4 main(PS_INPUT input) : SV_Target
         }
         
         // Clouds shadow
-        float cloudsShadowFactor = 1.0;        
+        float cloudsShadowFactor = 1.0;
         if (Constants.CloudsShadowmapDI != INVALID_DESCRIPTOR_INDEX)
         {
             Texture2D cloudsShadowmap = ResourceDescriptorHeap[Constants.CloudsShadowmapDI];
@@ -179,7 +180,7 @@ float4 main(PS_INPUT input) : SV_Target
         for (uint i = 0; i < sceneData.pointLightCount; i++)
         {
             float3 lightDiffuseRadiance;
-            float3 lightSpecularRadiance;            
+            float3 lightSpecularRadiance;
             interop::PointLightData pointLight = pointLightsDataBuffer[i];
             
             ShadeSurface_PointLight(pointLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
@@ -209,6 +210,8 @@ float4 main(PS_INPUT input) : SV_Target
         specularRadiance += ambientColor * surfaceMat.specularF0 * specAO;
 
         color = diffuseRadiance + specularRadiance + surfaceMat.emissiveColor;
+        
+        color = ApplyExposure(color, sceneData.exposureFactorTextureDI);
     }
     
     return float4(color, 1.0);

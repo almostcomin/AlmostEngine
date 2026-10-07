@@ -4,7 +4,6 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/CommonResources.h"
-#include "Gfx/UploadBuffer.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
@@ -17,18 +16,18 @@ void alm::gfx::ToneMappingRenderStage::Setup(RenderGraphBuilder& builder)
 	{
 		m_ToneMappedTexture = builder.CreateTexture("ToneMapped", RenderGraph::TextureResourceType::RenderTarget,
 			1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT, true);
-		m_ExposedColorTexture = builder.GetTextureHandle("ExposedColor");
 		m_BloomResultTexture = builder.GetTextureHandle("BloomResult");
+		m_ExposureRatioTexture = builder.GetTextureHandle("ExposureRatio");
 	}
 
 	// Request resources access
 	{
 		builder.AddTextureDependency(m_BloomResultTexture, RenderGraph::AccessMode::Read,
 			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-		builder.AddTextureDependency(m_ExposedColorTexture, RenderGraph::AccessMode::Read,
-			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 		builder.AddTextureDependency(m_ToneMappedTexture, RenderGraph::AccessMode::Write,
 			rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+		builder.AddTextureDependency(m_ExposureRatioTexture, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	}
 }
 
@@ -36,9 +35,9 @@ void alm::gfx::ToneMappingRenderStage::Render(alm::rhi::CommandListHandle comman
 {
 	DeviceManager* deviceManager = GetDeviceManager();
 	CommonResources* commonResources = deviceManager->GetCommonResources();
-	UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
 
-	alm::rhi::TextureHandle inputTexture = m_RenderGraph->GetTexture(m_ExposedColorTexture);
+	alm::rhi::TextureHandle inputTexture = m_RenderGraph->GetTexture(m_BloomResultTexture);
+	alm::rhi::TextureHandle exposureRatioTexture = m_RenderGraph->GetTexture(m_ExposureRatioTexture);
 	alm::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ToneMappedTexture);
 	const uint32_t width = outputTexture->GetDesc().width;
 	const uint32_t height = outputTexture->GetDesc().height;
@@ -63,14 +62,27 @@ void alm::gfx::ToneMappingRenderStage::Render(alm::rhi::CommandListHandle comman
 		switch (deviceManager->GetColorSpace())
 		{
 		case rhi::ColorSpace::SRGB:
-			TonemapSDR(commandList);
+			commandList->BeginMarker("Tonemapping SDR");
+			commandList->SetPipelineState(m_TonemappingSDR_PSO.get());
 			break;
 		case rhi::ColorSpace::HDR10_ST2084:
-			TonemapHDR(commandList);
+			commandList->BeginMarker("Tonemapping HDR");
+			commandList->SetPipelineState(m_TonemappingHDR_PSO.get());
 			break;
 		default:
 			assert(0);
 		}
+
+		interop::TonemapConstants shaderConstants;
+		shaderConstants.InputColorTextureDI = inputTexture->GetSampledView();
+		shaderConstants.InputExposureRatioTextureDI = exposureRatioTexture->GetSampledView();
+		shaderConstants.OutputTextureDI = outputTexture->GetStorageView();
+		shaderConstants.TextureDims = uint2{ width, height };
+
+		commandList->PushComputeConstants(0, shaderConstants);
+		commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
+
+		commandList->EndMarker();
 	}
 }
 
@@ -100,52 +112,4 @@ void alm::gfx::ToneMappingRenderStage::OnDetached()
 
 	m_TonemappingSDR_PSO = nullptr;
 	m_TonemappingSDR_CS = nullptr;
-}
-
-void alm::gfx::ToneMappingRenderStage::TonemapHDR(alm::rhi::CommandListHandle commandList)
-{
-	alm::rhi::TextureHandle inputTexture = m_RenderGraph->GetTexture(m_ExposedColorTexture);
-	alm::rhi::TextureHandle bloomTexture = m_RenderGraph->GetTexture(m_BloomResultTexture);
-	alm::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ToneMappedTexture);
-	const uint32_t width = outputTexture->GetDesc().width;
-	const uint32_t height = outputTexture->GetDesc().height;
-
-	commandList->BeginMarker("Tonemapping HDR");
-
-	commandList->SetPipelineState(m_TonemappingHDR_PSO.get());
-
-	interop::TonemapConstants shaderConstants;
-	shaderConstants.InputExposedTextureDI = inputTexture->GetSampledView();
-	shaderConstants.InputBloomTextureDI = bloomTexture->GetSampledView();
-	shaderConstants.OutputTextureDI = outputTexture->GetStorageView();
-	shaderConstants.TextureDims = uint2{ width, height };
-
-	commandList->PushComputeConstants(0, shaderConstants);
-	commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
-
-	commandList->EndMarker();
-}
-
-void alm::gfx::ToneMappingRenderStage::TonemapSDR(alm::rhi::CommandListHandle commandList)
-{
-	alm::rhi::TextureHandle inputTexture = m_RenderGraph->GetTexture(m_ExposedColorTexture);
-	alm::rhi::TextureHandle bloomTexture = m_RenderGraph->GetTexture(m_BloomResultTexture);
-	alm::rhi::TextureHandle outputTexture = m_RenderGraph->GetTexture(m_ToneMappedTexture);
-	const uint32_t width = outputTexture->GetDesc().width;
-	const uint32_t height = outputTexture->GetDesc().height;
-
-	commandList->BeginMarker("Tonemapping SDR");
-
-	commandList->SetPipelineState(m_TonemappingSDR_PSO.get());
-
-	interop::TonemapConstants shaderConstants;
-	shaderConstants.InputExposedTextureDI = inputTexture->GetSampledView();
-	shaderConstants.InputBloomTextureDI = bloomTexture->GetSampledView();
-	shaderConstants.OutputTextureDI = outputTexture->GetStorageView();
-	shaderConstants.TextureDims = uint2{ width, height };
-
-	commandList->PushComputeConstants(0, shaderConstants);
-	commandList->Dispatch(DivRoundUp(width, 16u), DivRoundUp(height, 16u), 1);
-
-	commandList->EndMarker();
 }

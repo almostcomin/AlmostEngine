@@ -2232,9 +2232,6 @@ void alm::fw::FrameworkUI::BuildLumninanceHistogram()
     }
 
     alm::gfx::ExposureRenderStage::Stats stats = exposureRS->GetStats();
-    alm::rhi::TextureHandle exposedColorTex = renderGraph->GetTexture("ExposedColor");
-    assert(exposedColorTex);
-
     alm::rhi::BufferHandle buffer = renderGraph->GetBufferView(m_LumHistogramBufferTicket);
     if (buffer)
     {

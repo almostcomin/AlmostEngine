@@ -59,7 +59,6 @@ private:
 
 	RGBufferHandle m_LuminanceHistogramBuffer;
 	RGTextureHandle m_LuminanceAverageTexture;
-	RGTextureHandle m_ExposedColorTexture;
 	RGTextureHandle m_SceneColorTexture;
 	RGTextureHandle m_ExposureRatioTexture;
 
@@ -71,9 +70,6 @@ private:
 
 	rhi::ShaderOwner m_ComputeExposureCS;
 	rhi::ComputePipelineStateOwner m_ComputeExposurePSO;
-
-	rhi::ShaderOwner m_ApplyExposureCS;
-	rhi::ComputePipelineStateOwner m_ApplyExposurePSO;
 
 	float m_MinLogLuminance;
 	float m_LogLuminanceRange;

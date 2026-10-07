@@ -106,6 +106,7 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	interop::SkyConstants shaderConstants;
 	shaderConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
 	shaderConstants.CameraPosition = GetCamera()->GetPosition();
+	shaderConstants.exposureFactorTextureDI = GetRenderView()->GetPrevExposureSampledView();
 	shaderConstants.SkyDataDI = m_ShaderCB.GetUniformView();
 
 	commandList->PushComputeConstants(0, shaderConstants);
