@@ -418,7 +418,10 @@ void alm::gfx::RenderGraph::OnSceneChanged()
 
 void alm::gfx::RenderGraph::OnRenderTargetSizeChanged(const int2& newSize, const int2& newViewportSize)
 {
+	alm::rhi::Device* device = m_DeviceManager->GetDevice();
 	alm::unique_vector<RGFramebufferHandle> framebuffersToUpdate;
+
+	device->WaitForIdle();
 
 	// Update all the textures whose size is dependant on BB size
 	for (auto& it : m_Textures)
@@ -1307,6 +1310,6 @@ void alm::gfx::RenderGraph::InternalRecreateTexture(RGTextureHandle handle)
 		{ return entry->handle == handle; });
 	if (it != m_TexViewRequests.end())
 	{
-		m_DeviceManager->GetDevice()->ReleaseImmediately(std::move((*it)->tex));
+		m_DeviceManager->GetDevice()->ReleaseQueued(std::move((*it)->tex));
 	}
 }

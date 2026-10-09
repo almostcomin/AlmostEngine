@@ -46,10 +46,7 @@ void alm::gfx::CloudsRenderStage::Render(alm::rhi::CommandListHandle commandList
 		return;
 	
 	gfx::AtmosphereConfig* atmos = GetScene()->GetAtmosphereConfig();
-	if (!atmos->CloudsSubsystemInitialized())
-		return;
-
-	if (!atmos)
+	if (!atmos || !atmos->CloudsSubsystemInitialized())
 		return;
 
 	rhi::TextureHandle cloudsShape = atmos->GetCloudsShapeTexture();

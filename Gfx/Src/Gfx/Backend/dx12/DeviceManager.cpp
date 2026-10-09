@@ -167,7 +167,7 @@ bool alm::gfx::dx12::DeviceManager::Present(uint32_t* opt_microSec)
 
     if (FAILED(result))
     {
-        rhi::dx12::CheckDRED(m_Device->GetNativeDevice());
+        rhi::dx12::CheckDeviceRemoved(m_Device->GetNativeDevice(), result);
     }
     assert(SUCCEEDED(result));
 
@@ -263,9 +263,13 @@ bool alm::gfx::dx12::DeviceManager::CreateDevice()
         HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&pDebug));
 
         if (SUCCEEDED(hr))
+        {
             pDebug->EnableDebugLayer();
+        }
         else
+        {
             LOG_WARNING("Cannot enable DX12 debug runtime, ID3D12Debug is not available.");
+        }
     }
 
     if (m_DeviceParams.GPUValidation)
@@ -277,6 +281,22 @@ bool alm::gfx::dx12::DeviceManager::CreateDevice()
             debugController3->SetEnableGPUBasedValidation(true);
         else
             LOG_WARNING("Cannot enable GPU-based validation, ID3D12Debug3 is not available.");
+    }
+
+    if (m_DeviceParams.EnableDRED)
+    {
+        if (ID3D12DeviceRemovedExtendedDataSettings* dredSettings;
+            SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings))))
+        {
+            dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+            dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+            dredSettings->SetWatsonDumpEnablement(D3D12_DRED_ENABLEMENT_FORCED_OFF);
+        }
+        if (ID3D12DeviceRemovedExtendedDataSettings1* dredSettings1;
+            SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings1))))
+        {
+            dredSettings1->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        }
     }
 
     int adapterIndex = m_DeviceParams.AdapterIndex;

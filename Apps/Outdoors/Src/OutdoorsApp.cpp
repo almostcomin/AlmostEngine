@@ -78,8 +78,9 @@ public:
 		}
 #endif
 		// Init heightmap
-		std::shared_ptr<alm::gfx::Heightmap> heightmap;
 		alm::weak<alm::gfx::SceneHeightmap> sceneHeightmap;
+#if 1
+		std::shared_ptr<alm::gfx::Heightmap> heightmap;
 		{
 			// Data source
 			std::shared_ptr<alm::gfx::IHeightmapSource> dataSource;
@@ -216,6 +217,7 @@ public:
 			auto sceneGraph = m_Scene->GetSceneGraph();
 			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
 		}
+#endif
 
 		// Load file
 		{
@@ -233,7 +235,7 @@ public:
 		// Init Atmos params
 		{
 			alm::gfx::AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
-			atmos->InitCloudsSubsystem();
+			//atmos->InitCloudsSubsystem();
 			atmos->SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
 			atmos->SetEarthRadius(kEarthRadius, true);
 		}
@@ -251,22 +253,22 @@ public:
 		{
 			m_UI = std::dynamic_pointer_cast<OutdoorsUI>(m_ImGuiRS);
 			m_UI->Init(m_Window, m_Scene.get_weak(), m_MainRenderView.get_weak(), &m_CameraController);
-			m_UI->SetHeightmap(sceneHeightmap);
+			if (sceneHeightmap)
+			{
+				m_UI->SetHeightmap(sceneHeightmap);
+			}
 			RefreshUIData();
 
-			m_UI->AddRenderStageTextureWindow(
-				alm::gfx::CloudsShadowmapRenderStage::StaticType(), alm::gfx::RenderGraph::AccessMode::Write, "CloudsShadowmap");
+			//m_UI->AddRenderStageTextureWindow(
+			//	alm::gfx::CloudsShadowmapRenderStage::StaticType(), alm::gfx::RenderGraph::AccessMode::Write, "CloudsShadowmap");
 		}
 
-		// Camera initial position
+		// Camera setup
+		if(sceneHeightmap)
 		{
 			m_Scene->RefreshSceneGraph();
 
-			alm::aabox3f bbox = sceneHeightmap ?
-				sceneHeightmap->GetNode()->GetWorldBounds(alm::gfx::SceneContentType::Meshes) :
-				m_Scene->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
-
-			//alm::aabox3f bbox = m_Scene->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
+			alm::aabox3f bbox = sceneHeightmap->GetNode()->GetWorldBounds(alm::gfx::SceneContentType::Meshes);
 			float3 center = bbox.center();
 			float3 diagonal = bbox.diagonal();
 
@@ -277,13 +279,9 @@ public:
 			bbox.max = center + diagonal / 4.f;
 
 			m_MainCamera->Frame(bbox);
-		}
 
-		// Update camera speed
-		if (heightmap)
-		{
 			m_CameraController.SetSpeed(
-				std::max(std::max(heightmap->GetActualSize().x, heightmap->GetActualSize().y) * 0.1f, 1.f));
+				std::max(std::max(bbox.diagonal().x, bbox.diagonal().y) * 0.1f, 1.f));
 		}
 
 		return true;

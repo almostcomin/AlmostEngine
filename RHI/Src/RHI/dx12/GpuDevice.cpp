@@ -1,5 +1,6 @@
 #include "RHI/RHI_PCH.h"
 
+#include "Core/Common.h"
 #include "RHI/DxgiFormatMapping.h"
 #include "RHI/dx12/GpuDevice.h"
 #include "RHI/dx12/DescriptorHeap.h"
@@ -19,6 +20,7 @@
 #define HR_RETURN_NULL(hr)			\
 	do {							\
 		if(FAILED(hr)) {			\
+			CheckDeviceRemoved(m_D3d12Device.Get(), hr); \
 			LOG_ERROR("HRESULT error code = {:#x} in function '{}'", hr,  __FUNCTION__); \
 			return nullptr;			\
 		}							\
@@ -26,6 +28,68 @@
 
 namespace
 {
+	const char* BreadcrumbOpToString(D3D12_AUTO_BREADCRUMB_OP op)
+	{
+		switch (op)
+		{
+		case D3D12_AUTO_BREADCRUMB_OP_SETMARKER:					return "SetMarker";
+		case D3D12_AUTO_BREADCRUMB_OP_BEGINEVENT:					return "BeginEvent";
+		case D3D12_AUTO_BREADCRUMB_OP_ENDEVENT:						return "EndEvent";
+		case D3D12_AUTO_BREADCRUMB_OP_DRAWINSTANCED:				return "DrawInstanced";
+		case D3D12_AUTO_BREADCRUMB_OP_DRAWINDEXEDINSTANCED:			return "DrawIndexedInstanced";
+		case D3D12_AUTO_BREADCRUMB_OP_EXECUTEINDIRECT:				return "ExecuteIndirect";
+		case D3D12_AUTO_BREADCRUMB_OP_DISPATCH:						return "Dispatch";
+		case D3D12_AUTO_BREADCRUMB_OP_COPYBUFFERREGION:				return "CopyBufferRegion";
+		case D3D12_AUTO_BREADCRUMB_OP_COPYTEXTUREREGION:			return "CopyTextureRegion";
+		case D3D12_AUTO_BREADCRUMB_OP_COPYRESOURCE:					return "CopyResource";
+		case D3D12_AUTO_BREADCRUMB_OP_COPYTILES:					return "CopyTiles";
+		case D3D12_AUTO_BREADCRUMB_OP_RESOLVESUBRESOURCE:			return "ResolveSubresource";
+		case D3D12_AUTO_BREADCRUMB_OP_CLEARRENDERTARGETVIEW:		return "ClearRenderTargetView";
+		case D3D12_AUTO_BREADCRUMB_OP_CLEARUNORDEREDACCESSVIEW:		return "ClearUnorderedAccessView";
+		case D3D12_AUTO_BREADCRUMB_OP_CLEARDEPTHSTENCILVIEW:		return "ClearDepthStencilView";
+		case D3D12_AUTO_BREADCRUMB_OP_RESOURCEBARRIER:				return "ResourceBarrier";
+		case D3D12_AUTO_BREADCRUMB_OP_EXECUTEBUNDLE:				return "ExecuteBundle";
+		case D3D12_AUTO_BREADCRUMB_OP_PRESENT:						return "Present";
+		case D3D12_AUTO_BREADCRUMB_OP_RESOLVEQUERYDATA:				return "ResolveQueryData";
+		case D3D12_AUTO_BREADCRUMB_OP_BEGINSUBMISSION:				return "BeginSubmission";
+		case D3D12_AUTO_BREADCRUMB_OP_ENDSUBMISSION:				return "EndSubmission";
+		case D3D12_AUTO_BREADCRUMB_OP_SETPIPELINESTATE1:			return "SetPipelineState1";
+		case D3D12_AUTO_BREADCRUMB_OP_DISPATCHRAYS:					return "DispatchRays";
+		case D3D12_AUTO_BREADCRUMB_OP_DISPATCHMESH:					return "DispatchMesh";
+		case D3D12_AUTO_BREADCRUMB_OP_BARRIER:						return "Barrier";
+		case D3D12_AUTO_BREADCRUMB_OP_BEGIN_COMMAND_LIST:			return "BeginCommandList";
+		case D3D12_AUTO_BREADCRUMB_OP_BUILDRAYTRACINGACCELERATIONSTRUCTURE: return "BuildRayTracingAS";
+		default:													return "<unknown op>";
+		}
+	}
+
+	const char* DredDeviceStateToString(D3D12_DRED_DEVICE_STATE state)
+	{
+		switch (state)
+		{
+		case D3D12_DRED_DEVICE_STATE_HUNG:		return "Hung (GPU watchdog/TDR)";
+		case D3D12_DRED_DEVICE_STATE_FAULT:		return "Fault";
+		case D3D12_DRED_DEVICE_STATE_PAGEFAULT:	return "Page fault";
+		case D3D12_DRED_DEVICE_STATE_UNKNOWN:	return "Unknown";
+		default:								return "<invalid>";
+		}
+	}
+
+	const char* DeviceRemovedReasonToString(HRESULT hr)
+	{
+		switch (hr)
+		{
+		case DXGI_ERROR_DEVICE_HUNG:            return "Device hung (GPU watchdog/TDR)";
+		case DXGI_ERROR_DEVICE_REMOVED:         return "Device removed";
+		case DXGI_ERROR_DEVICE_RESET:           return "Device reset";
+		case DXGI_ERROR_DRIVER_INTERNAL_ERROR:  return "Driver internal error";
+		case DXGI_ERROR_INVALID_CALL:           return "Invalid call";
+		case E_OUTOFMEMORY:                     return "Out of memory";
+		case S_OK:                              return "Device still active (not removed)";
+		default:                                return "<unknown reason>";
+		}
+	}
+
 	D3D12_CLEAR_VALUE ConvertTextureClearValue(const alm::rhi::TextureDesc& d)
 	{
 		const auto& formatMapping = alm::rhi::GetDxgiFormatMapping(d.format);
@@ -56,26 +120,117 @@ std::unique_ptr<alm::rhi::Device> alm::rhi::dx12::CreateDevice(const alm::rhi::d
 
 void alm::rhi::dx12::CheckDRED(ID3D12Device* device)
 {
-	ID3D12DeviceRemovedExtendedData2* pDred;
-	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&pDred))))
+	static bool s_AlreadyDumped = false;
+	if (s_AlreadyDumped || device == nullptr)
+		return;
+	s_AlreadyDumped = true;
+
+	const HRESULT removalReason = device->GetDeviceRemovedReason();
+	LOG_INFO("=== DRED: device removed. Reason = {:#x} ({}) ===",
+		static_cast<UINT>(removalReason), DeviceRemovedReasonToString(removalReason));
+
+	ID3D12DeviceRemovedExtendedData2* pDred = nullptr;
+	if (FAILED(device->QueryInterface(IID_PPV_ARGS(&pDred))))
 	{
-		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 dredAutoBreadcrumbsOutput;
-		D3D12_DRED_PAGE_FAULT_OUTPUT2 dredPageFaultOutput;
+		LOG_INFO("DRED: ID3D12DeviceRemovedExtendedData2 is not available on this device");
+		return;
+	}
 
-		D3D12_DRED_DEVICE_STATE deviceState = pDred->GetDeviceState();
-		(void)deviceState;
+	const D3D12_DRED_DEVICE_STATE deviceState = pDred->GetDeviceState();
+	LOG_INFO("DRED: Device state = {} ({})", DredDeviceStateToString(deviceState), static_cast<UINT>(deviceState));
 
-		if (SUCCEEDED(pDred->GetAutoBreadcrumbsOutput1(&dredAutoBreadcrumbsOutput)))
+	// Linked list of command lists that executed breadcrumb-tracked commands.
+	// The head is the most recently submitted list; for each node, pLastBreadcrumbValue
+	// holds the index of the last completed op (0 = none, 0xFFFFFFFF = unavailable).
+	// The op at that index is the one in flight when the device was removed.
+	D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 breadcrumbsOutput = {};
+	if (SUCCEEDED(pDred->GetAutoBreadcrumbsOutput1(&breadcrumbsOutput)) && breadcrumbsOutput.pHeadAutoBreadcrumbNode)
+	{
+		constexpr UINT c_MaxNodesToLog = 32;
+		UINT nodeIndex = 0;
+
+		for (const D3D12_AUTO_BREADCRUMB_NODE1* node = breadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			node != nullptr && nodeIndex < c_MaxNodesToLog;
+			node = node->pNext, ++nodeIndex)
 		{
-			(void)dredAutoBreadcrumbsOutput;
-			// Each 'Nodes' is a command queue.
-			// 'pLastCompletedOp' is the last complemente command
-		}
+			const char* commandListName = node->pCommandListDebugNameA ? node->pCommandListDebugNameA : "<unnamed>";
+			const UINT lastCompleted = node->pLastBreadcrumbValue ? *node->pLastBreadcrumbValue : 0;
 
-		if (SUCCEEDED(pDred->GetPageFaultAllocationOutput2(&dredPageFaultOutput)))
-		{
-			(void)dredAutoBreadcrumbsOutput;
+			if (lastCompleted == 0xFFFFFFFFu)
+			{
+				LOG_INFO("DRED: breadcrumb #{}: CommandList '{}' | {} breadcrumbs | progress unavailable",
+					nodeIndex, commandListName, node->BreadcrumbCount);
+				continue;
+			}
+
+			const char* inFlightOp = "<out of range>";
+			if (lastCompleted < node->BreadcrumbCount && node->pCommandHistory)
+				inFlightOp = BreadcrumbOpToString(node->pCommandHistory[lastCompleted]);
+
+			LOG_INFO("DRED: breadcrumb #{}: CommandList '{}' | {} breadcrumbs | last completed: {} | op in flight: {}",
+				nodeIndex, commandListName, node->BreadcrumbCount, lastCompleted, inFlightOp);
+
+			// Breadcrumb contexts: app marker strings associated to op indices (populated
+			// when DRED context enablement is on). Print those nearest to the op in
+			// flight to identify the stage/marker that was executing.
+			if (lastCompleted > 0 && lastCompleted < node->BreadcrumbCount &&
+				node->pBreadcrumbContexts != nullptr && node->BreadcrumbContextsCount > 0)
+			{
+				constexpr UINT c_MaxContextsToLog = 8;
+				const UINT inFlightIndex = lastCompleted;
+				UINT printed = 0;
+				for (UINT ci = 0; ci < node->BreadcrumbContextsCount && printed < c_MaxContextsToLog; ++ci)
+				{
+					const D3D12_DRED_BREADCRUMB_CONTEXT& context = node->pBreadcrumbContexts[ci];
+					const bool belowWindow = context.BreadcrumbIndex + 32 < inFlightIndex;
+					const bool aboveWindow = context.BreadcrumbIndex > inFlightIndex + 24;
+					if (belowWindow || aboveWindow)
+						continue;
+
+					LOG_INFO("DRED:   context @{}: '{}'", context.BreadcrumbIndex, alm::ToUtf8(context.pContextString));
+					++printed;
+				}
+			}
 		}
+	}
+	else
+	{
+		LOG_INFO("DRED: no auto breadcrumbs available");
+	}
+
+	// On a page fault: faulting virtual address + the allocations (by debug name) whose
+	// memory range contains it, both for live and recently freed objects.
+	D3D12_DRED_PAGE_FAULT_OUTPUT2 pageFaultOutput = {};
+	if (SUCCEEDED(pDred->GetPageFaultAllocationOutput2(&pageFaultOutput)) && pageFaultOutput.PageFaultVA != 0)
+	{
+		LOG_INFO("DRED: Page fault at VA = {:#x}", static_cast<UINT64>(pageFaultOutput.PageFaultVA));
+
+		auto logAllocations = [&](const char* label, const D3D12_DRED_ALLOCATION_NODE1* node)
+		{
+			constexpr UINT c_MaxAllocationsToLog = 16;
+			for (UINT i = 0; node != nullptr && i < c_MaxAllocationsToLog; node = node->pNext, ++i)
+			{
+				LOG_INFO("DRED: page fault {} allocation #{}: '{}' (allocation type {})",
+					label, i, node->ObjectNameA ? node->ObjectNameA : "<unnamed>", static_cast<UINT>(node->AllocationType));
+			}
+		};
+
+		logAllocations("existing", pageFaultOutput.pHeadExistingAllocationNode);
+		logAllocations("recently freed", pageFaultOutput.pHeadRecentFreedAllocationNode);
+	}
+
+	pDred->Release();
+}
+
+void alm::rhi::dx12::CheckDeviceRemoved(ID3D12Device* device, HRESULT hr)
+{
+	if (device != nullptr &&
+		(hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_HUNG || hr == DXGI_ERROR_DEVICE_RESET))
+	{
+		CheckDRED(device);
+		const HRESULT removalReason = device->GetDeviceRemovedReason();
+		LOG_ERROR("=== DRED: device removed. Reason = {:#x} ({}) ===",
+			static_cast<UINT>(removalReason), DeviceRemovedReasonToString(removalReason));
 	}
 }
 

@@ -25,5 +25,6 @@ namespace alm::rhi::dx12
 
     std::unique_ptr<alm::rhi::Device> CreateDevice(const DeviceDesc& desc);
     void CheckDRED(ID3D12Device* pDevice);
+    void CheckDeviceRemoved(ID3D12Device* pDevice, HRESULT hr);
 
 } // namespace st::rhi::dx12

@@ -20,8 +20,6 @@ void OutdoorsUI::Init(SDL_Window* window, alm::weak<alm::gfx::Scene> scene, alm:
 	FrameworkUI::Init(window, scene, renderView, cameraController);
 	
 	RegisterMainMenuItem("Heightmap", [this]() { BuildHeightmapMenuItem(); });
-
-	m_ShowSettings = true;
 }
 
 void OutdoorsUI::BuildUI()
@@ -33,6 +31,13 @@ void OutdoorsUI::BuildUI()
 		ImGui::SetNextWindowSize(ImVec2(500, 900), ImGuiCond_FirstUseEver);
 		if (!ImGui::Begin("Heightmap Settings", &m_ShowHeightmapSettings, ImGuiWindowFlags_None))
 		{
+			ImGui::End();
+			return;
+		}
+
+		if (!m_SceneHeightmap)
+		{
+			m_ShowHeightmapSettings = false;
 			ImGui::End();
 			return;
 		}

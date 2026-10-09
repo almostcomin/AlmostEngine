@@ -69,6 +69,7 @@ public:
         bool DebugRuntime = false;
         bool GPUValidation = false;
         bool WarningsAsErrors = false;
+        bool EnableDRED = false;
 
         bool VSyncEnabled = false;
         int FPSCap = 0;
