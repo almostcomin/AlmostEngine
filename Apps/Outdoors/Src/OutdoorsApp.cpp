@@ -235,7 +235,7 @@ public:
 		// Init Atmos params
 		{
 			alm::gfx::AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
-			//atmos->InitCloudsSubsystem();
+			atmos->InitCloudsSubsystem();
 			atmos->SetEarthCenter(float3{ 0.f, -kEarthRadius, 0.f });
 			atmos->SetEarthRadius(kEarthRadius, true);
 		}
