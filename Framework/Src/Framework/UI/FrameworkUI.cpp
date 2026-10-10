@@ -909,6 +909,12 @@ void alm::fw::FrameworkUI::BuildMainMenu()
                 SwitchWireframeRender();
             }
 
+            bool freezeCulling = m_RenderViewUI->GetFreezeCulling();
+            if (ImGui::MenuItem("Freeze Culling", nullptr, freezeCulling))
+            {
+                m_RenderViewUI->SetFreezeCulling(!freezeCulling);
+            }
+
             ImGui::EndMenu();
         }
 

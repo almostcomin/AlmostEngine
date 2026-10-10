@@ -120,13 +120,14 @@ alm::gfx::HeightmapInstance::HeightmapInstance(const SceneHeightmap* sceneHeight
 alm::gfx::HeightmapInstance::~HeightmapInstance()
 {}
 
-void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSize, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle)
+void alm::gfx::HeightmapInstance::Update(const Camera* camera, const uint2& fbSize, GpuSceneBuffers* gpuSceneBuffers,
+	GpuSceneBuffersHandle gpuBuffersHandle, bool freezeTesselation)
 {
 	ZoneScoped
 
 	const Heightmap* heightmap = m_SceneHeightmap->GetHeightmap().get();
 
-	if (m_Frozen)
+	if (m_Frozen || freezeTesselation)
 	{
 		FillGpuBuffers(gpuSceneBuffers, gpuBuffersHandle);
 		return;

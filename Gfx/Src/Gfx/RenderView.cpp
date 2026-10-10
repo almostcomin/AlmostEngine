@@ -71,6 +71,7 @@ alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* 
 	m_ViewportSwapChainId{ viewportId },
 	m_ShadowmapValid{ false },
 	m_CloudsShadowmapValid{ false },
+	m_FreezeCulling{ false },
 	m_TimeSec{ 0.0 },
 	m_TimeDeltaSec{ 0.f },
 	m_DebugName{ debugName },
@@ -248,6 +249,12 @@ void alm::gfx::RenderView::Render(double timeSec, float timeDeltaSec, const Mous
 	}
 	alm::gfx::GpuSceneBuffers* gpuSceneBuffers = m_DeviceManager->GetGpuSceneBuffers();
 
+	// Update frustum
+	if (m_Camera && !m_FreezeCulling)
+	{
+		m_CameraFrustum = m_Camera->GetFrustum();
+	}
+
 	rhi::ICommandList* beginCommandList = m_BeginCommandLists[m_DeviceManager->GetFrameModuleIndex()].get();
 	beginCommandList->Open();
 	beginCommandList->BeginMarker(m_DebugName.c_str());
@@ -378,7 +385,7 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		sceneShaderConstant->camProjMatrix = m_Camera->GetProjectionMatrix();
 		sceneShaderConstant->camWorldPos = m_Camera->GetPosition();
 		sceneShaderConstant->camZNear = m_Camera->GetZNear();
-		const math::frustum3f& frustumPlanes = m_Camera->GetFrustum();
+		const math::frustum3f& frustumPlanes = m_CameraFrustum;
 		for (int i = 0; i < 6; ++i)
 		{
 			sceneShaderConstant->frustumPlanes[i] = float4{ frustumPlanes[i] };
@@ -467,7 +474,6 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 
 	m_CameraVisibleSet.Elements.clear();
 	m_CameraVisibleBounds.reset();
-	m_ShadowCastersCameraVisibleBounds.reset();
 	if (!m_Camera || !m_Scene || !m_Scene->GetSceneGraph())
 	{
 		return;
@@ -477,10 +483,17 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 		.HeightmapInstances = &m_HeightmapInstances,
 		.View = this };
 
-	GetVisibleSet(context, m_Camera->GetFrustum().get_planes(), SceneContentType::Meshes, m_CameraVisibleSet, &m_CameraVisibleBounds, 
-		SceneContentType::ShadowCasters, &m_ShadowCastersCameraVisibleBounds);
+	GetVisibleSet(
+		context,
+		m_CameraFrustum.get_planes(),
+		SceneContentType::Meshes,
+		m_DeviceManager->GPUDrivenEnabled() ? nullptr : &m_CameraVisibleSet,
+		&m_CameraVisibleBounds);
 
-	UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList, "Camera Visible Buffer");
+	if (!m_DeviceManager->GPUDrivenEnabled())
+	{
+		UpdateVisibilityShaderBuffer(m_CameraVisibleSet, m_CameraVisibleBuffer, commandList, "Camera Visible Buffer");
+	}
 }
 
 bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
@@ -538,7 +551,14 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 		.HeightmapInstances = &m_HeightmapInstances,
 		.View = this };
 	aabox3f casterBoundsForShadowMapF;
-	GetVisibleSet(context, searchPlanes, SceneContentType::ShadowCasters, m_ShadowMapVisibleSet, &casterBoundsForShadowMapF);
+
+	GetVisibleSet(
+		context,
+		searchPlanes,
+		SceneContentType::ShadowCasters,
+		m_DeviceManager->GPUDrivenEnabled() ? nullptr : &m_ShadowMapVisibleSet,
+		&casterBoundsForShadowMapF);
+
 	if (!casterBoundsForShadowMapF.valid())
 		return false;  // no casters cast shadow on visible receivers
 	// So casterBoundsForShadowMapF is the bbox of all the casters that cast shadow to something visible
@@ -553,7 +573,10 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 	// --- 5. Update visible set for shadowmap
 
-	UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList, "Shadowmap Visible Buffer");
+	if (!m_DeviceManager->GPUDrivenEnabled())
+	{
+		UpdateVisibilityShaderBuffer(m_ShadowMapVisibleSet, m_ShadowMapVisibleBuffer, commandList, "Shadowmap Visible Buffer");
+	}
 
 	return true;
 }
@@ -640,7 +663,7 @@ void alm::gfx::RenderView::UpdatePointLightsVisibleBuffer(rhi::ICommandList* com
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
 
-	const auto& frustum = m_Camera->GetFrustum();
+	const auto& frustum = m_CameraFrustum;
 	auto testFrustum = [&frustum](const float3 & pos, float radius) -> bool
 	{
 		for (const auto& plane : frustum.get_planes())
@@ -722,7 +745,7 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
 
-	const auto& frustum = m_Camera->GetFrustum();
+	const auto& frustum = m_CameraFrustum;
 	auto testFrustum = [&frustum](const float3& pos, float radius) -> bool
 		{
 			for (const auto& plane : frustum.get_planes())
@@ -808,67 +831,61 @@ void alm::gfx::RenderView::UpdateHeightmaps(const uint2& backbufferSize, rhi::IC
 	{
 		for (auto& [_, instance] : m_HeightmapInstances)
 		{
-			instance->Update(m_Camera.get(), backbufferSize, m_DeviceManager->GetGpuSceneBuffers(), m_Scene->GetGpuSceneBuffersHandle());
+			instance->Update(m_Camera.get(), backbufferSize, m_DeviceManager->GetGpuSceneBuffers(), m_Scene->GetGpuSceneBuffersHandle(),
+				m_FreezeCulling);
 		}
 	}
 
 	commandList->EndMarker();
 }
 
-void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType primaryType,
-	RenderSet& out_renderSet, aabox3f* opt_outPrimaryBounds,  SceneContentType secondaryType, aabox3f* opt_outSecondaryBounds) const
+void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType type,
+	RenderSet* opt_outRenderSet, aabox3f* opt_outBounds) const
 {
 	ZoneScoped;
 
-	assert(HasRenderableCategory(primaryType));
+	assert(HasRenderableCategory(type));
 	const auto* gpuSceneBuffers = m_DeviceManager->GetGpuSceneBuffers();
 
-	out_renderSet.Elements.clear();
+	if(opt_outRenderSet)
+		opt_outRenderSet->Elements.clear();
 
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
 	
 	std::vector<RenderableDrawInfo> drawInfos[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
 
-	if (opt_outPrimaryBounds)
-		opt_outPrimaryBounds->reset();
-	if (opt_outSecondaryBounds)
-		opt_outSecondaryBounds->reset();
+	if (opt_outBounds)
+		opt_outBounds->reset();
 
 	alm::gfx::SceneGraph::Walker walker{ *m_Scene->GetSceneGraph() };
 	while (walker)
 	{
 		auto node = *walker;
-		if (has_any_flag(node->GetContentFlags(), ToFlag(primaryType)) && node->Test(primaryType, planes))
+		if (has_any_flag(node->GetContentFlags(), ToFlag(type)) && node->Test(type, planes))
 		{
 			alm::weak<SceneGraphLeaf> leaf = node->GetLeaf();
 			if (leaf && has_any_flag(leaf->GetRenderFlags(), SceneRenderFlags::Visible))
 			{
-				if (has_any_flag(leaf->GetContentFlags(), ToFlag(primaryType)))
+				if (has_any_flag(leaf->GetContentFlags(), ToFlag(type)))
 				{
 					const auto* renderable = leaf->AsRenderable();
 					if(renderable)
 					{
-						std::vector<RenderableDrawInfo> renderableDrawInfos;
-						renderable->CollectDrawInfos(context, gpuSceneBuffers, renderableDrawInfos);
-						if (!renderableDrawInfos.empty())
+						if (opt_outRenderSet)
 						{
+							std::vector<RenderableDrawInfo> renderableDrawInfos;
+							renderable->CollectDrawInfos(context, gpuSceneBuffers, renderableDrawInfos);
 							for (const RenderableDrawInfo& drawInfo : renderableDrawInfos)
 							{
 								drawInfos[(int)drawInfo.MaterialDomain][(int)drawInfo.CullMode].push_back(drawInfo);
 							}
+						}
 
-							if (opt_outPrimaryBounds)
-							{
-								auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
-								opt_outPrimaryBounds->merge(leafWorldBounds);
-							}
-
-							if (opt_outSecondaryBounds && secondaryType != SceneContentType::_Size && has_any_flag(leaf->GetContentFlags(), ToFlag(secondaryType)))
-							{
-								auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
-								opt_outSecondaryBounds->merge(leafWorldBounds);
-							}
+						if (opt_outBounds)
+						{
+							auto leafWorldBounds = leaf->GetBounds().transform(node->GetWorldTransform());
+							opt_outBounds->merge(leafWorldBounds);
 						}
 					}
 				}
@@ -880,6 +897,10 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 			walker.NextSibling();
 		}
 	}
+
+	// If no render set requested, we have finished
+	if (!opt_outRenderSet)
+		return;
 
 	// Sort by mesh to be friendly with DrawIndirect
 	for(int domain = 0; domain < (int)MaterialDomain::_Size; ++domain)
@@ -917,7 +938,7 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 		}
 		if (!domainSet.second.empty())
 		{
-			out_renderSet.Elements.emplace_back(std::move(domainSet));
+			opt_outRenderSet->Elements.emplace_back(std::move(domainSet));
 		}
 	}
 }

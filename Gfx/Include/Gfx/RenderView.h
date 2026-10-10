@@ -98,6 +98,9 @@ public:
 
 	HeightmapInstance* GetHeightmapInstance(const SceneHeightmap* sceneHeightmap) const;
 
+	bool GetFreezeCulling() const { return m_FreezeCulling; }
+	void SetFreezeCulling(bool b) { m_FreezeCulling = b; }
+
 	float GetGpuFrameTime() const;
 
 	std::string GetName() const { return m_DebugName; }
@@ -117,8 +120,8 @@ private:
 
 	void UpdateHeightmaps(const uint2& backbufferSize, rhi::ICommandList* commandList);
 
-	void GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType primaryType, RenderSet& out_renderSet,
-		aabox3f* opt_outPrimaryBounds = nullptr, SceneContentType secondaryType = SceneContentType::_Size, aabox3f* opt_outSecondaryBounds = nullptr) const;
+	void GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType type,
+		RenderSet* opt_outRenderSet, aabox3f* opt_outBounds = nullptr) const;
 	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer, rhi::ICommandList* commandList, const char* marker);
 
 	aabox3d BuildCloudsShadowVolume() const;
@@ -149,7 +152,6 @@ private:
 
 	// Bounds of the visible scene
 	aabox3f m_CameraVisibleBounds;
-	aabox3f m_ShadowCastersCameraVisibleBounds;
 
 	// Visible set for the current camera
 	gfx::MultiBuffer m_CameraVisibleBuffer;
@@ -195,6 +197,9 @@ private:
 	bool m_CloudsShadowmapValid;
 
 	rhi::TextureHandle m_PrevExposure;
+
+	bool m_FreezeCulling;
+	alm::math::frustum3f m_CameraFrustum;
 
 	double m_TimeSec;
 	float m_TimeDeltaSec;

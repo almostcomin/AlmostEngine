@@ -71,7 +71,8 @@ public:
 	HeightmapInstance(const SceneHeightmap* sceneHeightmap);
 	~HeightmapInstance();
 
-	void Update(const Camera* camera, const uint2& fbSize, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle);
+	void Update(const Camera* camera, const uint2& fbSize, GpuSceneBuffers* gpuSceneBuffers, GpuSceneBuffersHandle gpuBuffersHandle,
+		bool freezeTesselation);
 
 	void CollectDrawInfos(const GpuSceneBuffers* gpuSceneBuffers, std::vector<RenderableDrawInfo>& out) const;
 
