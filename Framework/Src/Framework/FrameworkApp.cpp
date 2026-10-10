@@ -434,6 +434,15 @@ bool alm::fw::FrameworkApp::InitInternal()
 			.ForceSDR = false
 		};
 		alm::gfx::DeviceManager::InitResult result = m_DeviceManager->Init(initParams);
+
+		// GPU-driven requires SM 6.8 + ExtendedCommandInfo; degrade to CPU culling once
+		if (result == alm::gfx::DeviceManager::InitResult::GPUDrivenNotSupported)
+		{
+			LOG_WARNING("GPU Driven not supported on this hardware. Falling back to CPU culling.");
+			initParams.GPUDriven = false;
+			result = m_DeviceManager->Init(initParams);
+		}
+
 		if (result != alm::gfx::DeviceManager::InitResult::Succeeded)
 		{
 			const char* reason = nullptr;
