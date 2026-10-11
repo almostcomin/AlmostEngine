@@ -292,6 +292,7 @@ namespace interop
         uint ExtraDataBaseIdx;
         uint PayloadRegionOffset;
         uint IndexCount;
+        uint BucketFirstBatchIndex;
     };
 
     struct IndirectDrawCommand
@@ -312,16 +313,20 @@ namespace interop
 
     struct CullingConstants
     {
-        BufferUniformIndex SceneDI;             // SceneConstants
-        BufferReadWriteIndex CameraArgsDI;      // IndirectDrawCommand
-        BufferReadWriteIndex CameraPayloadDI;   // VisibleInstancePayload
-        BufferReadWriteIndex ShadowArgsDI;      // IndirectDrawCommand
-        BufferReadWriteIndex ShadowPayloadDI;   // VisibleInstancePayload
+        BufferUniformIndex SceneDI;                 // SceneConstants
+        BufferReadWriteIndex SparseCameraArgsDI;    // IndirectDrawCommand
+        BufferReadWriteIndex CompactedCameraArgsDI; // IndirectDrawCommand
+        BufferReadWriteIndex CameraCountsDI;        // uint32
+        BufferReadWriteIndex CameraPayloadDI;       // VisibleInstancePayload
+        BufferReadWriteIndex SparseShadowArgsDI;    // IndirectDrawCommand
+        BufferReadWriteIndex CompactedShadowArgsDI; // IndirectDrawCommand
+        BufferReadWriteIndex ShadowCountsDI;        // uint32
+        BufferReadWriteIndex ShadowPayloadDI;       // VisibleInstancePayload
         BufferReadOnlyIndex  BatchTableDI;
-        BufferReadOnlyIndex  CullDataDI;        // InstanceCullData
-        uint BatchCount;                        // BatchTable.size()
+        BufferReadOnlyIndex  CullDataDI;            // InstanceCullData
+        uint BatchCount;                            // BatchTable.size()
         uint StaticInstanceCount;
-        uint TotalInstanceCount;                // Static + transient
+        uint TotalInstanceCount;                    // Static + transient
         uint StaticInstanceCapacity;
         uint ShadowEnabled;
     };

@@ -1052,8 +1052,7 @@ void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
 		return a.BatchKey < b.BatchKey;
 	});
 
-	// 3. Runs = Fill BatchTable + BatchsIds + Buckets
-	// BatchTable: 
+	// 3. Runs = Buckets + BatchTable + BatchsIds
 	uint32_t regionOffset = 0, batchIndex = 0, runStart = 0;
 	for (size_t i = 0; i <= rows.size(); ++i)
 	{
@@ -1067,17 +1066,18 @@ void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
 		const auto& first = rows[runStart];
 		const uint32_t count = uint32_t(i - runStart);
 
-		ss.BatchTable.push_back(interop::BatchTableEntry{
-			first.MeshIndex,
-			first.MaterialIndex,
-			first.TransientBaseIndex,
-			regionOffset,
-			(uint32_t)first.IndexCount });
-
 		auto& bucket = ss.Buckets[(int)first.MaterialDomain][(int)first.CullMode];
 		if (bucket.BatchCount == 0)
-			bucket.FirstBatchIndex = batchIndex;   // first bucket batch
+			bucket.FirstBatchIndex = batchIndex;   // first batch in bucket
 		++bucket.BatchCount;
+
+		ss.BatchTable.push_back(interop::BatchTableEntry{
+			.MeshIndex = first.MeshIndex,
+			.MaterialIndex = first.MaterialIndex,
+			.ExtraDataBaseIdx = first.TransientBaseIndex,
+			.PayloadRegionOffset = regionOffset,
+			.IndexCount = (uint32_t)first.IndexCount,
+			.BucketFirstBatchIndex = bucket.FirstBatchIndex });
 
 		for (uint32_t r = runStart; r < i; ++r)
 		{

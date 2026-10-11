@@ -25,8 +25,10 @@ void main(uint DTid : SV_DispatchThreadID)
         return;
     
     StructuredBuffer<interop::BatchTableEntry> batchTable = ResourceDescriptorHeap[StageConstants.BatchTableDI];
-    RWStructuredBuffer<interop::IndirectDrawCommand> cameraArgs = ResourceDescriptorHeap[StageConstants.CameraArgsDI];
-    RWStructuredBuffer<interop::IndirectDrawCommand> shadowArgs = ResourceDescriptorHeap[StageConstants.ShadowArgsDI];
+    RWStructuredBuffer<interop::IndirectDrawCommand> cameraArgs = ResourceDescriptorHeap[StageConstants.SparseCameraArgsDI];
+    RWStructuredBuffer<interop::IndirectDrawCommand> shadowArgs = ResourceDescriptorHeap[StageConstants.SparseShadowArgsDI];
+    RWStructuredBuffer<uint> cameraCounts = ResourceDescriptorHeap[StageConstants.CameraCountsDI];
+    RWStructuredBuffer<uint> shadowCounts = ResourceDescriptorHeap[StageConstants.ShadowCountsDI];
     
     const interop::BatchTableEntry bte = batchTable[DTid];
     
@@ -38,4 +40,6 @@ void main(uint DTid : SV_DispatchThreadID)
     
     cameraArgs[DTid] = cmd;
     shadowArgs[DTid] = cmd;
+    cameraCounts[DTid] = 0;
+    shadowCounts[DTid] = 0;
 }

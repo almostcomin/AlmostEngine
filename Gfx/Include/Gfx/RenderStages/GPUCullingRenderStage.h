@@ -20,17 +20,23 @@ private:
 
 private:
 
-	RGBufferHandle m_IndirectArgsBuffer;
+	RGBufferHandle m_IndirectDrawArgsBuffer;
+	RGBufferHandle m_SparseArgsBuffer;
+	RGBufferHandle m_CountsBuffer;
 	RGBufferHandle m_PayloadBuffer;
 
-	RGBufferHandle m_ShadowIndirectArgsBuffer;
+	RGBufferHandle m_ShadowIndirectDrawArgsBuffer;
+	RGBufferHandle m_SparseShadowArgsBuffer;
+	RGBufferHandle m_ShadowCountsBuffer;
 	RGBufferHandle m_ShadowPayloadBuffer;
 
 	alm::rhi::ShaderOwner m_PrepareCS;
 	alm::rhi::ShaderOwner m_CullingCS;
+	alm::rhi::ShaderOwner m_CompactCS;
 
 	alm::rhi::ComputePipelineStateOwner m_PreparePSO;
 	alm::rhi::ComputePipelineStateOwner m_CullingPSO;
+	alm::rhi::ComputePipelineStateOwner m_CompactPSO;
 };
 
 } // namespace alm::gfx

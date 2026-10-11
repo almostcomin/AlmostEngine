@@ -38,7 +38,8 @@ void alm::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 		m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 
 		m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
-		m_IndirectArgsBuffer = builder.GetBufferHandle("IndirectArgsBuffer");
+		m_IndirectDrawArgsBuffer = builder.GetBufferHandle("IndirectDrawArgsBuffer");
+		m_IndirectDrawCountsBuffer = builder.GetBufferHandle("IndirectDrawCountsBuffer");
 	}
 
 	// Request RT access
@@ -50,7 +51,9 @@ void alm::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 
 	builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	builder.AddBufferDependency(m_IndirectArgsBuffer, RenderGraph::AccessMode::Read,
+	builder.AddBufferDependency(m_IndirectDrawArgsBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
+	builder.AddBufferDependency(m_IndirectDrawCountsBuffer, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
 }
 
@@ -86,7 +89,8 @@ void alm::gfx::GBuffersRenderStage::Render(alm::rhi::CommandListHandle commandLi
 	if (deviceManager->GPUDrivenEnabled())
 	{
 		MaterialPassRenderer::IndirectDrawParams params{
-			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectArgsBuffer).get(),
+			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawArgsBuffer).get(),
+			.CountsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawCountsBuffer).get(),
 			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
 			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
 

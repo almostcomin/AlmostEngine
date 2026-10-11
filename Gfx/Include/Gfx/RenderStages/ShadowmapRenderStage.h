@@ -46,7 +46,8 @@ private:
 
 	RGTextureHandle m_ShadowMapTexture;
 	RGBufferHandle m_ShadowPayloadBuffer;
-	RGBufferHandle m_ShadowIndirectArgsBuffer;
+	RGBufferHandle m_ShadowIndirectDrawArgsBuffer;
+	RGBufferHandle m_ShadowIndirectDrawCountsBuffer;
 
 	size_t m_TextureWidth;
 	size_t m_TextureHeight;

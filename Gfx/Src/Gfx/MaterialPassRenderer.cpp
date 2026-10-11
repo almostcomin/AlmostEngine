@@ -217,8 +217,13 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 			commandList->BeginMarker(std::format("{}:Static - {}:{}", m_BaseDebugName,
 				GetMaterialDomainString(domain), rhi::GetCullModeString(cull)).c_str());
 
-			commandList->ExecuteIndirect(m_CommandSignature.get(), params.ArgsBuffer,
-				bucket.FirstBatchIndex * sizeof(interop::IndirectDrawCommand), nullptr, 0, bucket.BatchCount);
+			commandList->ExecuteIndirect(
+				m_CommandSignature.get(),
+				params.ArgsBuffer,
+				bucket.FirstBatchIndex * sizeof(interop::IndirectDrawCommand),
+				params.CountsBuffer,
+				bucket.FirstBatchIndex * sizeof(uint32_t),
+				bucket.BatchCount);
 
 			commandList->EndMarker();
 		}
@@ -242,8 +247,13 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 		commandList->BeginMarker(std::format("{}:{} - {}:{}", m_BaseDebugName, t.DebugName.empty() ? "Transient" : t.DebugName,
 			GetMaterialDomainString(t.Domain), rhi::GetCullModeString(t.Cull)).c_str());
 		
-		commandList->ExecuteIndirect(m_CommandSignature.get(), params.ArgsBuffer,
-			t.FirstBatchIndex * sizeof(interop::IndirectDrawCommand), nullptr, 0, t.BatchCount);
+		commandList->ExecuteIndirect(
+			m_CommandSignature.get(),
+			params.ArgsBuffer,
+			t.FirstBatchIndex * sizeof(interop::IndirectDrawCommand),
+			params.CountsBuffer,
+			t.FirstBatchIndex * sizeof(uint32_t),
+			t.BatchCount);
 
 		commandList->EndMarker();
 	}

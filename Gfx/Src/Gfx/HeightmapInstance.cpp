@@ -630,6 +630,7 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 		alloc.BatchTableEntriesPtr[i].ExtraDataBaseIdx = alloc.PatchesBaseIndex + i; // Per patch
 		alloc.BatchTableEntriesPtr[i].PayloadRegionOffset = alloc.FirstPayloadRegion + i;
 		alloc.BatchTableEntriesPtr[i].IndexCount = m_SceneHeightmap->GetHeightmap()->GetPatchIndicesCount(meshVariantIndex);
+		alloc.BatchTableEntriesPtr[i].BucketFirstBatchIndex = alloc.FirstBatchIndex;
 		// Heightmap patch
 		alloc.HeightmapPatchesPtr[i].MinUV = minUV;
 		alloc.HeightmapPatchesPtr[i].UVScale = uvScale;

@@ -147,13 +147,16 @@ void alm::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_ShadowMapTexture = builder.CreateDepthTarget("Shadowmap", m_TextureWidth, m_TextureHeight, 1/*m_NumCascades*/, m_PixelFormat);
 	m_ShadowPayloadBuffer = builder.GetBufferHandle("ShadowPayloadBuffer");
-	m_ShadowIndirectArgsBuffer = builder.GetBufferHandle("ShadowIndirectArgsBuffer");
+	m_ShadowIndirectDrawArgsBuffer = builder.GetBufferHandle("ShadowIndirectDrawArgsBuffer");
+	m_ShadowIndirectDrawCountsBuffer = builder.GetBufferHandle("ShadowIndirectDrawCountsBuffer");
 
 	builder.AddTextureDependency(m_ShadowMapTexture, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 	builder.AddBufferDependency(m_ShadowPayloadBuffer, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	builder.AddBufferDependency(m_ShadowIndirectArgsBuffer, RenderGraph::AccessMode::Read,
+	builder.AddBufferDependency(m_ShadowIndirectDrawArgsBuffer, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
+	builder.AddBufferDependency(m_ShadowIndirectDrawCountsBuffer, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
 }
 
@@ -183,7 +186,8 @@ void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandL
 	if (deviceManager->GPUDrivenEnabled())
 	{
 		MaterialPassRenderer::IndirectDrawParams params{
-			.ArgsBuffer = m_RenderGraph->GetBuffer(m_ShadowIndirectArgsBuffer).get(),
+			.ArgsBuffer = m_RenderGraph->GetBuffer(m_ShadowIndirectDrawArgsBuffer).get(),
+			.CountsBuffer = m_RenderGraph->GetBuffer(m_ShadowIndirectDrawCountsBuffer).get(),
 			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
 			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
 
