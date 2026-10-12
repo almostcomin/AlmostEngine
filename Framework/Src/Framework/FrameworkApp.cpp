@@ -1,6 +1,7 @@
 #include "Framework/FrameworkPCH.h"
 #include "Framework/FrameworkApp.h"
 #include "Framework/UI/FrameworkUI.h"
+#include "Framework/UI/ImPlot/implot.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/Scene.h"
 #include "Gfx/Camera.h"
@@ -483,6 +484,8 @@ bool alm::fw::FrameworkApp::InitInternal()
 	// Init ImGui
 	{
 		ImGui::CreateContext();
+		ImPlot::CreateContext();
+
 		ImGuiIO& io = ImGui::GetIO();
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
@@ -546,6 +549,8 @@ void alm::fw::FrameworkApp::ShutdownInternal()
 	ImGui::DestroyPlatformWindows();
 	alm::gfx::ReleaseImGuiViewportsRenderer();
 	ImGui_ImplSDL3_Shutdown();
+
+	ImPlot::DestroyContext();
 	ImGui::DestroyContext();
 
 	m_DeviceManager->Shutdown();
