@@ -22,7 +22,7 @@ void main(uint DTid : SV_DispatchThreadID)
     RWStructuredBuffer<uint> cameraCounts = ResourceDescriptorHeap[StageConstants.CameraCountsDI];
     RWStructuredBuffer<interop::IndirectDrawCommand> sparseShadowArgs = ResourceDescriptorHeap[StageConstants.SparseShadowArgsDI];
     RWStructuredBuffer<interop::IndirectDrawCommand> compactedShadowArgs = ResourceDescriptorHeap[StageConstants.CompactedShadowArgsDI];    
-    RWStructuredBuffer<uint> shadowCounts = ResourceDescriptorHeap[StageConstants.ShadowCountsDI];    
+    RWStructuredBuffer<uint> shadowCounts = ResourceDescriptorHeap[StageConstants.ShadowCountsDI];
 
     const interop::BatchTableEntry bte = batchTable[DTid];
     const uint bucketBase = bte.BucketFirstBatchIndex;

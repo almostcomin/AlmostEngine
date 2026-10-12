@@ -16,6 +16,7 @@
 #include "Gfx/Camera.h"
 #include "Gfx/TextureCache.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
+#include "Gfx/RenderStages/GPUCullingRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
 #include "Gfx/RenderStages/ToneMappingRenderStage.h"
 #include "Gfx/RenderStages/GridRenderStage.h"
@@ -491,6 +492,7 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildWorldOutliner();
     BuildRenderStagesWindow();
     BuildMaterialsWindow();
+    BuildStatsWindow();
 
     BuildViewportPicking();
 
@@ -881,10 +883,15 @@ void alm::fw::FrameworkUI::BuildMainMenu()
                     m_ShowWorldOutliner = false;
                 }
             }
+
             if (ImGui::MenuItem("Render Stages", "Ctrl+R", m_ShowRenderStages))
                 m_ShowRenderStages = !m_ShowRenderStages;
+
             if (ImGui::MenuItem("Material Panel", "Ctrl+M", m_ShowMaterials))
                 m_ShowMaterials = !m_ShowMaterials;
+
+            if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))
+                m_ShowStats = !m_ShowStats;
 
             if (ImGui::BeginMenu("Grid"))
             {
@@ -2138,6 +2145,74 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
             }
         }
         ImGui::EndChild();
+    }
+
+    ImGui::End();
+}
+
+void alm::fw::FrameworkUI::BuildStatsWindow()
+{
+    auto cullingRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GPUCullingRenderStage>();
+
+    // Culling stats lifecycle: request while the window is open, release on close
+    if (cullingRS)
+    {
+        if (m_ShowStats && !m_StatsRequestedByUI)
+        {
+            cullingRS->RequestStats();
+            m_StatsRequestedByUI = true;
+        }
+        else if (!m_ShowStats && m_StatsRequestedByUI)
+        {
+            cullingRS->UnrequestStats();
+            m_StatsRequestedByUI = false;
+        }
+    }
+
+    if (!m_ShowStats)
+        return;
+
+    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_Once);
+    if (!ImGui::Begin("Statistics", &m_ShowStats, ImGuiWindowFlags_None))
+    {
+        ImGui::End();
+        return;
+    }
+
+    // Culling stats
+    if (!cullingRS)
+    {
+        ImGui::TextDisabled("No culling stage in the render graph");
+    }
+    else if (!cullingRS->IsStatsRequested())
+    {
+        ImGui::TextDisabled("No culling stats requested");
+    }
+    else
+    {
+        const auto stats = cullingRS->GetStats();
+        auto culledPct = [](uint32_t total, uint32_t visible)
+        {
+            return total > 0 ? 100.f * float(total - visible) / float(total) : 0.f;
+        };
+
+        ImGui::Text("Camera frustum");
+        ImGui::Text("  Instances:  %u / %u  (%.1f%% culled)",
+            stats.CameraVisibleInstances, stats.CameraTotalInstances,
+            culledPct(stats.CameraTotalInstances, stats.CameraVisibleInstances));
+        ImGui::Text("  Primitives: %u / %u  (%.1f%% culled)",
+            stats.CameraVisiblePrimitives, stats.CameraTotalPrimitives,
+            culledPct(stats.CameraTotalPrimitives, stats.CameraVisiblePrimitives));
+
+        ImGui::Spacing();
+
+        ImGui::Text("Shadow map");
+        ImGui::Text("  Instances:  %u / %u  (%.1f%% culled)",
+            stats.ShadowVisibleInstances, stats.ShadowTotalInstances,
+            culledPct(stats.ShadowTotalInstances, stats.ShadowVisibleInstances));
+        ImGui::Text("  Primitives: %u / %u  (%.1f%% culled)",
+            stats.ShadowVisiblePrimitives, stats.ShadowTotalPrimitives,
+            culledPct(stats.ShadowTotalPrimitives, stats.ShadowVisiblePrimitives));
     }
 
     ImGui::End();

@@ -329,6 +329,19 @@ namespace interop
         uint TotalInstanceCount;                    // Static + transient
         uint StaticInstanceCapacity;
         uint ShadowEnabled;
+        BufferReadWriteIndex StatsBufferDI;         // CullingStats
+    };
+
+    struct CullingStats
+    {
+        uint CameraTotalInstances;
+        uint CameraVisibleInstances;
+        uint CameraTotalPrimitives;
+        uint CameraVisiblePrimitives;
+        uint ShadowTotalInstances;
+        uint ShadowVisibleInstances;
+        uint ShadowTotalPrimitives;
+        uint ShadowVisiblePrimitives;
     };
 
     struct DeferredLightingConstants

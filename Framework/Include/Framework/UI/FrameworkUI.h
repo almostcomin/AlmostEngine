@@ -201,6 +201,7 @@ private:
 	void BuildWorldOutliner();
 	void BuildRenderStagesWindow();
 	void BuildMaterialsWindow();
+	void BuildStatsWindow();
 
 	void BuildViewportPicking();
 
@@ -243,7 +244,9 @@ protected:
 	bool m_ShowSettings = false;
 	bool m_ShowWorldOutliner = false;
 	bool m_ShowRenderStages = false;
-	bool m_ShowMaterials = false;
+    bool m_ShowMaterials = false;
+    bool m_ShowStats = false;
+    bool m_StatsRequestedByUI = false;  // Whether this UI holds a culling stats request (RequestStats/UnrequestStats)
 
 private:
 
