@@ -28,7 +28,7 @@ void alm::gfx::BloomRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_BloomResultTexture = builder.CreateColorTarget("BloomResult", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT);
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
-	m_FB = builder.RequestFramebuffer({ m_BloomResultTexture }, nullptr);
+	m_FB = builder.RequestFramebuffer({ m_BloomResultTexture }, nullptr, "BloomFB");
 
 	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);

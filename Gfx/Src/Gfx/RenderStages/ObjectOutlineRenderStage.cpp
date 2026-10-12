@@ -14,7 +14,7 @@ void alm::gfx::ObjectOutlineRenderStage::Setup(RenderGraphBuilder& builder)
 	m_ToneMappedTexture = builder.GetTextureHandle("ToneMapped");
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 
-	m_FB = builder.RequestFramebuffer({ m_ToneMappedTexture }, m_SceneDepthTexture);
+	m_FB = builder.RequestFramebuffer({ m_ToneMappedTexture }, m_SceneDepthTexture, "ObjectOutlineFB");
 
 	builder.AddTextureDependency(m_ToneMappedTexture, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);

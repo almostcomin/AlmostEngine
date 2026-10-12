@@ -33,10 +33,13 @@ namespace alm::gfx
 		RGTextureHandle GetTextureHandle(const std::string& id);
 		RGBufferHandle GetBufferHandle(const std::string& id);
 
-		RGFramebufferHandle RequestFramebuffer(const std::vector<RGTextureHandle>& colorTargets, RGTextureHandle depthTarget = {});
+		RGFramebufferHandle RequestFramebuffer(const std::vector<RGTextureHandle>& colorTargets, RGTextureHandle depthTarget,
+			const std::string& debugName);
 
-		void AddTextureDependency(RGTextureHandle textureHandle, RenderGraph::AccessMode accessMode, rhi::ResourceState inputState, rhi::ResourceState outputState);
-		void AddBufferDependency(RGBufferHandle bufferHandle, RenderGraph::AccessMode accessMode, rhi::ResourceState inputState, rhi::ResourceState outputState);
+		void AddTextureDependency(RGTextureHandle textureHandle, RenderGraph::AccessMode accessMode,
+			rhi::ResourceState inputState, rhi::ResourceState outputState);
+		void AddBufferDependency(RGBufferHandle bufferHandle, RenderGraph::AccessMode accessMode,
+			rhi::ResourceState inputState, rhi::ResourceState outputState);
 		void AddRenderTargetWriteDependency();
 
 		const std::vector<RenderGraph::TextureDependency>& GetTextureReadDependencies() const { return m_TextureReadDependencies; }

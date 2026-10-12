@@ -21,6 +21,13 @@ class RenderGraph : public alm::enable_weak_from_this<RenderGraph>, private alm:
 {
 public:
 
+	enum class State
+	{
+		Setup,      // Initial: Stages declaration, render modes & resources.
+		Ready,		// Active: Render & react to resizes
+		Paused      // Inactive (i.e. minimized): ignores render & resizes.
+	};
+
 	enum TextureResourceType
 	{
 		RenderTarget,
@@ -87,8 +94,11 @@ public:
 	void OnSceneChanged();
 	void OnRenderTargetSizeChanged(const int2& newSize, const int2& newViewportSize);
 
-	RGTextureHandle CreateTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type, int width, int height, SizeSpace sizeSpace,
+	void ResolvePendingResources();
+
+	RGTextureHandle RegisterTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type, int width, int height, SizeSpace sizeSpace,
 		int arraySize, rhi::Format format, bool needsUAV);
+
 	RGBufferHandle CreateBuffer(RenderStage* renderStage, const std::string& id, const rhi::BufferDesc& desc);
 
 	bool RecreateTexture(RGTextureHandle handle, int width, int height, int arraySize, rhi::Format format);
@@ -110,7 +120,7 @@ public:
 	const std::string& GetId(RGTextureHandle handle);
 	const std::string& GetId(RGBufferHandle handle);
 
-	RGFramebufferHandle RequestFramebuffer(const std::vector<RGTextureHandle>& colorTargets, RGTextureHandle depthTarget);
+	RGFramebufferHandle RegisterFramebuffer(const std::vector<RGTextureHandle>& colorTargets, RGTextureHandle depthTarget, const std::string& debugName);
 	rhi::FramebufferHandle GetFrameBuffer(RGFramebufferHandle handle);
 
 	rhi::TextureSampledView GetTextureSampledView(RGTextureHandle handle);
@@ -169,6 +179,7 @@ private:
 		bool needsUAV;
 		RenderStage* owner;
 		std::vector<RGFramebufferHandle> framebuffers;
+		bool pendingResourceCreation;
 	};
 
 	struct DeclaredBuffer
@@ -184,6 +195,8 @@ private:
 		RGTextureHandle depthTarget;
 		rhi::FramebufferOwner fb;
 		int refCount = 0;
+		bool pendingResourceCreation;
+		std::string debugName;
 	};
 
 	struct TextureViewRequest
@@ -236,9 +249,13 @@ private:
 	uint2 GetActualTextureSize(const int2& desired, const uint2& backbufferSize, const uint2& backbufferViewportVpSize, SizeSpace sizeSpace) const;
 	uint2 GetActualTextureSize(const DeclaredTexture* declTex, const uint2& backbufferSize, const uint2& backbufferViewportVpSize) const;
 
+	void CreateTexture(DeclaredTexture* declTex);	
+	void CreateFramebuffer(RequestedFramebufferData* fbData);
 	void InternalRecreateTexture(RGTextureHandle handle);
 
 private:
+
+	State m_State;
 
 	std::map<std::string, std::unique_ptr<DeclaredTexture>> m_Textures;
 	std::map<std::string, std::unique_ptr<DeclaredBuffer>> m_Buffers;

@@ -16,7 +16,7 @@ void alm::gfx::SimpleSkyRenderStage::Setup(RenderGraphBuilder& builder)
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 
-	m_FB = builder.RequestFramebuffer({ m_SceneColorTexture }, m_SceneDepthTexture);
+	m_FB = builder.RequestFramebuffer({ m_SceneColorTexture }, m_SceneDepthTexture, "SimpleSkyFB");
 
 	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);

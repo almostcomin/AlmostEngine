@@ -981,125 +981,6 @@ void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderS
 		commandList->EndMarker();
 }
 
-#if 0
-alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
-{
-	static constexpr std::pair<uint8_t, uint8_t> kFrustumEdges[] =
-	{
-		{0,1}, {1,3}, {3,2}, {2,0},   // near quad
-		{4,5}, {5,7}, {7,6}, {6,4},   // far quad
-		{0,4}, {1,5}, {2,6}, {3,7},   // connecting
-	};
-
-	const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
-	if (!atmos->CloudsSubsystemInitialized())
-		return aabox3d::get_empty();
-
-	const double3 earthCenter = atmos->EarthCenter;
-	const double earthRadius = atmos->EarthRadius;
-	const double innerRadius = atmos->EarthRadius + atmos->CloudsShape.CloudsLayerMinH;
-	const double outerRadius = atmos->EarthRadius + atmos->CloudsShape.CloudsLayerMaxH;
-	const double3 sunDir = atmos->GetSunDirection();
-	const double3 cameraPos = m_Camera->GetPosition();
-	const double maxShadowDist = atmos->Clouds.CloudsShadowMaxDistance * 100.f;
-	const std::array<float3, 8> frustumCorners = m_Camera->GetWorldFrustumCorners();
-
-	// Prepare point list to construct AABB
-	std::vector<double3> pointsD;
-	pointsD.reserve(8 * 6);
-
-	auto addRaySphereShellIntersections = [&](const double3& p)
-	{
-		const double3 rayDir = -sunDir;
-
-		if (auto hit = RayShellOutsideEarth(p, rayDir, earthCenter, earthRadius, innerRadius, outerRadius))
-		{
-			// Cap por longitud máxima — evita que el rayo vaya al horizonte lejano
-			double tNear = std::max(hit->x, 0.0);
-			double tFar = std::min(hit->y, maxShadowDist);
-
-			if (tNear < tFar)
-			{
-				pointsD.push_back(p + rayDir * tNear);
-				pointsD.push_back(p + rayDir * tFar);
-			}
-		}
-	};
-
-	auto addShellSegmentIntersections = [&](const double3& a, const double3& b)
-	{
-		const double3 d = b - a;
-		const double len = glm::length(d);
-		const double3 dir = d / len;
-
-		if (auto hit = RayShellOutsideEarth(a, dir, earthCenter, earthRadius, innerRadius, outerRadius))
-		{
-			if (hit->x >= 0.0 && hit->x <= len)
-				pointsD.push_back(a + dir * hit->x);
-			if (hit->y >= 0.0 && hit->y <= len)
-				pointsD.push_back(a + dir * hit->y);
-		}
-	};
-
-	auto clipCorner = [&](const double3& corner) -> double3
-	{
-		double3 dir = corner - cameraPos;
-		double len = glm::length(dir);
-		double3 normDir = dir / len;
-		double tMax = std::min(len, maxShadowDist);
-
-		auto tOuter = RaySphereIntersection(cameraPos, normDir, earthCenter, outerRadius);
-		if (tOuter && tOuter->y > 0.0 && tOuter->y < tMax)
-			tMax = tOuter->y;
-
-		auto tEarth = RaySphereIntersection(cameraPos, normDir, earthCenter, earthRadius);
-		if (tEarth && tEarth->x > 0.0 && tEarth->x < tMax)
-		{
-			tMax = tEarth->x;
-		}
-
-		return cameraPos + normDir * tMax;
-	};
-
-	// Clip frustum corners
-	std::array<double3, 8> clippedCorners;
-	for (int i = 0; i < 8; ++i)
-	{
-		clippedCorners[i] = clipCorner(frustumCorners[i]);
-	}
-
-	// --- 1. Add frustum corners that lie inside the shell
-
-	for (const auto& p : frustumCorners)
-	{
-		const double dist = glm::length(double3{ p } - earthCenter);
-		if (dist >= innerRadius && dist <= outerRadius)
-			pointsD.push_back(p);
-	}
-
-	// --- 2. Iterate 12 frustum edges, intersect each with inner and outer spheres,
-	//		  add the segment-clipping intersection points. Also add frustum corners
-	//        that lie inside the shell (vertices of the intersection region).
-
-	for (auto [i, j] : kFrustumEdges)
-	{
-		addShellSegmentIntersections(double3{ clippedCorners[i] }, double3{ clippedCorners[j] });
-	}
-
-	// --- 3. Add clouds that are casters for the frustum (even if no geometry visible)
-	
-	for (const auto& p : clippedCorners)
-	{
-		addRaySphereShellIntersections(double3{ p });
-	}
-
-	aabox3d result{ aabox3d::InitEmpty };
-	for (const auto& p : pointsD)
-		result.merge(p);
-
-	return result;
-}
-#else
 alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 {
 	ZoneScoped;
@@ -1199,7 +1080,6 @@ alm::aabox3d alm::gfx::RenderView::BuildCloudsShadowVolume() const
 
 	return result;
 }
-#endif
 
 void alm::gfx::RenderView::BuildSunSpaceShadowMatrices(const aabox3d& shadowVolumeWorld,
 	float4x4* opt_out_worldToClip, float4x4* opt_out_viewToShadowClip, float4x4* opt_out_clipToTranslatedWorld,

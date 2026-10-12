@@ -15,7 +15,7 @@ void alm::gfx::GridRenderStage::Setup(RenderGraphBuilder& builder)
 	m_TonemappedTexture = builder.GetTextureHandle("ToneMapped");
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 
-	m_FB = builder.RequestFramebuffer({ m_TonemappedTexture }, m_SceneDepthTexture);
+	m_FB = builder.RequestFramebuffer({ m_TonemappedTexture }, m_SceneDepthTexture, "GridFB");
 
 	builder.AddTextureDependency(m_TonemappedTexture, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);

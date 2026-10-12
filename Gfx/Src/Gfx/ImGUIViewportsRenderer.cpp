@@ -42,6 +42,7 @@ void ImGui_Impl_CreateWindow(ImGuiViewport* viewport)
 	auto renderView = alm::make_unique_with_weak<alm::gfx::RenderView>(viewportId, bd->DeviceManager, "ImGui Viewport");
 	renderView->GetRenderGraph()->SetRenderStages({ renderStage });
 	renderView->GetRenderGraph()->SetRenderMode("Default", { renderStage.get() });
+	renderView->GetRenderGraph()->Compile();
 
 	viewport->RendererUserData = new ImGuiImplViewportData{ 
 		.ViewportId = viewportId,

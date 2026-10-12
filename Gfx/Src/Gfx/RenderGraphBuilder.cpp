@@ -8,7 +8,7 @@ alm::gfx::RenderGraphBuilder::RenderGraphBuilder(alm::gfx::RenderGraph* renderGr
 alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateColorTarget(const std::string& id, int width, int height, int arraySize,
 	rhi::Format format, bool needsUAV)
 {
-	auto handle = m_RenderGraph->CreateTexture(m_RenderStage, id, RenderGraph::TextureResourceType::RenderTarget, width, height,
+	auto handle = m_RenderGraph->RegisterTexture(m_RenderStage, id, RenderGraph::TextureResourceType::RenderTarget, width, height,
 		RenderGraph::SizeSpace::Backbuffer, arraySize, format, needsUAV);
 	m_CreatedTextures.push_back(handle);
 	return handle;
@@ -17,7 +17,7 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateColorTarget(const 
 alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateColorTarget(const std::string& id, int sizeDenom, RenderGraph::SizeSpace sizeSpace,
 	int arraySize, rhi::Format format, bool needsUAV)
 {
-	auto handle = m_RenderGraph->CreateTexture(m_RenderStage, id, RenderGraph::TextureResourceType::RenderTarget, -sizeDenom, -sizeDenom,
+	auto handle = m_RenderGraph->RegisterTexture(m_RenderStage, id, RenderGraph::TextureResourceType::RenderTarget, -sizeDenom, -sizeDenom,
 		sizeSpace, arraySize, format, needsUAV);
 	m_CreatedTextures.push_back(handle);
 	return handle;
@@ -26,7 +26,7 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateColorTarget(const 
 alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateDepthTarget(const std::string& id, int width, int height, int arraySize,
 	rhi::Format format, bool needsUAV)
 {
-	auto handle = m_RenderGraph->CreateTexture(m_RenderStage, id, RenderGraph::TextureResourceType::DepthStencil, width, height, 
+	auto handle = m_RenderGraph->RegisterTexture(m_RenderStage, id, RenderGraph::TextureResourceType::DepthStencil, width, height,
 		RenderGraph::SizeSpace::Backbuffer, arraySize, format, needsUAV);
 	m_CreatedTextures.push_back(handle);
 	return handle;
@@ -35,7 +35,7 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateDepthTarget(const 
 alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateDepthTarget(const std::string& id, int sizeDenom, RenderGraph::SizeSpace sizeSpace,
 	int arraySize, rhi::Format format, bool needsUAV)
 {
-	auto handle = m_RenderGraph->CreateTexture(m_RenderStage, id, RenderGraph::TextureResourceType::DepthStencil, -sizeDenom, -sizeDenom,
+	auto handle = m_RenderGraph->RegisterTexture(m_RenderStage, id, RenderGraph::TextureResourceType::DepthStencil, -sizeDenom, -sizeDenom,
 		sizeSpace, arraySize, format, needsUAV);
 	m_CreatedTextures.push_back(handle);
 	return handle;
@@ -44,7 +44,7 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateDepthTarget(const 
 alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateTexture(const std::string& id, RenderGraph::TextureResourceType type, int width, int height,
 																	int arraySize, rhi::Format format, bool needsUAV)
 {
-	auto handle = m_RenderGraph->CreateTexture(m_RenderStage, id, type, width, height, 
+	auto handle = m_RenderGraph->RegisterTexture(m_RenderStage, id, type, width, height,
 		RenderGraph::SizeSpace::Backbuffer, arraySize, format, needsUAV);
 	m_CreatedTextures.push_back(handle);
 	return handle;
@@ -53,7 +53,7 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateTexture(const std:
 alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateTexture(const std::string& id, RenderGraph::TextureResourceType type,
 	int sizeDenom, RenderGraph::SizeSpace sizeSpace, int arraySize, rhi::Format format, bool needsUAV)
 {
-	auto handle = m_RenderGraph->CreateTexture(m_RenderStage, id, type, -sizeDenom, -sizeDenom, sizeSpace,
+	auto handle = m_RenderGraph->RegisterTexture(m_RenderStage, id, type, -sizeDenom, -sizeDenom, sizeSpace,
 		arraySize, format, needsUAV);
 	m_CreatedTextures.push_back(handle);
 	return handle;
@@ -77,9 +77,9 @@ alm::gfx::RGBufferHandle alm::gfx::RenderGraphBuilder::GetBufferHandle(const std
 }
 
 alm::gfx::RGFramebufferHandle alm::gfx::RenderGraphBuilder::RequestFramebuffer(const std::vector<RGTextureHandle>& colorTargets,
-	RGTextureHandle depthTarget)
+	RGTextureHandle depthTarget, const std::string& debugName)
 {
-	return m_RenderGraph->RequestFramebuffer(colorTargets, depthTarget);
+	return m_RenderGraph->RegisterFramebuffer(colorTargets, depthTarget, debugName);
 }
 
 void alm::gfx::RenderGraphBuilder::AddTextureDependency(RGTextureHandle textureHandle, RenderGraph::AccessMode accessMode,

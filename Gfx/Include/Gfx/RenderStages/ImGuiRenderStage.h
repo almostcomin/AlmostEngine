@@ -25,6 +25,8 @@ class ImGuiRenderStage : public RenderStage
 {
 	REGISTER_RENDER_STAGE(ImGuiRenderStage)
 
+	friend class ImGuiViewportRenderStage;
+
 public:
 
 	using ImGuiTexFlags = uint32_t;
@@ -50,7 +52,7 @@ public:
 
 	virtual void BuildUI() {};
 
-	void RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList);
+	void WarmUpFrame();
 
 	ImGuiID GetDockspaceId() const { return m_DockspaceId; }
 	std::optional<std::pair<uint2, uint2>> GetCentralNodeRect() const;
@@ -80,6 +82,9 @@ private:
 
 	bool Init();
 	void Release();
+
+	void BuildUIFrame();
+	void RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList);
 
 	bool UpdateFontTexture(rhi::ICommandList* commandList);
 	bool UpdateGeometry(ImDrawData* drawData, GeometryBuffers& geometryBuffers);

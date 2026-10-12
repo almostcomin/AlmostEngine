@@ -12,9 +12,34 @@
 #include <imgui/imgui_impl_sdl3.h>
 #include <imgui/imgui_internal.h>
 
-alm::gfx::ImGuiRenderStage::ImGuiRenderStage() = default;
+alm::gfx::ImGuiRenderStage::ImGuiRenderStage()
+{
+    m_DockspaceId = 0;
+    m_CentralNodePos = uint2{ 0u };
+    m_CentralNodeSize = uint2{ 0u };
+    m_CentraNodeRectInitialized = false;
+}
 
 alm::gfx::ImGuiRenderStage::~ImGuiRenderStage() = default;
+
+void alm::gfx::ImGuiRenderStage::WarmUpFrame()
+{
+    std::optional<std::pair<uint2, uint2>> prevVp = {};
+    for (int i = 0; i < 4; ++i)
+    {
+        BuildUIFrame();
+        if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            ImGui::UpdatePlatformWindows();
+        }
+        auto vp = this->GetCentralNodeRect();
+        if (vp && prevVp && vp->first == prevVp->first && vp->second == prevVp->second)
+        {
+            break;
+        }
+        prevVp = vp;
+    }
+}
 
 void alm::gfx::ImGuiRenderStage::OnAttached()
 {
@@ -83,17 +108,7 @@ void alm::gfx::ImGuiRenderStage::Render(alm::rhi::CommandListHandle commandList)
         return;
     }
 
-    ImGui_ImplSDL3_NewFrame();
-    ImGui::NewFrame();
-
-    m_DockspaceId = ImGui::DockSpaceOverViewport(
-        0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
-
-    BuildUI();
-
-    UpdateCentralNodeRect(m_DockspaceId);
-
-    ImGui::Render();
+    BuildUIFrame();
 
     commandList->BeginRenderPass(
         m_FB.get(),
@@ -190,11 +205,6 @@ bool alm::gfx::ImGuiRenderStage::Init()
         assert(m_PSO);
     }
 
-    m_DockspaceId = 0;
-    m_CentralNodePos = uint2{ 0u };
-    m_CentralNodeSize = uint2{ 0u };
-    m_CentraNodeRectInitialized = false;
-
     return true;
 }
 
@@ -213,6 +223,123 @@ void alm::gfx::ImGuiRenderStage::Release()
     device->ReleaseQueued(std::move(m_FB));
     device->ReleaseQueued(std::move(m_PS));
     device->ReleaseQueued(std::move(m_VS));
+}
+
+void alm::gfx::ImGuiRenderStage::BuildUIFrame()
+{
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
+    m_DockspaceId = ImGui::DockSpaceOverViewport(
+        0, nullptr, ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
+
+    BuildUI();
+
+    UpdateCentralNodeRect(m_DockspaceId);
+
+    ImGui::Render();
+}
+
+void alm::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList)
+{
+    if (drawData->TotalIdxCount == 0)
+        return; // nothing to render
+
+    // Address any change in geometry data
+    if (!UpdateGeometry(drawData, geometryBuffers))
+    {
+        LOG_ERROR("Failed to update ImGui geometry buffer");
+        return;
+    }
+
+    const float2 invDisplaySize = { 1.0f / drawData->DisplaySize.x, 1.0f / drawData->DisplaySize.y };
+    const float2 vpClipOffset = { drawData->DisplayPos.x, drawData->DisplayPos.y };
+    const alm::rhi::Viewport vp = {
+        drawData->DisplaySize.x * drawData->FramebufferScale.x,
+        drawData->DisplaySize.y * drawData->FramebufferScale.y
+    };
+
+    commandList->SetPipelineState(m_PSO.get());
+
+    int idxOffset = 0;
+    int vtxOffset = 0;
+    for (int n = 0; n < drawData->CmdLists.Size; n++)
+    {
+        const ImDrawList* cmdList = drawData->CmdLists[n];
+        for (int i = 0; i < cmdList->CmdBuffer.Size; i++)
+        {
+            const ImDrawCmd* pCmd = &cmdList->CmdBuffer[i];
+
+            if (pCmd->UserCallback)
+            {
+                pCmd->UserCallback(cmdList, pCmd);
+            }
+            else
+            {
+                int2 scissorMin = {
+                    (int)(pCmd->ClipRect.x - vpClipOffset.x),
+                    (int)(pCmd->ClipRect.y - vpClipOffset.y)
+                };
+                int2 scissorMax = {
+                    (int)(pCmd->ClipRect.z - vpClipOffset.x),
+                    (int)(pCmd->ClipRect.w - vpClipOffset.y)
+                };
+
+                commandList->SetViewport(rhi::ViewportState()
+                    .AddViewport(vp)
+                    .AddScissorRect({ scissorMin, scissorMax }));
+
+                interop::ImGUI_CB cb = {};
+                cb.invDisplaySize = invDisplaySize;
+                cb.clipOffset = vpClipOffset;
+                cb.indexBuffer = GetCurrentIB(geometryBuffers)->GetReadOnlyView();
+                cb.indexOffset = idxOffset;
+                cb.vertexBuffer = GetCurrentVB(geometryBuffers)->GetReadOnlyView();
+                cb.vertexBufferOffset = vtxOffset;
+
+                ImGuiTexture* guiTex = nullptr;
+                if (pCmd->TexRef._TexData)
+                {
+                    guiTex = (ImGuiTexture*)pCmd->TexRef._TexData->TexID;
+                }
+                else if (pCmd->TexRef._TexID)
+                {
+                    guiTex = (ImGuiTexture*)pCmd->TexRef._TexID;
+                }
+
+                if (guiTex)
+                {
+                    assert(!guiTex->tex.expired());
+                    cb.textureIndex = guiTex->tex->GetSampledView();
+                    cb.bool_Is3DTexture = guiTex->tex->GetDesc().dimension == rhi::TextureDimension::Texture3D;
+                    cb.mip = guiTex->mip;
+                    cb.slice = guiTex->slice;
+                    if (cb.bool_Is3DTexture)
+                        cb.slice /= guiTex->tex->GetDesc().depth;
+                    cb.flags = guiTex->flags;
+                    // Delete guiTex if it was a requested one (via ShowImage).
+                    for (auto it = m_CurrentTextures.begin(); it != m_CurrentTextures.end(); ++it)
+                    {
+                        if (it->get() == guiTex)
+                        {
+                            m_CurrentTextures.erase(it);
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    cb.textureIndex = {};
+                }
+
+                commandList->PushConstants(0, &cb, sizeof(interop::ImGUI_CB), 0, false);
+
+                commandList->Draw(pCmd->ElemCount);
+            }
+            idxOffset += pCmd->ElemCount;
+        }
+        vtxOffset += cmdList->VtxBuffer.Size;
+    }
 }
 
 bool alm::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandList)
@@ -327,108 +454,6 @@ bool alm::gfx::ImGuiRenderStage::ReallocateBuffer(rhi::BufferOwner& buffer, size
             return false;
     }
     return true;
-}
-
-void alm::gfx::ImGuiRenderStage::RenderDrawData(ImDrawData* drawData, GeometryBuffers& geometryBuffers, rhi::ICommandList* commandList)
-{
-    if (drawData->TotalIdxCount == 0)
-        return; // nothing to render
-
-    // Address any change in geometry data
-    if (!UpdateGeometry(drawData, geometryBuffers))
-    {
-        LOG_ERROR("Failed to update ImGui geometry buffer");
-        return;
-    }
-
-    const float2 invDisplaySize = { 1.0f / drawData->DisplaySize.x, 1.0f / drawData->DisplaySize.y };
-    const float2 vpClipOffset = { drawData->DisplayPos.x, drawData->DisplayPos.y };
-    const alm::rhi::Viewport vp = {
-        drawData->DisplaySize.x * drawData->FramebufferScale.x,
-        drawData->DisplaySize.y * drawData->FramebufferScale.y
-    };
-
-    commandList->SetPipelineState(m_PSO.get());
-
-    int idxOffset = 0;
-    int vtxOffset = 0;
-    for (int n = 0; n < drawData->CmdLists.Size; n++)
-    {
-        const ImDrawList* cmdList = drawData->CmdLists[n];
-        for (int i = 0; i < cmdList->CmdBuffer.Size; i++)
-        {
-            const ImDrawCmd* pCmd = &cmdList->CmdBuffer[i];
-
-            if (pCmd->UserCallback)
-            {
-                pCmd->UserCallback(cmdList, pCmd);
-            }
-            else
-            {
-                int2 scissorMin = {
-                    (int)(pCmd->ClipRect.x - vpClipOffset.x),
-                    (int)(pCmd->ClipRect.y - vpClipOffset.y)
-                };
-                int2 scissorMax = {
-                    (int)(pCmd->ClipRect.z - vpClipOffset.x),
-                    (int)(pCmd->ClipRect.w - vpClipOffset.y)
-                };
-
-                commandList->SetViewport(rhi::ViewportState()
-                    .AddViewport(vp)
-                    .AddScissorRect({ scissorMin, scissorMax }));
-
-                interop::ImGUI_CB cb = {};
-                cb.invDisplaySize = invDisplaySize;
-                cb.clipOffset = vpClipOffset;
-                cb.indexBuffer = GetCurrentIB(geometryBuffers)->GetReadOnlyView();
-                cb.indexOffset = idxOffset;
-                cb.vertexBuffer = GetCurrentVB(geometryBuffers)->GetReadOnlyView();
-                cb.vertexBufferOffset = vtxOffset;
-
-                ImGuiTexture* guiTex = nullptr;
-                if (pCmd->TexRef._TexData)
-                {
-                    guiTex = (ImGuiTexture*)pCmd->TexRef._TexData->TexID;
-                }
-                else if(pCmd->TexRef._TexID)
-                {
-                    guiTex = (ImGuiTexture*)pCmd->TexRef._TexID;
-                }
-
-                if (guiTex)
-                {
-                    assert(!guiTex->tex.expired());
-                    cb.textureIndex = guiTex->tex->GetSampledView();
-                    cb.bool_Is3DTexture = guiTex->tex->GetDesc().dimension == rhi::TextureDimension::Texture3D;
-                    cb.mip = guiTex->mip;
-                    cb.slice = guiTex->slice;
-                    if (cb.bool_Is3DTexture)
-                        cb.slice /= guiTex->tex->GetDesc().depth;
-                    cb.flags = guiTex->flags;
-                    // Delete guiTex if it was a requested one (via ShowImage).
-                    for (auto it = m_CurrentTextures.begin(); it != m_CurrentTextures.end(); ++it)
-                    {
-                        if (it->get() == guiTex)
-                        {
-                            m_CurrentTextures.erase(it);
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    cb.textureIndex = {};
-                }
-
-                commandList->PushConstants(0, &cb, sizeof(interop::ImGUI_CB), 0, false);
-
-                commandList->Draw(pCmd->ElemCount);
-            }
-            idxOffset += pCmd->ElemCount;
-        }
-        vtxOffset += cmdList->VtxBuffer.Size;
-    }
 }
 
 std::optional<std::pair<uint2, uint2>> alm::gfx::ImGuiRenderStage::GetCentralNodeRect() const

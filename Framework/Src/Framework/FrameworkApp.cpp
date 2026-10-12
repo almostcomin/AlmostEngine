@@ -85,6 +85,20 @@ void alm::fw::FrameworkApp::Run(const AppArgs& args)
 		return;
 	Initialize();
 
+	// Set viewport before first frame
+	if (m_FrameworkUI)
+	{
+		m_FrameworkUI->WarmUpFrame();
+		auto vp = m_FrameworkUI->GetCentralViewport();
+		if (vp)
+			m_MainRenderView->SetBackbufferViewport(vp->first, vp->second);
+		else
+			m_MainRenderView->ResetBackbufferViewport();
+	}
+
+	// Set rendergraph ready
+	m_MainRenderView->GetRenderGraph()->Compile();
+
 	MainLoop();
 
 	Shutdown();

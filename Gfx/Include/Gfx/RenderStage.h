@@ -47,7 +47,7 @@ public:
 	DeviceManager* GetDeviceManager() const;
 
 	bool IsEnabled() const { return m_Enabled; }
-	bool IsAttached() const { return m_RenderGraph; }
+	bool IsAttached() const { return m_Attached; }
 
 	void SetEnabled(bool b);
 
@@ -73,6 +73,7 @@ protected:
 
 private:
 
+	bool m_Attached = false;
 	bool m_Enabled = true;
 };
 }

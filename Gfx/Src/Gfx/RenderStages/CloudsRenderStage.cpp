@@ -24,7 +24,7 @@ void alm::gfx::CloudsRenderStage::Setup(RenderGraphBuilder& builder)
 	m_CloudsTexture[1] = builder.CreateTexture("CloudsTexture[1]", RenderGraph::TextureResourceType::ShaderResource,
 		m_RenderTargetDenom, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT, true);
 
-	m_CompositeFB = builder.RequestFramebuffer({ m_SceneColorTexture });
+	m_CompositeFB = builder.RequestFramebuffer({ m_SceneColorTexture }, nullptr, "CompositeFB");
 
 	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);

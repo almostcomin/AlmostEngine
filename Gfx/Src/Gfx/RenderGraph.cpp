@@ -52,6 +52,7 @@ namespace
 } // anonymous namespace
 
 alm::gfx::RenderGraph::RenderGraph(RenderView* renderView, const char* debugName) :
+	m_State{ State::Setup },
 	m_IsRendering{ false },
 	m_DebugName{ debugName },
 	m_RenderView{ renderView },
@@ -93,6 +94,7 @@ void alm::gfx::RenderGraph::Reset()
 	for (auto& rs : m_RenderStages)
 	{
 		rs->renderStage->Detach();
+		rs->renderStage->m_RenderGraph = nullptr;
 	}
 	m_RenderStages.clear();
 
@@ -107,10 +109,13 @@ void alm::gfx::RenderGraph::Reset()
 		m_DeviceManager->GetDevice()->ReleaseQueued(std::move(dt.second->buffer));
 	}
 	m_Buffers.clear();
+
+	m_State = State::Setup;
 }
 
 void alm::gfx::RenderGraph::SetRenderStages(const std::vector<std::shared_ptr<RenderStage>>& renderStages)
 {
+	assert(m_State == State::Setup);
 	Reset();
 
 	m_RenderStages.reserve(renderStages.size());
@@ -135,6 +140,8 @@ void alm::gfx::RenderGraph::SetRenderStages(const std::vector<std::shared_ptr<Re
 
 	for (auto& rs : m_RenderStages)
 	{
+		rs->renderStage->m_RenderGraph = weak_from_this();
+
 		RenderGraphBuilder builder{ this, rs->renderStage.get() };
 		rs->renderStage->Setup(builder);
 		
@@ -143,15 +150,12 @@ void alm::gfx::RenderGraph::SetRenderStages(const std::vector<std::shared_ptr<Re
 		rs->bufferReads = builder.GetBufferReadDependencies();
 		rs->bufferWrites = builder.GetBufferWriteDependencies();
 	}
-
-	for (auto& rs : m_RenderStages)
-	{
-		rs->renderStage->Attach(this);
-	}
 }
 
 void alm::gfx::RenderGraph::SetRenderMode(const std::string& name, const std::vector<RenderStage*>& renderStages)
 {
+	assert(m_State == State::Setup);
+
 	if (m_RenderModes.find(name) != m_RenderModes.end())
 	{
 		m_RenderModes.erase(name);
@@ -204,16 +208,28 @@ std::vector<std::string> alm::gfx::RenderGraph::GetRenderModes() const
 
 void alm::gfx::RenderGraph::Compile()
 {
+	ResolvePendingResources();
+
+	for (auto& rs : m_RenderStages)
+	{
+		rs->renderStage->Attach(this);
+	}
+
+	m_State = State::Ready;
 }
 
 bool alm::gfx::RenderGraph::BeginRender(rhi::ICommandList* /*commandList*/)
 {
+	assert(m_State == State::Ready);
+
 	m_IsRendering = true;
 	return false; // no-operation needed
 }
 
 bool alm::gfx::RenderGraph::EndRender(rhi::ICommandList* commandList)
 {
+	assert(m_State == State::Ready);
+
 	// Frame End. All the resources need to go back to its initial state.
 	std::vector<rhi::Barrier> barriers;
 	for (auto& texState : m_TexturesState)
@@ -253,6 +269,8 @@ bool alm::gfx::RenderGraph::EndRender(rhi::ICommandList* commandList)
 void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 {
 	ZoneScoped;
+
+	assert(m_State == State::Ready);
 
 	// Get render mode
 	if (m_RenderModes.empty() || m_CurrentRenderMode.empty())
@@ -418,6 +436,9 @@ void alm::gfx::RenderGraph::OnSceneChanged()
 
 void alm::gfx::RenderGraph::OnRenderTargetSizeChanged(const int2& newSize, const int2& newViewportSize)
 {
+	if (m_State != State::Ready)
+		return;
+
 	alm::rhi::Device* device = m_DeviceManager->GetDevice();
 	alm::unique_vector<RGFramebufferHandle> framebuffersToUpdate;
 
@@ -427,7 +448,7 @@ void alm::gfx::RenderGraph::OnRenderTargetSizeChanged(const int2& newSize, const
 	for (auto& it : m_Textures)
 	{
 		auto& declTex = it.second;
-		if (declTex->texture && (declTex->requestedWidth <= 0 || declTex->requestedHeight <= 0))
+		if (!declTex->pendingResourceCreation && declTex->texture && (declTex->requestedWidth <= 0 || declTex->requestedHeight <= 0))
 		{
 			uint2 newTexSize = GetActualTextureSize(declTex.get(), newSize, newViewportSize);
 			rhi::TextureDesc desc = declTex->texture->GetDesc();
@@ -469,7 +490,10 @@ void alm::gfx::RenderGraph::OnRenderTargetSizeChanged(const int2& newSize, const
 	// Forward to render stages
 	for (auto& rs : m_RenderStages)
 	{
-		rs->renderStage->OnBackbufferResize();
+		if (rs->renderStage->IsAttached())
+		{
+			rs->renderStage->OnBackbufferResize();
+		}
 	}
 
 	// Recreate texture view requests
@@ -479,19 +503,41 @@ void alm::gfx::RenderGraph::OnRenderTargetSizeChanged(const int2& newSize, const
 	}
 }
 
-alm::gfx::RGTextureHandle alm::gfx::RenderGraph::CreateTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type,
-	int width, int height, SizeSpace sizeSpace, int arraySize, alm::rhi::Format format, bool needsUAV)
+void alm::gfx::RenderGraph::ResolvePendingResources()
+{
+	for (const auto& entry : m_Textures)
+	{
+		DeclaredTexture* declTex = entry.second.get();
+		if (declTex && declTex->pendingResourceCreation)
+		{
+			CreateTexture(declTex);
+			declTex->pendingResourceCreation = false;
+		}
+	}
+
+	for (const auto& entry : m_Framebuffers)
+	{
+		RequestedFramebufferData* fbData = GetReqFb(entry.get());
+		if (fbData && fbData->pendingResourceCreation)
+		{
+			CreateFramebuffer(fbData);
+			fbData->pendingResourceCreation = false;
+		}
+	}
+}
+
+alm::gfx::RGTextureHandle alm::gfx::RenderGraph::RegisterTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type,
+	int width, int height, SizeSpace sizeSpace, int arraySize, rhi::Format format, bool needsUAV)
 {
 	assert(!m_IsRendering);
 
-	// Check if that texture is already created
+	// Check if that texture is already registered
 	auto it = m_Textures.find(id);
 	if (it != m_Textures.end())
 	{
 		// This is allowed as far as the texture properties match
-		const auto& desc = it->second->texture->GetDesc();
-		if (it->second->requestedWidth == width && it->second->requestedHeight == height && it->second->type == type && desc.arraySize == arraySize &&
-			desc.format == format && needsUAV == has_any_flag(desc.shaderUsage, rhi::TextureShaderUsage::Storage))
+		if (it->second->requestedWidth == width && it->second->requestedHeight == height && it->second->sizeSpace == sizeSpace &&
+			it->second->type == type && it->second->arraySize == arraySize && it->second->format == format && it->second->needsUAV == needsUAV)
 		{
 			return GetHandle(it->second.get());
 		}
@@ -502,20 +548,9 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraph::CreateTexture(RenderStage* rend
 		}
 	}
 
-	uint2 texSize = GetActualTextureSize(int2{ width, height },
-		m_RenderView->GetBackbufferSize(), m_RenderView->GetBackbufferViewportSize(), sizeSpace);
-	rhi::TextureDesc desc
-	{
-		.width = texSize.x,
-		.height = texSize.y,
-		.arraySize = (uint32_t)arraySize,
-		.format = format,
-		.shaderUsage = GetTextureShaderUsage(type, needsUAV) };
-
-	rhi::TextureOwner texture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(type), id);
 	DeclaredTexture* declTex = new DeclaredTexture{
 		.id = id,
-		.texture = std::move(texture),
+		.texture = nullptr,
 		.type = type,
 		.requestedWidth = width,
 		.requestedHeight = height,
@@ -523,7 +558,8 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraph::CreateTexture(RenderStage* rend
 		.arraySize = arraySize,
 		.format = format,
 		.needsUAV = needsUAV,
-		.owner = renderStage
+		.owner = renderStage,
+		.pendingResourceCreation = true
 	};
 
 	auto result = m_Textures.insert({ id, std::unique_ptr<DeclaredTexture>{declTex} });
@@ -679,14 +715,15 @@ const std::string& alm::gfx::RenderGraph::GetId(RGBufferHandle handle)
 	return GetDeclBuffer(handle)->id;
 }
 
-alm::gfx::RGFramebufferHandle alm::gfx::RenderGraph::RequestFramebuffer(const std::vector<RGTextureHandle>& colorTargets, RGTextureHandle depthTarget)
+alm::gfx::RGFramebufferHandle alm::gfx::RenderGraph::RegisterFramebuffer(const std::vector<RGTextureHandle>& colorTargets, RGTextureHandle depthTarget,
+	const std::string& debugName)
 {
+	RGFramebufferHandle result;
+
 	auto it = std::ranges::find_if(m_Framebuffers, [&](const auto& v)
 	{
 		return v->colorTargets == colorTargets && v->depthTarget == depthTarget;
 	});
-
-	RGFramebufferHandle result;
 	if (it != m_Framebuffers.end())
 	{
 		(*it)->refCount++;
@@ -694,31 +731,21 @@ alm::gfx::RGFramebufferHandle alm::gfx::RenderGraph::RequestFramebuffer(const st
 	}
 	else
 	{
-		rhi::FramebufferDesc desc;
-		for (RGTextureHandle handle : colorTargets)
-		{
-			desc.AddColorAttachment(GetTexture(handle));
-		}
-		if (depthTarget)
-		{
-			desc.SetDepthAttachment(GetTexture(depthTarget));
-		}
-		auto fb = m_DeviceManager->GetDevice()->CreateFramebuffer(desc, std::format("RGFramebuffer[{}]", m_Framebuffers.size()));
-		auto entry = std::make_unique<RequestedFramebufferData>(colorTargets, depthTarget, std::move(fb), 1);
+		auto entry = std::make_unique<RequestedFramebufferData>(colorTargets, depthTarget, nullptr, 1, true, debugName);
+		result = { entry.get() };
+		m_Framebuffers.insert(std::move(entry));
 
 		// Dependencies
 		for (RGTextureHandle handle : colorTargets)
 		{
-			GetDeclTex(handle)->framebuffers.push_back(entry.get());
+			GetDeclTex(handle)->framebuffers.push_back(result);
 		}
 		if (depthTarget)
 		{
-			GetDeclTex(depthTarget)->framebuffers.push_back(entry.get());
+			GetDeclTex(depthTarget)->framebuffers.push_back(result);
 		}
-
-		result = { entry.get() };
-		m_Framebuffers.insert(std::move(entry));
 	}
+
 	return result;
 }
 
@@ -1280,6 +1307,36 @@ uint2 alm::gfx::RenderGraph::GetActualTextureSize(const DeclaredTexture* declTex
 {
 	return GetActualTextureSize( uint2{ declTex->requestedWidth, declTex->requestedHeight },
 		backbufferSize, backbufferViewportVpSize, declTex->sizeSpace);
+}
+
+void alm::gfx::RenderGraph::CreateTexture(DeclaredTexture* declTex)
+{
+
+	uint2 texSize = GetActualTextureSize(int2{ declTex->requestedWidth, declTex->requestedHeight },
+		m_RenderView->GetBackbufferSize(), m_RenderView->GetBackbufferViewportSize(), declTex->sizeSpace);
+	rhi::TextureDesc desc
+	{
+		.width = texSize.x,
+		.height = texSize.y,
+		.arraySize = (uint32_t)declTex->arraySize,
+		.format = declTex->format,
+		.shaderUsage = GetTextureShaderUsage(declTex->type, declTex->needsUAV) };
+
+	declTex->texture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(declTex->type), declTex->id);
+}
+
+void alm::gfx::RenderGraph::CreateFramebuffer(RequestedFramebufferData* fbData)
+{
+	rhi::FramebufferDesc desc;
+	for (RGTextureHandle handle : fbData->colorTargets)
+	{
+		desc.AddColorAttachment(GetTexture(handle));
+	}
+	if (fbData->depthTarget)
+	{
+		desc.SetDepthAttachment(GetTexture(fbData->depthTarget));
+	}
+	fbData->fb = m_DeviceManager->GetDevice()->CreateFramebuffer(desc, fbData->debugName);
 }
 
 void alm::gfx::RenderGraph::InternalRecreateTexture(RGTextureHandle handle)

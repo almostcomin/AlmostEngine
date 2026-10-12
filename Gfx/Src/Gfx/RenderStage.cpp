@@ -32,16 +32,20 @@ alm::gfx::DeviceManager* alm::gfx::RenderStage::GetDeviceManager() const
 
 void alm::gfx::RenderStage::Attach(RenderGraph* renderGraph)
 {
-	assert(m_RenderGraph.expired() && "Trying to attach an already attached render pass");
-	m_RenderGraph = renderGraph->weak_from_this();
-
-	OnAttached();
+	if (!m_Attached)
+	{
+		m_Attached = true;
+		OnAttached();
+	}
 }
 
 void alm::gfx::RenderStage::Detach()
 {
-	OnDetached();
-	m_RenderGraph.reset();
+	if (m_Attached)
+	{
+		OnDetached();
+		m_Attached = false;
+	}
 }
 
 void alm::gfx::RenderStage::SetEnabled(bool b) 
