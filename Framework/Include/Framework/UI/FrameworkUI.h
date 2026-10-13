@@ -10,6 +10,7 @@
 #include "Gfx/Scene.h"
 #include "Gfx/RaycastHit.h"
 #include "Framework/UI/CloudsPresets.h"
+#include "Framework/UI/TimePlot.h"
 
 struct MemoryEditor;
 
@@ -202,6 +203,9 @@ private:
 	void BuildRenderStagesWindow();
 	void BuildMaterialsWindow();
 	void BuildStatsWindow();
+	void BuildGPUCPUGraphWindow();
+	void BuildStagesGPUGraphWindow();
+	void BuildStagesCPUGraphWindow();
 
 	void BuildViewportPicking();
 
@@ -246,7 +250,20 @@ protected:
 	bool m_ShowRenderStages = false;
     bool m_ShowMaterials = false;
     bool m_ShowStats = false;
+    bool m_ShowImGuiDebugger = false;   // ImGui Metrics/Debugger window (window list, draw commands, input routing)
     bool m_StatsRequestedByUI = false;  // Whether this UI holds a culling stats request (RequestStats/UnrequestStats)
+    bool m_TimePlotReady = false;       // Whether the time plot lines have been registered
+    bool m_StagesGPUPlotReady = false;  // Whether the render stages GPU plot lines have been registered
+    bool m_StagesCPUPlotReady = false;  // Whether the render stages CPU plot lines have been registered
+
+    // Independent graph windows (opened from the stats window buttons)
+    bool m_ShowGPUCPUGraph = false;
+    bool m_ShowStagesGPUGraph = false;
+    bool m_ShowStagesCPUGraph = false;
+
+    alm::fw::TimePlot m_TimePlot;       // CPU/GPU time plot
+    alm::fw::TimePlot m_StagesGPUPlot;  // Per-render-stage GPU time plot
+    alm::fw::TimePlot m_StagesCPUPlot;  // Per-render-stage CPU time plot
 
 private:
 

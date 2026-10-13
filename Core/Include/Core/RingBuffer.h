@@ -8,7 +8,6 @@
 
 namespace alm
 {
-
 	template<class T, size_t N>
 	class RingBuffer
 	{

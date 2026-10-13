@@ -1,6 +1,7 @@
 #include "Framework/FrameworkPCH.h"
-#include "Framework/UI/FrameworkUI.h"
 #include "Framework/CameraController.h"
+#include "Framework/UI/FrameworkUI.h"
+#include "Framework/UI/ImPlot/implot.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
@@ -31,6 +32,16 @@
 
 namespace
 {
+    struct RSDepActionResult
+    {
+        bool hovered;
+        bool clicked;
+    };
+
+    // BuildStatsWindow: time plot series colors
+    const ImVec4 s_GPULineColor(0.0f, 0.45f, 1.0f, 1.0f);
+    const ImVec4 s_CPULineColor(0.25f, 1.0f, 0.35f, 1.0f);
+
     // ImGuizmo gizmo state (for the selected node). File-local on purpose: it only exists
     // to keep ImGuizmo out of the public FrameworkUI header.
     ImGuizmo::OPERATION g_GizmoOperation = ImGuizmo::TRANSLATE;
@@ -39,12 +50,6 @@ namespace
     float g_GizmoSnap[3] = { 1.f, 1.f, 1.f };
     bool g_GizmoDragging = false;
     alm::gfx::Transform g_GizmoDragStartTransform;
-
-    struct RSDepActionResult
-    {
-        bool hovered;
-        bool clicked;
-    };
 
     void TextRightAligned(const char* fmt, ...)
     {
@@ -494,6 +499,12 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildMaterialsWindow();
     BuildStatsWindow();
 
+    BuildGPUCPUGraphWindow();
+    BuildStagesGPUGraphWindow();
+    BuildStagesCPUGraphWindow();
+
+    //ImGui::ShowMetricsWindow(&m_ShowImGuiDebugger);
+
     BuildViewportPicking();
 
     BuildLumninanceHistogram();
@@ -892,6 +903,9 @@ void alm::fw::FrameworkUI::BuildMainMenu()
 
             if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))
                 m_ShowStats = !m_ShowStats;
+
+            if (ImGui::MenuItem("ImGui Debugger", nullptr, m_ShowImGuiDebugger))
+                m_ShowImGuiDebugger = !m_ShowImGuiDebugger;
 
             if (ImGui::BeginMenu("Grid"))
             {
@@ -2152,6 +2166,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
 
 void alm::fw::FrameworkUI::BuildStatsWindow()
 {
+    ImGuiContext& g = *GImGui;
     auto cullingRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GPUCullingRenderStage>();
 
     // Culling stats lifecycle: request while the window is open, release on close
@@ -2179,6 +2194,16 @@ void alm::fw::FrameworkUI::BuildStatsWindow()
         return;
     }
 
+    // Graph windows openers
+    if (ImGui::Button("View CPU/GPU time graph", ImVec2(-1, 0)))
+        m_ShowGPUCPUGraph = true;
+    if (ImGui::Button("View Stages GPU time graph", ImVec2(-1, 0)))
+        m_ShowStagesGPUGraph = true;
+    if (ImGui::Button("View Stages CPU time graph", ImVec2(-1, 0)))
+        m_ShowStagesCPUGraph = true;
+
+    ImGui::Spacing();
+
     // Culling stats
     if (!cullingRS)
     {
@@ -2191,30 +2216,131 @@ void alm::fw::FrameworkUI::BuildStatsWindow()
     else
     {
         const auto stats = cullingRS->GetStats();
-        auto culledPct = [](uint32_t total, uint32_t visible)
+        auto culledPercentage = [](uint32_t total, uint32_t visible)
         {
             return total > 0 ? 100.f * float(total - visible) / float(total) : 0.f;
         };
 
+        ImGui::SeparatorText("Culling stats");
+
         ImGui::Text("Camera frustum");
         ImGui::Text("  Instances:  %u / %u  (%.1f%% culled)",
             stats.CameraVisibleInstances, stats.CameraTotalInstances,
-            culledPct(stats.CameraTotalInstances, stats.CameraVisibleInstances));
+            culledPercentage(stats.CameraTotalInstances, stats.CameraVisibleInstances));
         ImGui::Text("  Primitives: %u / %u  (%.1f%% culled)",
             stats.CameraVisiblePrimitives, stats.CameraTotalPrimitives,
-            culledPct(stats.CameraTotalPrimitives, stats.CameraVisiblePrimitives));
+            culledPercentage(stats.CameraTotalPrimitives, stats.CameraVisiblePrimitives));
 
         ImGui::Spacing();
 
         ImGui::Text("Shadow map");
         ImGui::Text("  Instances:  %u / %u  (%.1f%% culled)",
             stats.ShadowVisibleInstances, stats.ShadowTotalInstances,
-            culledPct(stats.ShadowTotalInstances, stats.ShadowVisibleInstances));
+            culledPercentage(stats.ShadowTotalInstances, stats.ShadowVisibleInstances));
         ImGui::Text("  Primitives: %u / %u  (%.1f%% culled)",
             stats.ShadowVisiblePrimitives, stats.ShadowTotalPrimitives,
-            culledPct(stats.ShadowTotalPrimitives, stats.ShadowVisiblePrimitives));
+            culledPercentage(stats.ShadowTotalPrimitives, stats.ShadowVisiblePrimitives));
     }
 
+    ImGui::End();
+}
+
+void alm::fw::FrameworkUI::BuildGPUCPUGraphWindow()
+{
+    if (!m_ShowGPUCPUGraph)
+        return;
+
+    // Register the series once: each line is fed by a functor sampled on Update
+    if (!m_TimePlotReady)
+    {
+        m_TimePlot.AddLine("GPU ms", s_GPULineColor, [this] { return m_GPUTime; });
+        m_TimePlot.AddLine("CPU ms", s_CPULineColor, [this] { return m_CPUTime - m_CPUIdleTime; });
+        m_TimePlot.SetBottomMargin(ImGui::GetStyle().FramePadding.y * 2.f);
+        m_TimePlotReady = true;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(600, 240), ImGuiCond_Once);
+    if (!ImGui::Begin("CPU/GPU time graph", &m_ShowGPUCPUGraph, ImGuiWindowFlags_None))
+    {
+        ImGui::End();
+        return;
+    }
+
+    m_TimePlot.Update();
+    ImGui::End();
+}
+
+void alm::fw::FrameworkUI::BuildStagesGPUGraphWindow()
+{
+    if (!m_ShowStagesGPUGraph)
+        return;
+
+    auto* renderGraph = m_RenderViewUI->GetRenderGraph().get();
+
+    // GPU times of every render stage in the graph (fed by the stages' timer queries)
+    if (!m_StagesGPUPlotReady)
+    {
+        const size_t numStages = renderGraph->GetNumRenderStages();
+        for (size_t i = 0; i < numStages; ++i)
+        {
+            const auto* rs = renderGraph->GetRenderStageDataFromIndex((uint32_t)i);
+            if (!rs || !rs->renderStage)
+                continue;
+
+            const auto stageType = rs->renderStage->GetType();
+            m_StagesGPUPlot.AddLine(rs->renderStage->GetDebugName(),
+                [renderGraph, stageType] { return renderGraph->GetStageGPUTimeMs(stageType); });
+        }
+        m_StagesGPUPlot.SetBottomMargin(ImGui::GetStyle().FramePadding.y * 2.f);
+        m_StagesGPUPlot.SetMinY(0.01f);
+        m_StagesGPUPlotReady = true;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(600, 240), ImGuiCond_Once);
+    if (!ImGui::Begin("Stages GPU time graph", &m_ShowStagesGPUGraph, ImGuiWindowFlags_None))
+    {
+        ImGui::End();
+        return;
+    }
+
+    m_StagesGPUPlot.Update();
+    ImGui::End();
+}
+
+void alm::fw::FrameworkUI::BuildStagesCPUGraphWindow()
+{
+    if (!m_ShowStagesCPUGraph)
+        return;
+
+    auto* renderGraph = m_RenderViewUI->GetRenderGraph().get();
+
+    // CPU times of every render stage in the graph (fed by the stages' timer queries)
+    if (!m_StagesCPUPlotReady)
+    {
+        const size_t numStages = renderGraph->GetNumRenderStages();
+        for (size_t i = 0; i < numStages; ++i)
+        {
+            const auto* rs = renderGraph->GetRenderStageDataFromIndex((uint32_t)i);
+            if (!rs || !rs->renderStage)
+                continue;
+
+            const auto stageType = rs->renderStage->GetType();
+            m_StagesCPUPlot.AddLine(rs->renderStage->GetDebugName(),
+                [renderGraph, stageType] { return renderGraph->GetStageCPUTimeMs(stageType); });
+        }
+        m_StagesCPUPlot.SetBottomMargin(ImGui::GetStyle().FramePadding.y * 2.f);
+        m_StagesCPUPlot.SetMinY(0.01f);
+        m_StagesCPUPlotReady = true;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(600, 240), ImGuiCond_Once);
+    if (!ImGui::Begin("Stages CPU time graph", &m_ShowStagesCPUGraph, ImGuiWindowFlags_None))
+    {
+        ImGui::End();
+        return;
+    }
+
+    m_StagesCPUPlot.Update();
     ImGui::End();
 }
 
