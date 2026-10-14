@@ -62,7 +62,14 @@ void alm::gfx::DeferredLightingRenderStage::Render(alm::rhi::CommandListHandle c
 		{},
 		rhi::RenderPassFlags::None);
 
-	commandList->SetPipelineState(m_PSO.get());
+	if (m_MaterialChannel != MaterialChannel::Disabled || m_ShowSSAO || m_ShowShadowmap)
+	{
+		commandList->SetPipelineState(m_PSO_Debug.get());
+	}
+	else
+	{
+		commandList->SetPipelineState(m_PSO.get());
+	}
 
 	commandList->SetViewport(rhi::ViewportState().AddViewportAndScissorRect({
 		(float)m_FB->GetFramebufferInfo().width, (float)m_FB->GetFramebufferInfo().height }));
@@ -78,8 +85,8 @@ void alm::gfx::DeferredLightingRenderStage::Render(alm::rhi::CommandListHandle c
 	shaderConstants.SSAO_DI = m_RenderGraph->GetTextureSampledView(m_AmbientOcclusionTexture);
 	shaderConstants.CloudsShadowmapDI = m_CloudsShadowmapTexture.IsValid() ?
 		m_RenderGraph->GetTextureSampledView(m_CloudsShadowmapTexture) : rhi::TextureSampledView{};
-
 	shaderConstants.oneOverShadowmapResolution = 1.f / shadowMapResolution;
+
 	shaderConstants.MaterialChannel = (uint)m_MaterialChannel;
 	shaderConstants.ShowSSAO = m_ShowSSAO;
 	shaderConstants.ShowShadowmap = m_ShowShadowmap;
@@ -107,12 +114,15 @@ void alm::gfx::DeferredLightingRenderStage::OnAttached()
 	{
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_PS = shaderFactory->LoadShader("DeferredLighting_ps", rhi::ShaderType::Pixel);
+		m_PS_Debug = shaderFactory->LoadShader("DeferredLighting_DEBUG_ps", rhi::ShaderType::Pixel);
 	}
 
 	// Create PSO
 	{
 		m_PSO = commonResources->CreateFullscreenPassPSO(
 			m_FB->GetFramebufferInfo(), m_PS.get_weak(), "DeferredLightingRenderStage");
+		m_PSO_Debug = commonResources->CreateFullscreenPassPSO(
+			m_FB->GetFramebufferInfo(), m_PS_Debug.get_weak(), "DeferredLightingRenderStage");
 	}
 }
 
@@ -121,7 +131,9 @@ void alm::gfx::DeferredLightingRenderStage::OnDetached()
 	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	device->ReleaseQueued(std::move(m_FB));
+	device->ReleaseQueued(std::move(m_PSO_Debug));
 	device->ReleaseQueued(std::move(m_PSO));
+	device->ReleaseQueued(std::move(m_PS_Debug));
 	device->ReleaseQueued(std::move(m_PS));
 }
 
@@ -140,4 +152,6 @@ void alm::gfx::DeferredLightingRenderStage::OnBackbufferResize()
 	// Re-create PSO
 	m_PSO = commonResources->CreateFullscreenPassPSO(
 		m_FB->GetFramebufferInfo(), m_PS.get_weak(), "DeferredLightingRenderStage");
+	m_PSO_Debug = commonResources->CreateFullscreenPassPSO(
+		m_FB->GetFramebufferInfo(), m_PS_Debug.get_weak(), "DeferredLightingRenderStage");
 }

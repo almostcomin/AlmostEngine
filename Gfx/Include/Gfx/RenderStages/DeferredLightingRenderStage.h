@@ -61,8 +61,10 @@ private:
 	RGTextureHandle m_AmbientOcclusionTexture;
 
 	alm::rhi::ShaderOwner m_PS;
+	alm::rhi::ShaderOwner m_PS_Debug;
 	alm::rhi::FramebufferOwner m_FB;
 	alm::rhi::GraphicsPipelineStateOwner m_PSO;
+	alm::rhi::GraphicsPipelineStateOwner m_PSO_Debug;
 
 	MaterialChannel m_MaterialChannel = MaterialChannel::Disabled;
 	bool m_ShowSSAO = false;

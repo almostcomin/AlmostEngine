@@ -358,10 +358,12 @@ namespace interop
 
         TextureSampledViewIndex CloudsShadowmapDI;
         float2 oneOverShadowmapResolution; 
-        uint MaterialChannel; 
 
+        // Debug
+        uint MaterialChannel; 
         uint ShowSSAO;
         uint ShowShadowmap;
+
         uint2 _padding0;
     };
 

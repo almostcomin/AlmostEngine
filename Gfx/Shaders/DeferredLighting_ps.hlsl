@@ -5,19 +5,6 @@
 #include "GBuffersCommon.hlsli"
 #include "Common.hlsli"
 
-// Keep in sync with alm::gfx::DeferredLightingRenderStage::MaterialChannel
-static const uint MaterialChannel_Disabled      = 0;
-static const uint MaterialChannel_BaseColor     = 1;
-static const uint MaterialChannel_Metalness     = 2;
-static const uint MaterialChannel_Anisotropy    = 3;
-static const uint MaterialChannel_Roughness     = 4;
-static const uint MaterialChannel_Scattering    = 5;
-static const uint MaterialChannel_Translucency  = 6;
-static const uint MaterialChannel_NormalMap     = 7;
-static const uint MaterialChannel_OcclusionMap  = 8;
-static const uint MaterialChannel_Emissive      = 9;
-static const uint MaterialChannel_SpecularF0    = 10;
-
 ConstantBuffer<interop::DeferredLightingConstants> Constants : register(b0);
 
 struct PS_INPUT
@@ -49,170 +36,103 @@ float4 main(PS_INPUT input) : SV_Target
         
     MaterialSample surfaceMat = DecodeGBuffers(gbuffers);
 
-    float3 color = 0.0;
-    if (Constants.MaterialChannel == MaterialChannel_BaseColor)
-    {
-        color = surfaceMat.diffuseAlbedo;
-    }
-    else if (Constants.MaterialChannel == MaterialChannel_Metalness)
-    {
-        color = surfaceMat.metalness;
-    }
-    else if (Constants.MaterialChannel == MaterialChannel_Anisotropy)
-    {
-        color = 1.f; // TODO
-    }
-    else if (Constants.MaterialChannel == MaterialChannel_Roughness)
-    {
-        color = surfaceMat.roughness;
-    }
-    else if (Constants.MaterialChannel == MaterialChannel_Scattering)
-    {
-        color = 1.f; // TODO
-    }
-    else if (Constants.MaterialChannel == MaterialChannel_Translucency)
-    {
-        color = surfaceMat.opacity;
-    }
-    else if (Constants.MaterialChannel == MaterialChannel_NormalMap)
-    {
-        color = mul((float3x3)sceneData.invCamViewMatrix, surfaceMat.normal) * 0.5 + 0.5;
-    }
-    else if (Constants.MaterialChannel == MaterialChannel_OcclusionMap)
-    {
-        color = surfaceMat.occlusion;
-    }
-    else if (Constants.MaterialChannel == MaterialChannel_Emissive)
-    {
-        color = surfaceMat.emissiveColor;
-    }
-    else if (Constants.MaterialChannel == MaterialChannel_SpecularF0)
-    {
-        color = surfaceMat.specularF0;
-    }
-    else if (Constants.ShowSSAO != 0)
-    {
-        color = 1.0;
-        if (Constants.SSAO_DI != INVALID_DESCRIPTOR_INDEX)
-        {
-            Texture2D<float4> SSAOTex = ResourceDescriptorHeap[Constants.SSAO_DI];
-            color = abs(SSAOTex.SampleLevel(pointClampSampler, input.uv, 0).r);
-        }
-    }
-    else if (Constants.ShowShadowmap != 0)
-    {
-        color = 1.0;
-        float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
-        float4 surfacePosView = PosReconstruction(input.uv, depth, sceneData.invCamProjMatrix);
-        
-        if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
-        {
-            Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
-            color = SampleShadowMapPoissonDisk16(
-                surfacePosView, sceneData.shadowMapViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
-        }
-    }
-    else
-    {
-        // World pos reconstruction
-        float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
-        float4 surfacePosView = PosReconstruction(input.uv, depth, sceneData.invCamProjMatrix);
+    // World pos reconstruction
+    float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
+    float4 surfacePosView = PosReconstruction(input.uv, depth, sceneData.invCamProjMatrix);
     
-        // Sample cascade shadowmap
-        float shadowFactor = 1.0;
-        if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
-        {
-            Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
-            shadowFactor = SampleShadowMapPoissonDisk16(
-                surfacePosView, sceneData.shadowMapViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
-        }
-        
-        // Clouds shadow
-        float cloudsShadowFactor = 1.0;
-        if (Constants.CloudsShadowmapDI != INVALID_DESCRIPTOR_INDEX)
-        {
-            Texture2D cloudsShadowmap = ResourceDescriptorHeap[Constants.CloudsShadowmapDI];
-            
-            // Convert view-space surface position to world space
-            float4 surfacePosWorldH = mul(sceneData.invCamViewMatrix, float4(surfacePosView.xyz, 1));
-            float3 surfacePosWorld = surfacePosWorldH.xyz;
-            
-            // Compute clip-space UV from sun-space direction
-            float4 clip = mul(sceneData.CloudsShadowmapWorldToClipMatrix, float4(surfacePosWorld, 1.0));
-            float2 uv = float2(clip.x * 0.5 + 0.5, 0.5 - clip.y * 0.5);
-            cloudsShadowFactor = cloudsShadowmap.SampleLevel(linearClampSampler, uv, 0.0).x;
-        }
-    
-        // Sample ambient occlusion
-        float ambientOcclusion = surfaceMat.occlusion;
-        if (Constants.SSAO_DI != INVALID_DESCRIPTOR_INDEX)
-        {
-            Texture2D<float> SSAOTex = ResourceDescriptorHeap[Constants.SSAO_DI];
-            ambientOcclusion *= SSAOTex.SampleLevel(pointClampSampler, input.uv, 0);
-        }
-        
-        // Shade
-        float3 viewIncident = normalize(surfacePosView.xyz);
-        float3 diffuseRadiance;
-        float3 specularRadiance;
-
-        // Main directional light, the only one with a cascade shadowmap
-        ShadeSurface_DirLight(sceneData.mainDirLight, surfaceMat, surfacePosView.xyz, viewIncident, diffuseRadiance, specularRadiance);
-        // Cascade shadow map only affects main directional light
-        float combinedShadowFactor = shadowFactor * cloudsShadowFactor;
-        diffuseRadiance *= combinedShadowFactor;
-        specularRadiance *= combinedShadowFactor;
-
-        // Additional directional lights
-        for (uint i = 0; i < sceneData.dirLightCount; i++)
-        {
-            float3 lightDiffuseRadiance;
-            float3 lightSpecularRadiance;
-            interop::DirLightData dirLight = dirLightsDataBuffer[i];
-            
-            ShadeSurface_DirLight(dirLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
-            
-            diffuseRadiance += lightDiffuseRadiance;
-            specularRadiance += lightSpecularRadiance;
-        }
-
-        // Point lights
-        for (uint i = 0; i < sceneData.pointLightCount; i++)
-        {
-            float3 lightDiffuseRadiance;
-            float3 lightSpecularRadiance;
-            interop::PointLightData pointLight = pointLightsDataBuffer[i];
-            
-            ShadeSurface_PointLight(pointLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
-            
-            diffuseRadiance += lightDiffuseRadiance;
-            specularRadiance += lightSpecularRadiance;
-        }
-
-        // Spot lights
-        for (uint i = 0; i < sceneData.spotLightCount; i++)
-        {
-            float3 lightDiffuseRadiance;
-            float3 lightSpecularRadiance;
-            interop::SpotLightData spotLight = spotLightsDataBuffer[i];
-            
-            ShadeSurface_SpotLight(spotLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
-            
-            diffuseRadiance += lightDiffuseRadiance;
-            specularRadiance += lightSpecularRadiance;
-        }
-        
-        // Ambient    
-        float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
-        diffuseRadiance += ambientColor * surfaceMat.diffuseAlbedo * ambientOcclusion;
-        
-        float specAO = GetSpecularAO(surfaceMat.normal, surfaceMat.roughness, viewIncident, ambientOcclusion);
-        specularRadiance += ambientColor * surfaceMat.specularF0 * specAO;
-
-        color = diffuseRadiance + specularRadiance + surfaceMat.emissiveColor;
-        
-        color = ApplyExposure(color, sceneData.exposureFactorTextureDI);
+    // Sample cascade shadowmap
+    float shadowFactor = 1.0;
+    if (Constants.shadowMapDI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D shadowMap = ResourceDescriptorHeap[Constants.shadowMapDI];
+        shadowFactor = SampleShadowMapPoissonDisk16(
+            surfacePosView, sceneData.shadowMapViewToClipMatrix, shadowMap, Constants.oneOverShadowmapResolution, 2.0);
     }
+        
+    // Clouds shadow
+    float cloudsShadowFactor = 1.0;
+    if (Constants.CloudsShadowmapDI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D cloudsShadowmap = ResourceDescriptorHeap[Constants.CloudsShadowmapDI];
+            
+        // Convert view-space surface position to world space
+        float4 surfacePosWorldH = mul(sceneData.invCamViewMatrix, float4(surfacePosView.xyz, 1));
+        float3 surfacePosWorld = surfacePosWorldH.xyz;
+            
+        // Compute clip-space UV from sun-space direction
+        float4 clip = mul(sceneData.CloudsShadowmapWorldToClipMatrix, float4(surfacePosWorld, 1.0));
+        float2 uv = float2(clip.x * 0.5 + 0.5, 0.5 - clip.y * 0.5);
+        cloudsShadowFactor = cloudsShadowmap.SampleLevel(linearClampSampler, uv, 0.0).x;
+    }
+    
+    // Sample ambient occlusion
+    float ambientOcclusion = surfaceMat.occlusion;
+    if (Constants.SSAO_DI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D<float> SSAOTex = ResourceDescriptorHeap[Constants.SSAO_DI];
+        ambientOcclusion *= SSAOTex.SampleLevel(pointClampSampler, input.uv, 0);
+    }
+        
+    // Shade
+    float3 viewIncident = normalize(surfacePosView.xyz);
+    float3 diffuseRadiance;
+    float3 specularRadiance;
+
+    // Main directional light, the only one with a cascade shadowmap
+    ShadeSurface_DirLight(sceneData.mainDirLight, surfaceMat, surfacePosView.xyz, viewIncident, diffuseRadiance, specularRadiance);
+    // Cascade shadow map only affects main directional light
+    float combinedShadowFactor = shadowFactor * cloudsShadowFactor;
+    diffuseRadiance *= combinedShadowFactor;
+    specularRadiance *= combinedShadowFactor;
+
+    // Additional directional lights
+    for (uint i = 0; i < sceneData.dirLightCount; i++)
+    {
+        float3 lightDiffuseRadiance;
+        float3 lightSpecularRadiance;
+        interop::DirLightData dirLight = dirLightsDataBuffer[i];
+            
+        ShadeSurface_DirLight(dirLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
+            
+        diffuseRadiance += lightDiffuseRadiance;
+        specularRadiance += lightSpecularRadiance;
+    }
+
+    // Point lights
+    for (uint i = 0; i < sceneData.pointLightCount; i++)
+    {
+        float3 lightDiffuseRadiance;
+        float3 lightSpecularRadiance;
+        interop::PointLightData pointLight = pointLightsDataBuffer[i];
+            
+        ShadeSurface_PointLight(pointLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
+            
+        diffuseRadiance += lightDiffuseRadiance;
+        specularRadiance += lightSpecularRadiance;
+    }
+
+    // Spot lights
+    for (uint i = 0; i < sceneData.spotLightCount; i++)
+    {
+        float3 lightDiffuseRadiance;
+        float3 lightSpecularRadiance;
+        interop::SpotLightData spotLight = spotLightsDataBuffer[i];
+            
+        ShadeSurface_SpotLight(spotLight, surfaceMat, surfacePosView.xyz, viewIncident, lightDiffuseRadiance, lightSpecularRadiance);
+            
+        diffuseRadiance += lightDiffuseRadiance;
+        specularRadiance += lightSpecularRadiance;
+    }
+        
+    // Ambient    
+    float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
+    diffuseRadiance += ambientColor * surfaceMat.diffuseAlbedo * ambientOcclusion;
+        
+    float specAO = GetSpecularAO(surfaceMat.normal, surfaceMat.roughness, viewIncident, ambientOcclusion);
+    specularRadiance += ambientColor * surfaceMat.specularF0 * specAO;
+
+    float3 color = diffuseRadiance + specularRadiance + surfaceMat.emissiveColor;
+    color = ApplyExposure(color, sceneData.exposureFactorTextureDI);
     
     return float4(color, 1.0);
 }
