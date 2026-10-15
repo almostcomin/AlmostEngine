@@ -22,3 +22,6 @@
 [submodule "3rdParty/Sources/tracy"]
 	path = 3rdParty/Sources/tracy
 	url = https://github.com/wolfpld/tracy.git
+[submodule "3rdParty/Sources/KTX-Software"]
+	path = 3rdParty/Sources/KTX-Software
+	url = https://github.com/KhronosGroup/KTX-Software.git
