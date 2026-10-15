@@ -63,6 +63,11 @@ void alm::gfx::GPUCullingRenderStage::Setup(RenderGraphBuilder& builder)
 
 void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
+	// Defensive: the stage disables itself in OnAttached when GPU-driven is off, but
+	// never run with the resources unset either way.
+	if (!GetDeviceManager()->GPUDrivenEnabled() || !m_CullingPSO)
+		return;
+
 	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	UploadBuffer* uploadBuffer = deviceManager->GetUploadBuffer();
 	const alm::gfx::GpuSceneBuffers* gpuSceneBuffers = deviceManager->GetGpuSceneBuffers();
@@ -83,14 +88,7 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 
 		auto [stats, offset] = uploadBuffer->RequestSpaceForBufferDataUpload<interop::CullingStats>();
 
-		stats->CameraTotalInstances = 0;
-		stats->CameraVisibleInstances = 0;
-		stats->CameraTotalPrimitives = 0;
-		stats->CameraVisiblePrimitives = 0;
-		stats->ShadowTotalInstances = 0;
-		stats->ShadowVisibleInstances = 0;
-		stats->ShadowTotalPrimitives = 0;
-		stats->ShadowVisiblePrimitives = 0;
+		*stats = {};
 
 		commandList->PushBarrier(rhi::Barrier::Buffer(m_StatsBuffer.get(), rhi::ResourceState::COMMON, rhi::ResourceState::COPY_DST));
 		commandList->CopyBufferToBuffer(m_StatsBuffer.get(), 0, uploadBuffer->GetBuffer().get(), offset, sizeof(interop::CullingStats));
@@ -164,6 +162,17 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 
 void alm::gfx::GPUCullingRenderStage::OnAttached()
 {
+	// CPU culling mode (GPUDriven off, including unsupported hardware after the
+	// FrameworkApp fallback): this stage does nothing. The 6.8 cull shaders are not
+	// even loaded (they may fail to compile/load on this hardware), no PSOs, no stats
+	// buffers. The RG buffers declared in Setup() still exist: the draw stages request
+	// them, but in CPU mode nobody reads them.
+	if (!GetDeviceManager()->GPUDrivenEnabled())
+	{
+		SetEnabled(false);
+		return;
+	}
+
 	alm::gfx::DeviceManager* deviceManager = GetDeviceManager();
 	alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 	rhi::Device* device = deviceManager->GetDevice();
@@ -244,15 +253,17 @@ void alm::gfx::GPUCullingRenderStage::UnrequestStats()
 	--m_StatsRequests;
 }
 
-interop::CullingStats alm::gfx::GPUCullingRenderStage::GetStats() const
+const interop::CullingStats* alm::gfx::GPUCullingRenderStage::GetStats() const
 {
-	if (m_StatsRequests == 0)
+	// Not active: either never requested, or the stage runs in CPU culling mode
+	// (its resources were never created)
+	if (m_StatsRequests == 0 || !m_StatsBufferRBPtr)
 	{
 		LOG_WARNING("GetStats() called while culling stats are not active. Call RequestStats() first.");
-		return {};
+		return nullptr;
 	}
 
 	// The readback buffer is persistently mapped; its content corresponds to the previous frame
 	// (same 1-frame-late semantics as the timer queries).
-	return *m_StatsBufferRBPtr;
+	return m_StatsBufferRBPtr;
 }

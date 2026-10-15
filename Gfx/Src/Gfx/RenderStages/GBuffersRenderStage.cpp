@@ -10,6 +10,23 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/RenderGraphBuilder.h"
 
+std::optional<alm::gfx::MaterialPassRenderer::RenderStats>
+alm::gfx::GBuffersRenderStage::GetRenderedStats(const interop::CullingStats* stats) const
+{
+	if (!IsEnabled())
+		return {};   // disabled: valid stats, all zeros
+
+	if (GetDeviceManager()->GPUDrivenEnabled())
+	{
+		assert(stats);
+		return m_MaterialPassRenderer.ComputeRenderedStats(*stats, false);
+	}
+	else
+	{
+		return m_LastRenderedStats;
+	}
+}
+
 void alm::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	// Create render targets
@@ -36,10 +53,6 @@ void alm::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 		m_GBuffer3Texture = builder.CreateColorTarget("GBuffer3", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA8_UNORM);
 
 		m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
-
-		m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
-		m_IndirectDrawArgsBuffer = builder.GetBufferHandle("IndirectDrawArgsBuffer");
-		m_IndirectDrawCountsBuffer = builder.GetBufferHandle("IndirectDrawCountsBuffer");
 	}
 
 	// Request RT access
@@ -49,12 +62,19 @@ void alm::gfx::GBuffersRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddTextureDependency(m_GBuffer3Texture, RenderGraph::AccessMode::Write, rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
 
-	builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
-		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	builder.AddBufferDependency(m_IndirectDrawArgsBuffer, RenderGraph::AccessMode::Read,
-		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
-	builder.AddBufferDependency(m_IndirectDrawCountsBuffer, RenderGraph::AccessMode::Read,
-		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
+	if (GetDeviceManager()->GPUDrivenEnabled())
+	{
+		m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
+		m_IndirectDrawArgsBuffer = builder.GetBufferHandle("IndirectDrawArgsBuffer");
+		m_IndirectDrawCountsBuffer = builder.GetBufferHandle("IndirectDrawCountsBuffer");
+
+		builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+		builder.AddBufferDependency(m_IndirectDrawArgsBuffer, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
+		builder.AddBufferDependency(m_IndirectDrawCountsBuffer, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
+	}
 }
 
 void alm::gfx::GBuffersRenderStage::Render(alm::rhi::CommandListHandle commandList)
@@ -98,7 +118,7 @@ void alm::gfx::GBuffersRenderStage::Render(alm::rhi::CommandListHandle commandLi
 	}
 	else
 	{
-		m_MaterialPassRenderer.DrawRenderSetInstanced(
+		m_LastRenderedStats = m_MaterialPassRenderer.DrawRenderSetInstanced(
 			GetRenderView()->GetCameraVisibleSet(),
 			commandList.get());
 	}

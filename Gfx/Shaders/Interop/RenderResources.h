@@ -276,7 +276,7 @@ namespace interop
         BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
     };
 
-    struct MultiInstanceDrawConstants
+    struct MaterialPassRendererConstants
     {
         uint baseInstanceIdx;               // Base index into Visibily Buffer
         uint rawInstanceBaseIdx;            // Base index into InstanceData
@@ -284,6 +284,12 @@ namespace interop
         uint materialIndex;                 // Index into MaterialData Buffer
         uint extraDataBaseIdx;              // Base offset for shader-specific extra data buffers. Heightmap PatchData base for instance.
     };
+
+    // Bucket = (MaterialDomain, CullMode) pair. Counts must match the C++ enums
+    // (static_asserts live in GpuSceneBuffers.cpp).
+    static const uint MaterialDomainCount = 4;   // Opaque, AlphaTested, AlphaBlended, Terrain
+    static const uint CullModeCount = 3;         // Back, Front, None
+    static const uint BucketCount = MaterialDomainCount * CullModeCount;
 
     struct BatchTableEntry
     {
@@ -293,6 +299,7 @@ namespace interop
         uint PayloadRegionOffset;
         uint IndexCount;
         uint BucketFirstBatchIndex;
+        uint BucketIdx;                     // (domain * CullModeCount + cullMode) of this batch
     };
 
     struct IndirectDrawCommand
@@ -332,7 +339,10 @@ namespace interop
         BufferReadWriteIndex StatsBufferDI;         // CullingStats
     };
 
-    struct CullingStats
+    // Per-bucket culling stats (bucket = domain + cull face). "Total" counts instances
+    // eligible for the frustum test (alive + Visible flag); "Visible" counts the ones
+    // that passed it (= exactly what the indirect draws of that bucket submit).
+    struct CullingBucketStats
     {
         uint CameraTotalInstances;
         uint CameraVisibleInstances;
@@ -342,6 +352,11 @@ namespace interop
         uint ShadowVisibleInstances;
         uint ShadowTotalPrimitives;
         uint ShadowVisiblePrimitives;
+    };
+
+    struct CullingStats
+    {
+        CullingBucketStats Buckets[BucketCount];
     };
 
     struct DeferredLightingConstants

@@ -52,10 +52,10 @@ void TimePlot::Update()
 {
     Update(ImVec2(0, 0));
 }
-
 void TimePlot::Update(const ImVec2& size)
 {
     const ImVec2 full = (size.x > 0 || size.y > 0) ? size : ImGui::GetContentRegionAvail();
+
 
     // Sample the lines at a fixed interval
     if (m_T == 0.f || m_T - m_LastT >= m_SampleInterval)

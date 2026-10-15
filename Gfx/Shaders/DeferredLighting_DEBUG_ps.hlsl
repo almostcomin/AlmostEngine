@@ -109,5 +109,6 @@ float4 main(PS_INPUT input) : SV_Target
         }
     }
     
+    color = ApplyExposure(color, sceneData.exposureFactorTextureDI);
     return float4(color, 1.0);
 }

@@ -8,6 +8,10 @@
 #include "RHI/Buffer.h"
 #include "RHI/Device.h"
 
+// The interop bucket counts must match the C++ enums (used for BucketIdx computation)
+static_assert((int)alm::gfx::MaterialDomain::_Size == (int)interop::MaterialDomainCount);
+static_assert((int)alm::rhi::CullMode::_Size == (int)interop::CullModeCount);
+
 static void SerializeMaterial(const alm::gfx::Material* mat, interop::MaterialData* dest)
 {
 	*dest = {};
@@ -571,7 +575,8 @@ alm::gfx::GpuSceneBuffers::HeightmapPatchesAllocation alm::gfx::GpuSceneBuffers:
 		.BatchTableEntriesPtr = transientAlloc.BatchTableBufferPtr,
 		.HeightmapPatchesPtr = ss.HeightmapPatchDataPtr + patchSlotBase,
 		.FirstBatchIndex = transientAlloc.FirstBatchIndex,
-		.FirstPayloadRegion = transientAlloc.FirstPayloadRegion };
+		.FirstPayloadRegion = transientAlloc.FirstPayloadRegion,
+		.BucketIdx = transientAlloc.BucketIdx };
 }
 
 alm::gfx::GpuSceneBuffers::MaterialIndexEntry alm::gfx::GpuSceneBuffers::GetMaterialIndexFromMesh(const alm::gfx::Mesh* mesh) const
@@ -992,7 +997,8 @@ alm::gfx::GpuSceneBuffers::TransientInstanceAllocation alm::gfx::GpuSceneBuffers
 		.CullDataBufferPtr		= ss.TransientInstanceCullDataPtr + transientSlotBase,
 		.BatchTableBufferPtr	= ss.TransientBatchTablePtr + transientSlotBase,
 		.FirstBatchIndex		= ss.StaticBatchCount + transientSlotBase,
-		.FirstPayloadRegion		= ss.StaticPayloadTotal + transientSlotBase	};
+		.FirstPayloadRegion		= ss.StaticPayloadTotal + transientSlotBase,
+		.BucketIdx				= (uint32_t)((int)domain * interop::CullModeCount + (int)cullMode) };
 }
 
 void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
@@ -1077,7 +1083,8 @@ void alm::gfx::GpuSceneBuffers::RebuildBatchTable(SceneState& ss)
 			.ExtraDataBaseIdx = first.TransientBaseIndex,
 			.PayloadRegionOffset = regionOffset,
 			.IndexCount = (uint32_t)first.IndexCount,
-			.BucketFirstBatchIndex = bucket.FirstBatchIndex });
+			.BucketFirstBatchIndex = bucket.FirstBatchIndex,
+			.BucketIdx = (uint32_t)((int)first.MaterialDomain * interop::CullModeCount + (int)first.CullMode) });
 
 		for (uint32_t r = runStart; r < i; ++r)
 		{

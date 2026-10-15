@@ -10,21 +10,43 @@
 #include "Gfx/SceneGraph.h"
 #include "Gfx/RenderGraphBuilder.h"
 
+// Workload this pass submits, summed from the per-bucket culling stats over this pass's domains
+std::optional<alm::gfx::MaterialPassRenderer::RenderStats>
+alm::gfx::DepthPrepassRenderStage::GetRenderedStats(const interop::CullingStats* stats) const
+{
+	if (!IsEnabled())
+		return {};   // disabled: valid stats, all zeros
+
+	if (GetDeviceManager()->GPUDrivenEnabled())
+	{
+		assert(stats);
+		return m_MaterialPassRenderer.ComputeRenderedStats(*stats, false);
+	}
+	else
+	{
+		return m_LastRenderedStats;
+	}
+}
+
 void alm::gfx::DepthPrepassRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneDepthTexture = builder.CreateDepthTarget("SceneDepth", 1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::D24S8);
-	m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
-	m_IndirectDrawArgsBuffer = builder.GetBufferHandle("IndirectDrawArgsBuffer");
-	m_IndirectDrawCountsBuffer = builder.GetBufferHandle("IndirectDrawCountsBuffer");
-
 	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
-	builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
-		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
-	builder.AddBufferDependency(m_IndirectDrawArgsBuffer, RenderGraph::AccessMode::Read,
-		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
-	builder.AddBufferDependency(m_IndirectDrawCountsBuffer, RenderGraph::AccessMode::Read,
-		rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
+
+	if (GetDeviceManager()->GPUDrivenEnabled())
+	{
+		m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
+		m_IndirectDrawArgsBuffer = builder.GetBufferHandle("IndirectDrawArgsBuffer");
+		m_IndirectDrawCountsBuffer = builder.GetBufferHandle("IndirectDrawCountsBuffer");
+
+		builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+		builder.AddBufferDependency(m_IndirectDrawArgsBuffer, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
+		builder.AddBufferDependency(m_IndirectDrawCountsBuffer, RenderGraph::AccessMode::Read,
+			rhi::ResourceState::INDIRECT_ARGUMENT, rhi::ResourceState::INDIRECT_ARGUMENT);
+	}
 }
 
 void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle commandList)
@@ -61,7 +83,7 @@ void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle comma
 	}
 	else
 	{
-		m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
+		m_LastRenderedStats = m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
 	}
 
 	commandList->EndRenderPass();

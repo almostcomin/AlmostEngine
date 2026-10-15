@@ -114,12 +114,15 @@ alm::rhi::IGraphicsPipelineState* alm::gfx::MaterialPassRenderer::GetPSO(Materia
 	return nullptr;
 }
 
-void alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const
+alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(
+	const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const
 {
-	if (renderSet.Elements.empty())
-		return;
+	RenderStats out{};
 
-	interop::MultiInstanceDrawConstants shaderConstants = {};
+	if (renderSet.Elements.empty())
+		return out;
+
+	interop::MaterialPassRendererConstants shaderConstants = {};
 
 	int visibleInstanceIndex = 0; // Index to the visible buffer
 	for (const auto& domainBase : renderSet.Elements)
@@ -168,6 +171,9 @@ void alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(const alm::gfx::Rend
 					commandList->PushGraphicsConstants(1, shaderConstants);
 					commandList->DrawInstanced(prevDrawInfo.IndexCount, i - prevIdx, 0);
 
+					out.VisibleInstances += i - prevIdx;
+					out.VisiblePrimitives += GetPrimitiveCount(prevDrawInfo.IndexCount, m_BasePSODesc.primTopo) * uint32_t(i - prevIdx);
+
 					batchKey = drawInfo.BatchKey;
 					prevIdx = i;
 				}
@@ -182,9 +188,14 @@ void alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(const alm::gfx::Rend
 			commandList->PushGraphicsConstants(1, shaderConstants);
 			commandList->DrawInstanced(drawInfo.IndexCount, drawInfos.size() - prevIdx, 0);
 
+			out.VisibleInstances += uint32_t(drawInfos.size() - prevIdx);
+			out.VisiblePrimitives += GetPrimitiveCount(drawInfo.IndexCount, m_BasePSODesc.primTopo) * uint32_t(drawInfos.size() - prevIdx);
+
 			visibleInstanceIndex += drawInfos.size();
 		}
 	}
+
+	return out;
 }
 
 void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& params, alm::rhi::ICommandList* commandList) const
@@ -246,7 +257,7 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 
 		commandList->BeginMarker(std::format("{}:{} - {}:{}", m_BaseDebugName, t.DebugName.empty() ? "Transient" : t.DebugName,
 			GetMaterialDomainString(t.Domain), rhi::GetCullModeString(t.Cull)).c_str());
-		
+
 		commandList->ExecuteIndirect(
 			m_CommandSignature.get(),
 			params.ArgsBuffer,
@@ -257,4 +268,32 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 
 		commandList->EndMarker();
 	}
+}
+
+alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::ComputeRenderedStats(
+	const interop::CullingStats& stats, bool shadowFrustum) const
+{
+	RenderStats out{};
+	for (int domainIdx = 0; domainIdx < (int)MaterialDomain::_Size; ++domainIdx)
+	{
+		if (!m_ValidDomains[domainIdx])
+			continue;
+
+		for (int cullIdx = 0; cullIdx < (int)rhi::CullMode::_Size; ++cullIdx)
+		{
+			const uint32_t bucketIdx = (uint32_t)(domainIdx * interop::CullModeCount + cullIdx);
+			const interop::CullingBucketStats& bucketStats = stats.Buckets[bucketIdx];
+			if (shadowFrustum)
+			{
+				out.VisibleInstances += bucketStats.ShadowVisibleInstances;
+				out.VisiblePrimitives += bucketStats.ShadowVisiblePrimitives;
+			}
+			else
+			{
+				out.VisibleInstances += bucketStats.CameraVisibleInstances;
+				out.VisiblePrimitives += bucketStats.CameraVisiblePrimitives;
+			}
+		}
+	}
+	return out;
 }

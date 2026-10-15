@@ -26,6 +26,8 @@ public:
 	float GetSlopeScaledDepthBias() const { return m_SlopeScaledDepthBias; }
 	void SetSlopeScaledDepthBias(float v);
 
+	std::optional<MaterialPassRenderer::RenderStats> GetRenderedStats(const interop::CullingStats* stats) const override;
+
 private:
 
 	void InitResources();
@@ -63,6 +65,10 @@ private:
 	alm::rhi::FramebufferOwner m_FB;
 	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	alm::gfx::MaterialPassRenderer m_MaterialPassRenderer;
+	alm::gfx::MaterialPassRenderer::RenderStats m_LastRenderedStats;
+
+	// Workload this stage submitted in its last draw, from the collected draw stats
+	MaterialPassRenderer::RenderStats GetLastRenderedStats() const { return m_LastRenderedStats; }
 
 	int m_DepthBias;
 	float m_SlopeScaledDepthBias;

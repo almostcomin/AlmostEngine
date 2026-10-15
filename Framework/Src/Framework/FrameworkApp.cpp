@@ -572,12 +572,16 @@ void alm::fw::FrameworkApp::InitRenderStages()
 
 	// Lets create a default set of render stages
 	{
+		std::shared_ptr<gfx::GPUCullingRenderStage> gpuCullingRS;
 		std::shared_ptr<gfx::SimpleSkyRenderStage> simpleSkyRS;
 		std::shared_ptr<gfx::SkyRenderStage> skyRS;
 		std::shared_ptr<gfx::CloudsRenderStage> cloudsRS;
 		std::shared_ptr<gfx::CloudsShadowmapRenderStage> cloudsSMRS;
 
-		auto gpuCullingRS = gfx::RenderStageFactory::CreateShared<gfx::GPUCullingRenderStage>();
+		if (m_DeviceManager->GPUDrivenEnabled())
+		{
+			gpuCullingRS = gfx::RenderStageFactory::CreateShared<gfx::GPUCullingRenderStage>();
+		}
 		auto shadowmapRS = gfx::RenderStageFactory::CreateShared<gfx::ShadowmapRenderStage>();
 		auto depthPrepassRS = gfx::RenderStageFactory::CreateShared<gfx::DepthPrepassRenderStage>();
 		auto linearizeDepthRS = gfx::RenderStageFactory::CreateShared<gfx::LinearizeDepthRenderStage>();
@@ -673,11 +677,10 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			compositeRS.get() };
 		// Remove the null ones
 		std::erase_if(defaultRenderMode, [](const auto& p) { return !p; });
-
 		renderGraph->SetRenderMode("Default", defaultRenderMode);
 
 		// Define wireframe render mode
-		renderGraph->SetRenderMode("Wireframe", {
+		std::vector<alm::gfx::RenderStage*> wireframeRenderMode = {
 			gpuCullingRS.get(),
 			depthPrepassRS.get(),
 			wireframeRS.get(),
@@ -685,7 +688,9 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			debugRS.get(),
 			outlineRS.get(),
 			ImGuiRS.get(),
-			compositeRS.get() });
+			compositeRS.get() };
+		std::erase_if(wireframeRenderMode, [](const auto& p) { return !p; });
+		renderGraph->SetRenderMode("Wireframe", wireframeRenderMode);
 
 		m_ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(ImGuiRS);
 	}

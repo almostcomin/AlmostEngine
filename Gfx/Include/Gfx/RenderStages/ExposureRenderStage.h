@@ -75,7 +75,7 @@ private:
 	float m_LogLuminanceRange;
 
 	float m_AdaptationUpSpeed = 2.f;
-	float m_AdaptationDownSpeed = 0.75f;
+	float m_AdaptationDownSpeed = 1.5f;
 
 	float m_MiddleGray = 0.18f;
 	float m_SdrExposureBias = 0.8f;

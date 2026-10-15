@@ -17,6 +17,9 @@ public:
 
 	DepthPrepassRenderStage() = default;
 
+	// Workload this pass submits, summed from the per-bucket culling stats over this pass's domains
+	std::optional<MaterialPassRenderer::RenderStats> GetRenderedStats(const interop::CullingStats* stats) const override;
+
 private:
 
 	void Setup(RenderGraphBuilder& builder) override;
@@ -40,6 +43,10 @@ private:
 	alm::rhi::FramebufferOwner m_FB;
 	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;
 	alm::gfx::MaterialPassRenderer m_MaterialPassRenderer;
+	alm::gfx::MaterialPassRenderer::RenderStats m_LastRenderedStats;
+
+	// Workload this stage submitted in its last draw, from the collected draw stats
+	MaterialPassRenderer::RenderStats GetLastRenderedStats() const { return m_LastRenderedStats; }
 };
 
 } // namespace st::gfx

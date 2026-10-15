@@ -3,7 +3,7 @@
 #include "Common.hlsli"
 
 ConstantBuffer<interop::DepthPrepassStageConstants> StageConstants : register(b0);
-ConstantBuffer<interop::MultiInstanceDrawConstants> DrawConstants : register(b1);
+ConstantBuffer<interop::MaterialPassRendererConstants> DrawConstants : register(b1);
 
 struct VS_OUTPUT
 {

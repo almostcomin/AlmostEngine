@@ -86,32 +86,32 @@ void main(uint DTid : SV_DispatchThreadID)
     interop::BatchTableEntry bte = batchTable[cullData.BatchIndex];
 
 #if RETRIEVE_STATS
-    InterlockedAdd(stats[0].CameraTotalInstances, 1);
-    InterlockedAdd(stats[0].CameraTotalPrimitives, bte.IndexCount / 3);
-#endif    
+    InterlockedAdd(stats[0].Buckets[bte.BucketIdx].CameraTotalInstances, 1);
+    InterlockedAdd(stats[0].Buckets[bte.BucketIdx].CameraTotalPrimitives, bte.IndexCount / 3);
+#endif
     if (TestSphereFrustum(sceneConstants.frustumPlanes, cullData.BoundsSphere))
     {
         Scatter(cameraArgs, cameraPayload, bte, cullData.BatchIndex, DTid);
 #if RETRIEVE_STATS
-        InterlockedAdd(stats[0].CameraVisibleInstances, 1);
-        InterlockedAdd(stats[0].CameraVisiblePrimitives, bte.IndexCount / 3);
+        InterlockedAdd(stats[0].Buckets[bte.BucketIdx].CameraVisibleInstances, 1);
+        InterlockedAdd(stats[0].Buckets[bte.BucketIdx].CameraVisiblePrimitives, bte.IndexCount / 3);
 #endif
     }
-    
+
     if (StageConstants.ShadowEnabled)
     {
 #if RETRIEVE_STATS
-        InterlockedAdd(stats[0].ShadowTotalInstances, 1);
-        InterlockedAdd(stats[0].ShadowTotalPrimitives, bte.IndexCount / 3);
-#endif     
+        InterlockedAdd(stats[0].Buckets[bte.BucketIdx].ShadowTotalInstances, 1);
+        InterlockedAdd(stats[0].Buckets[bte.BucketIdx].ShadowTotalPrimitives, bte.IndexCount / 3);
+#endif
         if ((cullData.Flags & RF_CAST_SHADOWS) &&
             TestSphereFrustum(sceneConstants.shadowCasterPlanes, cullData.BoundsSphere))
         {
             Scatter(shadowArgs, shadowPayload, bte, cullData.BatchIndex, DTid);
 #if RETRIEVE_STATS
-            InterlockedAdd(stats[0].ShadowVisibleInstances, 1);
-            InterlockedAdd(stats[0].ShadowVisiblePrimitives, bte.IndexCount / 3);
-#endif        
+            InterlockedAdd(stats[0].Buckets[bte.BucketIdx].ShadowVisibleInstances, 1);
+            InterlockedAdd(stats[0].Buckets[bte.BucketIdx].ShadowVisiblePrimitives, bte.IndexCount / 3);
+#endif
         }
     }
 }

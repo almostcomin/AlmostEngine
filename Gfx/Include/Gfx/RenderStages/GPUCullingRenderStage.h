@@ -22,7 +22,7 @@ public:
 
 	// Returns the last frame's culling stats (1 frame late, same as timer queries).
 	// If stats are not active, returns zeros and logs a warning.
-	interop::CullingStats GetStats() const;
+	const interop::CullingStats* GetStats() const;
 
 private:
 

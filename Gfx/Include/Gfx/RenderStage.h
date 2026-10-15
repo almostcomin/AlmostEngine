@@ -3,10 +3,12 @@
 #include "Core/Math/glm_config.h"
 #include "Core/Memory.h"
 #include <string>
+#include <optional>
 #include "RHI/ResourceState.h"
 #include "RHI/TypeForwards.h"
 #include "Core/Math.h"
 #include "Gfx/RenderStageType.h"
+#include "Gfx/MaterialPassRenderer.h"   // MaterialPassRenderer::RenderedStats
 
 namespace alm::rhi
 {
@@ -53,6 +55,14 @@ public:
 
 	virtual RenderStageTypeID GetType() const = 0;
 	virtual const char* GetDebugName() const = 0;
+
+	// Pass stages return the workload they submit, summed from the per-bucket culling
+	// stats over their own domains (a valid result, all zeros, when the stage is disabled
+	// in any way). Default: not a pass stage -> nullopt.
+	virtual std::optional<MaterialPassRenderer::RenderStats> GetRenderedStats(const interop::CullingStats*) const
+	{
+		return std::nullopt;
+	}
 
 protected:
 

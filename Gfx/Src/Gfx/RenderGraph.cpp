@@ -692,7 +692,7 @@ alm::rhi::TextureHandle alm::gfx::RenderGraph::GetTexture(RGTextureHandle handle
 
 alm::rhi::BufferHandle alm::gfx::RenderGraph::GetBuffer(RGBufferHandle handle)
 {
-	return GetDeclBuffer(handle)->buffer.get_weak();
+	return handle ? GetDeclBuffer(handle)->buffer.get_weak() : nullptr;
 }
 
 alm::rhi::TextureHandle alm::gfx::RenderGraph::GetTexture(const std::string& id)

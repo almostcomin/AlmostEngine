@@ -13,27 +13,41 @@
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
+std::optional<alm::gfx::MaterialPassRenderer::RenderStats>
+alm::gfx::WireframeRenderStage::GetRenderedStats(const interop::CullingStats* stats) const
+{
+	if (!IsEnabled())
+		return {};   // disabled: valid stats, all zeros
+
+	if (GetDeviceManager()->GPUDrivenEnabled())
+	{
+		assert(stats);
+		return m_MaterialPassRenderer.ComputeRenderedStats(*stats, false);
+	}
+	else
+	{
+		return m_LastRenderedStats;
+	}	
+}
+
 void alm::gfx::WireframeRenderStage::Setup(RenderGraphBuilder& builder)
 {
-	// Create textures
-	{
-		// Note that we create the ToneMapped resource here (as it does ToneMappingRenderStage).
-		// That should not be a probleam as far as the properties are the same in both places
-		m_ToneMappedTexture = builder.CreateTexture("ToneMapped", RenderGraph::TextureResourceType::RenderTarget,
-			1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT, true);
-		m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
+	// Note that we create the ToneMapped resource here (as it does ToneMappingRenderStage).
+	// That should not be a probleam as far as the properties are the same in both places
+	m_ToneMappedTexture = builder.CreateTexture("ToneMapped", RenderGraph::TextureResourceType::RenderTarget,
+		1, RenderGraph::SizeSpace::SceneViewport, 1, rhi::Format::RGBA16_FLOAT, true);
+	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 
+	builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read,
+		rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
+	builder.AddTextureDependency(m_ToneMappedTexture, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
+
+	if (GetDeviceManager()->GPUDrivenEnabled())
+	{
 		m_PayloadBuffer = builder.GetBufferHandle("PayloadBuffer");
 		m_IndirectDrawArgsBuffer = builder.GetBufferHandle("IndirectDrawArgsBuffer");
 		m_IndirectDrawCountsBuffer = builder.GetBufferHandle("IndirectDrawCountsBuffer");
-	}
-
-	// Request texture access access
-	{
-		builder.AddTextureDependency(m_SceneDepthTexture, RenderGraph::AccessMode::Read,
-			rhi::ResourceState::DEPTHSTENCIL, rhi::ResourceState::DEPTHSTENCIL);
-		builder.AddTextureDependency(m_ToneMappedTexture, RenderGraph::AccessMode::Write,
-			rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
 
 		builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Read,
 			rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
@@ -79,7 +93,7 @@ void alm::gfx::WireframeRenderStage::Render(alm::rhi::CommandListHandle commandL
 	}
 	else
 	{
-		m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
+		m_LastRenderedStats = m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
 	}
 
 	commandList->EndRenderPass();

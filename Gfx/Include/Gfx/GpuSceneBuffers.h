@@ -85,6 +85,7 @@ public:
 		interop::HeightmapPatchData* HeightmapPatchesPtr;
 		uint32_t FirstBatchIndex;
 		uint32_t FirstPayloadRegion;
+		uint32_t BucketIdx;
 	};
 
 public:
@@ -223,6 +224,7 @@ private:
 		interop::BatchTableEntry* BatchTableBufferPtr;
 		uint32_t FirstBatchIndex;
 		uint32_t FirstPayloadRegion;
+		uint32_t BucketIdx;         // (domain * CullModeCount + cullMode) of this allocation's bucket
 	};
 
 private:

@@ -7,6 +7,7 @@
 #include "RHI/RasterizerState.h"
 #include "RHI/DepthStencilState.h"
 #include "RHI/TypeForwards.h"
+#include "RHI/Common.h"
 
 namespace alm::rhi
 {

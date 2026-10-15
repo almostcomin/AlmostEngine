@@ -32,6 +32,12 @@ public:
 		const std::span<const GpuSceneBuffers::TransientRecord> Transients;
 	};
 
+	struct RenderStats
+	{
+		uint32_t VisibleInstances = 0;
+		uint32_t VisiblePrimitives = 0;
+	};
+
 public:
 
 	MaterialPassRenderer();
@@ -46,8 +52,14 @@ public:
 
 	rhi::IGraphicsPipelineState* GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const;
 
-	void DrawRenderSetInstanced(const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const;
+	// Returns the workload submitted: instances drawn and primitives rasterized
+	RenderStats DrawRenderSetInstanced(const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const;
 	void DrawIndirect(const IndirectDrawParams& params, alm::rhi::ICommandList* commandList) const;
+
+	// Sums the per-bucket culling stats over this renderer's valid domains:
+	// the workload this pass actually submits (Visible = what its ExecuteIndirects draw).
+	// shadowFrustum selects between the camera and the shadow frustum's stats.
+	RenderStats ComputeRenderedStats(const interop::CullingStats& stats, bool shadowFrustum) const;
 
 	const std::string& GetDebugName() const { return m_BaseDebugName; }
 
