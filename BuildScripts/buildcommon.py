@@ -13,7 +13,7 @@ from buildutils import run_cmake_build
 VALID_CONFIGS = ["Debug", "Release", "RelWithDebInfo"]
 ALL_CONFIGS = VALID_CONFIGS
 
-def build_project(name, source_rel, build_base_rel, install_base_rel, default_args=None, extra_args_func=None, post_install_func=None):
+def build_project(name, source_rel, build_base_rel, install_base_rel, default_args=None, extra_args_func=None, build_target=None, do_install=True, post_install_func=None):
     """
     Generic function to build a CMake project.
     
@@ -62,7 +62,8 @@ def build_project(name, source_rel, build_base_rel, install_base_rel, default_ar
             target=args.target,
             extra_args=extra_args,
             do_build=True,
-            do_install=True,
+            do_install=do_install,
+            build_target=build_target
         )
 
         if post_install_func is not None:

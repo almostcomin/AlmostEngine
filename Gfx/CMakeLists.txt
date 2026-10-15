@@ -71,6 +71,13 @@ endif()
 # stb
 target_include_directories(Gfx PRIVATE "${THIRDPARTY_ROOT}/stb/include")
 
+# KTX
+target_include_directories(Gfx PRIVATE 
+    "${THIRDPARTY_ROOT}/KTX-Software/${ALMOSTENGINE_TARGET}/$<CONFIG>/include")
+target_link_directories(Gfx PRIVATE 
+    "${THIRDPARTY_ROOT}/KTX-Software/${ALMOSTENGINE_TARGET}/$<CONFIG>/lib")
+target_link_libraries(Gfx PRIVATE ktx_read)    
+
 target_compile_features(Gfx PUBLIC cxx_std_23)
 set_target_properties(Gfx PROPERTIES
     CXX_STANDARD_REQUIRED YES

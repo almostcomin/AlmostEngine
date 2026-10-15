@@ -3,7 +3,7 @@ import subprocess
 from setupenv import setup_build_environment
 
 def run_cmake_build(source_dir, build_dir, install_dir, config_name, target, extra_args=None,
-                    do_build=True, do_install=True):
+                    do_build=True, do_install=True, build_target=None):
     """
     Configure, build, and optionally install a CMake project.
     
@@ -40,6 +40,8 @@ def run_cmake_build(source_dir, build_dir, install_dir, config_name, target, ext
     if do_build:
         print(f"Building ({config_name})...")
         build_cmd = ["cmake", "--build", build_dir, "--config", config_name]
+        if build_target:
+            build_cmd.extend(["--target", build_target])        
         subprocess.run(build_cmd, env=env, check=True)
     
     if do_install and install_dir is not None:
