@@ -103,6 +103,8 @@ namespace alm::rhi
         virtual std::pair<int, int> GetMaxShaderModelSupported() const = 0;
         virtual bool IsShaderModelSupported(rhi::ShaderModel sm) const = 0;
 
+        virtual bool SupportsTextureFormat(rhi::Format fmt) const = 0;
+
         virtual void Shutdown() = 0;
 
         virtual void SetDebugCaptureWindow(void* windowHandle) = 0;

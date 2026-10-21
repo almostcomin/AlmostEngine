@@ -114,7 +114,7 @@ public:
 				loadResult = textureCache->Load(
 					//"Textures/Ground037/Ground037_1K-PNG_Color.png",
 					"Textures/Ground054/Ground054_1K-PNG_Color.png",
-					alm::gfx::TextureCache::Flags::ForceSRGB | alm::gfx::TextureCache::Flags::GenerateMips);
+					alm::gfx::TextureLoadFlags::ForceSRGB | alm::gfx::TextureLoadFlags::GenerateMips);
 				if (loadResult)
 				{
 					mat->Ground.BaseColorTexture = loadResult->first;
@@ -123,7 +123,7 @@ public:
 				loadResult = textureCache->Load(
 					//"Textures/Ground037/Ground037_1K-PNG_NormalGL.png",
 					"Textures/Ground054/Ground054_1K-PNG_NormalGL.png",
-					alm::gfx::TextureCache::Flags::IsNormalMap | alm::gfx::TextureCache::Flags::GenerateMips);
+					alm::gfx::TextureLoadFlags::IsNormalMap | alm::gfx::TextureLoadFlags::GenerateMips);
 				if (loadResult)
 				{
 					mat->Ground.NormalTexture = loadResult->first;
@@ -132,7 +132,7 @@ public:
 				loadResult = textureCache->Load(
 					//"Textures/Ground037/Ground037_1K-PNG_ORM.png",
 					"Textures/Ground054/Ground054_1K-PNG_ORM.png",
-					alm::gfx::TextureCache::Flags::GenerateMips);
+					alm::gfx::TextureLoadFlags::GenerateMips);
 				if (loadResult)
 				{
 					mat->Ground.MetalRoughTexture = loadResult->first;
@@ -142,7 +142,7 @@ public:
 				// Peak Color
 				loadResult = textureCache->Load(
 					"Textures/Snow010A/Snow010A_1K-PNG_Color.png",
-					alm::gfx::TextureCache::Flags::ForceSRGB | alm::gfx::TextureCache::Flags::GenerateMips);
+					alm::gfx::TextureLoadFlags::ForceSRGB | alm::gfx::TextureLoadFlags::GenerateMips);
 				if (loadResult)
 				{
 					mat->Peak.BaseColorTexture = loadResult->first;
@@ -150,7 +150,7 @@ public:
 				// Peak Normal
 				loadResult = textureCache->Load(
 					"Textures/Snow010A/Snow010A_1K-PNG_NormalGL.png",
-					alm::gfx::TextureCache::Flags::IsNormalMap | alm::gfx::TextureCache::Flags::GenerateMips);
+					alm::gfx::TextureLoadFlags::IsNormalMap | alm::gfx::TextureLoadFlags::GenerateMips);
 				if (loadResult)
 				{
 					mat->Peak.NormalTexture = loadResult->first;
@@ -158,7 +158,7 @@ public:
 				// Peak ORM
 				loadResult = textureCache->Load(
 					"Textures/Snow010A/Snow010A_1K-PNG_ORM.png",
-					alm::gfx::TextureCache::Flags::GenerateMips);
+					alm::gfx::TextureLoadFlags::GenerateMips);
 				if (loadResult)
 				{
 					mat->Peak.MetalRoughTexture = loadResult->first;
@@ -168,7 +168,7 @@ public:
 				// Slope Color
 				loadResult = textureCache->Load(
 					"Textures/Rock050/Rock050_1K-PNG_Color.png",
-					alm::gfx::TextureCache::Flags::ForceSRGB | alm::gfx::TextureCache::Flags::GenerateMips);
+					alm::gfx::TextureLoadFlags::ForceSRGB | alm::gfx::TextureLoadFlags::GenerateMips);
 				if (loadResult)
 				{
 					mat->Slope.BaseColorTexture = loadResult->first;
@@ -176,7 +176,7 @@ public:
 				// Slope Normal
 				loadResult = textureCache->Load(
 					"Textures/Rock050/Rock050_1K-PNG_NormalGL.png",
-					alm::gfx::TextureCache::Flags::IsNormalMap | alm::gfx::TextureCache::Flags::GenerateMips);
+					alm::gfx::TextureLoadFlags::IsNormalMap | alm::gfx::TextureLoadFlags::GenerateMips);
 				if (loadResult)
 				{
 					mat->Slope.NormalTexture = loadResult->first;
@@ -184,7 +184,7 @@ public:
 				// Slope ORM
 				loadResult = textureCache->Load(
 					"Textures/Rock050/Rock050_1K-PNG_ORM.png",
-					alm::gfx::TextureCache::Flags::GenerateMips);
+					alm::gfx::TextureLoadFlags::GenerateMips);
 				if (loadResult)
 				{
 					mat->Slope.MetalRoughTexture = loadResult->first;

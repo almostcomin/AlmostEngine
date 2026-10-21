@@ -8,6 +8,7 @@
 #include "Core/Blob.h"
 #include "Core/Common.h"
 #include "Core/Signal.h"
+#include "Gfx/TextureLoadFlags.h"
 
 namespace alm::rhi
 {
@@ -27,12 +28,11 @@ class TextureCache
 {
 public:
 
-	enum Flags
+	enum class FileFormat
 	{
-		None = 0,
-		ForceSRGB = 1 << 0,			// SRGB format
-		GenerateMips = 1 << 1,	// Generate mips if not present in the data
-		IsNormalMap = 1 << 2	// When generate mips, renormalize
+		DDS,
+		KTX,
+		Other
 	};
 
 	using LoadResult = std::expected<std::pair<std::shared_ptr<LoadedTexture>, alm::SignalListener>, std::string>;
@@ -42,14 +42,17 @@ public:
 
 	std::shared_ptr<LoadedTexture> Get(const std::string& id);
 
-	LoadResult Load(const std::string& path, Flags flags);
-	LoadResult Load(const alm::WeakBlob& blob, Flags flags = Flags::None, bool isDDS = false, const std::string& id = MakeUniqueStringId());
+	LoadResult Load(const std::string& path, TextureLoadFlags flags);
+	LoadResult Load(const alm::WeakBlob& blob, FileFormat format, TextureLoadFlags flags = TextureLoadFlags::None,
+		const std::string& id = MakeUniqueStringId());
 
 	void Update();
 
+	static FileFormat GetFileFormatFromExtension(std::string_view ext);
+
 private:
 
-	LoadResult LoadInternal(const alm::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id);
+	LoadResult LoadInternal(const alm::WeakBlob& blob, alm::gfx::TextureLoadFlags flags, FileFormat format, const std::string& id);
 
 	std::shared_ptr<LoadedTexture> CreateHandle();
 
@@ -77,5 +80,3 @@ private:
 };
 
 } // namespace st::gfx
-
-ENUM_CLASS_FLAG_OPERATORS(alm::gfx::TextureCache::Flags)

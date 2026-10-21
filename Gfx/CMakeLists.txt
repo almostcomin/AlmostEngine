@@ -74,7 +74,10 @@ target_include_directories(Gfx PRIVATE "${THIRDPARTY_ROOT}/stb/include")
 # KTX
 target_include_directories(Gfx PRIVATE 
     "${THIRDPARTY_ROOT}/KTX-Software/${ALMOSTENGINE_TARGET}/$<CONFIG>/include")
-target_link_directories(Gfx PRIVATE 
+# Built as a static library (BUILD_SHARED_LIBS=OFF), ktx.h needs KHRONOS_STATIC
+# to avoid declaring its API as dllimport.
+target_compile_definitions(Gfx PRIVATE KHRONOS_STATIC)
+target_link_directories(Gfx PUBLIC 
     "${THIRDPARTY_ROOT}/KTX-Software/${ALMOSTENGINE_TARGET}/$<CONFIG>/lib")
 target_link_libraries(Gfx PRIVATE ktx_read)    
 

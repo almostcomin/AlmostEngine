@@ -143,7 +143,7 @@ void alm::gfx::AtmosphereConfig::InitCloudsSubsystem(bool forceNew, bool saveCac
 	if (!forceNew && std::filesystem::exists("_generated/CloudShape.dds"))
 	{
 		alm::gfx::TextureCache* textureCache = m_DeviceManager->GetTextureCache();
-		auto loadResult = textureCache->Load("_generated/CloudShape.dds", alm::gfx::TextureCache::Flags::None);
+		auto loadResult = textureCache->Load("_generated/CloudShape.dds", alm::gfx::TextureLoadFlags::None);
 		if (!loadResult)
 		{
 			LOG_ERROR("Failed loading CloudsShape.dds\n{}", loadResult.error());
@@ -173,7 +173,7 @@ void alm::gfx::AtmosphereConfig::InitCloudsSubsystem(bool forceNew, bool saveCac
 	if (!forceNew && std::filesystem::exists("_generated/CloudsDetail.dds"))
 	{
 		alm::gfx::TextureCache* textureCache = m_DeviceManager->GetTextureCache();
-		auto loadResult = textureCache->Load("_generated/CloudsDetail.dds", alm::gfx::TextureCache::Flags::None);
+		auto loadResult = textureCache->Load("_generated/CloudsDetail.dds", alm::gfx::TextureLoadFlags::None);
 		if (!loadResult)
 		{
 			LOG_ERROR("Failed loading CloudsDetail.dds\n{}", loadResult.error());

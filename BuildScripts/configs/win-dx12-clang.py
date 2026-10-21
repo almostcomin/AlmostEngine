@@ -19,12 +19,7 @@ config = {
     # CMake arguments fixed for this target
     "cmake_args": [
         "-G Ninja",
-        "-DBUILD_DX12=ON",
-        "-DBUILD_DX11=OFF",
-        "-DBUILD_TOOLS=OFF",
         "-DBUILD_SHARED_LIBS=OFF",
-        "-DBUILD_SAMPLE=OFF",
-        "-DBC_USE_OPENMP=ON",
         "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
         "-DCMAKE_C_COMPILER=clang",
         "-DCMAKE_CXX_COMPILER=clang++",

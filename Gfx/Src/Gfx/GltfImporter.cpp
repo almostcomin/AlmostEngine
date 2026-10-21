@@ -487,17 +487,17 @@ std::shared_ptr<alm::gfx::LoadedTexture> LoadImage(const cgltf_image* image, boo
 
     FilePathOrInlineData textureSource = LoadImageData(image, searchForDDS, loadCache, imageIndex, options);
 
-    auto flags = alm::gfx::TextureCache::Flags::GenerateMips;
+    auto flags = alm::gfx::TextureLoadFlags::GenerateMips;
     if (sRGB)
-        flags |= alm::gfx::TextureCache::Flags::ForceSRGB;
+        flags |= alm::gfx::TextureLoadFlags::ForceSRGB;
     if (normalMap)
-        flags |= alm::gfx::TextureCache::Flags::IsNormalMap;
+        flags |= alm::gfx::TextureLoadFlags::IsNormalMap;
 
     std::shared_ptr<alm::gfx::LoadedTexture> texture;
     if (textureSource.data)
     {
         auto loadResult = loadCache.textureCache->Load(
-            alm::WeakBlob{ textureSource.data->buffer }, flags, false, textureSource.data->name);
+            alm::WeakBlob{ textureSource.data->buffer }, alm::gfx::TextureCache::FileFormat::Other, flags, textureSource.data->name);
         if (loadResult)
         {
             texture = loadResult->first;

@@ -61,6 +61,32 @@ def install_ktx_artifacts(target, config, source_dir, install_dir, build_dir):
             shutil.copy2(header_src, include_dst_dir / header_name)
             copied.append(header_name)
 
+    # ktx.h includes KHR/khr_df.h, which lives with the dfdutils sources.
+    khr_header_dirs = [
+        source_dir / "external" / "dfdutils" / "KHR",
+        source_dir / "include" / "KHR",
+        source_dir / "lib" / "include" / "KHR",
+    ]
+    khr_src_dir = next(
+        (
+            directory
+            for directory in khr_header_dirs
+            if (directory / "khr_df.h").is_file()
+        ),
+        None,
+    )
+
+    if khr_src_dir is None:
+        raise FileNotFoundError(
+            "Could not locate the KTX dependency header "
+            f"(KHR/khr_df.h) under {source_dir}"
+        )
+
+    khr_dst_dir = include_dst_dir / "KHR"
+    khr_dst_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(khr_src_dir / "khr_df.h", khr_dst_dir / "khr_df.h")
+    copied.append("KHR/khr_df.h")
+
     print(f"  [KTX] Installed {lib_src.name} -> {lib_dst_dir}")
     print(f"  [KTX] Installed headers {copied} -> {include_dst_dir}")    
 

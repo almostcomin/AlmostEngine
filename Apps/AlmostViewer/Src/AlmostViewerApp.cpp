@@ -2,6 +2,8 @@
 #include "Framework/FrameworkApp.h"
 #include "Framework/CameraController.h"
 #include "UI/StructureUI.h"
+#include "Gfx/DeviceManager.h"
+#include "Gfx/TextureCache.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/RenderStages/ShadowmapRenderStage.h"
@@ -62,6 +64,10 @@ public:
 				m_MainCamera->Frame(bounds);
 			}
 		}
+
+		// TEST: Load KTX texture
+		m_DeviceManager->GetTextureCache()->Load(
+			"Textures/_meadow_2_4k/meadow_2_4k_diffuse.ktx2", alm::gfx::TextureLoadFlags::ForceSRGB);
 
 		return true;
 	}

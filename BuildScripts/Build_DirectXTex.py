@@ -13,5 +13,7 @@ build_project(
         "-DBUILD_TOOLS=OFF",
         "-DBUILD_SHARED_LIBS=OFF",
         "-DBUILD_SAMPLE=OFF",
-        "-DBUILD_DX11=OFF", ],
+        "-DBUILD_DX11=OFF",
+        "-DBUILD_DX12=ON",
+        "-DBC_USE_OPENMP=ON", ],
 )

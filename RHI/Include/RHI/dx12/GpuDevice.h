@@ -91,6 +91,8 @@ namespace alm::rhi::dx12
 		std::pair<int, int> GetMaxShaderModelSupported() const override;
 		bool IsShaderModelSupported(rhi::ShaderModel sm) const override;
 
+		bool SupportsTextureFormat(rhi::Format fmt) const override;
+
 		Queue* GetQueue(QueueType type) { return &m_Queues[(int)type]; }
 
 		DescriptorHeap* GetDepthStencilViewHeap() { return &m_DepthStencilViewHeap; }

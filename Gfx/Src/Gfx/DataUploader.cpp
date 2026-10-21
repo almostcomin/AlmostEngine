@@ -281,19 +281,24 @@ std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::UploadTe
 	if (!ticket)
 		return std::unexpected(ticket.error());
 
+	const uint64_t rangeBase = m_Device->GetSubresourceCopyableRequirements(
+		texDesc, subresources.baseMipLevel, subresources.baseArraySlice).offset;
+
 	// Perform copy
 	size_t srcOffset = 0;
 	size_t dstOffset = 0;
+	const size_t lastArraySlice = subresources.baseArraySlice + subresources.GetNumArraySlices(texDesc) - 1;
+	const size_t lastMipLevel = subresources.baseMipLevel + subresources.GetNumMipLevels(texDesc) - 1;
 
-	for (auto arraySlice = subresources.baseArraySlice; arraySlice < subresources.GetNumArraySlices(texDesc); ++arraySlice)
+	for (auto arraySlice = subresources.baseArraySlice; arraySlice <= lastArraySlice; ++arraySlice)
 	{
-		for (auto mipLevel = subresources.baseMipLevel; mipLevel < subresources.GetNumMipLevels(texDesc); ++mipLevel)
+		for (auto mipLevel = subresources.baseMipLevel; mipLevel <= lastMipLevel; ++mipLevel)
 		{
 			rhi::SubresourceCopyableRequirements req = m_Device->GetSubresourceCopyableRequirements(texDesc, mipLevel, arraySlice);
-			size_t width = texDesc.width >> mipLevel / formatInfo.blockSize;
+			size_t width = (texDesc.width >> mipLevel) / formatInfo.blockSize;
 			size_t srcRowSize = width * formatInfo.bytesPerBlock;
 			assert(srcRowSize == req.rowSizeBytes);
-			dstOffset = req.offset;
+			dstOffset = req.offset - rangeBase;
 
 			for (auto depth = 0; depth < texDesc.depth >> mipLevel; ++depth)
 			{				

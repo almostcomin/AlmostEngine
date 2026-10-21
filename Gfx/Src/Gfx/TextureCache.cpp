@@ -73,7 +73,7 @@ std::shared_ptr<alm::gfx::LoadedTexture> alm::gfx::TextureCache::Get(const std::
     }
 }
 
-alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const std::string& path, Flags flags)
+alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const std::string& path, TextureLoadFlags flags)
 {
     auto textureHandle = Get(path);
     if (textureHandle)
@@ -92,8 +92,7 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const std::strin
     assert(readResult);
     alm::Blob fileData = std::move(*readResult);
 
-    std::string_view ext = GetExtensionFromPath(path);
-    auto loadResult = LoadInternal(alm::WeakBlob{ fileData }, flags, (ext == "dds" || ext == "DDS"), path);
+    auto loadResult = LoadInternal(alm::WeakBlob{ fileData }, flags, GetFileFormatFromExtension(GetExtensionFromPath(path)), path);
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
@@ -102,7 +101,8 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const std::strin
     return loadResult;
 }
 
-alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const alm::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id)
+alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const alm::WeakBlob& blob, FileFormat format, TextureLoadFlags flags,
+    const std::string& id)
 {
     auto textureHandle = Get(id);
     if (textureHandle)
@@ -110,7 +110,7 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const alm::WeakB
         return std::pair<std::shared_ptr<alm::gfx::LoadedTexture>, alm::SignalListener>(textureHandle, {});
     }
 
-    auto loadResult = LoadInternal(blob, flags, isDDS, id);
+    auto loadResult = LoadInternal(blob, flags, format, id);
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
@@ -143,17 +143,39 @@ void alm::gfx::TextureCache::Update()
     RemoveStaleTextures();
 }
 
-alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(const alm::WeakBlob& blob, Flags flags, bool isDDS, const std::string& id)
+alm::gfx::TextureCache::FileFormat alm::gfx::TextureCache::GetFileFormatFromExtension(std::string_view ext)
 {
+    auto format = FileFormat::Other;
+    if (ext == "dds" || ext == "DDS")
+    {
+        format = FileFormat::DDS;
+    }
+    else if (ext == "ktx2" || ext == "KTX2")
+    {
+        format = FileFormat::KTX;
+    }
+
+    return format;
+}
+
+alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(
+    const alm::WeakBlob& blob, alm::gfx::TextureLoadFlags flags, FileFormat format, const std::string& id)
+{
+    alm::gfx::TextureLoadFlags tflags = flags;
     std::expected<std::pair<alm::gfx::TextureInfo, alm::Blob>, std::string> loadResult;
-    if (isDDS)
+    switch (format)
     {
+    case FileFormat::DDS:
         loadResult = LoadDDSTexture(blob);
+        break;
+    case FileFormat::KTX:
+        loadResult = LoadKTXTexture(blob, tflags, m_Device);
+        break;
+    case FileFormat::Other:
+        loadResult = LoadImageTexture(blob, has_any_flag(tflags, alm::gfx::TextureLoadFlags::ForceSRGB));
+        break;
     }
-    else
-    {
-        loadResult = LoadImageTexture(blob, flags & Flags::ForceSRGB);
-    }
+
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
@@ -161,16 +183,24 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(const al
 
     TextureInfo& texInfo = loadResult->first;
     texInfo.debugName = id;
-    auto [texture, originalMips] = CreateTextureFromTexInfo(texInfo, flags & Flags::GenerateMips, m_Device);
+
+    if (!m_Device->SupportsTextureFormat(texInfo.format))
+    {
+        return std::unexpected(std::format(
+            "Texture '{}' uses format {} which is not supported by the device.",
+            id, rhi::GetFormatString(texInfo.format)));
+    }
+
+    auto [texture, originalMips] = CreateTextureFromTexInfo(texInfo, has_any_flag(flags, TextureLoadFlags::GenerateMips), m_Device);
     if (!texture)
     {
         return std::unexpected(std::format("Failed creating texture {}.", id));
     }
 
     auto getMipsMethod = DataUploader::GenMipsMethod::None;
-    if ((flags & Flags::GenerateMips) && (originalMips != texture->GetDesc().mipLevels))
+    if (has_any_flag(flags, TextureLoadFlags::GenerateMips) && (originalMips != texture->GetDesc().mipLevels))
     {
-        getMipsMethod = has_any_flag(flags, Flags::IsNormalMap) ?
+        getMipsMethod = has_any_flag(flags, TextureLoadFlags::IsNormalMap) ?
             DataUploader::GenMipsMethod::GenMips_NormalMap : DataUploader::GenMipsMethod::GenMips_Color;
     }
 
@@ -178,8 +208,8 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(const al
         WeakBlob{ loadResult->second },
         texture.get_weak(),
         rhi::ResourceState::COPY_DST,
-        rhi::ResourceState::SHADER_RESOURCE,
-        rhi::TextureSubresourceSet{ 0, 1, 0, 1 },
+        rhi::ResourceState::SHADER_RESOURCE,        
+        rhi::AllSubresources, //rhi::TextureSubresourceSet{ 0, 1, 0, 1 },
         getMipsMethod,
         texInfo.debugName.c_str());
     if (!uploadResult)

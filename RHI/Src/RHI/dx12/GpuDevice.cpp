@@ -725,25 +725,24 @@ alm::rhi::StorageRequirements alm::rhi::dx12::GpuDevice::GetCopyableRequirements
 	return ret;
 }
 
-alm::rhi::SubresourceCopyableRequirements alm::rhi::dx12::GpuDevice::GetSubresourceCopyableRequirements(const TextureDesc& desc, uint32_t mipLevel, uint32_t arraySlice)
+alm::rhi::SubresourceCopyableRequirements alm::rhi::dx12::GpuDevice::GetSubresourceCopyableRequirements(
+	const TextureDesc& desc, uint32_t mipLevel, uint32_t arraySlice)
 {
 	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
-
-	SubresourceCopyableRequirements copyReq = {};
-
 	auto subresidx = D3D12CalcSubresource(mipLevel, arraySlice, 0, desc.mipLevels, desc.arraySize);
 
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT subresInfo = {};
-	uint32_t numRows = 0;
-	uint64_t rowSizeBytes = 0;
+	std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints(subresidx + 1);
+	std::vector<uint32_t> numSubRows(subresidx + 1);
+	std::vector<uint64_t> subRowSizes(subresidx + 1);
 
 	m_D3d12Device->GetCopyableFootprints(
-		&d3d12Desc, subresidx, 1, 0, &subresInfo, &numRows, &rowSizeBytes, nullptr);
+		&d3d12Desc, 0, subresidx + 1, 0, footprints.data(), numSubRows.data(), subRowSizes.data(), nullptr);
 
-	copyReq.offset = subresInfo.Offset;
-	copyReq.numRows = numRows;
-	copyReq.rowSizeBytes = rowSizeBytes;
-	copyReq.rowStride = subresInfo.Footprint.RowPitch;
+	SubresourceCopyableRequirements copyReq = {};
+	copyReq.offset = footprints[subresidx].Offset;
+	copyReq.numRows = numSubRows[subresidx];
+	copyReq.rowSizeBytes = subRowSizes[subresidx];
+	copyReq.rowStride = footprints[subresidx].Footprint.RowPitch;
 
 	return copyReq;
 }
@@ -1103,6 +1102,23 @@ bool alm::rhi::dx12::GpuDevice::IsShaderModelSupported(rhi::ShaderModel sm) cons
 		assert(0);
 		return false;
 	}
+}
+
+bool alm::rhi::dx12::GpuDevice::SupportsTextureFormat(rhi::Format fmt) const
+{
+	if (fmt == rhi::Format::UNKNOWN || (uint32_t)fmt >= (uint32_t)rhi::Format::COUNT)
+		return false;
+
+	const DxgiFormatMapping& mapping = GetDxgiFormatMapping(fmt);
+	DXGI_FORMAT dxgiFormat = IsDepthFormat(fmt) ? mapping.typelessFormat : mapping.srvFormat;
+	if (dxgiFormat == DXGI_FORMAT_UNKNOWN)
+		return false;
+
+	D3D12_FEATURE_DATA_FORMAT_SUPPORT support = { dxgiFormat, D3D12_FORMAT_SUPPORT1_NONE, D3D12_FORMAT_SUPPORT2_NONE };
+	if (FAILED(m_D3d12Device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support))))
+		return false;
+
+	return support.Support1 != D3D12_FORMAT_SUPPORT1_NONE;
 }
 
 void alm::rhi::dx12::GpuDevice::ReleaseTimerQuery(dx12::TimerQuery* timerQuery)
