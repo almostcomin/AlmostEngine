@@ -3070,9 +3070,9 @@ bool alm::fw::FrameworkUI::BuildTextureShowOpenClear(const char* id, std::shared
             { "DDS", "*.dds" } });
         if (!path.empty())
         {
-            alm::gfx::TextureCache::Flags flags = alm::gfx::TextureCache::Flags::GenerateMips;
+            alm::gfx::TextureLoadFlags flags = alm::gfx::TextureLoadFlags::GenerateMips;
             if (isNormalTex)
-                flags |= alm::gfx::TextureCache::Flags::IsNormalMap;
+                flags |= alm::gfx::TextureLoadFlags::IsNormalMap;
 
             auto loadResult = GetDeviceManager()->GetTextureCache()->Load(path, flags);
             if (loadResult)

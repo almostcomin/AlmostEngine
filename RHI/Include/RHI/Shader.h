@@ -33,7 +33,7 @@ namespace alm::rhi
 
         All = 0x3FFF
     };
-    ENUM_CLASS_FLAG_OPERATORS(ShaderType)
+    ALM_ENUM_CLASS_FLAG_OPERATORS(ShaderType)
 
     inline const char* GetShaderTypeString(ShaderType type)
     {
