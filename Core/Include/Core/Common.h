@@ -33,6 +33,7 @@ constexpr uint32_t Hash(std::string_view str)
 
 // String conversion
 std::wstring ToWide(const char* utf8);
+std::string ToUtf8(const std::wstring& wideStr);
 std::string ToUtf8(const wchar_t* wide);
 
 // Convert float (32 bits) to half-float (16 bits) (IEEE 754)
@@ -113,7 +114,7 @@ T checked_cast(U u)
 }
 
 // Add some operators to enums flags
-#define ENUM_CLASS_FLAG_OPERATORS(T) \
+#define ALM_ENUM_CLASS_FLAG_OPERATORS(T) \
     inline T operator | (const T& a, const T& b) { return T(uint32_t(a) | uint32_t(b)); } \
     inline T operator & (const T& a, const T& b) { return T(uint32_t(a) & uint32_t(b)); } \
     inline T operator ~ (const T& a) { return T(~uint32_t(a)); } \

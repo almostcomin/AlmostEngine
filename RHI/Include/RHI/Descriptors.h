@@ -37,7 +37,7 @@ enum class TextureShaderUsage
 	ColorTarget = 0x1 << (int)TextureViewType::ColorTarget,
 	DepthTarget = 0x1 << (int)TextureViewType::DepthTarget
 };
-ENUM_CLASS_FLAG_OPERATORS(TextureShaderUsage)
+ALM_ENUM_CLASS_FLAG_OPERATORS(TextureShaderUsage)
 
 enum class BufferShaderUsage
 {
@@ -47,7 +47,7 @@ enum class BufferShaderUsage
 	ReadWrite = 0x1 << (int)BufferViewType::ReadWrite,
 	IndirectArguments = 0x1 << (int)BufferViewType::IndirectArguments
 };
-ENUM_CLASS_FLAG_OPERATORS(BufferShaderUsage)
+ALM_ENUM_CLASS_FLAG_OPERATORS(BufferShaderUsage)
 
 enum class MemoryAccess
 {

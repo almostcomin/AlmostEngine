@@ -70,7 +70,7 @@ enum class RenderPassFlags : uint8_t
 	None				= 0,
 	AllowUAVWrites		= 0x01
 };
-ENUM_CLASS_FLAG_OPERATORS(RenderPassFlags)
+ALM_ENUM_CLASS_FLAG_OPERATORS(RenderPassFlags)
 
 class ICommandList : public IResource
 {

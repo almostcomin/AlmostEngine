@@ -80,6 +80,11 @@ alm::fw::FrameworkApp::~FrameworkApp()
 
 void alm::fw::FrameworkApp::Run(const AppArgs& args)
 {
+	LOG_INFO("Initializing FrameworkApp...");
+
+	const std::string workingDir = alm::ToUtf8(std::filesystem::current_path());
+	LOG_INFO("Working directory: '{}'", workingDir.c_str());
+
 	m_StartupArgs = args;
 
 	if (!InitInternal())

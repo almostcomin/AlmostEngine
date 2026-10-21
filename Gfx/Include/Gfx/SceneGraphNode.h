@@ -91,6 +91,6 @@ private:
 	std::string m_Name;
 };
 
-ENUM_CLASS_FLAG_OPERATORS(SceneGraphNode::DirtyFlags);
+ALM_ENUM_CLASS_FLAG_OPERATORS(SceneGraphNode::DirtyFlags);
 
 } // namespace st::gfx

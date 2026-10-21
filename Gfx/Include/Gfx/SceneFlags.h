@@ -30,7 +30,7 @@ enum class SceneContentFlags : uint32_t
 
     Lights              = DirectionalLights | PointLights | SpotLights
 };
-ENUM_CLASS_FLAG_OPERATORS(SceneContentFlags);
+ALM_ENUM_CLASS_FLAG_OPERATORS(SceneContentFlags);
 
 enum class SceneRenderFlags : uint32_t
 {
@@ -42,7 +42,7 @@ enum class SceneRenderFlags : uint32_t
     Static = 0x10,
     Default = CastShadows | ReceiveShadows | Visible | VisibleInReflections
 };
-ENUM_CLASS_FLAG_OPERATORS(SceneRenderFlags);
+ALM_ENUM_CLASS_FLAG_OPERATORS(SceneRenderFlags);
 
 constexpr SceneContentFlags ToFlag(SceneContentType t)
 {
