@@ -635,6 +635,8 @@ void alm::fw::FrameworkUI::BuildViewportPicking()
             // release frame, read the persistent click counter instead (stays valid after release).
             if (ImGui::GetIO().MouseClickedLastCount[ImGuiMouseButton_Right] >= 2)
                 OpenWorldOutliner();
+
+            m_ScrollToSelectedNode = true;
         }
         else
         {

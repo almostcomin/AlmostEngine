@@ -21,6 +21,20 @@ namespace alm::gfx
 namespace alm::gfx
 {
 
+enum class CubeNormalDirection : uint8_t
+{
+	Outward, // normals point away from the cube center (regular solid cube)
+	Inward,  // normals point towards the cube center (environment/skybox cubes)
+	None     // no normals at all
+};
+
+enum class CubeUVMode : uint8_t
+{
+	None, // no uvs
+	UV2D, // per face 2d uvs
+	UV3D  // 3d direction uvs (unnormalized corner direction, for cubemap sampling)
+};
+
 class CommonResources
 {
 public:
@@ -43,8 +57,17 @@ public:
 	// Generates a UV sphere of radius 1 centered at origin
 	// stacks: horizontal subdivisions (latitude bands), >= 2
 	// slices: vertical subdivisions (longitude segments), >= 3
-	std::shared_ptr<alm::gfx::Mesh> CreateUVSphere(float radius, uint32_t stacks, uint32_t slices, alm::gfx::DataUploader* dataUploader,
-		const std::string& name);
+	// generateCpuGeometry: keeps a copy of the geometry on cpu (needed for raycast)
+	std::shared_ptr<alm::gfx::Mesh> CreateUVSphere(float radius, uint32_t stacks, uint32_t slices, bool generateCpuGeometry,
+		alm::gfx::DataUploader* dataUploader, const std::string& name);
+
+	// Generates a cube of edge length `size` centered at origin (6 faces, 24 vertices, 36 indices)
+	// normalDirection: outward for a regular solid cube, inward for environment/skybox cubes
+	// uvMode: UV2D generates per face 2d uvs, UV3D generates 3d direction uvs (vertex direction, suitable for
+	// sampling a cubemap with textureCube(direction)), None omits uvs
+	// generateCpuGeometry: keeps a copy of the geometry on cpu (needed for raycast)
+	std::shared_ptr<alm::gfx::Mesh> CreateCube(float size, CubeNormalDirection normalDirection, CubeUVMode uvMode, bool generateCpuGeometry,
+		alm::gfx::DataUploader* dataUploader, const std::string& name);
 
 	// Blue noise texture: 64x64 single channel
 	//rhi::TextureHandle GetBlueNoise_HDR_64x64_L() const;

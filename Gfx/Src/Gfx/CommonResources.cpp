@@ -99,7 +99,7 @@ alm::rhi::GraphicsPipelineStateOwner alm::gfx::CommonResources::CreateFullscreen
 	return m_Device->CreateGraphicsPipelineState(desc, fbInfo, debugName);
 }
 
-std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float radius, uint32_t stacks, uint32_t slices,
+std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float radius, uint32_t stacks, uint32_t slices, bool generateCpuGeometry,
 	alm::gfx::DataUploader* dataUploader, const std::string& name)
 {
 	assert(stacks >= 2);
@@ -113,6 +113,11 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 	const uint32_t vertexSize = sizeof(float3) + sizeof(uint32_t);
 	alm::SignalListener vbUploadSignal;
 	const uint32_t numVertices = (stacks + 1) * (slices + 1);
+	std::vector<float3> cpuPositions;
+	if (generateCpuGeometry)
+	{
+		cpuPositions.reserve(numVertices);
+	}
 	{
 		alm::rhi::BufferDesc vertexBufferDesc;
 		vertexBufferDesc.memoryAccess = alm::rhi::MemoryAccess::Default;
@@ -141,8 +146,13 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 				float3 normal = float3(sinPhi * cosTheta, cosPhi, sinPhi * sinTheta);
 
 				// position
-				*(float3*)vertex = normal * radius;
+				float3 position = normal * radius;
+				*(float3*)vertex = position;
 				vertex += sizeof(float3);
+				if (generateCpuGeometry)
+				{
+					cpuPositions.push_back(position);
+				}
 				// normal
 				*(uint32_t*)vertex = alm::math::VectorToSnorm8(normal);
 				vertex += sizeof(uint32_t);
@@ -165,6 +175,11 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 	// Generate indices (two triangles per quad)
 	std::shared_ptr<rhi::BufferOwner> indexBuffer;
 	const uint32_t numIndices = 6 * slices * (stacks - 1);  // poles generate a single triangle, not a quad
+	std::vector<uint32_t> cpuIndices;
+	if (generateCpuGeometry)
+	{
+		cpuIndices.reserve(numIndices);
+	}
 	const bool idx32bits = numVertices > std::numeric_limits<uint16_t>::max() ? true : false;
 	alm::SignalListener ibUploadSignal;
 	{
@@ -178,8 +193,13 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 		assert(requestResult);
 		char* indices = (char*)requestResult->GetPtr();
 
-		auto pushIndex = [&indices, idx32bits](uint32_t i)
+		auto pushIndex = [&indices, &cpuIndices, generateCpuGeometry, idx32bits](uint32_t i)
 		{
+			if (generateCpuGeometry)
+			{
+				cpuIndices.push_back(i);
+			}
+
 			if(idx32bits)
 			{
 				*(uint32_t*)indices = i;
@@ -245,6 +265,12 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 	
 	mesh->SetIndexBuffer(indexBuffer, rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
 
+	if (generateCpuGeometry)
+	{
+		mesh->SetCpuPositions(std::move(cpuPositions));
+		mesh->SetCpuIndices(std::move(cpuIndices));
+	}
+
 	MaterialRef materialRef = m_MaterialManager->CreateNewMaterial(std::format("{} - Material", name), "[generated]");
 	Material* material = materialRef.GetMaterial();
 
@@ -255,6 +281,235 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 
 	// Lets wait until eveything is submitted.
 	// We could also just return array of signals al let the called wait
+	vbUploadSignal.Wait();
+	ibUploadSignal.Wait();
+
+	return std::shared_ptr<alm::gfx::Mesh>{ mesh };
+}
+
+std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateCube(float size, CubeNormalDirection normalDirection, CubeUVMode uvMode,
+	bool generateCpuGeometry, alm::gfx::DataUploader* dataUploader, const std::string& name)
+{
+	assert(size > 0.f);
+
+	const bool hasNormals = normalDirection != CubeNormalDirection::None;
+	const bool inwardNormals = normalDirection == CubeNormalDirection::Inward;
+	const bool hasUVs = uvMode != CubeUVMode::None;
+
+	const uint32_t normalSize = hasNormals ? sizeof(uint32_t) : 0;
+	const uint32_t uvSize = uvMode == CubeUVMode::UV2D ? sizeof(float2) : (uvMode == CubeUVMode::UV3D ? sizeof(float3) : 0);
+	const uint32_t vertexSize = sizeof(float3) + normalSize + uvSize;
+
+	const uint32_t normalOffset = hasNormals ? sizeof(float3) : UINT32_MAX;
+	const uint32_t uvOffset = (hasNormals ? sizeof(float3) + normalSize : sizeof(float3));
+
+	const float halfSize = size * 0.5f;
+
+	// Per face frame, tangentU x tangentV = normal (right handed, faces wound CCW when viewed from outside)
+	struct Face
+	{
+		float3 normal;
+		float3 tangentU;
+		float3 tangentV;
+	};
+	static constexpr Face kFaces[6] = {
+		{ float3{ 1.f, 0.f, 0.f }, float3{ 0.f, 0.f, -1.f }, float3{ 0.f, 1.f, 0.f } },  // +X
+		{ float3{ -1.f, 0.f, 0.f }, float3{ 0.f, 0.f, 1.f }, float3{ 0.f, 1.f, 0.f } },  // -X
+		{ float3{ 0.f, 1.f, 0.f }, float3{ 1.f, 0.f, 0.f }, float3{ 0.f, 0.f, -1.f } },  // +Y
+		{ float3{ 0.f, -1.f, 0.f }, float3{ 1.f, 0.f, 0.f }, float3{ 0.f, 0.f, 1.f } },  // -Y
+		{ float3{ 0.f, 0.f, 1.f }, float3{ 1.f, 0.f, 0.f }, float3{ 0.f, 1.f, 0.f } },   // +Z
+		{ float3{ 0.f, 0.f, -1.f }, float3{ -1.f, 0.f, 0.f }, float3{ 0.f, 1.f, 0.f } }  // -Z
+	};
+
+	// Generate vertices
+	std::shared_ptr<rhi::BufferOwner> vertexBuffer;
+	const uint32_t numVertices = 24;
+	std::vector<float3> cpuPositions;
+	if (generateCpuGeometry)
+	{
+		cpuPositions.reserve(numVertices);
+	}
+	alm::SignalListener vbUploadSignal;
+	{
+		alm::rhi::BufferDesc vertexBufferDesc;
+		vertexBufferDesc.memoryAccess = alm::rhi::MemoryAccess::Default;
+		vertexBufferDesc.shaderUsage = alm::rhi::BufferShaderUsage::ReadOnly;
+		vertexBufferDesc.sizeBytes = numVertices * vertexSize;
+		vertexBufferDesc.stride = vertexSize;
+
+		auto verticesRequestResult = dataUploader->RequestUploadTicket(vertexBufferDesc);
+		assert(verticesRequestResult);
+		auto* vertex = (char*)verticesRequestResult->GetPtr();
+
+		for (const Face& face : kFaces)
+		{
+			// Corner order: (0,0), (1,0), (1,1), (0,1) in face (u, v) space
+			static constexpr float2 kCorners[4] = {
+				float2{ 0.f, 0.f }, float2{ 1.f, 0.f }, float2{ 1.f, 1.f }, float2{ 0.f, 1.f }
+			};
+
+			for (const float2& corner : kCorners)
+			{
+				// Corner direction on the unit cube
+				float3 direction = face.normal + face.tangentU * (corner.x * 2.f - 1.f) + face.tangentV * (corner.y * 2.f - 1.f);
+
+				// position
+				float3 position = direction * halfSize;
+				*(float3*)vertex = position;
+				vertex += sizeof(float3);
+				if (generateCpuGeometry)
+				{
+					cpuPositions.push_back(position);
+				}
+
+				// normal
+				if (hasNormals)
+				{
+					float3 normal = inwardNormals ? -face.normal : face.normal;
+					*(uint32_t*)vertex = alm::math::VectorToSnorm8(normal);
+					vertex += sizeof(uint32_t);
+				}
+
+				// uv
+				if (hasUVs)
+				{
+					if (uvMode == CubeUVMode::UV2D)
+					{
+						// When viewed from the inside (inward faces) the face appears mirrored horizontally,
+						// flip the u coordinate to compensate
+						float u = inwardNormals ? 1.f - corner.x : corner.x;
+						*(float2*)vertex = float2{ u, corner.y };
+						vertex += sizeof(float2);
+					}
+					else
+					{
+						// 3d uvs: the unnormalized corner direction, ready to sample a cubemap
+						*(float3*)vertex = direction;
+						vertex += sizeof(float3);
+					}
+				}
+			}
+		}
+
+		vertexBuffer = std::make_shared<alm::rhi::BufferOwner>();
+
+		*vertexBuffer = m_Device->CreateBuffer(
+			vertexBufferDesc, alm::rhi::ResourceState::COPY_DST, std::format("{} - VB", name));
+		auto verticesUploadResult = dataUploader->CommitUploadBufferTicket(
+			std::move(*verticesRequestResult),
+			vertexBuffer->get_weak(),
+			alm::rhi::ResourceState::COPY_DST,
+			alm::rhi::ResourceState::SHADER_RESOURCE);
+		assert(verticesUploadResult);
+		vbUploadSignal = *verticesUploadResult;
+	}
+
+	// Generate indices (two triangles per face)
+	std::shared_ptr<rhi::BufferOwner> indexBuffer;
+	const uint32_t numIndices = 36;
+	std::vector<uint32_t> cpuIndices;
+	if (generateCpuGeometry)
+	{
+		cpuIndices.reserve(numIndices);
+	}
+	const bool idx32bits = numVertices > std::numeric_limits<uint16_t>::max() ? true : false;
+	alm::SignalListener ibUploadSignal;
+	{
+		alm::rhi::BufferDesc indexBufferDesc;
+		indexBufferDesc.memoryAccess = alm::rhi::MemoryAccess::Default;
+		indexBufferDesc.shaderUsage = alm::rhi::BufferShaderUsage::ReadOnly;
+		indexBufferDesc.sizeBytes = numIndices * (idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
+		indexBufferDesc.stride = idx32bits ? sizeof(int32_t) : sizeof(int16_t);
+
+		auto requestResult = dataUploader->RequestUploadTicket(indexBufferDesc);
+		assert(requestResult);
+		char* indices = (char*)requestResult->GetPtr();
+
+		auto pushIndex = [&indices, &cpuIndices, generateCpuGeometry, idx32bits](uint32_t i)
+		{
+			if (generateCpuGeometry)
+			{
+				cpuIndices.push_back(i);
+			}
+
+			if(idx32bits)
+			{
+				*(uint32_t*)indices = i;
+				indices += sizeof(uint32_t);
+			}
+			else
+			{
+				*(uint16_t*)indices = i;
+				indices += sizeof(uint16_t);
+			}
+		};
+
+		for (uint32_t face = 0; face < 6; ++face)
+		{
+			uint32_t base = face * 4;
+
+			if (inwardNormals)
+			{
+				// CW when viewed from outside == CCW when viewed from inside
+				pushIndex(base + 0);
+				pushIndex(base + 2);
+				pushIndex(base + 1);
+				pushIndex(base + 0);
+				pushIndex(base + 3);
+				pushIndex(base + 2);
+			}
+			else
+			{
+				pushIndex(base + 0);
+				pushIndex(base + 1);
+				pushIndex(base + 2);
+				pushIndex(base + 0);
+				pushIndex(base + 2);
+				pushIndex(base + 3);
+			}
+		}
+
+		indexBuffer = std::make_shared<alm::rhi::BufferOwner>();
+
+		*indexBuffer = m_Device->CreateBuffer(
+			indexBufferDesc, alm::rhi::ResourceState::COPY_DST, std::format("{} - IB", name));
+		auto uploadResult = dataUploader->CommitUploadBufferTicket(
+			std::move(*requestResult),
+			indexBuffer->get_weak(),
+			alm::rhi::ResourceState::COPY_DST,
+			alm::rhi::ResourceState::SHADER_RESOURCE);
+		assert(uploadResult);
+		ibUploadSignal = *uploadResult;
+	}
+
+	auto* mesh = new alm::gfx::Mesh{ m_Device, name.c_str(), "[generated]" };
+
+	Mesh::VertexFormat vertexFormat{
+		.VertexStride = vertexSize,
+		.PositionOffset = 0,
+		.NormalOffset = normalOffset,
+		.TexCoord0Offset = hasUVs ? uvOffset : UINT32_MAX
+	};
+	mesh->SetVertexBuffer(vertexBuffer, vertexFormat);
+
+	mesh->SetIndexBuffer(indexBuffer, rhi::PrimitiveTopology::TriangleList, idx32bits ? sizeof(uint32_t) : sizeof(uint16_t));
+
+	if (generateCpuGeometry)
+	{
+		mesh->SetCpuPositions(std::move(cpuPositions));
+		mesh->SetCpuIndices(std::move(cpuIndices));
+	}
+
+	MaterialRef materialRef = m_MaterialManager->CreateNewMaterial(std::format("{} - Material", name), "[generated]");
+	Material* material = materialRef.GetMaterial();
+
+	material->SetBaseColor(float3{ 0.5f, 1.f, 1.f });
+	mesh->SetMaterial(materialRef);
+
+	mesh->SetBounds(aabox3f{ float3{-halfSize}, float3{halfSize} });
+
+	// Lets wait until eveything is submitted.
+	// We could also just return array of signals al let the caller wait
 	vbUploadSignal.Wait();
 	ibUploadSignal.Wait();
 

@@ -115,8 +115,6 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildStagesGPUGraphWindow();
     BuildStagesCPUGraphWindow();
 
-    //ImGui::ShowMetricsWindow(&m_ShowImGuiDebugger);
-
     BuildViewportPicking();
 
     BuildLumninanceHistogram();
@@ -124,6 +122,11 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildRSViews();
 
     BuildGizmo(GetDockspaceId());
+
+    if (m_ShowImGuiDebugger)
+    {
+        ImGui::ShowMetricsWindow(&m_ShowImGuiDebugger);
+    }
 }
 
 void alm::fw::FrameworkUI::BuildGizmo(ImGuiID dockspaceId)
@@ -506,6 +509,11 @@ void alm::fw::FrameworkUI::BuildMainMenu()
             if (ImGui::MenuItem("ImGui Debugger", nullptr, m_ShowImGuiDebugger))
                 m_ShowImGuiDebugger = !m_ShowImGuiDebugger;
 
+            ImGui::EndMenu();
+        }
+
+        if(ImGui::BeginMenu("Options"))
+        {
             if (ImGui::BeginMenu("Grid"))
             {
                 bool visible = IsGridVisible();
@@ -524,7 +532,7 @@ void alm::fw::FrameworkUI::BuildMainMenu()
             }
 
             bool wireframeActive = m_RenderViewUI->GetRenderGraph()->GetCurrentRenderMode() == "Wireframe";
-            if (ImGui::MenuItem("Wireframe", "Ctrl+Alt+W", wireframeActive))
+            if (ImGui::MenuItem("Wireframe mode", "Ctrl+Alt+W", wireframeActive))
             {
                 SwitchWireframeRender();
             }

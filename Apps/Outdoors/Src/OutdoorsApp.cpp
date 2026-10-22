@@ -63,7 +63,7 @@ public:
 #if 1
 		{
 			alm::gfx::CommonResources* commonResources = m_DeviceManager->GetCommonResources();
-			auto earthMesh = commonResources->CreateUVSphere(kEarthRadius, 128, 128, m_DeviceManager->GetDataUploader(), "EarthMesh");
+			auto earthMesh = commonResources->CreateUVSphere(kEarthRadius, 128, 128, false, m_DeviceManager->GetDataUploader(), "EarthMesh");
 
 			auto meshInstance = alm::make_unique_with_weak<alm::gfx::MeshInstance>(earthMesh);
 			meshInstance->SetCastShadows(false);
