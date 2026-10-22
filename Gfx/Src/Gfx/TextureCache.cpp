@@ -36,7 +36,8 @@ std::pair<alm::rhi::TextureOwner, uint32_t> CreateTextureFromTexInfo(const alm::
     uint32_t originalMips = desc.mipLevels;
     if (genMips)
     {
-        desc.mipLevels = log2(std::max(desc.width, desc.height)) + 1;
+        uint32_t maxDim = std::max(desc.width, desc.height);
+        desc.mipLevels = std::bit_width(maxDim);
         if (desc.mipLevels != originalMips)
         {
             desc.shaderUsage |= alm::rhi::TextureShaderUsage::Storage; // Needed for mip generation
@@ -209,7 +210,7 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(
         texture.get_weak(),
         rhi::ResourceState::COPY_DST,
         rhi::ResourceState::SHADER_RESOURCE,        
-        rhi::AllSubresources, //rhi::TextureSubresourceSet{ 0, 1, 0, 1 },
+        rhi::TextureSubresourceSet{ 0, texInfo.mipLevels, 0, texInfo.arraySize },
         getMipsMethod,
         texInfo.debugName.c_str());
     if (!uploadResult)

@@ -300,10 +300,12 @@ std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::UploadTe
 			assert(srcRowSize == req.rowSizeBytes);
 			dstOffset = req.offset - rangeBase;
 
-			for (auto depth = 0; depth < texDesc.depth >> mipLevel; ++depth)
+			for (uint32_t depth = 0; depth < std::max(texDesc.depth >> mipLevel, 1u); ++depth)
 			{				
 				for (size_t row = 0; row < req.numRows; ++row)
 				{
+					assert(srcOffset + srcRowSize <= srcData.size());
+
 					std::memcpy((char*)ticket->ptr + dstOffset, srcData.data() + srcOffset, srcRowSize);
 					srcOffset += srcRowSize;
 					dstOffset += req.rowStride;
