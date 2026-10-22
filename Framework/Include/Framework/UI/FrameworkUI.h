@@ -198,20 +198,15 @@ private:
 	void BuildMainMenu();
 	void BuildBottomBar();
 
-	void BuildSettingsWindow();
-	void BuildWorldOutliner();
-	void BuildRenderStagesWindow();
-	void BuildMaterialsWindow();
-	void BuildStatsWindow();
-	void BuildGPUCPUGraphWindow();
-	void BuildStagesGPUGraphWindow();
-	void BuildStagesCPUGraphWindow();
-
-	void BuildViewportPicking();
-
 	void BuildGizmo(ImGuiID dockspaceId);
-	void OpenWorldOutliner();
 
+	// NOTE: The class implementation is split across several FrameworkUI_*.cpp files,
+	// one per UI window. The member functions below are grouped by the file they
+	// are defined in.
+
+	// --- FrameworkUI_Settings.cpp ---
+
+	void BuildSettingsWindow();
 	void BuildRenderModesSettings();
 	void BuildCameraSettings(float availWidth);
 	void BuildDebugViewSettings(float availWidth);
@@ -225,15 +220,36 @@ private:
 	void BuildBloomSettings(float availWidth);
 	void BuildExposureSettings(float availWidth);
 	void BuildTonemappingSettings(float availWidth);
-
 	void BuildLumninanceHistogram();
 
-	void BuildTextureWindows();
-	bool BuildTextureWindow(UITextureWindow& textureWindow);
+	// --- FrameworkUI_WorldOutliner.cpp ---
 
+	void BuildWorldOutliner();
+	void BuildViewportPicking();
+	void OpenWorldOutliner();
+
+	// --- FrameworkUI_RenderStages.cpp ---
+
+	void BuildRenderStagesWindow();
 	void BuildRSViews();
 	bool BuildRSTexView(RenderStageTextureView* rsTexView);
 	bool BuildRSBufferView(RenderStageBufferView* rsBufferView);
+
+	// --- FrameworkUI_Materials.cpp ---
+
+	void BuildMaterialsWindow();
+
+	// --- FrameworkUI_Stats.cpp ---
+
+	void BuildStatsWindow();
+	void BuildGPUCPUGraphWindow();
+	void BuildStagesGPUGraphWindow();
+	void BuildStagesCPUGraphWindow();
+
+	// --- FrameworkUI.cpp ---
+
+	void BuildTextureWindows();
+	bool BuildTextureWindow(UITextureWindow& textureWindow);
 
 protected:
 
