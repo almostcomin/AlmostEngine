@@ -25,3 +25,4 @@
 [submodule "3rdParty/Sources/KTX-Software"]
 	path = 3rdParty/Sources/KTX-Software
 	url = https://github.com/KhronosGroup/KTX-Software.git
+	ignore = dirty
