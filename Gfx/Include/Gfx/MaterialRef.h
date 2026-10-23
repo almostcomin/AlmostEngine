@@ -19,6 +19,8 @@ public:
 	MaterialRef& operator=(const MaterialRef& other);
 
 	Material* GetMaterial() const { return m_Proxy ? m_Proxy->Material.get() : nullptr; }
+	Material* operator->() const { assert(m_Proxy); return m_Proxy ? m_Proxy->Material.get() : nullptr; }
+
 	int GetRefCount() const { return m_Proxy ? m_Proxy->RefCount.load() : 0; }
 
 	bool IsValid() const { return m_Proxy != nullptr; }

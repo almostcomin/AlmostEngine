@@ -100,7 +100,7 @@ alm::rhi::GraphicsPipelineStateOwner alm::gfx::CommonResources::CreateFullscreen
 }
 
 std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float radius, uint32_t stacks, uint32_t slices, bool generateCpuGeometry,
-	alm::gfx::DataUploader* dataUploader, const std::string& name)
+	alm::gfx::DataUploader* dataUploader, const std::string& name, const alm::gfx::MaterialRef* opt_materialRef)
 {
 	assert(stacks >= 2);
 	assert(slices >= 3);
@@ -271,11 +271,16 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 		mesh->SetCpuIndices(std::move(cpuIndices));
 	}
 
-	MaterialRef materialRef = m_MaterialManager->CreateNewMaterial(std::format("{} - Material", name), "[generated]");
-	Material* material = materialRef.GetMaterial();
-
-	material->SetBaseColor(float3{ 0.5f, 1.f, 1.f });
-	mesh->SetMaterial(materialRef);
+	if (opt_materialRef)
+	{
+		mesh->SetMaterial(*opt_materialRef);
+	}
+	else
+	{
+		MaterialRef mRef = m_MaterialManager->CreateNewMaterial(std::format("{} - Material", name));
+		mRef->SetBaseColor(float3{ 1.f, 1.f, 1.f });
+		mesh->SetMaterial(mRef);
+	}
 
 	mesh->SetBounds(aabox3f{ float3{-radius}, float3{radius} });
 
@@ -288,7 +293,7 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 }
 
 std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateCube(float size, CubeNormalDirection normalDirection, CubeUVMode uvMode,
-	bool generateCpuGeometry, alm::gfx::DataUploader* dataUploader, const std::string& name)
+	bool generateCpuGeometry, alm::gfx::DataUploader* dataUploader, const std::string& name, const alm::gfx::MaterialRef* opt_materialRef)
 {
 	assert(size > 0.f);
 
@@ -500,11 +505,16 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateCube(float size
 		mesh->SetCpuIndices(std::move(cpuIndices));
 	}
 
-	MaterialRef materialRef = m_MaterialManager->CreateNewMaterial(std::format("{} - Material", name), "[generated]");
-	Material* material = materialRef.GetMaterial();
-
-	material->SetBaseColor(float3{ 0.5f, 1.f, 1.f });
-	mesh->SetMaterial(materialRef);
+	if (opt_materialRef)
+	{
+		mesh->SetMaterial(*opt_materialRef);
+	}
+	else
+	{
+		MaterialRef mRef = m_MaterialManager->CreateNewMaterial(std::format("{} - Material", name));
+		mRef->SetBaseColor(float3{ 1.f, 1.f, 1.f });
+		mesh->SetMaterial(mRef);
+	}
 
 	mesh->SetBounds(aabox3f{ float3{-halfSize}, float3{halfSize} });
 

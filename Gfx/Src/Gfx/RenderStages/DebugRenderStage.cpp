@@ -25,7 +25,7 @@ void alm::gfx::DebugRenderStage::Setup(RenderGraphBuilder& builder)
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 	m_GBuffer2Texture = builder.GetTextureHandle("GBuffer2");
 
-	m_FB = builder.RequestFramebuffer({ m_TonemappedTexture }, {}, "DebufRSFB");
+	m_FB = builder.RequestFramebuffer({ m_TonemappedTexture }, m_SceneDepthTexture, "DebufRSFB");
 
 	builder.AddTextureDependency(m_TonemappedTexture, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
@@ -139,7 +139,7 @@ void alm::gfx::DebugRenderStage::CreateBBoxPSO()
 			.blendState {},
 			.depthStencilState = {
 				.depthTestEnable = true,
-				.depthWriteEnable = true,
+				.depthWriteEnable = false,
 				.depthFunc = rhi::ComparisonFunc::Greater },
 			.rasterState = {},
 			.primTopo = rhi::PrimitiveTopology::LineList

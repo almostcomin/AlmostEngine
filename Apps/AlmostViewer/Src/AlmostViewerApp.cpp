@@ -19,6 +19,9 @@
 #include "Gfx/Camera.h"
 #include "Gfx/CommonResources.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/Material.h"
+#include "Gfx/Mesh.h"
+#include "Gfx/MaterialManager.h"
 #include <SDL3/SDL.h>
 #include <imgui/imgui_impl_sdl3.h>
 
@@ -68,11 +71,20 @@ public:
 		}
 
 		// TEST: Load KTX texture
+#if 0
 		{
 			alm::gfx::CommonResources* commonResources = m_DeviceManager->GetCommonResources();
+			alm::gfx::MaterialManager* materialManager = m_DeviceManager->GetMaterialManager();
+
+			auto tex = m_DeviceManager->GetTextureCache()->Load(
+				"Textures/_meadow_2_4k/meadow_2_4k_diffuse.ktx2", alm::gfx::TextureLoadFlags::ForceSRGB);
+
+			alm::gfx::MaterialRef materialRef = materialManager->CreateNewMaterial("EnvCube");
+			materialRef->SetBaseColorTexture(tex->first);
 
 			auto cubeMesh = commonResources->CreateCube(2.f, alm::gfx::CubeNormalDirection::Outward, alm::gfx::CubeUVMode::UV3D, true,
-				m_DeviceManager->GetDataUploader(), "EnvCube");
+				m_DeviceManager->GetDataUploader(), "EnvCube", &materialRef);
+
 			auto cubeInstance = alm::make_unique_with_weak<alm::gfx::MeshInstance>(cubeMesh);
 
 			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
@@ -81,11 +93,8 @@ public:
 
 			auto sceneGraph = m_Scene->GetSceneGraph();
 			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
-
-			//m_DeviceManager->GetTextureCache()->Load(
-			//	"Textures/_meadow_2_4k/meadow_2_4k_diffuse.ktx2", alm::gfx::TextureLoadFlags::ForceSRGB);
 		}
-
+#endif
 		return true;
 	}
 

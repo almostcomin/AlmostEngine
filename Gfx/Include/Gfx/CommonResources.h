@@ -16,6 +16,7 @@ namespace alm::gfx
 	class ShaderFactory;
 	class DataUploader;
 	class MaterialManager;
+	class MaterialRef;
 };
 
 namespace alm::gfx
@@ -59,7 +60,7 @@ public:
 	// slices: vertical subdivisions (longitude segments), >= 3
 	// generateCpuGeometry: keeps a copy of the geometry on cpu (needed for raycast)
 	std::shared_ptr<alm::gfx::Mesh> CreateUVSphere(float radius, uint32_t stacks, uint32_t slices, bool generateCpuGeometry,
-		alm::gfx::DataUploader* dataUploader, const std::string& name);
+		alm::gfx::DataUploader* dataUploader, const std::string& name, const alm::gfx::MaterialRef* opt_materialRef = nullptr);
 
 	// Generates a cube of edge length `size` centered at origin (6 faces, 24 vertices, 36 indices)
 	// normalDirection: outward for a regular solid cube, inward for environment/skybox cubes
@@ -67,7 +68,7 @@ public:
 	// sampling a cubemap with textureCube(direction)), None omits uvs
 	// generateCpuGeometry: keeps a copy of the geometry on cpu (needed for raycast)
 	std::shared_ptr<alm::gfx::Mesh> CreateCube(float size, CubeNormalDirection normalDirection, CubeUVMode uvMode, bool generateCpuGeometry,
-		alm::gfx::DataUploader* dataUploader, const std::string& name);
+		alm::gfx::DataUploader* dataUploader, const std::string& name, const alm::gfx::MaterialRef* opt_materialRef = nullptr);
 
 	// Blue noise texture: 64x64 single channel
 	//rhi::TextureHandle GetBlueNoise_HDR_64x64_L() const;

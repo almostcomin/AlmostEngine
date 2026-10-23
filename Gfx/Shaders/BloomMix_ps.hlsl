@@ -12,7 +12,7 @@ struct PS_INPUT
 };
 
 [RootSignature(BindlessRootSignature)]
-float3 main(PS_INPUT input) : SV_Target
+float4 main(PS_INPUT input) : SV_Target
 {
     Texture2D sceneTexture = ResourceDescriptorHeap[Constants.sceneTextureDI];
     Texture2D bloomTexture = ResourceDescriptorHeap[Constants.bloomTextureDI];
@@ -21,5 +21,5 @@ float3 main(PS_INPUT input) : SV_Target
     float3 bloomColor = bloomTexture.SampleLevel(linearClampSampler, input.uv, 0).rgb;
     float3 finalColor = lerp(hdrColor, bloomColor, Constants.bloomStrength);
     
-    return finalColor;
+    return float4(finalColor, 1.0);
 }
