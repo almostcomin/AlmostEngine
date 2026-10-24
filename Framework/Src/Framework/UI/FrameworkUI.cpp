@@ -109,6 +109,7 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildWorldOutliner();
     BuildRenderStagesWindow();
     BuildMaterialsWindow();
+    BuildAtmospherePanel();
     BuildStatsWindow();
 
     BuildGPUCPUGraphWindow();
@@ -502,6 +503,9 @@ void alm::fw::FrameworkUI::BuildMainMenu()
 
             if (ImGui::MenuItem("Material Panel", "Ctrl+M", m_ShowMaterials))
                 m_ShowMaterials = !m_ShowMaterials;
+
+            if (ImGui::MenuItem("Atmosphere Panel", nullptr, m_ShowAtmospherePanel))
+                m_ShowAtmospherePanel = !m_ShowAtmospherePanel;
 
             if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))
                 m_ShowStats = !m_ShowStats;

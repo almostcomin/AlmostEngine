@@ -213,14 +213,18 @@ private:
 	void BuildShadowmapSettings(float availWidth);
 	void BuildDirectionalLightSettings(float availWidth);
 	void BuildAmbientLightSettings(float availWidth);
-	void BuildSkySettings(float availWidth);
-	void BuildsCloudsSettings();
 	void BuildMaterialChannelsSettings(float availWidth);
 	void BuildSSAOSettings(float availWidth);
 	void BuildBloomSettings(float availWidth);
 	void BuildExposureSettings(float availWidth);
 	void BuildTonemappingSettings(float availWidth);
 	void BuildLumninanceHistogram();
+
+	// --- FrameworkUI_Atmosphere.cpp ---
+
+	void BuildAtmospherePanel();
+	void BuildSkySettings(float availWidth);
+	void BuildsCloudsSettings();
 
 	// --- FrameworkUI_WorldOutliner.cpp ---
 
@@ -264,8 +268,9 @@ protected:
 	bool m_ShowSettings = false;
 	bool m_ShowWorldOutliner = false;
 	bool m_ShowRenderStages = false;
-    bool m_ShowMaterials = false;
-    bool m_ShowStats = false;
+	bool m_ShowMaterials = false;
+	bool m_ShowAtmospherePanel = false;
+	bool m_ShowStats = false;
     bool m_ShowImGuiDebugger = false;   // ImGui Metrics/Debugger window (window list, draw commands, input routing)
     bool m_StatsRequestedByUI = false;  // Whether this UI holds a culling stats request (RequestStats/UnrequestStats)
     bool m_TimePlotReady = false;       // Whether the time plot lines have been registered
