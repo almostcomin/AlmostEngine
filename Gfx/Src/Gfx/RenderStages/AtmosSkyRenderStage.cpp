@@ -1,5 +1,5 @@
 #include "Gfx/GfxPCH.h"
-#include "Gfx/RenderStages/SkyRenderStage.h"
+#include "Gfx/RenderStages/AtmosSkyRenderStage.h"
 #include "Gfx/RenderGraphBuilder.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
@@ -12,8 +12,8 @@
 #include "RHI/Device.h"
 
 static constexpr double kAirN = 1.0003;						// refractive index
-static constexpr double kAirN2minus1 = kAirN * kAirN - 1.f;	// n²-1
-static constexpr double kMolecularDensity = 2.545e25f;		// molecules per m³
+static constexpr double kAirN2minus1 = kAirN * kAirN - 1.f;	// nï¿½-1
+static constexpr double kMolecularDensity = 2.545e25f;		// molecules per mï¿½
 static constexpr double kKingFactor = 1.06f;				// depolarization
 
 static float ComputeRayleighCoeff(float wavelengthNm)
@@ -41,7 +41,7 @@ static float ComputeMieCoeff(float wavelengthNm, float base, float alpha)
 	return base * powf(ratio, alpha);
 }
 
-void alm::gfx::SkyRenderStage::Setup(RenderGraphBuilder& builder)
+void alm::gfx::AtmosSkyRenderStage::Setup(RenderGraphBuilder& builder)
 {
 	m_SceneColorTexture = builder.GetTextureHandle("SceneColor");
 	m_LinearDepthTexture = builder.GetTextureHandle("LinearDepth");
@@ -50,7 +50,7 @@ void alm::gfx::SkyRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddTextureDependency(m_LinearDepthTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 }
 
-void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
+void alm::gfx::AtmosSkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 {
 	auto scene = GetScene();
 	if (!scene)
@@ -62,7 +62,7 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 
 	const AtmosphereConfig* atmos = scene->GetAtmosphereConfig();
 
-	interop::SkyData* skyData = (interop::SkyData*)m_ShaderCB.Map();
+	interop::AtmosSkyData* skyData = (interop::AtmosSkyData*)m_ShaderCB.Map();
 	{
 		const float3 sunDir = alm::ElevationAzimuthRadToDir(
 			glm::radians(atmos->Sun.ElevationDeg), glm::radians(atmos->Sun.AzimuthDeg));
@@ -103,30 +103,30 @@ void alm::gfx::SkyRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	}
 	m_ShaderCB.Unmap();
 
-	interop::SkyConstants shaderConstants;
+	interop::AtmosSkyConstants shaderConstants;
 	shaderConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
 	shaderConstants.CameraPosition = GetCamera()->GetPosition();
 	shaderConstants.exposureFactorTextureDI = GetRenderView()->GetPrevExposureSampledView();
-	shaderConstants.SkyDataDI = m_ShaderCB.GetUniformView();
+	shaderConstants.AtmosSkyDataDI = m_ShaderCB.GetUniformView();
 
 	commandList->PushComputeConstants(0, shaderConstants);
 
 	commandList->Dispatch(DivRoundUp(texDesc.width, 8u), DivRoundUp(texDesc.height, 8u), 1);
 }
 
-void alm::gfx::SkyRenderStage::OnAttached()
+void alm::gfx::AtmosSkyRenderStage::OnAttached()
 {
 	auto* deviceManager = m_RenderGraph->GetDeviceManager();
 	auto* device = deviceManager->GetDevice();
 	auto* shaderFactory = deviceManager->GetShaderFactory();
 
-	m_CS = shaderFactory->LoadShader("Sky_cs", rhi::ShaderType::Compute);
-	m_PSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ .CS = m_CS.get_weak() }, "SkyRenderStage");
+	m_CS = shaderFactory->LoadShader("AtmosSky_cs", rhi::ShaderType::Compute);
+	m_PSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{ .CS = m_CS.get_weak() }, "AtmosSkyRenderStage");
 
-	m_ShaderCB.InitUniformBuffer(sizeof(interop::SkyData), deviceManager, "SkyData");
+	m_ShaderCB.InitUniformBuffer(sizeof(interop::AtmosSkyData), deviceManager, "AtmosSkyData");
 }
 
-void alm::gfx::SkyRenderStage::OnDetached()
+void alm::gfx::AtmosSkyRenderStage::OnDetached()
 {
 	m_ShaderCB.Release();
 	m_PSO.reset();

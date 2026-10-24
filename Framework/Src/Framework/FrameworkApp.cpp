@@ -149,7 +149,7 @@ void alm::fw::FrameworkApp::RefreshUIData()
 	alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
 	auto shadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
 	auto simpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
-	auto skyRS = renderGraph->GetRenderStage<alm::gfx::SkyRenderStage>();
+	auto skyRS = renderGraph->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
 	auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
 	auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
 	auto exposureRS = renderGraph->GetRenderStage<alm::gfx::ExposureRenderStage>();
@@ -167,13 +167,13 @@ void alm::fw::FrameworkApp::RefreshUIData()
 
 	data.SunParams = atmos->Sun;
 	data.AmbientParams = atmos->Ambient;
-	data.SkyParams = atmos->Sky;
+	data.AtmosSkyParams = atmos->Sky;
 
 	if (simpleSkyRS)
 		data.SimpleSkyParams = simpleSkyRS->GetSkyParams();
 
 	if (skyRS)
-		data.SkySimParams = skyRS->GetSkySimParams();
+		data.AtmosSkySimParams = skyRS->GetSimParams();
 
 	if (cloudsRS)
 	{
@@ -579,7 +579,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 	{
 		std::shared_ptr<gfx::GPUCullingRenderStage> gpuCullingRS;
 		std::shared_ptr<gfx::SimpleSkyRenderStage> simpleSkyRS;
-		std::shared_ptr<gfx::SkyRenderStage> skyRS;
+		std::shared_ptr<gfx::AtmosSkyRenderStage> skyRS;
 		std::shared_ptr<gfx::CloudsRenderStage> cloudsRS;
 		std::shared_ptr<gfx::CloudsShadowmapRenderStage> cloudsSMRS;
 
@@ -611,7 +611,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			break;
 		case RenderStageSetMode::Default_FullAtmos:
 			cloudsSMRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsShadowmapRenderStage>();
-			skyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::SkyRenderStage>();
+			skyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::AtmosSkyRenderStage>();
 			cloudsRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsRenderStage>();
 			break;
 		}
@@ -849,7 +849,7 @@ void alm::fw::FrameworkApp::MainLoop()
 			auto debugRS = renderGraph->GetRenderStage<gfx::DebugRenderStage>();
 			auto shadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
 			auto simpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
-			auto skyRS = renderGraph->GetRenderStage<alm::gfx::SkyRenderStage>();
+			auto skyRS = renderGraph->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
 			auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
 			auto lightingRS = renderGraph->GetRenderStage<alm::gfx::DeferredLightingRenderStage>();
 			auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
@@ -884,15 +884,15 @@ void alm::fw::FrameworkApp::MainLoop()
 				atmos->Ambient = data.AmbientParams;
 				data.AmbientParamsUpdated = false;
 			}
-			atmos->Sky = data.SkyParams;
+			atmos->Sky = data.AtmosSkyParams;
 
 			if (simpleSkyRS)
 				simpleSkyRS->SetSkyParams(data.SimpleSkyParams);
 
 			if (skyRS)
 			{
-				skyRS->SetEnabled(data.SkyEnabled);
-				skyRS->SetSkySimParams(data.SkySimParams);
+				skyRS->SetEnabled(data.AtmosSkyEnabled);
+				skyRS->SetSimParams(data.AtmosSkySimParams);
 			}
 
 			if (cloudsRS)

@@ -3,7 +3,7 @@
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderStages/SimpleSkyRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
-#include "Gfx/RenderStages/SkyRenderStage.h"
+#include "Gfx/RenderStages/AtmosSkyRenderStage.h"
 #include "Gfx/RenderStages/CloudsRenderStage.h"
 #include "Gfx/RenderStageFactory.h"
 #include "Gfx/RenderGraph.h"
@@ -53,9 +53,9 @@ public:
 
 		alm::gfx::SimpleSkyRenderStage::SkyParams SimpleSkyParams;
 
-		alm::gfx::AtmosphereConfig::SkyParams SkyParams;
-		alm::gfx::SkyRenderStage::SkySimParams SkySimParams;
-		bool SkyEnabled = true;
+		alm::gfx::AtmosphereConfig::SkyParams AtmosSkyParams;
+		alm::gfx::AtmosSkyRenderStage::SimParams AtmosSkySimParams;
+		bool AtmosSkyEnabled = true;
 
 		alm::gfx::CloudsRenderStage::CloudsSimParams CloudsSimParams;
 		uint32_t CloudsRTDenom = 0;

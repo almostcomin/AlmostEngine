@@ -8,9 +8,9 @@
 namespace alm::gfx
 {
 
-class SkyRenderStage : public RenderStage
+class AtmosSkyRenderStage : public RenderStage
 {
-    REGISTER_RENDER_STAGE(SkyRenderStage)
+    REGISTER_RENDER_STAGE(AtmosSkyRenderStage)
 
 public:
 
@@ -22,7 +22,7 @@ public:
     static constexpr float kMieBase = 21e-6f;
     static constexpr float kRefMieScaleHeight = 1200.f;
 
-	struct SkySimParams
+	struct SimParams
 	{
         uint32_t NumSteps = 32;
         uint32_t NumLightSteps = 3;
@@ -30,8 +30,8 @@ public:
 
 public:
 
-    const SkySimParams& GetSkySimParams() const { return m_Params; }
-    void SetSkySimParams(const SkySimParams& params) { m_Params = params; }
+    const SimParams& GetSimParams() const { return m_Params; }
+    void SetSimParams(const SimParams& params) { m_Params = params; }
 
 private:
 
@@ -50,7 +50,7 @@ private:
 
     gfx::MultiBuffer m_ShaderCB;
 
-    SkySimParams m_Params;
+    SimParams m_Params;
 };
 
 } // namespace alm::gfx

@@ -10,7 +10,7 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/RenderStages/SimpleSkyRenderStage.h"
-#include "Gfx/RenderStages/SkyRenderStage.h"
+#include "Gfx/RenderStages/AtmosSkyRenderStage.h"
 #include "Gfx/RenderStages/CloudsRenderStage.h"
 
 void alm::fw::FrameworkUI::BuildAtmospherePanel()
@@ -45,7 +45,7 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
         if (ImGui::CollapsingHeader("Simple Sky"))
         {
             bool isEnabled = simpleSky->IsEnabled();
-            ImGui::Checkbox("Enabled##Sky", &isEnabled);
+            ImGui::Checkbox("Enabled##SimpleSky", &isEnabled);
             simpleSky->SetEnabled(isEnabled);
 
             ImGui::ColorEdit3("Sky color##Sky", &FrameworkData.SimpleSkyParams.skyColor.x, ImGuiColorEditFlags_Float);
@@ -70,27 +70,27 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
         }
     }
 
-    auto sky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::SkyRenderStage>();
+    auto sky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
     if (sky)
     {
-        if (ImGui::CollapsingHeader("Sky"))
+        if (ImGui::CollapsingHeader("Atmospheric Sky"))
         {
-            ImGui::Checkbox("Enabled##Sky", &FrameworkData.SkyEnabled);
+            ImGui::Checkbox("Enabled##AtmosSky", &FrameworkData.AtmosSkyEnabled);
 
             ImGui::SameLine();
-            float gpuMs = m_RenderViewUI->GetRenderGraph()->GetStageGPUTimeMs(alm::gfx::SkyRenderStage::StaticType());
+            float gpuMs = m_RenderViewUI->GetRenderGraph()->GetStageGPUTimeMs(alm::gfx::AtmosSkyRenderStage::StaticType());
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
             TextRightAligned("GPU: %1.2f ms", gpuMs);
             ImGui::PopStyleColor();
 
             ImGui::Spacing();
 
-            ImGui::InputFloat("Atmospheric depth", &FrameworkData.SkyParams.AtmosHeight);
-            ImGui::InputFloat3("Rayleigh Wave Lengths", &FrameworkData.SkyParams.RayleighWaveLengths.x, "%.1f");
-            ImGui::InputFloat("Turbidity factor", &FrameworkData.SkyParams.Turbidity);
-            ImGui::SliderFloat("Mie Anisotropy##Sky", &FrameworkData.SkyParams.MieAnisotropy, 0.f, 1.f);
-            ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &FrameworkData.SkySimParams.NumSteps);
-            ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &FrameworkData.SkySimParams.NumLightSteps);
+            ImGui::InputFloat("Atmospheric depth", &FrameworkData.AtmosSkyParams.AtmosHeight);
+            ImGui::InputFloat3("Rayleigh Wave Lengths", &FrameworkData.AtmosSkyParams.RayleighWaveLengths.x, "%.1f");
+            ImGui::InputFloat("Turbidity factor", &FrameworkData.AtmosSkyParams.Turbidity);
+            ImGui::SliderFloat("Mie Anisotropy##Sky", &FrameworkData.AtmosSkyParams.MieAnisotropy, 0.f, 1.f);
+            ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &FrameworkData.AtmosSkySimParams.NumSteps);
+            ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &FrameworkData.AtmosSkySimParams.NumLightSteps);
         }
     }
 }

@@ -97,7 +97,7 @@ void alm::gfx::SimpleSkyRenderStage::OnAttached()
 			.PS = m_PS.get_weak(),
 			.depthStencilState = depthStencilState };
 
-		m_PSO = device->CreateGraphicsPipelineState(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(), "SkyRenderStage");
+		m_PSO = device->CreateGraphicsPipelineState(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(), "SimpleSkyRenderStage");
 	}
 
 	m_ShaderCB.InitUniformBuffer(sizeof(interop::SimpleSkyData), deviceManager, "SimpleSkyData");

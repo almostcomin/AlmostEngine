@@ -554,7 +554,7 @@ namespace interop
         BufferUniformIndex skyDataDI; // SimpleSkyData
     };
 
-    struct SkyData
+    struct AtmosSkyData
     {
         float3 ToSunDirection;
         float AtmosRadius;
@@ -579,12 +579,12 @@ namespace interop
         float2 SceneColorTexSize;
     };
 
-    struct SkyConstants
+    struct AtmosSkyConstants
     {
         float4x4 matClipToTranslatedWorld;
         float3 CameraPosition;
         TextureSampledViewIndex exposureFactorTextureDI;
-        BufferUniformIndex SkyDataDI;  // SkyData
+        BufferUniformIndex AtmosSkyDataDI;  // AtmosSkyData
     };
 
     struct CloudsShapeData

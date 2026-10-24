@@ -28,7 +28,7 @@
 //   StillTravelling -- Shadertoy sky + clouds shader
 //   https://www.shadertoy.com/view/tdSXzD
 
-ConstantBuffer<interop::SkyConstants> Constants : register(b0);
+ConstantBuffer<interop::AtmosSkyConstants> Constants : register(b0);
 
 // Output of the scattering raymarch.
 // Separating inscattering and transmittance allows the caller to compose
@@ -48,7 +48,7 @@ struct ScatterResult
 // sceneDepth:     distance to the nearest scene geometry along the ray (from depth buffer)
 //                 used to limit the raymarch and enable aerial perspective over geometry
 // skyData:        per-frame atmospheric parameters (radii, scattering coefficients, sun, etc.)
-ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, ConstantBuffer<interop::SkyData> skyData)
+ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, ConstantBuffer<interop::AtmosSkyData> skyData)
 {
     ScatterResult result;
     result.inscattering  = float3(0, 0, 0); // No light scattered by default
@@ -273,7 +273,7 @@ ScatterResult Scatter(float3 rayOriginLocal, float3 rayDir, float sceneDepth, Co
 [numthreads(8, 8, 1)]
 void main(uint3 dispatchID : SV_DispatchThreadID)
 {
-    ConstantBuffer<interop::SkyData> skyData = ResourceDescriptorHeap[Constants.SkyDataDI];
+    ConstantBuffer<interop::AtmosSkyData> skyData = ResourceDescriptorHeap[Constants.AtmosSkyDataDI];
     Texture2D<float> linearDepthTex = ResourceDescriptorHeap[skyData.LinearDepthTexDI];
     RWTexture2D<float4> colorTex = ResourceDescriptorHeap[skyData.SceneColorDI];
 

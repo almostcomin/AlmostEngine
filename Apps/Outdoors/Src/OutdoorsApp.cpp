@@ -14,7 +14,7 @@
 #include "Gfx/RenderStages/WBOITAccumRenderStage.h"
 #include "Gfx/RenderStages/WBOITResolveRenderStage.h"
 #include "Gfx/RenderStages/BloomRenderStage.h"
-#include "Gfx/RenderStages/SkyRenderStage.h"
+#include "Gfx/RenderStages/AtmosSkyRenderStage.h"
 #include "Gfx/RenderStages/CloudsRenderStage.h"
 #include "Gfx/RenderStages/CloudsShadowMapRenderStage.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
