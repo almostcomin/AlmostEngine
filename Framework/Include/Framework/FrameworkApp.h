@@ -37,6 +37,7 @@ public:
         None,
         Default_NoSky,
         Default_SimpleSky,
+        Default_CubemapSky,
         Default_FullAtmos,
         User
     };

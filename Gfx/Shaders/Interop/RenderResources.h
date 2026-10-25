@@ -554,6 +554,13 @@ namespace interop
         BufferUniformIndex skyDataDI; // SimpleSkyData
     };
 
+    struct CubemapSkyConstants
+    {
+        float4x4 matClipToTranslatedWorld;
+        TextureSampledViewIndex cubemapTextureDI;
+        TextureSampledViewIndex exposureFactorTextureDI;
+    };
+
     struct AtmosSkyData
     {
         float3 ToSunDirection;

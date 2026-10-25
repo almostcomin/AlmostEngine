@@ -13,6 +13,8 @@
 #include "RHI/dx12/Utils.h"
 #include <pix3.h>
 
+//#define LOG_BARRIERS
+
 namespace
 {
 	constexpr uint32_t ImageAspectToPlane(alm::rhi::ImageAspect value)
@@ -29,6 +31,105 @@ namespace
 			return 0;
 		}
 	}
+
+#if LOG_BARRIERS
+
+	std::string ResourceStateToString(alm::rhi::ResourceState state)
+	{
+		using State = alm::rhi::ResourceState;
+		static constexpr std::pair<uint32_t, const char*> kFlags[] = {
+			{ (uint32_t)State::SHADER_RESOURCE, "SHADER_RESOURCE" },
+			{ (uint32_t)State::SHADER_RESOURCE_COMPUTE, "SHADER_RESOURCE_COMPUTE" },
+			{ (uint32_t)State::UNORDERED_ACCESS, "UNORDERED_ACCESS" },
+			{ (uint32_t)State::COPY_SRC, "COPY_SRC" },
+			{ (uint32_t)State::COPY_DST, "COPY_DST" },
+			{ (uint32_t)State::RENDERTARGET, "RENDERTARGET" },
+			{ (uint32_t)State::DEPTHSTENCIL_READONLY, "DEPTHSTENCIL_READONLY" },
+			{ (uint32_t)State::DEPTHSTENCIL, "DEPTHSTENCIL" },
+			{ (uint32_t)State::SHADING_RATE_SOURCE, "SHADING_RATE_SOURCE" },
+			{ (uint32_t)State::VERTEX_BUFFER, "VERTEX_BUFFER" },
+			{ (uint32_t)State::INDEX_BUFFER, "INDEX_BUFFER" },
+			{ (uint32_t)State::CONSTANT_BUFFER, "CONSTANT_BUFFER" },
+			{ (uint32_t)State::INDIRECT_ARGUMENT, "INDIRECT_ARGUMENT" },
+			{ (uint32_t)State::RAYTRACING_ACCELERATION_STRUCTURE, "RAYTRACING_AS" },
+			{ (uint32_t)State::PREDICATION, "PREDICATION" },
+			{ (uint32_t)State::VIDEO_DECODE_SRC, "VIDEO_DECODE_SRC" },
+			{ (uint32_t)State::VIDEO_DECODE_DST, "VIDEO_DECODE_DST" },
+			{ (uint32_t)State::VIDEO_DECODE_DPB, "VIDEO_DECODE_DPB" },
+			{ (uint32_t)State::SWAPCHAIN, "SWAPCHAIN" },
+		};
+
+		const uint32_t value = (uint32_t)state;
+		uint32_t remaining = value;
+		std::string result;
+		for (const auto& [mask, name] : kFlags)
+		{
+			if ((value & mask) == 0)
+				continue;
+			result += (result.empty() ? "" : "|") + std::string(name);
+			remaining &= ~mask;
+		}
+		if (remaining != 0)
+			result += (result.empty() ? "" : "|") + std::format("0x{:x}", remaining);
+		if (result.empty())
+			result = "COMMON";
+		return result;
+	}
+
+	void LogBarrier(const std::string& commandListName, const alm::rhi::Barrier& barrier, const D3D12_RESOURCE_BARRIER& d3d12Barrier)
+	{
+		switch (barrier.type)
+		{
+		case alm::rhi::Barrier::Type::MEMORY:
+			LOG_INFO("Barrier [{}] STATE   '{}': UAV barrier", commandListName, barrier.memory.resource->GetDebugName());
+			break;
+
+		case alm::rhi::Barrier::Type::BUFFER:
+			LOG_INFO("Barrier [{}] BUFFER  '{}': {} -> {}",
+				commandListName, barrier.buffer.buffer->GetDebugName(),
+				ResourceStateToString(barrier.buffer.state_before), ResourceStateToString(barrier.buffer.state_after));
+			break;
+
+		case alm::rhi::Barrier::Type::TEXTURE:
+		{
+			if (d3d12Barrier.Transition.Subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+			{
+				LOG_INFO("Barrier [{}] TEXTURE '{}': sub ALL: {} -> {}",
+					commandListName, barrier.texture.texture->GetDebugName(),
+					ResourceStateToString(barrier.texture.layout_before), ResourceStateToString(barrier.texture.layout_after));
+			}
+			else
+			{
+				const char* aspect = "";
+				switch (barrier.texture.aspect)
+				{
+				case alm::rhi::ImageAspect::Color: aspect = ", aspect Color"; break;
+				case alm::rhi::ImageAspect::Depth: aspect = ", aspect Depth"; break;
+				case alm::rhi::ImageAspect::Stencil: aspect = ", aspect Stencil"; break;
+				default: break;
+				}
+
+				LOG_INFO("Barrier [{}] TEXTURE '{}': sub {} (mip {}, slice{}): {} -> {}",
+					commandListName, barrier.texture.texture->GetDebugName(),
+					d3d12Barrier.Transition.Subresource,
+					barrier.texture.mip, barrier.texture.slice, aspect,
+					ResourceStateToString(barrier.texture.layout_before), ResourceStateToString(barrier.texture.layout_after));
+			}
+			break;
+		}
+
+		case alm::rhi::Barrier::Type::ALIASING:
+			LOG_INFO("Barrier [{}] ALIASING '{}' -> '{}'",
+				commandListName, barrier.aliasing.resource_before->GetDebugName(), barrier.aliasing.resource_after->GetDebugName());
+			break;
+
+		default:
+			assert(0);
+			break;
+		}
+	}
+
+#endif // LOG_BARRIERS
 } // anonymous namespace
 
 void alm::rhi::dx12::CommandList::Open()
@@ -118,42 +219,43 @@ void alm::rhi::dx12::CommandList::WriteBuffer(IBuffer* dstBuffer, uint64_t dstOf
 
 void alm::rhi::dx12::CommandList::WriteTexture(ITexture* dstTexture, const rhi::TextureSubresourceSet& subresources, IBuffer* srcBuffer, uint64_t srcOffset)
 {
+	assert(IsAligned(srcOffset, (uint64_t)D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT));
+
+	GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
 	const TextureDesc& desc = dstTexture->GetDesc();
 	uint32_t lastArraySlice = subresources.GetLastArraySlice(desc);
 	uint32_t lastMip = subresources.GetLastMipLevel(desc);
 	ID3D12Resource* d3d12Texture = dstTexture->GetNativeResource();
 	D3D12_RESOURCE_DESC d3d12Desc = d3d12Texture->GetDesc();
 
+	uint64_t subOffset = srcOffset;
 	for (uint32_t arraySlice = subresources.baseArraySlice; arraySlice <= lastArraySlice; ++arraySlice)
 	{
 		for (int mip = subresources.baseMipLevel; mip <= lastMip; ++mip)
 		{
+			uint32_t subresourceIndex = D3D12CalcSubresource(mip, arraySlice, 0, desc.mipLevels, desc.arraySize);
+			uint64_t subresourceSize = 0;
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+
+			gpuDevice->GetD3d12Device()->GetCopyableFootprints(
+				&d3d12Desc, subresourceIndex, 1, 0, &footprint, nullptr, nullptr, &subresourceSize);
+
 			D3D12_TEXTURE_COPY_LOCATION dst = 
 			{
 				.pResource = dstTexture->GetNativeResource(),
 				.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-				.SubresourceIndex = D3D12CalcSubresource(mip, arraySlice, 0, desc.mipLevels, desc.arraySize)
+				.SubresourceIndex = subresourceIndex
 			};
 
 			D3D12_TEXTURE_COPY_LOCATION src = {};
 			src.pResource = srcBuffer->GetNativeResource();
 			src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-
-			GpuDevice* gpuDevice = checked_cast<GpuDevice*>(GetDevice());
-			uint64_t totalBytes = 0;
-			gpuDevice->GetD3d12Device()->GetCopyableFootprints(
-				&d3d12Desc,
-				D3D12CalcSubresource(mip, arraySlice, 0, desc.mipLevels, desc.arraySize),
-				1,
-				srcOffset,
-				&src.PlacedFootprint,
-				nullptr,
-				nullptr,
-				&totalBytes);
+			src.PlacedFootprint = footprint;
+			src.PlacedFootprint.Offset = AlignUp(subOffset, (uint64_t)D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 
 			m_D3d12Commandlist->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 			
-			srcOffset += totalBytes;
+			subOffset = src.PlacedFootprint.Offset + subresourceSize;
 		}
 	}
 }
@@ -229,11 +331,14 @@ void alm::rhi::dx12::CommandList::CopyTextureToBuffer(IBuffer* dstBuffer, ITextu
 
 	for (uint32_t i = 0; i < numberOfResources; ++i)
 	{
+		uint32_t subresourceIndex = D3D12CalcSubresource(
+			i % srcDesc.mipLevels, i / srcDesc.mipLevels, 0, srcDesc.mipLevels, srcDesc.arraySize);
+
 		D3D12_TEXTURE_COPY_LOCATION src =
 		{
 			.pResource = srcTexture->GetNativeResource(),
 			.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-			.SubresourceIndex = D3D12CalcSubresource(0, 0, 0, srcDesc.mipLevels, srcDesc.arraySize)
+			.SubresourceIndex = subresourceIndex
 		};
 
 		D3D12_TEXTURE_COPY_LOCATION dst =
@@ -317,6 +422,10 @@ void alm::rhi::dx12::CommandList::PushBarriers(std::span<const Barrier> barriers
 				LOG_ERROR("Only graphics queue can set pixel shader barriers");
 			}
 		}
+#endif
+
+#ifdef LOG_BARRIERS
+		LogBarrier(GetDebugName(), barrier, d3d12Barrier);
 #endif
 
 		d3d12Barriers.push_back(d3d12Barrier);

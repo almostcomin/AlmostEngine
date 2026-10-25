@@ -878,8 +878,8 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
     return isOpen;
 }
 
-bool alm::fw::FrameworkUI::BuildTextureShowOpenClear(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
-    bool sRGB, bool isNormalTex)
+bool alm::fw::FrameworkUI::BuildTextureShowBrowseClear(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
+    alm::gfx::TextureLoadFlags loadFlags)
 {
     const ImGuiStyle& style = ImGui::GetStyle();
     const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
@@ -914,21 +914,18 @@ bool alm::fw::FrameworkUI::BuildTextureShowOpenClear(const char* id, std::shared
     ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (ImGui::Button("Open", ImVec2(buttonWidth, 0.f)))
+    if (ImGui::Button("Browse", ImVec2(buttonWidth, 0.f)))
     {
         std::string path = OpenFileNativeDialog(loadedTex ? loadedTex->id : std::string{}, {
-            { "Image files", "*.png;*.tga;*.jpg;*.jpeg;*.dds" },
+            { "Image files", "*.png;*.tga;*.jpg;*.jpeg;*.dds;*.ktx2" },
             { "TGA", "*.tga" },
             { "PNG", "*.png" },
             { "JPEG", "*.jpg;*.jpeg" },
-            { "DDS", "*.dds" } });
+            { "DDS", "*.dds" },
+            { "KTX2", "*.ktx2" }});
         if (!path.empty())
         {
-            alm::gfx::TextureLoadFlags flags = alm::gfx::TextureLoadFlags::GenerateMips;
-            if (isNormalTex)
-                flags |= alm::gfx::TextureLoadFlags::IsNormalMap;
-
-            auto loadResult = GetDeviceManager()->GetTextureCache()->Load(path, flags);
+            auto loadResult = GetDeviceManager()->GetTextureCache()->Load(path, loadFlags);
             if (loadResult)
             {
                 loadResult->second.Wait();

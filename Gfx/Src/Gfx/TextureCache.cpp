@@ -12,27 +12,27 @@
 namespace
 {
 
-alm::rhi::TextureDesc TexInfoToTexDesc(const alm::gfx::TextureInfo& texInfo)
+alm::rhi::TextureDesc TexDataToTexDesc(const alm::gfx::TextureData& texData)
 {
     return alm::rhi::TextureDesc {
-        .width = texInfo.width,
-        .height = texInfo.height,
-        .depth = texInfo.depth,
-        .arraySize = texInfo.arraySize,
-        .mipLevels = texInfo.mipLevels,
+        .width = texData.Width,
+        .height = texData.Height,
+        .depth = texData.Depth,
+        .arraySize = texData.ArraySize,
+        .mipLevels = texData.MipLevels,
         .sampleCount = 1,
         .sampleQuality = 0,
-        .format = texInfo.format,
-        .dimension = texInfo.dimension,
+        .format = texData.format,
+        .dimension = texData.Dimension,
         .shaderUsage = alm::rhi::TextureShaderUsage::Sampled
     };
 }
 
 // Resturns [texture, originalMips]
 // The texture is created in COPY_DST state
-std::pair<alm::rhi::TextureOwner, uint32_t> CreateTextureFromTexInfo(const alm::gfx::TextureInfo& texInfo, bool genMips, alm::rhi::Device* device)
+std::pair<alm::rhi::TextureOwner, uint32_t> CreateTextureFromTexData(const alm::gfx::TextureData& texData, bool genMips, alm::rhi::Device* device)
 {
-    alm::rhi::TextureDesc desc = TexInfoToTexDesc(texInfo);
+    alm::rhi::TextureDesc desc = TexDataToTexDesc(texData);
     uint32_t originalMips = desc.mipLevels;
     if (genMips)
     {
@@ -43,7 +43,7 @@ std::pair<alm::rhi::TextureOwner, uint32_t> CreateTextureFromTexInfo(const alm::
             desc.shaderUsage |= alm::rhi::TextureShaderUsage::Storage; // Needed for mip generation
         }
     }
-    return { device->CreateTexture(desc, alm::rhi::ResourceState::COPY_DST, texInfo.debugName), originalMips };
+    return { device->CreateTexture(desc, alm::rhi::ResourceState::COPY_DST, texData.DebugName), originalMips };
 }
 
 } // anonymous namespace
@@ -163,7 +163,7 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(
     const alm::WeakBlob& blob, alm::gfx::TextureLoadFlags flags, FileFormat format, const std::string& id)
 {
     alm::gfx::TextureLoadFlags tflags = flags;
-    std::expected<std::pair<alm::gfx::TextureInfo, alm::Blob>, std::string> loadResult;
+    std::expected<alm::gfx::TextureData, std::string> loadResult;
     switch (format)
     {
     case FileFormat::DDS:
@@ -176,23 +176,22 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(
         loadResult = LoadImageTexture(blob, has_any_flag(tflags, alm::gfx::TextureLoadFlags::ForceSRGB));
         break;
     }
-
     if (!loadResult)
     {
         return std::unexpected(std::move(loadResult.error()));
     }
 
-    TextureInfo& texInfo = loadResult->first;
-    texInfo.debugName = id;
+    TextureData& texData = *loadResult;
+    texData.DebugName = id;
 
-    if (!m_Device->SupportsTextureFormat(texInfo.format))
+    if (!m_Device->SupportsTextureFormat(texData.format))
     {
         return std::unexpected(std::format(
             "Texture '{}' uses format {} which is not supported by the device.",
-            id, rhi::GetFormatString(texInfo.format)));
+            id, rhi::GetFormatString(texData.format)));
     }
 
-    auto [texture, originalMips] = CreateTextureFromTexInfo(texInfo, has_any_flag(flags, TextureLoadFlags::GenerateMips), m_Device);
+    auto [texture, originalMips] = CreateTextureFromTexData(texData, has_any_flag(flags, TextureLoadFlags::GenerateMips), m_Device);
     if (!texture)
     {
         return std::unexpected(std::format("Failed creating texture {}.", id));
@@ -206,13 +205,13 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(
     }
 
     auto uploadResult = m_DataUploader->UploadTextureData(
-        WeakBlob{ loadResult->second },
+        *loadResult,
         texture.get_weak(),
         rhi::ResourceState::COPY_DST,
         rhi::ResourceState::SHADER_RESOURCE,        
-        rhi::TextureSubresourceSet{ 0, texInfo.mipLevels, 0, texInfo.arraySize },
+        rhi::TextureSubresourceSet{ 0, texData.MipLevels, 0, texData.ArraySize },
         getMipsMethod,
-        texInfo.debugName.c_str());
+        texData.DebugName.c_str());
     if (!uploadResult)
     {
         return std::unexpected(std::move(uploadResult.error()));
@@ -227,11 +226,11 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(
     alm::SignalListener uploadEvent = std::move(*uploadResult);
 
     {
-        std::scoped_lock loc{ m_MapMutex };
+        std::scoped_lock lock{ m_MapMutex };
         m_Textures.emplace(id, std::weak_ptr<LoadedTexture>(handle));
     }
     {
-        std::scoped_lock loc{ m_InFlightMapMutex };
+        std::scoped_lock lock{ m_InFlightMapMutex };
         m_InFlightTextures.push_back(InFlightData{ id, handle, uploadEvent });
     }
 

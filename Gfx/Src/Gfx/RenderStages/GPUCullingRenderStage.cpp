@@ -101,49 +101,52 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 	const uint32_t staticInstanceCount = gpuSceneBuffers->GetStaticInstanceScanCount(scene->GetGpuSceneBuffersHandle());
 	const uint32_t transientInstanceCount = gpuSceneBuffers->GetTransientInstancesCount(scene->GetGpuSceneBuffersHandle());
 
-	interop::CullingConstants shaderConstants;
-	shaderConstants.SceneDI = GetRenderView()->GetSceneBufferUniformView();
-	shaderConstants.SparseCameraArgsDI = m_RenderGraph->GetBufferReadWriteView(m_SparseArgsBuffer);
-	shaderConstants.CompactedCameraArgsDI = m_RenderGraph->GetBufferReadWriteView(m_IndirectDrawArgsBuffer);
-	shaderConstants.CameraCountsDI = m_RenderGraph->GetBufferReadWriteView(m_CountsBuffer);
-	shaderConstants.CameraPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_PayloadBuffer);
-	shaderConstants.SparseShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_SparseShadowArgsBuffer);
-	shaderConstants.CompactedShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowIndirectDrawArgsBuffer);
-	shaderConstants.ShadowCountsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowCountsBuffer);
-	shaderConstants.ShadowPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowPayloadBuffer);
-	shaderConstants.BatchTableDI = gpuSceneBuffers->GetBatchTableBufferView(scene->GetGpuSceneBuffersHandle());
-	shaderConstants.CullDataDI = gpuSceneBuffers->GetInstancesCullDataBufferView(scene->GetGpuSceneBuffersHandle());
-	shaderConstants.BatchCount = batchCount;
-	shaderConstants.StaticInstanceCount = staticInstanceCount;
-	shaderConstants.TotalInstanceCount = staticInstanceCount + transientInstanceCount;
-	shaderConstants.StaticInstanceCapacity = alm::gfx::GpuSceneBuffers::kMaxStaticInstanceCount;
-	shaderConstants.ShadowEnabled = GetRenderView()->IsShadowmapValid();
-	shaderConstants.StatsBufferDI = m_StatsBuffer->GetReadWriteView();
+	if (batchCount > 0)
+	{
+		interop::CullingConstants shaderConstants;
+		shaderConstants.SceneDI = GetRenderView()->GetSceneBufferUniformView();
+		shaderConstants.SparseCameraArgsDI = m_RenderGraph->GetBufferReadWriteView(m_SparseArgsBuffer);
+		shaderConstants.CompactedCameraArgsDI = m_RenderGraph->GetBufferReadWriteView(m_IndirectDrawArgsBuffer);
+		shaderConstants.CameraCountsDI = m_RenderGraph->GetBufferReadWriteView(m_CountsBuffer);
+		shaderConstants.CameraPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_PayloadBuffer);
+		shaderConstants.SparseShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_SparseShadowArgsBuffer);
+		shaderConstants.CompactedShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowIndirectDrawArgsBuffer);
+		shaderConstants.ShadowCountsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowCountsBuffer);
+		shaderConstants.ShadowPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowPayloadBuffer);
+		shaderConstants.BatchTableDI = gpuSceneBuffers->GetBatchTableBufferView(scene->GetGpuSceneBuffersHandle());
+		shaderConstants.CullDataDI = gpuSceneBuffers->GetInstancesCullDataBufferView(scene->GetGpuSceneBuffersHandle());
+		shaderConstants.BatchCount = batchCount;
+		shaderConstants.StaticInstanceCount = staticInstanceCount;
+		shaderConstants.TotalInstanceCount = staticInstanceCount + transientInstanceCount;
+		shaderConstants.StaticInstanceCapacity = alm::gfx::GpuSceneBuffers::kMaxStaticInstanceCount;
+		shaderConstants.ShadowEnabled = GetRenderView()->IsShadowmapValid();
+		shaderConstants.StatsBufferDI = m_StatsBuffer->GetReadWriteView();
 
-	commandList->PushComputeConstants(0, shaderConstants);
+		commandList->PushComputeConstants(0, shaderConstants);
 
-	// Prepare
-	commandList->SetPipelineState(m_PreparePSO.get());
-	commandList->Dispatch(DivRoundUp(batchCount, 256u), 1, 1);
+		// Prepare
+		commandList->SetPipelineState(m_PreparePSO.get());
+		commandList->Dispatch(DivRoundUp(batchCount, 256u), 1, 1);
 
-	commandList->PushBarriers({
-		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseArgsBuffer).get()),
-		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseShadowArgsBuffer).get()) });
+		commandList->PushBarriers({
+			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseArgsBuffer).get()),
+			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseShadowArgsBuffer).get()) });
 
-	// Cull — the stats variant accumulates per-instance stats (RETRIEVE_STATS 1)
-	
-	commandList->SetPipelineState((statsEnabled ? m_CullingStatsPSO : m_CullingPSO).get());
-	commandList->Dispatch(DivRoundUp(staticInstanceCount + transientInstanceCount, 256u), 1, 1);
+		// Cull — the stats variant accumulates per-instance stats (RETRIEVE_STATS 1)
 
-	commandList->PushBarriers({
-		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseArgsBuffer).get()),
-		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseShadowArgsBuffer).get()),
-		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_CountsBuffer).get()),
-		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_ShadowCountsBuffer).get()) });
+		commandList->SetPipelineState((statsEnabled ? m_CullingStatsPSO : m_CullingPSO).get());
+		commandList->Dispatch(DivRoundUp(staticInstanceCount + transientInstanceCount, 256u), 1, 1);
 
-	// Compact
-	commandList->SetPipelineState(m_CompactPSO.get());
-	commandList->Dispatch(DivRoundUp(batchCount, 256u), 1, 1);
+		commandList->PushBarriers({
+			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseArgsBuffer).get()),
+			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseShadowArgsBuffer).get()),
+			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_CountsBuffer).get()),
+			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_ShadowCountsBuffer).get()) });
+
+		// Compact
+		commandList->SetPipelineState(m_CompactPSO.get());
+		commandList->Dispatch(DivRoundUp(batchCount, 256u), 1, 1);
+	}
 
 	// Retrieve stats
 	if (statsEnabled)

@@ -365,7 +365,14 @@ bool alm::gfx::ImGuiRenderStage::UpdateFontTexture(rhi::ICommandList* commandLis
             return false;
 
         auto [uploadData, offset] = uploadBuffer->RequestSpaceForTextureDataUpload(textureDesc);
-        std::memcpy(uploadData, pixels, width * height * 4);
+
+        const auto copyReq = deviceManager->GetDevice()->GetSubresourceCopyableRequirements(textureDesc, 0, 0);
+        assert(copyReq.rowSizeBytes == (size_t)width * 4);
+        for (int y = 0; y < height; ++y)
+        {
+            std::memcpy((unsigned char*)uploadData + (size_t)y * copyReq.rowStride,
+                pixels + (size_t)y * width * 4, (size_t)width * 4);
+        }
 
         commandList->WriteTexture(m_FontTexture.get(), rhi::AllSubresources, uploadBuffer->GetBuffer().get(), offset);
 

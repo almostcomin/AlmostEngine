@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Gfx/TextureInfo.h"
 #include "Core/Blob.h"
 
 namespace alm::gfx

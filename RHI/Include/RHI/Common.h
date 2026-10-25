@@ -19,6 +19,7 @@ struct SubresourceCopyableRequirements
 	size_t numRows;
 	size_t rowSizeBytes;
 	size_t rowStride;
+    size_t sizeBytes;
 };
 
 enum class CopyMethod

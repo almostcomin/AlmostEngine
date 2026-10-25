@@ -12,6 +12,8 @@ namespace interop
 	public:
 		TextureViewIndex() : m_Idx{ 0xFFFFFFFFu } {};
 		TextureViewIndex(const alm::rhi::TextureView<T>& v) { m_Idx = v.GetIdx(); }
+
+		uint32_t GetIndex() const { return m_Idx; }
 	private:
 		uint32_t m_Idx;
 	};
@@ -22,6 +24,8 @@ namespace interop
 	public:
 		BufferIndex() : m_Idx{ 0xFFFFFFFFu } {};
 		BufferIndex(const alm::rhi::BufferView<T>& v) { m_Idx = v.GetIdx(); }
+
+		uint32_t GetIndex() const { return m_Idx; }
 	private:
 		uint32_t m_Idx;
 	};

@@ -2,6 +2,7 @@
 #include "Gfx/DataUploader.h"
 #include "Gfx/Util.h"
 #include "Gfx/ShaderFactory.h"
+#include "Gfx/TextureData.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
@@ -165,7 +166,6 @@ std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::CommitUp
 	m_UploadBuffer->Unmap(ticket.aligned_start, ticket.size);
 
 	auto commandList = GetCommandList();
-
 	if (opt_gpuMarker)
 		commandList->BeginMarker(std::format("UploadTextureData [{}]", opt_gpuMarker).c_str());
 
@@ -269,24 +269,20 @@ std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::UploadBu
 }
 
 std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::UploadTextureData(
-	const alm::WeakBlob& srcData, rhi::TextureHandle dstTexture, alm::rhi::ResourceState currentState, alm::rhi::ResourceState targetState,
+	const alm::gfx::TextureData& srcData, rhi::TextureHandle dstTexture, alm::rhi::ResourceState currentState, alm::rhi::ResourceState targetState,
 	const rhi::TextureSubresourceSet& subresources, GenMipsMethod genMipsMethod, const char* opt_gpuMarker)
 {
 	const auto& texDesc = dstTexture->GetDesc();
 	rhi::FormatInfo formatInfo = GetFormatInfo(texDesc.format);
 	auto copyReq = m_Device->GetCopyableRequirements(texDesc, subresources);
-	assert(copyReq.size >= srcData.size());
 
 	auto ticket = RequestUploadTicket(copyReq.size, copyReq.alignment);
 	if (!ticket)
 		return std::unexpected(ticket.error());
 
-	const uint64_t rangeBase = m_Device->GetSubresourceCopyableRequirements(
-		texDesc, subresources.baseMipLevel, subresources.baseArraySlice).offset;
-
-	// Perform copy
-	size_t srcOffset = 0;
-	size_t dstOffset = 0;
+	// Perform copy. Source subresources are located via TextureData::DataLayout (offsets & pitches),
+	// supporting arbitrary file layouts (e.g. mip-major KTX2 files)
+	size_t subOffset = 0;
 	const size_t lastArraySlice = subresources.baseArraySlice + subresources.GetNumArraySlices(texDesc) - 1;
 	const size_t lastMipLevel = subresources.baseMipLevel + subresources.GetNumMipLevels(texDesc) - 1;
 
@@ -296,21 +292,29 @@ std::expected<alm::SignalListener, std::string> alm::gfx::DataUploader::UploadTe
 		{
 			rhi::SubresourceCopyableRequirements req = m_Device->GetSubresourceCopyableRequirements(texDesc, mipLevel, arraySlice);
 			size_t width = (texDesc.width >> mipLevel) / formatInfo.blockSize;
+
 			size_t srcRowSize = width * formatInfo.bytesPerBlock;
 			assert(srcRowSize == req.rowSizeBytes);
-			dstOffset = req.offset - rangeBase;
+
+			const auto& srcSubRes = srcData.GetSubresourceInfo(arraySlice, mipLevel);
+			assert(srcSubRes.RowPitch >= srcRowSize);
+
+			size_t base = (size_t)AlignUp(subOffset, m_Device->GetCopyDataAlignment(rhi::CopyMethod::Buffer2Texture));
+			size_t dstOffset = base;
 
 			for (uint32_t depth = 0; depth < std::max(texDesc.depth >> mipLevel, 1u); ++depth)
-			{				
+			{
+				size_t srcRowOffset = srcSubRes.DataOffset + depth * srcSubRes.DepthPitch;
 				for (size_t row = 0; row < req.numRows; ++row)
 				{
-					assert(srcOffset + srcRowSize <= srcData.size());
+					assert(srcRowOffset + srcRowSize <= srcData.Data.size());
 
-					std::memcpy((char*)ticket->ptr + dstOffset, srcData.data() + srcOffset, srcRowSize);
-					srcOffset += srcRowSize;
+					std::memcpy((char*)ticket->ptr + dstOffset, srcData.Data.data() + srcRowOffset, srcRowSize);
+					srcRowOffset += srcSubRes.RowPitch;
 					dstOffset += req.rowStride;
 				}
 			}
+			subOffset = base + req.sizeBytes;
 		}
 	}
 
@@ -399,6 +403,10 @@ void alm::gfx::DataUploader::GenerateMips(rhi::ITexture* texture, GenMipsMethod 
 	tempViews.clear();
 	tempViews.reserve(desc.mipLevels * desc.arraySize);
 
+	rhi::TextureDimension viewDimension = desc.dimension;
+	if (viewDimension == rhi::TextureDimension::TextureCube || viewDimension == rhi::TextureDimension::TextureCubeArray)
+		viewDimension = rhi::TextureDimension::Texture2DArray;
+
 	for (uint32_t sliceIdx = 0; sliceIdx < desc.arraySize; ++sliceIdx)
 	{
 		for (uint32_t mipIdx = 0; mipIdx < desc.mipLevels; ++mipIdx)
@@ -406,8 +414,8 @@ void alm::gfx::DataUploader::GenerateMips(rhi::ITexture* texture, GenMipsMethod 
 			rhi::TextureSubresourceSet mipsub{ mipIdx, 1u, sliceIdx, 1u };
 			
 			tempViews.emplace_back(
-				m_Device->CreateTextureSampledView(texture, mipsub, rhi::GetNonSRGB(desc.format)),
-				m_Device->CreateTextureStorageView(texture, mipsub, rhi::GetNonSRGB(desc.format)));
+				m_Device->CreateTextureSampledView(texture, mipsub, rhi::GetNonSRGB(desc.format), viewDimension),
+				m_Device->CreateTextureStorageView(texture, mipsub, rhi::GetNonSRGB(desc.format), viewDimension));
 		}
 	}
 
@@ -495,6 +503,7 @@ void alm::gfx::DataUploader::GenerateMips(rhi::ITexture* texture, GenMipsMethod 
 			}
 		}
 	}
+
 	commandList->PushBarriers(barriers);
 
 	// TODO: TextureViews should be released

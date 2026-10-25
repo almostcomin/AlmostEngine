@@ -9,6 +9,7 @@
 #include "Gfx/RenderGraph.h"
 #include "Gfx/Scene.h"
 #include "Gfx/RaycastHit.h"
+#include "Gfx/TextureLoadFlags.h"
 #include "Framework/UI/CloudsPresets.h"
 #include "Framework/UI/TimePlot.h"
 
@@ -146,8 +147,8 @@ protected:
 
 	static void TextRightAlignedPosX(float xpos, const char* fmt, ...);
 
-	bool BuildTextureShowOpenClear(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
-		bool sRGB, bool isNormalTex);
+	bool BuildTextureShowBrowseClear(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
+		alm::gfx::TextureLoadFlags loadFlags);
 
 	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
 	std::string SaveFileNativeDialog(const std::string& filename);

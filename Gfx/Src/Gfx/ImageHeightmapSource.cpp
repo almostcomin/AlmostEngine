@@ -49,11 +49,11 @@ bool alm::gfx::ImageHeightmapSource::Load(const std::string& path, float scaleH,
             return false;
         }
 
-        const gfx::TextureInfo& info = loadImageResult->first;
-        dims.x = info.width;
-        dims.y = info.height;
-        format = info.format;
-        srcData = std::move(loadImageResult->second);
+        const gfx::TextureData& texData = *loadImageResult;
+        dims.x = loadImageResult->Width;
+        dims.y = loadImageResult->Height;
+        format = loadImageResult->format;
+        srcData = std::move(loadImageResult->Data);
     }
     const size_t pixelCount = dims.x * dims.y;
 

@@ -15,6 +15,7 @@ namespace alm::rhi
 namespace alm::gfx
 {
 	class ShaderFactory;
+	struct TextureData;
 }
 
 namespace alm::gfx
@@ -103,7 +104,7 @@ public:
 	/// @return On success, returns an `SignalListener` representing the GPU event query for the copy operation.
 	///         On failure, returns a `std::string` describing the error.
 	std::expected<SignalListener, std::string> UploadTextureData(
-		const alm::WeakBlob& srcData, rhi::TextureHandle dstTexture, rhi::ResourceState currentState, rhi::ResourceState targetState,
+		const alm::gfx::TextureData& srcData, rhi::TextureHandle dstTexture, rhi::ResourceState currentState, rhi::ResourceState targetState,
 		const rhi::TextureSubresourceSet& subresources, GenMipsMethod genMipsMethod = GenMipsMethod::None, const char* opt_gpuMarker = nullptr);
 
 private: /* types */

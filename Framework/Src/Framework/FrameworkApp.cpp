@@ -22,6 +22,7 @@
 #include "Gfx/RenderStages/WBOITResolveRenderStage.h"
 #include "Gfx/RenderStages/BloomRenderStage.h"
 #include "Gfx/RenderStages/SimpleSkyRenderStage.h"
+#include "Gfx/RenderStages/CubemapSkyRenderStage.h"
 #include "Gfx/RenderStages/ImGuiRenderStage.h"
 #include "Gfx/RenderStages/CloudsShadowMapRenderStage.h"
 #include "Gfx/RenderStages/ObjectOutlineRenderStage.h"
@@ -149,7 +150,7 @@ void alm::fw::FrameworkApp::RefreshUIData()
 	alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
 	auto shadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
 	auto simpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
-	auto skyRS = renderGraph->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
+	auto atmosSkyRS = renderGraph->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
 	auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
 	auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
 	auto exposureRS = renderGraph->GetRenderStage<alm::gfx::ExposureRenderStage>();
@@ -172,8 +173,8 @@ void alm::fw::FrameworkApp::RefreshUIData()
 	if (simpleSkyRS)
 		data.SimpleSkyParams = simpleSkyRS->GetSkyParams();
 
-	if (skyRS)
-		data.AtmosSkySimParams = skyRS->GetSimParams();
+	if (atmosSkyRS)
+		data.AtmosSkySimParams = atmosSkyRS->GetSimParams();
 
 	if (cloudsRS)
 	{
@@ -579,7 +580,8 @@ void alm::fw::FrameworkApp::InitRenderStages()
 	{
 		std::shared_ptr<gfx::GPUCullingRenderStage> gpuCullingRS;
 		std::shared_ptr<gfx::SimpleSkyRenderStage> simpleSkyRS;
-		std::shared_ptr<gfx::AtmosSkyRenderStage> skyRS;
+		std::shared_ptr<gfx::CubemapSkyRenderStage> cubemapSkyRS;
+		std::shared_ptr<gfx::AtmosSkyRenderStage> atmosSkyRS;
 		std::shared_ptr<gfx::CloudsRenderStage> cloudsRS;
 		std::shared_ptr<gfx::CloudsShadowmapRenderStage> cloudsSMRS;
 
@@ -609,9 +611,13 @@ void alm::fw::FrameworkApp::InitRenderStages()
 		case RenderStageSetMode::Default_SimpleSky:
 			simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SimpleSkyRenderStage>();
 			break;
+		case RenderStageSetMode::Default_CubemapSky:
+			cubemapSkyRS = gfx::RenderStageFactory::CreateShared<gfx::CubemapSkyRenderStage>();
+			// TODO: We need a default texture
+			break;
 		case RenderStageSetMode::Default_FullAtmos:
 			cloudsSMRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsShadowmapRenderStage>();
-			skyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::AtmosSkyRenderStage>();
+			atmosSkyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::AtmosSkyRenderStage>();
 			cloudsRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsRenderStage>();
 			break;
 		}
@@ -639,7 +645,8 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			cloudsSMRS,
 			deferredLightingRS,
 			simpleSkyRS,
-			skyRS,
+			cubemapSkyRS,
+			atmosSkyRS,
 			cloudsRS,
 			WBOITAccumRS,
 			WBOITResolveRS,
@@ -668,7 +675,8 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			cloudsSMRS.get(),
 			deferredLightingRS.get(),
 			simpleSkyRS.get(),
-			skyRS.get(),
+			cubemapSkyRS.get(),
+			atmosSkyRS.get(),
 			cloudsRS.get(),
 			WBOITAccumRS.get(),
 			WBOITResolveRS.get(),
@@ -849,7 +857,8 @@ void alm::fw::FrameworkApp::MainLoop()
 			auto debugRS = renderGraph->GetRenderStage<gfx::DebugRenderStage>();
 			auto shadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
 			auto simpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
-			auto skyRS = renderGraph->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
+			auto cubemapSkyRS = renderGraph->GetRenderStage<alm::gfx::CubemapSkyRenderStage>();
+			auto atmosSkyRS = renderGraph->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
 			auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
 			auto lightingRS = renderGraph->GetRenderStage<alm::gfx::DeferredLightingRenderStage>();
 			auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
@@ -887,12 +896,19 @@ void alm::fw::FrameworkApp::MainLoop()
 			atmos->Sky = data.AtmosSkyParams;
 
 			if (simpleSkyRS)
-				simpleSkyRS->SetSkyParams(data.SimpleSkyParams);
-
-			if (skyRS)
 			{
-				skyRS->SetEnabled(data.AtmosSkyEnabled);
-				skyRS->SetSimParams(data.AtmosSkySimParams);
+				simpleSkyRS->SetSkyParams(data.SimpleSkyParams);
+			}
+
+			if (cubemapSkyRS)
+			{
+				// TODO
+			}
+
+			if (atmosSkyRS)
+			{
+				atmosSkyRS->SetEnabled(data.AtmosSkyEnabled);
+				atmosSkyRS->SetSimParams(data.AtmosSkySimParams);
 			}
 
 			if (cloudsRS)

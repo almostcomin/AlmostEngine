@@ -10,6 +10,7 @@
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/RenderStages/SimpleSkyRenderStage.h"
+#include "Gfx/RenderStages/CubemapSkyRenderStage.h"
 #include "Gfx/RenderStages/AtmosSkyRenderStage.h"
 #include "Gfx/RenderStages/CloudsRenderStage.h"
 
@@ -70,8 +71,24 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
         }
     }
 
-    auto sky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
-    if (sky)
+    auto cubemapSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CubemapSkyRenderStage>();
+    if (cubemapSky && ImGui::CollapsingHeader("Cubemap Sky"))
+    {
+        bool enabled = cubemapSky->IsEnabled();
+        if (ImGui::Checkbox("Enabled##AtmosSky", &enabled))
+        {
+            cubemapSky->SetEnabled(enabled);
+        }
+
+        auto cubemapTexture = cubemapSky->GetCubemapTexture();
+        if (BuildTextureShowBrowseClear("Cubemap Texture", cubemapTexture, alm::gfx::TextureLoadFlags::None))
+        {
+            cubemapSky->SetCubemapTexture(cubemapTexture);
+        }
+    }
+
+    auto atmosSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
+    if (atmosSky)
     {
         if (ImGui::CollapsingHeader("Atmospheric Sky"))
         {

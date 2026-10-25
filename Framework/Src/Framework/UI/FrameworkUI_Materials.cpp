@@ -194,35 +194,40 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
             }
 
             auto baseColorTexture = mat->GetBaseColorTexture();
-            if (BuildTextureShowOpenClear("Base Color Texture", baseColorTexture, true, false))
+            if (BuildTextureShowBrowseClear("Base Color Texture", baseColorTexture,
+                alm::gfx::TextureLoadFlags::ForceSRGB | alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->SetBaseColorTexture(baseColorTexture);
                 matDirty = true;
             }
 
             auto metalRoughTexture = mat->GetMetalRoughTexture();
-            if (BuildTextureShowOpenClear("Metal-Rough Texture", metalRoughTexture, false, false))
+            if (BuildTextureShowBrowseClear("Metal-Rough Texture", metalRoughTexture,
+                alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->SetMetalRoughTexture(metalRoughTexture);
                 matDirty = true;
             }
 
             auto normalTexture = mat->GetNormalTexture();
-            if (BuildTextureShowOpenClear("Normal Texture", normalTexture, false, true))
+            if (BuildTextureShowBrowseClear("Normal Texture", normalTexture,
+                alm::gfx::TextureLoadFlags::IsNormalMap | alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->SetNormalTexture(normalTexture);
                 matDirty = true;
             }
 
             auto emissiveTexture = mat->GetEmissiveTexture();
-            if (BuildTextureShowOpenClear("Emissive Texture", emissiveTexture, false, false))
+            if (BuildTextureShowBrowseClear("Emissive Texture", emissiveTexture,
+                alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->SetEmissiveTexture(emissiveTexture);
                 matDirty = true;
             }
 
             auto occlusionTexture = mat->GetOcclusionTexture();
-            if (BuildTextureShowOpenClear("Occlusion Texture", occlusionTexture, false, false))
+            if (BuildTextureShowBrowseClear("Occlusion Texture", occlusionTexture,
+                alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->SetOcclusionTexture(occlusionTexture);
                 matDirty = true;

@@ -22,6 +22,7 @@
 #include "Gfx/Material.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/MaterialManager.h"
+#include "Gfx/RenderStages/CubemapSkyRenderStage.h"
 #include <SDL3/SDL.h>
 #include <imgui/imgui_impl_sdl3.h>
 
@@ -29,7 +30,7 @@ class AlmostViewerApp : public alm::fw::FrameworkApp
 {
 public:
 
-	AlmostViewerApp() : alm::fw::FrameworkApp{ "Almost Viewer", alm::fw::FrameworkApp::RenderStageSetMode::Default_SimpleSky } {}
+	AlmostViewerApp() : alm::fw::FrameworkApp{ "Almost Viewer", alm::fw::FrameworkApp::RenderStageSetMode::Default_CubemapSky } {}
 	~AlmostViewerApp() override = default;
 
 	bool Initialize() override
@@ -71,28 +72,21 @@ public:
 		}
 
 		// TEST: Load KTX texture
-#if 0
+#if 1
 		{
 			alm::gfx::CommonResources* commonResources = m_DeviceManager->GetCommonResources();
 			alm::gfx::MaterialManager* materialManager = m_DeviceManager->GetMaterialManager();
 
-			auto tex = m_DeviceManager->GetTextureCache()->Load(
-				"Textures/_meadow_2_4k/meadow_2_4k_diffuse.ktx2", alm::gfx::TextureLoadFlags::ForceSRGB);
+			auto cubemap = m_DeviceManager->GetTextureCache()->Load(
+				"IBL/_meadow_2_4k/meadow_2_4k_Sky.ktx2", alm::gfx::TextureLoadFlags::None);
 
-			alm::gfx::MaterialRef materialRef = materialManager->CreateNewMaterial("EnvCube");
-			materialRef->SetBaseColorTexture(tex->first);
-
-			auto cubeMesh = commonResources->CreateCube(2.f, alm::gfx::CubeNormalDirection::Outward, alm::gfx::CubeUVMode::UV3D, true,
-				m_DeviceManager->GetDataUploader(), "EnvCube", &materialRef);
-
-			auto cubeInstance = alm::make_unique_with_weak<alm::gfx::MeshInstance>(cubeMesh);
-
-			auto graphNode = alm::make_unique_with_weak<alm::gfx::SceneGraphNode>();
-			graphNode->SetName("EnvCube");
-			graphNode->SetLeaf(std::move(cubeInstance));
-
-			auto sceneGraph = m_Scene->GetSceneGraph();
-			sceneGraph->GetRoot()->AddChild(std::move(graphNode));
+			auto cubemapSky = m_MainRenderView->GetRenderGraph()->GetRenderStage<alm::gfx::CubemapSkyRenderStage>();
+			if (cubemapSky && cubemap)
+			{
+				cubemap->second.Wait();
+				assert(cubemap->first->texture->GetDesc().dimension == alm::rhi::TextureDimension::TextureCube);
+				cubemapSky->SetCubemapTexture(cubemap->first);
+			}
 		}
 #endif
 		return true;

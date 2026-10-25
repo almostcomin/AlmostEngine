@@ -90,47 +90,6 @@ namespace
         }
     }
 
-    size_t FillTextureInfoOffsets(alm::gfx::TextureInfo& textureInfo, size_t dataSize, ptrdiff_t dataOffset)
-    {
-        textureInfo.dataLayout.resize(textureInfo.arraySize);
-        for (uint32_t arraySlice = 0; arraySlice < textureInfo.arraySize; arraySlice++)
-        {
-            size_t w = textureInfo.width;
-            size_t h = textureInfo.height;
-            size_t d = textureInfo.depth;
-
-            std::vector<alm::gfx::TextureSubresourceInfo>& sliceData = textureInfo.dataLayout[arraySlice];
-            sliceData.resize(textureInfo.mipLevels);
-
-            for (uint32_t mipLevel = 0; mipLevel < textureInfo.mipLevels; mipLevel++)
-            {
-                size_t NumBytes = 0;
-                size_t RowBytes = 0;
-                size_t NumRows = 0;
-                GetSurfaceInfo(w, h, textureInfo.format, alm::gfx::BitsPerPixel(textureInfo.format), &NumBytes, &RowBytes, &NumRows);
-
-                alm::gfx::TextureSubresourceInfo& levelData = sliceData[mipLevel];
-                levelData.dataOffset = dataOffset;
-                levelData.dataSize = NumBytes;
-                levelData.rowPitch = RowBytes;
-                levelData.depthPitch = RowBytes * NumRows;
-
-                dataOffset += NumBytes * d;
-                assert(dataOffset <= static_cast<ptrdiff_t>(dataSize));
-
-                w = w >> 1;
-                h = h >> 1;
-                d = d >> 1;
-
-                if (w == 0) w = 1;
-                if (h == 0) h = 1;
-                if (d == 0) d = 1;
-            }
-        }
-
-        return dataOffset;
-    }
-
     alm::rhi::Format MapTranscodeFormatToRHI(ktx_transcode_fmt_e fmt)
     {
         switch (fmt)
@@ -273,9 +232,155 @@ namespace
             KTX_TTF_BC1_RGB : KTX_TTF_BC7_RGBA;
     }
 
+    // Builds the full TextureData (fields, layout & data blob) taking ownership of the ScratchImage.
+    // The blob points into the ScratchImage's own memory block, in D3D12 subresource order
+    // (subresource = mip + arraySlice * mipLevels, as laid out by SetupImageArray)
+    alm::gfx::TextureData TextureDataFromScratchImage(std::unique_ptr<DirectX::ScratchImage> image)
+    {
+        const DirectX::TexMetadata& metadata = image->GetMetadata();
+
+        alm::gfx::TextureData texData;
+        texData.format = alm::gfx::GetFormat(metadata.format);
+        assert(texData.format != alm::rhi::Format::UNKNOWN);
+        texData.Width = metadata.width;
+        texData.Height = metadata.height;
+        texData.MipLevels = metadata.mipLevels;
+        texData.Depth = 1;
+        texData.ArraySize = 1;
+
+        switch (metadata.dimension)
+        {
+        case DirectX::TEX_DIMENSION_TEXTURE1D:
+            texData.Dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::Texture1DArray : alm::rhi::TextureDimension::Texture1D;
+            texData.ArraySize = metadata.arraySize;
+            break;
+
+        case DirectX::TEX_DIMENSION_TEXTURE2D:
+            if (metadata.IsCubemap())
+            {
+                texData.Dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::TextureCubeArray : alm::rhi::TextureDimension::TextureCube;
+                texData.ArraySize = metadata.arraySize * 6;
+            }
+            else
+            {
+                texData.Dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::Texture2DArray : alm::rhi::TextureDimension::Texture2D;
+                texData.ArraySize = metadata.arraySize;
+            }
+            break;
+
+        case DirectX::TEX_DIMENSION_TEXTURE3D:
+            assert(metadata.IsVolumemap());
+            texData.Depth = metadata.depth;
+            texData.Dimension = alm::rhi::TextureDimension::Texture3D;
+            break;
+        }
+
+        {
+            const uint8_t* base = image->GetPixels();
+
+            texData.DataLayout.resize(texData.ArraySize);
+            for (uint32_t arraySlice = 0; arraySlice < texData.ArraySize; ++arraySlice)
+            {
+                texData.DataLayout[arraySlice].resize(texData.MipLevels);
+                for (uint32_t mip = 0; mip < texData.MipLevels; ++mip)
+                {
+                    const DirectX::Image* img = image->GetImage(mip, arraySlice, 0);
+                    assert(img);
+
+                    auto& level = texData.DataLayout[arraySlice][mip];
+                    level.RowPitch = img->rowPitch;
+                    level.DepthPitch = img->slicePitch;
+                    level.DataOffset = img->pixels - base;
+
+                    const size_t depthSlices = std::max(texData.Depth >> mip, 1u);
+                    level.DataSize = img->slicePitch * depthSlices;
+
+                    assert(level.DataOffset >= 0);
+                    assert(level.DataOffset + level.DataSize <= image->GetPixelsSize());
+                }
+            }
+        }
+
+        DirectX::ScratchImage* image_ptr = image.release();
+        texData.Data = alm::Blob{
+            image_ptr->GetPixels(),
+            image_ptr->GetPixelsSize(),
+            (uint8_t*)image_ptr,
+            [](void* ptr) { delete (DirectX::ScratchImage*)ptr; } };
+
+        return texData;
+    }
+
+    // Builds the full TextureData (fields, layout & data blob) taking ownership of the ktxTexture.
+    // The format is resolved by the caller: it needs flags/device context (transcoded files keep
+    // VK_FORMAT_UNDEFINED, libktx does not update vkFormat after ktxTexture2_TranscodeBasis).
+    // DataLayout offsets are the real file offsets: KTX2 stores levels mip-major (level_base first,
+    // each level with all layers & faces concatenated in layer, face, slice order)
+    alm::gfx::TextureData TextureDataFromKtxTexture(ktxTexture* tex, alm::rhi::Format format)
+    {
+        alm::gfx::TextureData texData{};
+        texData.format = format;
+        texData.Width = tex->baseWidth;
+        texData.Height = tex->baseHeight;
+        texData.Depth = tex->baseDepth;
+        texData.MipLevels = tex->numLevels;
+        texData.ArraySize = tex->numLayers;
+
+        if (tex->numFaces == 6)
+        {
+            texData.Dimension = tex->numLayers > 1 ? alm::rhi::TextureDimension::TextureCubeArray : alm::rhi::TextureDimension::TextureCube;
+            texData.ArraySize = tex->numLayers * 6;
+        }
+        else if (tex->baseDepth > 1)
+        {
+            texData.Dimension = alm::rhi::TextureDimension::Texture3D;
+        }
+        else
+        {
+            texData.Dimension = tex->numLayers > 1 ? alm::rhi::TextureDimension::Texture2DArray : alm::rhi::TextureDimension::Texture2D;
+        }
+
+        const size_t dataSize = ktxTexture_GetDataSize(tex);
+
+        texData.DataLayout.resize(texData.ArraySize);
+        for (uint32_t arraySlice = 0; arraySlice < texData.ArraySize; ++arraySlice)
+        {
+            const uint32_t layer = arraySlice / tex->numFaces;
+            const uint32_t face = arraySlice % tex->numFaces;
+
+            texData.DataLayout[arraySlice].resize(texData.MipLevels);
+            for (uint32_t mip = 0; mip < texData.MipLevels; ++mip)
+            {
+                ktx_size_t offset = 0;
+                KTX_error_code res = ktxTexture_GetImageOffset(tex, mip, layer, face, &offset);
+                assert(res == KTX_SUCCESS);
+
+                const size_t imageSize = ktxTexture_GetImageSize(tex, mip);
+                const size_t depthSlices = (texData.Dimension == alm::rhi::TextureDimension::Texture3D)
+                    ? std::max(texData.Depth >> mip, 1u)
+                    : 1u;
+
+                auto& level = texData.DataLayout[arraySlice][mip];
+                level.DataOffset = offset;
+                level.RowPitch = ktxTexture_GetRowPitch(tex, mip);
+                level.DepthPitch = imageSize;
+                level.DataSize = imageSize * depthSlices;
+
+                assert(level.DataOffset + level.DataSize <= (ptrdiff_t)dataSize);
+            }
+        }
+
+        texData.Data = alm::Blob{
+            ktxTexture_GetData(tex),
+            dataSize,
+            (uint8_t*)tex,
+            [](void* ptr) { ktxTexture_Destroy((ktxTexture*)ptr); } };
+
+        return texData;
+    }
 } // anonymous namespace
 
-std::expected<std::pair<alm::gfx::TextureInfo, alm::Blob>, std::string>
+std::expected<alm::gfx::TextureData, std::string>
 alm::gfx::LoadDDSTexture(const alm::WeakBlob& fileData)
 {
 	DirectX::TexMetadata metadata;
@@ -286,56 +391,10 @@ alm::gfx::LoadDDSTexture(const alm::WeakBlob& fileData)
 		return std::unexpected(std::format("Error loading DDS image, hr [{:#x}]", hr));
 	}
 
-	alm::gfx::TextureInfo texInfo;
-    texInfo.format = GetFormat(metadata.format);
-    assert(texInfo.format != alm::rhi::Format::UNKNOWN);
-	texInfo.width = metadata.width;
-	texInfo.height = metadata.height;
-	texInfo.mipLevels = metadata.mipLevels;
-	texInfo.depth = 1;
-	texInfo.arraySize = 1;
-	//texInfo.alphaMode = GetAlphaMode(header);
-    
-    switch (metadata.dimension)
-    {
-    case DirectX::TEX_DIMENSION_TEXTURE1D:
-        texInfo.dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::Texture1DArray : alm::rhi::TextureDimension::Texture1D;
-        texInfo.arraySize = metadata.arraySize;
-        break;
-
-    case DirectX::TEX_DIMENSION_TEXTURE2D:
-        if (metadata.IsCubemap())
-        {
-            texInfo.dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::TextureCubeArray : alm::rhi::TextureDimension::TextureCube;
-            texInfo.arraySize = metadata.arraySize * 6;
-        }
-        else
-        {
-            texInfo.dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::Texture2DArray : alm::rhi::TextureDimension::Texture2D;
-            texInfo.arraySize = metadata.arraySize;
-        }
-        break;
-
-    case DirectX::TEX_DIMENSION_TEXTURE3D:
-        assert(metadata.IsVolumemap());
-        texInfo.depth = metadata.depth;
-        texInfo.dimension = alm::rhi::TextureDimension::Texture3D;
-        break;
-    }
-
-    FillTextureInfoOffsets(texInfo, image->GetPixelsSize(), 0);
-
-    DirectX::ScratchImage* image_ptr = image.release();
-    alm::Blob blob{ 
-        image_ptr->GetPixels(),
-        image_ptr->GetPixelsSize(),
-        (uint8_t*)image_ptr,
-        [](void* ptr) { delete (DirectX::ScratchImage*)ptr; } };
-
-    return std::pair<alm::gfx::TextureInfo, alm::Blob> { texInfo, std::move(blob) };
+    return TextureDataFromScratchImage(std::move(image));
 }
 
-std::expected<std::pair<alm::gfx::TextureInfo, alm::Blob>, std::string>
+std::expected<alm::gfx::TextureData, std::string>
 alm::gfx::LoadKTXTexture(const alm::WeakBlob& fileData, TextureLoadFlags flags, rhi::Device* device)
 {
     ktxTexture* ktxTex = nullptr;
@@ -352,74 +411,41 @@ alm::gfx::LoadKTXTexture(const alm::WeakBlob& fileData, TextureLoadFlags flags, 
         return std::unexpected(std::format("Error creating ktxTexture: {}", ktxErrorString(result)));
     }
 
-    // Chech if the texture needs transcoding
-    rhi::Format rhiFmt = rhi::Format::UNKNOWN;
-    if (ktxTex->classId == ktxTexture2_c)
-    {
-        ktxTexture2* ktxTex2 = reinterpret_cast<ktxTexture2*>(ktxTex);
-        if (ktxTexture2_NeedsTranscoding(ktxTex2))
-        {
-            // Transcode to a GPU native format
-            ktx_transcode_fmt_e targetFormat = SelectTargetFormat(ktxTex2, flags, device);                
-            result = ktxTexture2_TranscodeBasis(ktxTex2, targetFormat, 0);
-            if (result != KTX_SUCCESS)
-            {
-                ktxTexture_Destroy(ktxTex);
-                return std::unexpected(std::format("Error al transcodificar KTX2: {}", ktxErrorString(result)));
-            }
-            rhiFmt = MapTranscodeFormatToRHI(targetFormat);
-        }
-        else
-        {
-            rhiFmt = MapVkFormatToRHI(ktxTex2->vkFormat);
-            if (rhiFmt == rhi::Format::UNKNOWN)
-            {
-                ktxTexture_Destroy(ktxTex);
-                return std::unexpected(std::format("Unsupported vkFormat ({}) in KTX2 file.", ktxTex2->vkFormat));
-            }
-        }
-    }
-    else
+    if (ktxTex->classId != ktxTexture2_c)
     {
         ktxTexture_Destroy(ktxTex);
         return std::unexpected("KTX1 textures are not supported, use KTX2.");
     }
+    ktxTexture2* ktxTex2 = reinterpret_cast<ktxTexture2*>(ktxTex);
 
-    alm::gfx::TextureInfo texInfo{};
-    texInfo.width = ktxTex->baseWidth;
-    texInfo.height = ktxTex->baseHeight;
-    texInfo.depth = ktxTex->baseDepth;
-    texInfo.mipLevels = ktxTex->numLevels;
-    texInfo.arraySize = ktxTex->numLayers;
-    texInfo.format = rhiFmt;
-
-    if (ktxTex->numFaces == 6)
+    // Chech if the texture needs transcoding
+    rhi::Format rhiFmt = rhi::Format::UNKNOWN;
+    if (ktxTexture2_NeedsTranscoding(ktxTex2))
     {
-        texInfo.dimension = ktxTex->numLayers > 1 ? alm::rhi::TextureDimension::TextureCubeArray : alm::rhi::TextureDimension::TextureCube;
-        texInfo.arraySize = ktxTex->numLayers * 6;
-    }
-    else if (ktxTex->baseDepth > 1)
-    {
-        texInfo.dimension = alm::rhi::TextureDimension::Texture3D;
+        // Transcode to a GPU native format
+        ktx_transcode_fmt_e targetFormat = SelectTargetFormat(ktxTex2, flags, device);                
+        result = ktxTexture2_TranscodeBasis(ktxTex2, targetFormat, 0);
+        if (result != KTX_SUCCESS)
+        {
+            ktxTexture_Destroy(ktxTex);
+            return std::unexpected(std::format("Error al transcodificar KTX2: {}", ktxErrorString(result)));
+        }
+        rhiFmt = MapTranscodeFormatToRHI(targetFormat);
     }
     else
     {
-        texInfo.dimension = ktxTex->numLayers > 1 ? alm::rhi::TextureDimension::Texture2DArray : alm::rhi::TextureDimension::Texture2D;
+        rhiFmt = MapVkFormatToRHI(ktxTex2->vkFormat);
+        if (rhiFmt == rhi::Format::UNKNOWN)
+        {
+            ktxTexture_Destroy(ktxTex);
+            return std::unexpected(std::format("Unsupported vkFormat ({}) in KTX2 file.", ktxTex2->vkFormat));
+        }
     }
 
-    size_t dataSize = ktxTexture_GetDataSize(ktxTex);
-    FillTextureInfoOffsets(texInfo, dataSize, 0);
-
-    alm::Blob blob{
-        ktxTexture_GetData(ktxTex),
-        dataSize,
-        (uint8_t*)ktxTex,
-        [](void* ptr) { ktxTexture_Destroy((ktxTexture*)ptr); } };
-
-    return std::pair<alm::gfx::TextureInfo, alm::Blob>{ texInfo, std::move(blob) };
+    return TextureDataFromKtxTexture(ktxTex, rhiFmt);
 }
 
-std::expected<std::pair<alm::gfx::TextureInfo, alm::Blob>, std::string> 
+std::expected<alm::gfx::TextureData, std::string>
 alm::gfx::LoadImageTexture(const alm::WeakBlob& fileData, bool forceSRGB)
 {
 	int width = 0, height = 0, originalChannels = 0;
@@ -449,37 +475,37 @@ alm::gfx::LoadImageTexture(const alm::WeakBlob& fileData, bool forceSRGB)
 		return std::unexpected("Couldn't load generic texture");
 	}
 
-	alm::gfx::TextureInfo texInfo;
-	//texInfo.originalBitsPerPixel = static_cast<uint32_t>(originalChannels) * (is_hdr ? 32 : 8);
-	texInfo.width = static_cast<uint32_t>(width);
-	texInfo.height = static_cast<uint32_t>(height);
-	texInfo.mipLevels = 1;
-	texInfo.dimension = alm::rhi::TextureDimension::Texture2D;
+    alm::gfx::TextureData texData;
+	//texData.originalBitsPerPixel = static_cast<uint32_t>(originalChannels) * (is_hdr ? 32 : 8);
+    texData.Width = static_cast<uint32_t>(width);
+    texData.Height = static_cast<uint32_t>(height);
+    texData.MipLevels = 1;
+    texData.Dimension = alm::rhi::TextureDimension::Texture2D;
 
-	texInfo.dataLayout.resize(1);
-	texInfo.dataLayout[0].resize(1);
-	texInfo.dataLayout[0][0].dataOffset = 0;
-	texInfo.dataLayout[0][0].rowPitch = static_cast<size_t>(width * bytesPerPixel);
-	texInfo.dataLayout[0][0].dataSize = static_cast<size_t>(width * height * bytesPerPixel);
+    texData.DataLayout.resize(1);
+    texData.DataLayout[0].resize(1);
+    texData.DataLayout[0][0].DataOffset = 0;
+    texData.DataLayout[0][0].RowPitch = static_cast<size_t>(width * bytesPerPixel);
+    texData.DataLayout[0][0].DataSize = static_cast<size_t>(width * height * bytesPerPixel);
 
-	alm::Blob blob{ 
-		bitmap, (size_t)(width * height * channels), bitmap, [](void* ptr) { stbi_image_free(ptr); } };
+    texData.Data = alm::Blob{ 
+		bitmap, (size_t)(width * height * bytesPerPixel), bitmap, [](void* ptr) { stbi_image_free(ptr); } };
 
 	switch (channels)
 	{
 	case 1:
-		texInfo.format = is_hdr ? alm::rhi::Format::R32_FLOAT : alm::rhi::Format::R8_UNORM;
+        texData.format = is_hdr ? alm::rhi::Format::R32_FLOAT : alm::rhi::Format::R8_UNORM;
 		break;
 	case 2:
-		texInfo.format = is_hdr ? alm::rhi::Format::RG32_FLOAT : alm::rhi::Format::RG8_UNORM;
+        texData.format = is_hdr ? alm::rhi::Format::RG32_FLOAT : alm::rhi::Format::RG8_UNORM;
 		break;
 	case 4:
-		texInfo.format = is_hdr ? alm::rhi::Format::RGBA32_FLOAT :
+        texData.format = is_hdr ? alm::rhi::Format::RGBA32_FLOAT :
             forceSRGB ? alm::rhi::Format::SRGBA8_UNORM : alm::rhi::Format::RGBA8_UNORM;
 		break;
 	default:
 		return std::unexpected(std::format("Unsupported number of components ({})", channels));
 	}
 
-	return std::pair<alm::gfx::TextureInfo, alm::Blob>{ texInfo, std::move(blob) };
+    return texData;
 }

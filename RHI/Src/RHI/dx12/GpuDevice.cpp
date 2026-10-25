@@ -707,19 +707,28 @@ alm::rhi::StorageRequirements alm::rhi::dx12::GpuDevice::GetCopyableRequirements
 alm::rhi::StorageRequirements alm::rhi::dx12::GpuDevice::GetCopyableRequirements(const TextureDesc& desc, const rhi::TextureSubresourceSet& subresources)
 {
 	alm::rhi::StorageRequirements ret = {};
-	D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
+	const uint32_t lastMip = subresources.GetLastMipLevel(desc);
+	const uint32_t lastSlice = subresources.GetLastArraySlice(desc);
+	const D3D12_RESOURCE_DESC d3d12Desc = BuildD3d12Desc(desc);
 
-	uint32_t firstSubresource = D3D12CalcSubresource(
-		subresources.baseMipLevel,
-		subresources.baseArraySlice,
-		0, // PlaneSlice
-		desc.mipLevels,
-		desc.arraySize
-	);
+	// (subresource = mip + slice * MipLevels)
+	uint64_t cursor = 0;
+	for (uint32_t arraySlice = subresources.baseArraySlice; arraySlice <= lastSlice; ++arraySlice)
+	{
+		for (uint32_t mip = subresources.baseMipLevel; mip <= lastMip; ++mip)
+		{
+			const uint32_t subresourceIndex = D3D12CalcSubresource(
+				mip, arraySlice, 0, desc.mipLevels, desc.arraySize);
 
-	uint32_t numSubresources = subresources.GetNumMipLevels(desc) * subresources.GetNumArraySlices(desc);
+			uint64_t subresourceSize = 0;
+			m_D3d12Device->GetCopyableFootprints(
+				&d3d12Desc, subresourceIndex, 1, 0, nullptr, nullptr, nullptr, &subresourceSize);
 
-	m_D3d12Device->GetCopyableFootprints(&d3d12Desc, firstSubresource, numSubresources, 0, nullptr, nullptr, nullptr, &ret.size);
+			cursor = AlignUp(cursor, (size_t)D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT) + subresourceSize;
+		}
+	}
+	
+	ret.size = cursor;
 	ret.alignment = GetCopyDataAlignment(CopyMethod::Buffer2Texture);
 
 	return ret;
@@ -743,6 +752,8 @@ alm::rhi::SubresourceCopyableRequirements alm::rhi::dx12::GpuDevice::GetSubresou
 	copyReq.numRows = numSubRows[subresidx];
 	copyReq.rowSizeBytes = subRowSizes[subresidx];
 	copyReq.rowStride = footprints[subresidx].Footprint.RowPitch;
+	// SubresourceSize = (numRows * depth - 1) * RowPitch + last row no needs padding
+	copyReq.sizeBytes = (copyReq.numRows * footprints[subresidx].Footprint.Depth - 1) * copyReq.rowStride + copyReq.rowSizeBytes;
 
 	return copyReq;
 }
