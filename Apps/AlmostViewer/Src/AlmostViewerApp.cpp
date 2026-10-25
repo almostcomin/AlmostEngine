@@ -78,7 +78,7 @@ public:
 			alm::gfx::MaterialManager* materialManager = m_DeviceManager->GetMaterialManager();
 
 			auto cubemap = m_DeviceManager->GetTextureCache()->Load(
-				"IBL/_meadow_2_4k/meadow_2_4k_Sky.ktx2", alm::gfx::TextureLoadFlags::None);
+				"IBL/meadow_2_4k/meadow_2_4k_Sky.ktx2", alm::gfx::TextureLoadFlags::None);
 
 			auto cubemapSky = m_MainRenderView->GetRenderGraph()->GetRenderStage<alm::gfx::CubemapSkyRenderStage>();
 			if (cubemapSky && cubemap)
