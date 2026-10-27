@@ -122,6 +122,8 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildTextureWindows();
     BuildRSViews();
 
+    ShowPendingErrorModal();
+
     BuildGizmo(GetDockspaceId());
 
     if (m_ShowImGuiDebugger)
@@ -266,6 +268,11 @@ void alm::fw::FrameworkUI::AddRenderStageBufferWindow(alm::gfx::RenderStageTypeI
 void alm::fw::FrameworkUI::RegisterMainMenuItem(const std::string& name, std::function<void()> item)
 {
     m_MainMenuAdditionalItems.emplace_back(name, item);
+}
+
+void alm::fw::FrameworkUI::ShowErrorModal(const std::string& message)
+{
+    m_PendingErrorModal = message;
 }
 
 void alm::fw::FrameworkUI::SetSelectedNode(const alm::weak<alm::gfx::SceneGraphNode>& node)
@@ -878,12 +885,44 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
     return isOpen;
 }
 
+// Modal window to report errors to the user. Any code can queue a message by assigning
+// m_PendingErrorModal; it shows up as a blocking ImGui modal until dismissed.
+void alm::fw::FrameworkUI::ShowPendingErrorModal()
+{
+    if (m_PendingErrorModal.empty())
+        return;
+
+    if (!ImGui::IsPopupOpen("Error"))
+        ImGui::OpenPopup("Error");
+
+    if (ImGui::BeginPopupModal("Error", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 40.0f);
+        ImGui::TextUnformatted(m_PendingErrorModal.c_str());
+        ImGui::PopTextWrapPos();
+
+        ImGui::Spacing();
+
+        const float buttonWidth = 120.f;
+        const float offset = (ImGui::GetContentRegionAvail().x - buttonWidth) * 0.5f;
+        if (offset > 0.f)
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
+        if (ImGui::Button("Ok", ImVec2(buttonWidth, 0.f)))
+        {
+            m_PendingErrorModal.clear();
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
 bool alm::fw::FrameworkUI::BuildTextureShowBrowseClear(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
     alm::gfx::TextureLoadFlags loadFlags)
 {
     const ImGuiStyle& style = ImGui::GetStyle();
     const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
-    bool matDirty = false;
+    bool texUpdated = false;
 
     std::string title = "<empty>";
     if (loadedTex)
@@ -930,7 +969,12 @@ bool alm::fw::FrameworkUI::BuildTextureShowBrowseClear(const char* id, std::shar
             {
                 loadResult->second.Wait();
                 loadedTex = loadResult->first;
-                matDirty = true;
+                texUpdated = true;
+            }
+            else
+            {
+                ShowErrorModal(std::string(
+                    "Failed to load texture:\n\"") + path + "\"\n\n" + loadResult.error());
             }
         }
     }
@@ -940,7 +984,7 @@ bool alm::fw::FrameworkUI::BuildTextureShowBrowseClear(const char* id, std::shar
     if (ImGui::Button("Clear", ImVec2(buttonWidth, 0.f)))
     {
         loadedTex.reset();
-        matDirty = true;
+        texUpdated = true;
     }
     ImGui::EndDisabled();
 
@@ -949,7 +993,7 @@ bool alm::fw::FrameworkUI::BuildTextureShowBrowseClear(const char* id, std::shar
     ImGui::TextUnformatted(title.c_str());
 
     ImGui::PopID();
-    return matDirty;
+    return texUpdated;
 }
 
 std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters)

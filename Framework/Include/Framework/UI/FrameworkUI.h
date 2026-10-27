@@ -120,6 +120,8 @@ public:
 
 	void RegisterMainMenuItem(const std::string& name, std::function<void()> item);
 
+	void ShowErrorModal(const std::string& message);
+
 	void SetSelectedNode(const alm::weak<alm::gfx::SceneGraphNode>& node);
 
 	// Selects the material and opens the Material Panel (e.g. clicking the material name button in the World Outliner)
@@ -255,6 +257,7 @@ private:
 
 	void BuildTextureWindows();
 	bool BuildTextureWindow(UITextureWindow& textureWindow);
+	void ShowPendingErrorModal();
 
 protected:
 
@@ -293,6 +296,8 @@ private:
 	float m_CPUTime = 0.f;
 	float m_CPUIdleTime = 0.f;
 	float m_GPUTime = 0.f;
+
+	std::string m_PendingErrorModal;  // Message shown by the "Error" modal (empty = no modal)
 
 	std::vector<RenderStageTextureView> m_RSTextureViews;
 	std::vector<RenderStageBufferView> m_RSBufferViews;

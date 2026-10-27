@@ -13,6 +13,7 @@
 #include "Gfx/RenderStages/CubemapSkyRenderStage.h"
 #include "Gfx/RenderStages/AtmosSkyRenderStage.h"
 #include "Gfx/RenderStages/CloudsRenderStage.h"
+#include "Gfx/LoadedTexture.h"
 
 void alm::fw::FrameworkUI::BuildAtmospherePanel()
 {
@@ -83,7 +84,16 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
         auto cubemapTexture = cubemapSky->GetCubemapTexture();
         if (BuildTextureShowBrowseClear("Cubemap Texture", cubemapTexture, alm::gfx::TextureLoadFlags::None))
         {
-            cubemapSky->SetCubemapTexture(cubemapTexture);
+            if (cubemapTexture && cubemapTexture->texture->GetDesc().dimension != alm::rhi::TextureDimension::TextureCube)
+            {
+                ShowErrorModal(
+                    std::string("Texture:\n\"") + cubemapTexture->texture->GetDebugName() + "\"\n\n"
+                    "Is not a Cubemap texture");
+            }
+            else
+            {
+                cubemapSky->SetCubemapTexture(cubemapTexture);
+            }
         }
     }
 
