@@ -40,6 +40,10 @@
 # debug information files
 *.dwo
 
+# Vendored IBL generation tools (cmgen + KTX-Software)
+!Apps/AlmostViewer/Data/IBL/*.dll
+!Apps/AlmostViewer/Data/IBL/*.exe
+
 3rdParty/*
 !3rdParty/WinPixEventRuntime/**
 !3rdParty/Build/
