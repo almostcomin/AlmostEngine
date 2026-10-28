@@ -565,6 +565,9 @@ bool alm::fw::FrameworkApp::InitInternal()
 
 void alm::fw::FrameworkApp::ShutdownInternal()
 {
+	m_FrameworkUI->FrameworkData.IBL.LambTexture = nullptr;
+	m_FrameworkUI->FrameworkData.IBL.GGXTexture = nullptr;
+
 	m_MainCamera.reset();
 	m_MainRenderView.reset();
 	m_Scene.reset();

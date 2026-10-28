@@ -159,6 +159,8 @@ protected:
 
 	bool BuildTextureShowBrowseClear(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
 		alm::gfx::TextureLoadFlags loadFlags);
+	bool BuildTextureShowBrowseClearPred(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
+		alm::gfx::TextureLoadFlags loadFlags, std::function<bool(const alm::gfx::LoadedTexture&)> pred);
 
 	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
 	std::string SaveFileNativeDialog(const std::string& filename);

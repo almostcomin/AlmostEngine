@@ -1121,6 +1121,21 @@ bool alm::fw::FrameworkUI::BuildTextureShowBrowseClear(const char* id, std::shar
     return texUpdated;
 }
 
+bool alm::fw::FrameworkUI::BuildTextureShowBrowseClearPred(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
+    alm::gfx::TextureLoadFlags loadFlags, std::function<bool(const alm::gfx::LoadedTexture&)> pred)
+{
+    auto newTexture = loadedTex;
+    if (BuildTextureShowBrowseClear(id, newTexture, alm::gfx::TextureLoadFlags::None))
+    {
+        if (!newTexture || pred(*newTexture))
+        {
+            loadedTex = newTexture;
+            return true;
+        }
+    }    
+    return false;
+}
+
 std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters)
 {
     SDL_PropertiesID windowProps = SDL_GetWindowProperties(m_Window);

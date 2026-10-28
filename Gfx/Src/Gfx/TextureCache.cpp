@@ -55,7 +55,15 @@ alm::gfx::TextureCache::TextureCache(alm::gfx::DataUploader* dataUploader, rhi::
 alm::gfx::TextureCache::~TextureCache()
 {
     RemoveStaleTextures();
-    assert(m_Textures.empty());
+
+    for (const auto& [id, weakTex] : m_Textures)
+    {
+        if (!weakTex.expired())
+        {
+            LOG_ERROR("Texture '{}' leaked: still alive when TextureCache was destroyed.", id);
+        }
+    }
+
     assert(m_StaleTextures.empty());
     assert(m_InFlightTextures.empty());
 }

@@ -41,6 +41,16 @@ void alm::fw::FrameworkUI::BuildAtmospherePanel()
 
 void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
 {
+    auto cubemapPred = [this](const alm::gfx::LoadedTexture& tex)
+    {
+        if (tex.texture->GetDesc().dimension != alm::rhi::TextureDimension::TextureCube)
+        {
+            ShowErrorModal(std::string("Texture:\n\"") + tex.texture->GetDebugName() + "\"\n\nIs not a Cubemap texture");
+            return false;
+        }
+        return true;
+    };
+
     auto simpleSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
     if (simpleSky)
     {
@@ -75,8 +85,12 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
     if (ImGui::CollapsingHeader("IBL"))
     {
         ImGui::Checkbox("Enabled", &FrameworkData.IBL.Enabled);
-        BuildTextureShowBrowseClear("Lambertian Texture", FrameworkData.IBL.LambTexture, alm::gfx::TextureLoadFlags::None);
-        BuildTextureShowBrowseClear("GGX Texture", FrameworkData.IBL.GGXTexture, alm::gfx::TextureLoadFlags::None);
+
+        BuildTextureShowBrowseClearPred("Lambertian Texture", FrameworkData.IBL.LambTexture, alm::gfx::TextureLoadFlags::None,
+            cubemapPred);
+
+        BuildTextureShowBrowseClearPred("GGX Texture", FrameworkData.IBL.GGXTexture, alm::gfx::TextureLoadFlags::None,
+            cubemapPred);
     }
 
     auto cubemapSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CubemapSkyRenderStage>();
@@ -89,18 +103,9 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
         }
 
         auto cubemapTexture = cubemapSky->GetCubemapTexture();
-        if (BuildTextureShowBrowseClear("Cubemap Texture", cubemapTexture, alm::gfx::TextureLoadFlags::None))
+        if (BuildTextureShowBrowseClearPred("Cubemap Texture", cubemapTexture, alm::gfx::TextureLoadFlags::None, cubemapPred))
         {
-            if (cubemapTexture && cubemapTexture->texture->GetDesc().dimension != alm::rhi::TextureDimension::TextureCube)
-            {
-                ShowErrorModal(
-                    std::string("Texture:\n\"") + cubemapTexture->texture->GetDebugName() + "\"\n\n"
-                    "Is not a Cubemap texture");
-            }
-            else
-            {
-                cubemapSky->SetCubemapTexture(cubemapTexture);
-            }
+            cubemapSky->SetCubemapTexture(cubemapTexture);
         }
     }
 
