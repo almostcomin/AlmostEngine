@@ -14,6 +14,7 @@ namespace interop
         uint vertexBufferOffset;
         TextureSampledViewIndex textureIndex;
         uint bool_Is3DTexture;
+        uint bool_IsArrayTexture;
         float2 clipOffset;
         float mip;
         float slice;

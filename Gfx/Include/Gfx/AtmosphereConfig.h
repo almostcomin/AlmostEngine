@@ -124,11 +124,12 @@ public:
     // ------------------------------------------------------------
     // Main members (all start with capital letter)
     // ------------------------------------------------------------
-    AmbientParams Ambient;
-    SunParams     Sun;
+    AmbientParams   Ambient;
+    bool            SunLightEnabled = true;
+    SunParams       Sun;
     CloudsShapeParams CloudsShape;
-    CloudsParams  Clouds;
-    SkyParams     Sky;
+    CloudsParams    Clouds;
+    SkyParams       Sky;
 
     // ---- Common planet parameters (shared by sky and clouds) ----
     float EarthRadius = kEarthRadiusRef;   // Effective planet radius (scaled)

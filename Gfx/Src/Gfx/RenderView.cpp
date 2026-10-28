@@ -441,6 +441,7 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		{
 			const float3 sunDir = atmos->GetSunDirection();
 
+			sceneShaderConstant->mainDirLightEnabled = (uint)atmos->SunLightEnabled;
 			sceneShaderConstant->mainDirLight.viewSpaceDirection = m_Camera->GetViewMatrix() * float4 { sunDir, 0.f };
 			sceneShaderConstant->mainDirLight.irradiance = atmos->Sun.Irradiance;
 			sceneShaderConstant->mainDirLight.color = atmos->Sun.Color;

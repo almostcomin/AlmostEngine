@@ -72,6 +72,13 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
         }
     }
 
+    if (ImGui::CollapsingHeader("IBL"))
+    {
+        ImGui::Checkbox("Enabled", &FrameworkData.IBL.Enabled);
+        BuildTextureShowBrowseClear("Lambertian Texture", FrameworkData.IBL.LambTexture, alm::gfx::TextureLoadFlags::None);
+        BuildTextureShowBrowseClear("GGX Texture", FrameworkData.IBL.GGXTexture, alm::gfx::TextureLoadFlags::None);
+    }
+
     auto cubemapSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CubemapSkyRenderStage>();
     if (cubemapSky && ImGui::CollapsingHeader("Cubemap Sky"))
     {

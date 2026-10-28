@@ -236,6 +236,8 @@ void alm::fw::FrameworkUI::BuildDirectionalLightSettings(float availWidth)
         const float minElevation = -90.0;
         const float maxElevation = 90.0;
 
+        FrameworkData.SunParamsUpdated |= ImGui::Checkbox(
+            "Enabled", &FrameworkData.SunLightEnabled);
         FrameworkData.SunParamsUpdated |= ImGui::SliderScalar(
             "Azimuth", ImGuiDataType_Float, &FrameworkData.SunParams.AzimuthDeg, &minAzimuth, &maxAzimuth, "%.1f deg", ImGuiSliderFlags_NoRoundToFormat);
         FrameworkData.SunParamsUpdated |= ImGui::SliderScalar(

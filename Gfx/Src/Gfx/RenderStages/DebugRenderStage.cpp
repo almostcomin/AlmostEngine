@@ -65,7 +65,7 @@ std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::GetA
 {
 	// Check the number of aabox we need
 	if (!scene)
-		return { rhi::c_InvalidDescriptorIndex, 0 };
+		return { rhi::BufferReadOnlyView{ rhi::c_InvalidDescriptorIndex }, 0 };
 	 
 	// Collect all bboxes
 	std::vector<alm::aabox3f> aabboxes;
@@ -92,7 +92,7 @@ std::pair<alm::rhi::BufferReadOnlyView, size_t> alm::gfx::DebugRenderStage::Fill
 	rhi::Device* device = GetDeviceManager()->GetDevice();
 
 	if (aabboxes.empty())
-		return { rhi::c_InvalidDescriptorIndex, 0 };
+		return { rhi::BufferReadOnlyView{ rhi::c_InvalidDescriptorIndex }, 0 };
 
 	auto buffer = device->CreateBuffer(
 		rhi::BufferDesc{

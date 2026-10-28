@@ -6,6 +6,7 @@
 #include "Gfx/Scene.h"
 #include "Gfx/Camera.h"
 #include "Gfx/RenderView.h"
+#include "Gfx/TextureCache.h"
 #include "Gfx/RenderStages/GPUCullingRenderStage.h"
 #include "Gfx/RenderStages/CompositeRenderStage.h"
 #include "Gfx/RenderStages/DebugRenderStage.h"
@@ -166,6 +167,7 @@ void alm::fw::FrameworkApp::RefreshUIData()
 
 	const gfx::AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
 
+	data.SunLightEnabled = atmos->SunLightEnabled;
 	data.SunParams = atmos->Sun;
 	data.AmbientParams = atmos->Ambient;
 	data.AtmosSkyParams = atmos->Sky;
@@ -180,6 +182,21 @@ void alm::fw::FrameworkApp::RefreshUIData()
 	{
 		data.CloudsSimParams = cloudsRS->GetCloudsSimParams();
 		data.CloudsRTDenom = cloudsRS->GetRenderTargetDenominator();
+	}
+
+	{
+		auto lambTextureLoadResult = m_DeviceManager->GetTextureCache()->Load(
+			"IBL/doge2/doge2_Lambertian.ktx2", alm::gfx::TextureLoadFlags::None);
+		if (lambTextureLoadResult)
+		{
+			data.IBL.LambTexture = lambTextureLoadResult->first;
+		}
+		auto GGXTextureLoadResult = m_DeviceManager->GetTextureCache()->Load(
+			"IBL/doge2/doge2_GGX.ktx2", alm::gfx::TextureLoadFlags::None);
+		if (GGXTextureLoadResult)
+		{
+			data.IBL.GGXTexture = GGXTextureLoadResult->first;
+		}
 	}
 
 	if (SSAORS)
@@ -885,6 +902,7 @@ void alm::fw::FrameworkApp::MainLoop()
 
 			if (data.SunParamsUpdated)
 			{
+				atmos->SunLightEnabled = data.SunLightEnabled;
 				atmos->Sun = data.SunParams;
 				data.SunParamsUpdated = false;
 			}

@@ -9,8 +9,9 @@ template<TextureViewType T>
 class TextureView
 {
 public:
+
 	TextureView() : m_Idx{ c_InvalidDescriptorIndex } {};
-	TextureView(DescriptorIndex idx) : m_Idx{ idx } {};
+	explicit TextureView(DescriptorIndex idx) : m_Idx{ idx } {};
 
 	DescriptorIndex GetIdx() const { return m_Idx; }
 	bool IsValid() const { return m_Idx != c_InvalidDescriptorIndex; }
@@ -26,7 +27,7 @@ class BufferView
 {
 public:
 	BufferView() : m_Idx{ c_InvalidDescriptorIndex } {};
-	BufferView(DescriptorIndex idx) : m_Idx{ idx } {};
+	explicit BufferView(DescriptorIndex idx) : m_Idx{ idx } {};
 
 	DescriptorIndex GetIdx() const { return m_Idx; }
 	bool IsValid() const { return m_Idx != c_InvalidDescriptorIndex; }

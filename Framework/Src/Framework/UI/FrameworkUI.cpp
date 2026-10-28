@@ -210,14 +210,24 @@ void alm::fw::FrameworkUI::BuildGizmo(ImGuiID dockspaceId)
 
 void alm::fw::FrameworkUI::AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture)
 {
+    auto* device = GetDeviceManager()->GetDevice();
+
     auto it = std::ranges::find_if(m_TextureWindows, [&title](const UITextureWindow& elem)
         { return elem.title == title; });
 
     if (it == m_TextureWindows.end())
     {
-        m_TextureWindows.push_back(UITextureWindow{
+        auto textureWindow = UITextureWindow{
             .title = title,
-            .texture = texture });
+            .texture = texture };
+        
+        if (texture->GetDesc().dimension == rhi::TextureDimension::TextureCube)
+        {
+            textureWindow.arrayView = device->CreateTextureSampledView(texture.get(), rhi::TextureSubresourceSet{
+                0, rhi::TextureSubresourceSet::AllMipLevels, 0, 6 }, rhi::Format::UNKNOWN, rhi::TextureDimension::Texture2DArray);
+        }
+
+        m_TextureWindows.push_back(textureWindow);
     }
     else
     {
@@ -650,11 +660,16 @@ void alm::fw::FrameworkUI::BuildBottomBar()
 
 void alm::fw::FrameworkUI::BuildTextureWindows()
 {
+    auto* device = GetDeviceManager()->GetDevice();
+
     auto it = m_TextureWindows.begin();
     while (it != m_TextureWindows.end())
     {
         if (!BuildTextureWindow(*it))
         {
+            if (it->arrayView.IsValid())
+                device->ReleaseTextureSampledView(it->arrayView);
+
             it = m_TextureWindows.erase(it);
         }
         else
@@ -674,7 +689,7 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
     ImVec2 imageSize{ tw.defaultImageWidth, tw.defaultImageWidth * texDesc.height / texDesc.width };
 
     const ImGuiStyle& style = ImGui::GetStyle();
-    const float detailsHeight = ImGui::GetTextLineHeightWithSpacing() * 8.0f + ImGui::GetFrameHeightWithSpacing();
+    const float detailsHeight = ImGui::GetTextLineHeightWithSpacing() * 6.0f + ImGui::GetFrameHeightWithSpacing();
     const float childBorder = style.ChildBorderSize * 2.0f;
     const float spacingY = style.ItemSpacing.y;
     const float scrollbar = style.ScrollbarSize;
@@ -705,18 +720,76 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
     ImGui::BeginChild("##details", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
     {
         int id = 0;
-        const float labelWidth = 80.f;
-        const float labelHeight = 120.f;
 
-        ShowPropertyInt("Width", labelWidth, texDesc.width, labelHeight, ++id);
-        ShowPropertyInt("Height", labelWidth, texDesc.height, labelHeight, ++id);
-        ShowPropertyInt("Depth", labelWidth, texDesc.depth, labelHeight, ++id);
-        ShowPropertyInt("ArraySize", labelWidth, texDesc.arraySize, labelHeight, ++id);
-        ShowPropertyInt("MipLevels", labelWidth, texDesc.mipLevels, labelHeight, ++id);
-        ShowPropertyText("Format", labelWidth, alm::rhi::GetFormatString(texDesc.format), labelHeight, ++id);
+        struct Prop
+        {
+            const char* label;
+            bool isText;
+            int intValue;
+            const char* textValue;
+        };
+        constexpr int propertyCount = 7;
+        const Prop properties[propertyCount] = {
+            { "Width", false, (int)texDesc.width, "" },
+            { "Height", false, (int)texDesc.height, "" },
+            { "Depth", false, (int)texDesc.depth, "" },
+            { "ArraySize", false, (int)texDesc.arraySize, "" },
+            { "MipLevels", false, (int)texDesc.mipLevels, "" },
+            { "Format", true, 0, alm::rhi::GetFormatString(texDesc.format) },
+            { "Dimension", true, 0, GetTextureDimensionText(texDesc.dimension) },
+        };
+
+        const int propertyRows = (propertyCount + 1) / 2;
+        if (ImGui::BeginTable("##properties", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchProp))
+        {
+            ImGui::TableSetupColumn("##t0", ImGuiTableColumnFlags_WidthStretch, 0.8f);
+            ImGui::TableSetupColumn("##v0", ImGuiTableColumnFlags_WidthStretch, 1.2f);
+            ImGui::TableSetupColumn("##t1", ImGuiTableColumnFlags_WidthStretch, 0.8f);
+            ImGui::TableSetupColumn("##v1", ImGuiTableColumnFlags_WidthStretch, 1.2f);
+
+            for (int row = 0; row < propertyRows; ++row)
+            {
+                ImGui::TableNextRow(0, ImGui::GetFrameHeight());
+                for (int half = 0; half < 2; ++half)
+                {
+                    const int propIdx = row * 2 + half;
+
+                    // Title cell
+                    ImGui::TableSetColumnIndex(half * 2);
+                    if (propIdx < propertyCount)
+                    {
+                        ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::GetColorU32(ImGuiCol_TableHeaderBg));
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::TextUnformatted(properties[propIdx].label);
+                    }
+
+                    // Value cell
+                    ImGui::TableSetColumnIndex(half * 2 + 1);
+                    if (propIdx < propertyCount)
+                    {
+                        ImGui::PushID(++id);
+                        ImGui::BeginDisabled();
+                        ImGui::SetNextItemWidth(-FLT_MIN);
+                        if (properties[propIdx].isText)
+                        {
+                            const char* text = properties[propIdx].textValue;
+                            ImGui::InputText("##value", (char*)text, strlen(text), ImGuiInputTextFlags_ReadOnly);
+                        }
+                        else
+                        {
+                            int value = properties[propIdx].intValue;
+                            ImGui::InputInt("##value", &value, 0, 0, ImGuiInputTextFlags_ReadOnly);
+                        }
+                        ImGui::EndDisabled();
+                        ImGui::PopID();
+                    }
+                }
+            }
+            ImGui::EndTable();
+        }
 
         fitPressed = ImGui::Button("Fit");
-        ImGui::SameLine();
+        ImGui::SameLine(0.f, 20.0f);
         ShowToggleButton("Opaque", &tw.opaque);
         
         ImGui::SameLine(0.f, 20.f);
@@ -787,6 +860,8 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
         if (tw.alphaChannel)
             texFlags |= ImGuiTexFlags_ShowAlphaChannel;
 
+        ImGui::SameLine(0.f, 20.f);
+
         std::vector<std::string> mips;
         mips.resize(texDesc.mipLevels);
         for (int i = 0; i < texDesc.mipLevels; ++i)
@@ -808,7 +883,7 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
 
         if (texDesc.dimension == rhi::TextureDimension::Texture3D)
         {
-            ImGui::SameLine(0.f, 60.0f);
+            ImGui::SameLine(0.f, 20.0f);
 
             ImGui::SetNextItemWidth(60);
             std::vector<std::string> depth;
@@ -830,6 +905,55 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
             }
         }
 
+        else if (texDesc.dimension == rhi::TextureDimension::Texture2DArray)
+        {
+            ImGui::SameLine(0.f, 20.0f);
+
+            ImGui::SetNextItemWidth(60);
+            std::vector<std::string> indices;
+            indices.resize(texDesc.arraySize);
+            for (int i = 0; i < texDesc.arraySize; ++i)
+            {
+                indices[i] = std::to_string(i);
+            }
+            if (ImGui::BeginCombo("Slice", indices[tw.selectedSlice].c_str()))
+            {
+                for (int i = 0; i < texDesc.arraySize; ++i)
+                {
+                    if (ImGui::Selectable(indices[i].c_str(), tw.selectedSlice == i))
+                    {
+                        tw.selectedSlice = i;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+        }
+
+        else if (texDesc.dimension == rhi::TextureDimension::TextureCube)
+        {
+            ImGui::SameLine(0.f, 20.0f);
+
+            ImGui::SetNextItemWidth(60);
+            std::vector<std::string> slice;
+            slice.resize(6);
+            slice[0] = "+X";
+            slice[1] = "-X";
+            slice[2] = "+Y";
+            slice[3] = "-Y";
+            slice[4] = "+Z";
+            slice[5] = "-Z";
+            if (ImGui::BeginCombo("Face", slice[tw.selectedSlice].c_str()))
+            {
+                for (int i = 0; i < 6; ++i)
+                {
+                    if (ImGui::Selectable(slice[i].c_str(), tw.selectedSlice == i))
+                    {
+                        tw.selectedSlice = i;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+        }
     }
     ImGui::EndChild();
 
@@ -848,40 +972,41 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
         imageChildFlags |= ImGuiWindowFlags_HorizontalScrollbar;
     }
 
-    ImVec2 childSize{ 0.f, 0.f };
-    if (tw.firstShow)
+    ImGui::BeginChild("##image", ImVec2{ 0.f, 0.f }, ImGuiChildFlags_None, imageChildFlags);
     {
-        childSize = { imageSize.x, imageSize.y };
-    }
+        // Visible area. NOT GetContentRegionAvail(): SetNextWindowContentSize above would make it
+        // return the forced content size (the stale image size), not the actual visible hole.
+        ImVec2 avail = ImGui::GetCurrentWindow()->ClipRect.GetSize();
 
-    ImGui::BeginChild("##image", childSize, ImGuiChildFlags_None, imageChildFlags);
-    {
-        ImRect clip = ImGui::GetCurrentWindow()->ClipRect;
-        ImVec2 avail = clip.GetSize();//ImGui::GetContentRegionAvail();
-
-        if (tw.firstShow)
+        // Keep refitting while the layout settles right after the window opens (or after Fit):
+        // ImGui decides scrollbar visibility with previous-frame window values, so the hole can
+        // shrink one frame later (scrollbar reservations from the last frame). Without this, the
+        // image stays sized for the old hole and both scrollbars appear for good.
+        // After settling, only Fit refits: resizing the window keeps the image size (scrollable).
+        if (fitPressed)
+            tw.settleFrames = 2;
+        if (tw.firstShow || fitPressed || tw.settleFrames > 0)
         {
             float scale = (std::max)((float)texDesc.width / avail.x, (float)texDesc.height / avail.y);
             tw.defaultImageWidth = texDesc.width / scale - 1.f;
+            imageSize = { tw.defaultImageWidth, tw.defaultImageWidth * texDesc.height / texDesc.width };
         }
-        else
-        {
-            if (fitPressed)
-            {
-                float scale = (std::max)((float)texDesc.width / avail.x, (float)texDesc.height / avail.y);
-                tw.defaultImageWidth = texDesc.width / scale - 1.f;
-            }
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-            ShowImage(tw.texture, { imageSize.x, imageSize.y }, { 0.f , 0.f }, { 1.f, 1.f }, tw.selectedMip, tw.selectedSlice, texFlags);
-            ImGui::PopStyleVar();
-        }
+        rhi::TextureSampledView view = tw.texture->GetSampledView();
+        if (tw.arrayView.IsValid())
+            view = tw.arrayView;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ShowImage(tw.texture, view, float2{ imageSize.x, imageSize.y }, { 0.f , 0.f }, { 1.f, 1.f }, tw.selectedMip, tw.selectedSlice, texFlags);
+        ImGui::PopStyleVar();
     }
     ImGui::EndChild();
 
     ImGui::End();
 
     tw.firstShow = false;
+    if (tw.settleFrames > 0)
+        --tw.settleFrames;
     return isOpen;
 }
 

@@ -25,15 +25,20 @@ float4 main(PS_INPUT input) : SV_Target
         return float4(0.0, 0.0, 0.0, 1.0);
         
     float4 src_col;
-    if (CB.bool_Is3DTexture == 0)
+    if (CB.bool_IsArrayTexture == 1)
     {
-        Texture2D texture = ResourceDescriptorHeap[CB.textureIndex];
-        src_col = input.col * texture.SampleLevel(pointWrapSampler, input.uv, CB.mip);
+        Texture2DArray texture = ResourceDescriptorHeap[CB.textureIndex];
+        src_col = input.col * texture.SampleLevel(pointWrapSampler, float3(input.uv, CB.slice), CB.mip);
     }
-    else
+    else if (CB.bool_Is3DTexture == 1)
     {
         Texture3D texture = ResourceDescriptorHeap[CB.textureIndex];
         src_col = input.col * texture.SampleLevel(pointWrapSampler, float3(input.uv, CB.slice), CB.mip);
+    }
+    else
+    {
+        Texture2D texture = ResourceDescriptorHeap[CB.textureIndex];
+        src_col = input.col * texture.SampleLevel(pointWrapSampler, input.uv, CB.mip);
     }
 
     float4 out_col = src_col;

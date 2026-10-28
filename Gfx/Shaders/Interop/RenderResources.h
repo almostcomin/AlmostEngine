@@ -212,6 +212,8 @@ namespace interop
         float4 ambientBottom;   // rgb
 
         // Lights
+        uint mainDirLightEnabled;
+        uint3 _padding2;
         DirLightData mainDirLight;
         uint dirLightCount;
         BufferReadOnlyIndex dirLightsDataDI;    // DirLightData

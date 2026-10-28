@@ -760,19 +760,19 @@ alm::rhi::TextureSampledView alm::gfx::RenderGraph::GetTextureSampledView(RGText
 		return {};
 
 	auto tex = GetTexture(handle);
-	return tex ? tex->GetSampledView() : rhi::c_InvalidDescriptorIndex;
+	return tex ? tex->GetSampledView() : rhi::TextureSampledView{ rhi::c_InvalidDescriptorIndex };
 }
 
 alm::rhi::TextureStorageView alm::gfx::RenderGraph::GetTextureStorageView(RGTextureHandle handle)
 {
 	auto tex = GetTexture(handle);
-	return tex ? tex->GetStorageView() : rhi::c_InvalidDescriptorIndex;
+	return tex ? tex->GetStorageView() : rhi::TextureStorageView{ rhi::c_InvalidDescriptorIndex };
 }
 
 alm::rhi::BufferUniformView alm::gfx::RenderGraph::GetBufferUniformView(RGBufferHandle handle)
 {
 	auto buffer = GetBuffer(handle);
-	return buffer ? buffer->GetUniformView() : rhi::c_InvalidDescriptorIndex;
+	return buffer ? buffer->GetUniformView() : rhi::BufferUniformView{ rhi::c_InvalidDescriptorIndex };
 }
 
 uint2 alm::gfx::RenderGraph::GetTexture2dDimensions(RGTextureHandle handle)
@@ -789,13 +789,13 @@ uint2 alm::gfx::RenderGraph::GetTexture2dDimensions(RGTextureHandle handle)
 alm::rhi::BufferReadOnlyView alm::gfx::RenderGraph::GetBufferReadOnlyView(RGBufferHandle handle)
 {
 	auto buffer = GetBuffer(handle);
-	return buffer ? buffer->GetReadOnlyView() : rhi::c_InvalidDescriptorIndex;
+	return buffer ? buffer->GetReadOnlyView() : rhi::BufferReadOnlyView{ rhi::c_InvalidDescriptorIndex };
 }
 
 alm::rhi::BufferReadWriteView alm::gfx::RenderGraph::GetBufferReadWriteView(RGBufferHandle handle)
 {
 	auto buffer = GetBuffer(handle);
-	return buffer ? buffer->GetReadWriteView() : rhi::c_InvalidDescriptorIndex;
+	return buffer ? buffer->GetReadWriteView() : rhi::BufferReadWriteView{ rhi::c_InvalidDescriptorIndex };
 }
 
 alm::rhi::CommandListHandle alm::gfx::RenderGraph::GetCommandList()

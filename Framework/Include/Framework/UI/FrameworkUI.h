@@ -46,6 +46,7 @@ public:
 
 		int2 ShadowmapSize = { 0, 0 };
 
+		bool SunLightEnabled = true;
 		alm::gfx::AtmosphereConfig::SunParams SunParams;
 		bool SunParamsUpdated = false;
 
@@ -61,6 +62,13 @@ public:
 		alm::gfx::CloudsRenderStage::CloudsSimParams CloudsSimParams;
 		uint32_t CloudsRTDenom = 0;
 		bool CloudsEnabled = true;
+
+		struct
+		{
+			bool Enabled = true;
+			std::shared_ptr<alm::gfx::LoadedTexture> LambTexture;
+			std::shared_ptr<alm::gfx::LoadedTexture> GGXTexture;
+		} IBL;
 
 		alm::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
 
@@ -161,13 +169,17 @@ private:
 	{
 		std::string title;
 		alm::rhi::TextureHandle texture;
+		alm::rhi::TextureSampledView arrayView;
+
+		// ...
 		bool opaque = false;
 		bool redChannel = true;
 		bool greenChannel = true;
 		bool blueChannel = true;
 		bool alphaChannel = false;
-		float defaultImageWidth = 360.f;
+		float defaultImageWidth = 400.f;
 		bool firstShow = true;
+		int settleFrames = 4;
 		int selectedMip = 0;
 		int selectedSlice = 0;
 	};

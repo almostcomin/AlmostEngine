@@ -60,11 +60,14 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
 
     // Shade
     float3 viewIncident = normalize(surfacePosView.xyz);
-    float3 diffuseRadiance;
-    float3 specularRadiance;
+    float3 diffuseRadiance = float3(0.0, 0.0, 0.0);
+    float3 specularRadiance = float3(0.0, 0.0, 0.0);
     
     // Main directional light, the only one with a cascade shadowmap
-    ShadeSurface_DirLight(sceneData.mainDirLight, surfaceMat, surfacePosView.xyz, viewIncident, diffuseRadiance, specularRadiance);
+    if (sceneData.mainDirLightEnabled != 0)
+    {
+        ShadeSurface_DirLight(sceneData.mainDirLight, surfaceMat, surfacePosView.xyz, viewIncident, diffuseRadiance, specularRadiance);
+    }
     // Cascade shadow map only affects main directional light
     diffuseRadiance *= shadowFactor;
     specularRadiance *= shadowFactor;

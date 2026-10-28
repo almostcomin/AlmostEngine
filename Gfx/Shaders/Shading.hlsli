@@ -4,6 +4,13 @@
 #include "Material.hlsli"
 #include "BRDF.hlsli"
 
+void ShaderSurface_IBL(MaterialSample surfaceMaterial, float3 surfacePos, float3 viewIncident,
+    out float3 out_diffuseRadiance, out float3 out_specularRadiance)
+{
+    out_diffuseRadiance = float3(0.0, 0.0, 0.0);
+    out_specularRadiance = float3(0.0, 0.0, 0.0);
+}
+
 void ShadeSurface_DirLight(interop::DirLightData dirLight, MaterialSample surfaceMaterial, float3 surfacePos, float3 viewIncident,
     out float3 out_diffuseRadiance, out float3 out_specularRadiance)
 {       

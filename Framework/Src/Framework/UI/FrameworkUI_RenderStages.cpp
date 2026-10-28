@@ -336,7 +336,7 @@ bool alm::fw::FrameworkUI::BuildRSTexView(RenderStageTextureView* rsTexView)
             }
 
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-            ShowImage(tex, { imageSize.x, imageSize.y }, { 0.f , 0.f }, { 1.f, 1.f }, 0, 0, texFlags);
+            ShowImage(tex, tex->GetSampledView(), { imageSize.x, imageSize.y }, { 0.f , 0.f }, { 1.f, 1.f }, 0, 0, texFlags);
             ImGui::PopStyleVar();
         }
     }
