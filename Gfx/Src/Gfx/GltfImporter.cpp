@@ -1486,7 +1486,7 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
                 auto leaf = alm::make_unique_with_weak<alm::gfx::SceneDirectionalLight>();
                 leaf->SetColor(*(float3*)&srcNode->light->color);
                 leaf->SetIrradiance(srcNode->light->intensity);
-                leaf->SetAngularSize(0.075f);
+                leaf->SetAngularSizeDeg(0.53f);
                 dstNode->SetLeaf(std::move(leaf));
             } break;
 
@@ -1525,8 +1525,8 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
                     const float threshold = 1.0f / 256.0f;
                     leaf->SetRange(sqrtf(srcNode->light->intensity / threshold));
                 }
-                leaf->SetInnerConeAngle(srcNode->light->spot_inner_cone_angle);
-                leaf->SetOuterConeAngle(srcNode->light->spot_outer_cone_angle);
+                leaf->SetInnerConeAngleRad(srcNode->light->spot_inner_cone_angle);
+                leaf->SetOuterConeAngleRad(srcNode->light->spot_outer_cone_angle);
                 dstNode->SetLeaf(std::move(leaf));
             } break;
 

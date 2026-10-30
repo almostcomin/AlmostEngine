@@ -27,7 +27,7 @@ void alm::gfx::ScenePointLight::SetRange(float v)
 }
 
 alm::gfx::SceneSpotLight::SceneSpotLight() :
-	m_Intensity{ 1.f }, m_Range{ 0.f }, m_Radius{ 0.f }, m_InnerAngle{ 0.f }, m_OuterAngle{ 0.f }
+	m_Intensity{ 1.f }, m_Range{ 0.f }, m_Radius{ 0.f }, m_InnerAngleRad{ 0.f }, m_OuterAngleRad{ 0.f }
 {}
 
 void alm::gfx::SceneSpotLight::SetRange(float v)

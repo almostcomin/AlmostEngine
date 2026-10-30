@@ -5,9 +5,9 @@
 
 void alm::gfx::SceneGraphLeaf::OnBoundsChanged()
 {
-	auto* node = m_Node.get();
-	if (!node)
+	if (!m_Node)
 		return;
+	auto* node = m_Node.get();
 
 	// We have to update the bounds of the parents
 	node->m_DirtyFlags |= SceneGraphNode::DirtyFlags::Leaf;

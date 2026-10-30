@@ -18,51 +18,45 @@ void ShadeSurface_DirLight(interop::DirLightData dirLight, MaterialSample surfac
         dirLight.color;
     
     out_specularRadiance = BRDF_Specular_NDotL(surfaceMaterial.normal, viewIncident, dirLight.viewSpaceDirection, surfaceMaterial.specularF0,
-        surfaceMaterial.roughness, dirLight.halfAngularSize) * dirLight.irradiance * dirLight.color;
+        surfaceMaterial.roughness, dirLight.tanHalfAngularSize);
+    out_specularRadiance *= dirLight.irradiance * dirLight.color;
 }
 
 void ShadeSurface_PointLight(interop::PointLightData pointLight, MaterialSample surfaceMaterial, float3 surfacePos, float3 viewIncident,
     out float3 out_diffuseRadiance, out float3 out_specularRadiance)
 {
     float dist = length(surfacePos - pointLight.viewSpacePosition);
+    dist = max(dist, SMALL_FLOAT);
     float rDist = 1.0 / dist;
+    float tanHalfAngularSize = min(pointLight.radius * rDist, 1.0);
     out_diffuseRadiance = 0;
     out_specularRadiance = 0;
     
     float attenuation = square(saturate(1.0 - square(square(dist / pointLight.range))));
     if(attenuation == 0.0)
         return;
-    
-    float halfAngularSize = 0;
-    float irradiance = 0;
 
-    if(pointLight.radius > 0)
-    {
-        halfAngularSize = atan(pointLight.radius / dist);
-        // A good enough approximation for 2 * (1 - cos(halfAngularSize)), numerically more accurate for small angular sizes
-        float solidAngleOverPi = square(halfAngularSize);        
-        float radianceTimesPi = pointLight.intensity / square(pointLight.radius);        
-        irradiance = radianceTimesPi * solidAngleOverPi;
-    }
-    else
-    {
-        irradiance = pointLight.intensity * square(rDist);
-    }
-    irradiance *= attenuation;
+    // Sphere emitter: E = I/d^2 outside the source radius, saturates at I/r^2 inside.
+    // radius == 0 degenerates to a punctual light.
+    float invDist = 1.0 / max(dist, pointLight.radius);
+    float irradiance = pointLight.intensity * square(invDist) * attenuation;
     
     float3 lightIncident = (surfacePos - pointLight.viewSpacePosition) * rDist;
         
     out_diffuseRadiance = BRDF_Diffuse(surfaceMaterial.normal, lightIncident) * surfaceMaterial.diffuseAlbedo * irradiance * pointLight.color;
     
     out_specularRadiance = BRDF_Specular_NDotL(surfaceMaterial.normal, viewIncident, lightIncident, surfaceMaterial.specularF0,
-        surfaceMaterial.roughness, halfAngularSize) * irradiance * pointLight.color;
+        surfaceMaterial.roughness, tanHalfAngularSize);
+    out_specularRadiance *= irradiance * pointLight.color;
 }
 
 void ShadeSurface_SpotLight(interop::SpotLightData spotLight, MaterialSample surfaceMaterial, float3 surfacePos, float3 viewIncident,
     out float3 out_diffuseRadiance, out float3 out_specularRadiance)
 {
     float dist = length(surfacePos - spotLight.viewSpacePosition);
+    dist = max(dist, SMALL_FLOAT);
     float rDist = 1.0 / dist;
+    float tanHalfAngularSize = min(spotLight.radius * rDist, 1.0);
     out_diffuseRadiance = 0;
     out_specularRadiance = 0;
     
@@ -71,34 +65,23 @@ void ShadeSurface_SpotLight(interop::SpotLightData spotLight, MaterialSample sur
         return;
     
     float3 lightIncident = (surfacePos - spotLight.viewSpacePosition) * rDist;
+    
     // Cone
-    float LdotD = dot(lightIncident, spotLight.viewSpaceDirection);
-    float directionAngle = acos(LdotD);
-    float spotlight = 1 - smoothstep(spotLight.innerAngle, spotLight.outerAngle, directionAngle);
-    if (spotlight == 0)
+    float LdotD = dot(lightIncident, spotLight.viewSpaceDirection);    
+    float cone = smoothstep(spotLight.cosOuterAngle, spotLight.cosInnerAngle, LdotD);
+    if (cone == 0.0)
         return;
     
-    float halfAngularSize = 0;
-    float irradiance = 0;
-
-    if (spotLight.radius > 0)
-    {
-        halfAngularSize = atan(spotLight.radius / dist);
-        // A good enough approximation for 2 * (1 - cos(halfAngularSize)), numerically more accurate for small angular sizes
-        float solidAngleOverPi = square(halfAngularSize);
-        float radianceTimesPi = spotLight.intensity / square(spotLight.radius);
-        irradiance = radianceTimesPi * solidAngleOverPi;
-    }
-    else
-    {
-        irradiance = spotLight.intensity * square(rDist);
-    }
-    irradiance *= spotlight * attenuation;
+    // Sphere emitter: E = I/d^2 outside the source radius, saturates at I/r^2 inside.
+    // radius == 0 degenerates to a punctual light.    
+    float invDist = 1.0 / max(dist, spotLight.radius);
+    float irradiance = spotLight.intensity * square(invDist) * attenuation * cone;
             
     out_diffuseRadiance = BRDF_Diffuse(surfaceMaterial.normal, lightIncident) * surfaceMaterial.diffuseAlbedo * irradiance * spotLight.color;
     
     out_specularRadiance = BRDF_Specular_NDotL(surfaceMaterial.normal, viewIncident, lightIncident, surfaceMaterial.specularF0,
-        surfaceMaterial.roughness, halfAngularSize) * irradiance * spotLight.color;
+        surfaceMaterial.roughness, tanHalfAngularSize);
+    out_specularRadiance *=  irradiance * spotLight.color;
 }
 
 float GetSpecularAO(float3 surfaceNormal, float roughness, float3 viewIncident, float ambientOcclusion)

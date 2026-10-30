@@ -442,10 +442,10 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 			const float3 sunDir = atmos->GetSunDirection();
 
 			sceneShaderConstant->mainDirLightEnabled = (uint)atmos->SunLightEnabled;
-			sceneShaderConstant->mainDirLight.viewSpaceDirection = m_Camera->GetViewMatrix() * float4 { sunDir, 0.f };
+			sceneShaderConstant->mainDirLight.viewSpaceDirection = glm::normalize(m_Camera->GetViewMatrix() * float4 { sunDir, 0.f });
 			sceneShaderConstant->mainDirLight.irradiance = atmos->Sun.Irradiance;
 			sceneShaderConstant->mainDirLight.color = atmos->Sun.Color;
-			sceneShaderConstant->mainDirLight.halfAngularSize = glm::radians(atmos->Sun.AngularSizeDeg) / 2.f;
+			sceneShaderConstant->mainDirLight.tanHalfAngularSize = glm::tan(glm::radians(atmos->Sun.AngularSizeDeg) / 2.f);
 
 			sceneShaderConstant->dirLightCount = m_DirLightsVisibleCount;
 			sceneShaderConstant->dirLightsDataDI = m_DirLightsVisibleBuffer.GetReadOnlyView();
@@ -642,7 +642,7 @@ void alm::gfx::RenderView::UpdateDirLightsVisibleBuffer(rhi::ICommandList* comma
 		ptr->viewSpaceDirection = glm::normalize(m_Camera->GetViewMatrix() * float4{ dirLight->GetDirection(), 0.f });
 		ptr->irradiance = dirLight->GetIrradiance();
 		ptr->color = dirLight->GetColor();
-		ptr->halfAngularSize = dirLight->GetAngularSize() / 2.f;
+		ptr->tanHalfAngularSize = glm::tan(glm::radians(dirLight->GetAngularSizeDeg()) / 2.f);
 		ptr++;
 	}
 
@@ -808,8 +808,8 @@ void alm::gfx::RenderView::UpdateSpotLightsVisibleBuffer(rhi::ICommandList* comm
 		ptr->color = spotLight->GetColor();
 		ptr->intensity = spotLight->GetIntensity();
 		ptr->radius = spotLight->GetRadius();
-		ptr->innerAngle = spotLight->GetInnerConeAngle();
-		ptr->outerAngle = spotLight->GetOuterConeAngle();
+		ptr->cosInnerAngle = glm::cos(spotLight->GetInnerConeAngleRad());
+		ptr->cosOuterAngle = glm::cos(std::max(spotLight->GetOuterConeAngleRad(), spotLight->GetInnerConeAngleRad() + 1e-3f));
 		ptr++;
 	}
 

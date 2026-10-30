@@ -130,14 +130,14 @@ namespace interop
         float3 viewSpaceDirection;
         float irradiance;
         float3 color;
-        float halfAngularSize;
+        float tanHalfAngularSize; // tan of the half angular size of the light source (e.g. the sun disc)
     };
 
     struct PointLightData
     {
         float3 viewSpacePosition;
         float range;
-        float3 color; // color * intensity
+        float3 color;
         float intensity;
         float radius; // radius of the light source
         uint _padding[3];
@@ -150,9 +150,9 @@ namespace interop
         float3 viewSpaceDirection;
         float intensity;
         float3 color;        
-        float radius;
-        float innerAngle;
-        float outerAngle;
+        float radius;   // Radius of the light source sphere in world units. 0 means punctual.
+        float cosInnerAngle;
+        float cosOuterAngle;
         uint _padding[2];
     };
 

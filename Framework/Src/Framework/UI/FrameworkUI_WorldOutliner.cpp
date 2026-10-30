@@ -248,7 +248,7 @@ namespace
 
             PropertyRowFloat3("Direction", light->GetDirection());
             PropertyRowFloat("Irradiance", light->GetIrradiance());
-            PropertyRowFloat("AngularSize", light->GetAngularSize());
+            PropertyRowFloat("AngularSize", light->GetAngularSizeDeg());
 
             ImGui::EndTable();
         }
@@ -340,9 +340,8 @@ namespace
             PropertyRowFloat("Intensity", light->GetIntensity());
             PropertyRowFloat("Range", light->GetRange());
             PropertyRowFloat("Radius", light->GetRadius());
-            PropertyRowFloat("InnerConeAngle", light->GetInnerConeAngle());
-            PropertyRowFloat("OuterrConeAngle", light->GetOuterConeAngle());
-
+            PropertyRowFloat("Inner Cone Angle", glm::degrees(light->GetInnerConeAngleRad()));
+            PropertyRowFloat("Outer Cone Angle", glm::degrees(light->GetOuterConeAngleRad()));
 
             ImGui::EndTable();
         }

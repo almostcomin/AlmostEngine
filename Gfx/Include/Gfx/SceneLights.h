@@ -51,17 +51,17 @@ public:
 
 	// Setters
 	void				SetIrradiance(float v)				{ m_Irradiance = v; }
-	void				SetAngularSize(float v)				{ m_AngularSize = v; }
+	void				SetAngularSizeDeg(float v)			{ m_AngularSizeDeg = v; }
 
 	// Getters
 	float3				GetDirection() const;
 	float				GetIrradiance() const				{ return m_Irradiance; }
-	float				GetAngularSize() const				{ return m_AngularSize; }
+	float				GetAngularSizeDeg() const			{ return m_AngularSizeDeg; }
 
 private:
 
-	float				m_Irradiance; // Lux (lumen per square meter)
-	float				m_AngularSize;
+	float				m_Irradiance = 1.f;	// Lux (lumen per square meter)
+	float				m_AngularSizeDeg = 0.53f;
 };
 
 class ScenePointLight : public SceneLight
@@ -89,9 +89,9 @@ public:
 
 private:
 
-	float m_Intensity; // Candela (lumen per steradian)
+	float m_Intensity;	// Candela (lumen per steradian)
 	float m_Range;
-	float m_Radius;
+	float m_Radius;		// Radius of the light source sphere in world units. 0 means punctual.
 
 	alm::aabox3f m_Bounds;
 };
@@ -113,24 +113,24 @@ public:
 	void				SetIntensity(float v)				{ m_Intensity = v; }
 	void				SetRange(float v);
 	void				SetRadius(float v)					{ m_Radius = v; }
-	void				SetInnerConeAngle(float v)			{ m_InnerAngle = v; }
-	void				SetOuterConeAngle(float v)			{ m_OuterAngle = v; }
+	void				SetInnerConeAngleRad(float v)		{ m_InnerAngleRad = v; }
+	void				SetOuterConeAngleRad(float v)		{ m_OuterAngleRad = v; }
 
 	// Getters
 	float3				GetDirection() const;
 	float				GetIntensity() const				{ return m_Intensity; }
 	float				GetRange() const					{ return m_Range; }
 	float				GetRadius() const					{ return m_Radius; }
-	float				GetInnerConeAngle() const			{ return m_InnerAngle; }
-	float				GetOuterConeAngle() const			{ return m_OuterAngle; }
+	float				GetInnerConeAngleRad() const		{ return m_InnerAngleRad; }
+	float				GetOuterConeAngleRad() const		{ return m_OuterAngleRad; }
 
 private:
 
-	float m_Intensity; // Candela (lumen per steradian)
+	float m_Intensity;	// Candela (lumen per steradian)
 	float m_Range;
-	float m_Radius;
-	float m_InnerAngle;
-	float m_OuterAngle;
+	float m_Radius;		// Radius of the light source sphere in world units. 0 means punctual.
+	float m_InnerAngleRad;
+	float m_OuterAngleRad;
 
 	alm::aabox3f m_Bounds;
 };
