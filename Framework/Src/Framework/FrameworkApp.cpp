@@ -194,13 +194,6 @@ void alm::fw::FrameworkApp::RefreshUIData()
 		data.CloudsRTDenom = cloudsRS->GetRenderTargetDenominator();
 	}
 
-	{
-		alm::gfx::SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
-		data.IBL.Enabled = sceneIBL->IsEnabled();
-		data.IBL.LambTexture = sceneIBL->GetLambertTexture();
-		data.IBL.GGXTexture = sceneIBL->GetGGXTexture();
-	}
-
 	if (SSAORS)
 	{
 		data.SSAO.Radius = SSAORS->GetRadius();
@@ -555,9 +548,6 @@ bool alm::fw::FrameworkApp::InitInternal()
 
 void alm::fw::FrameworkApp::ShutdownInternal()
 {
-	m_FrameworkUI->FrameworkData.IBL.LambTexture = nullptr;
-	m_FrameworkUI->FrameworkData.IBL.GGXTexture = nullptr;
-
 	m_MainCamera.reset();
 	m_MainRenderView.reset();
 	m_Scene.reset();
@@ -905,12 +895,6 @@ void alm::fw::FrameworkApp::MainLoop()
 				data.AmbientParamsUpdated = false;
 			}
 			atmos->Sky = data.AtmosSkyParams;
-
-			{
-				alm::gfx::SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
-				sceneIBL->SetEnabled(data.IBL.Enabled);
-				sceneIBL->SetEnvironment(data.IBL.LambTexture, data.IBL.GGXTexture);
-			}
 
 			if (simpleSkyRS)
 			{

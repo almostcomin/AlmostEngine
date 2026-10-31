@@ -106,7 +106,7 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const std::strin
     {
         return std::unexpected(std::move(loadResult.error()));
     }
-    
+
     return loadResult;
 }
 
@@ -126,6 +126,17 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(const alm::WeakB
     }
 
     return loadResult;
+}
+
+alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::Load(alm::gfx::TextureData&& texData, const std::string& id)
+{
+    auto textureHandle = Get(id);
+    if (textureHandle)
+    {
+        return std::pair<std::shared_ptr<alm::gfx::LoadedTexture>, alm::SignalListener>(textureHandle, {});
+    }
+
+    return CommitTextureData(std::move(texData), id, TextureLoadFlags::None);
 }
 
 void alm::gfx::TextureCache::Update()
@@ -189,7 +200,12 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(
         return std::unexpected(std::move(loadResult.error()));
     }
 
-    TextureData& texData = *loadResult;
+    return CommitTextureData(std::move(*loadResult), id, flags);
+}
+
+alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::CommitTextureData(
+    alm::gfx::TextureData&& texData, const std::string& id, TextureLoadFlags flags)
+{
     texData.DebugName = id;
 
     if (!m_Device->SupportsTextureFormat(texData.format))
@@ -213,10 +229,10 @@ alm::gfx::TextureCache::LoadResult alm::gfx::TextureCache::LoadInternal(
     }
 
     auto uploadResult = m_DataUploader->UploadTextureData(
-        *loadResult,
+        texData,
         texture.get_weak(),
         rhi::ResourceState::COPY_DST,
-        rhi::ResourceState::SHADER_RESOURCE,        
+        rhi::ResourceState::SHADER_RESOURCE,
         rhi::TextureSubresourceSet{ 0, texData.MipLevels, 0, texData.ArraySize },
         getMipsMethod,
         texData.DebugName.c_str());

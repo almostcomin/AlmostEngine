@@ -36,7 +36,7 @@ alm::gfx::Scene::Scene(const std::string& name, DeviceManager* deviceManager) :
 	m_AtmosConfig = std::make_unique<gfx::AtmosphereConfig>();
 	m_AtmosConfig->Init(m_DeviceManager, false);
 
-	m_SceneIBL = std::make_unique<gfx::SceneIBL>();
+	m_SceneIBL = std::make_unique<gfx::SceneIBL>(m_DeviceManager);
 }
 
 alm::gfx::Scene::~Scene()

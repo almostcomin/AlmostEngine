@@ -8,6 +8,7 @@
 #include "Core/Blob.h"
 #include "Core/Common.h"
 #include "Core/Signal.h"
+#include "Gfx/TextureData.h"
 #include "Gfx/TextureLoadFlags.h"
 
 namespace alm::rhi
@@ -46,6 +47,11 @@ public:
 	LoadResult Load(const alm::WeakBlob& blob, FileFormat format, TextureLoadFlags flags = TextureLoadFlags::None,
 		const std::string& id = MakeUniqueStringId());
 
+	// Loads an already parsed TextureData (no file format parsing). Useful for procedurally
+	// generated textures. Textures are registered in the cache with the given id and uploaded
+	// without mip generation (the data must contain the full mip chain).
+	LoadResult Load(alm::gfx::TextureData&& texData, const std::string& id = MakeUniqueStringId());
+
 	void Update();
 
 	static FileFormat GetFileFormatFromExtension(std::string_view ext);
@@ -53,6 +59,7 @@ public:
 private:
 
 	LoadResult LoadInternal(const alm::WeakBlob& blob, alm::gfx::TextureLoadFlags flags, FileFormat format, const std::string& id);
+	LoadResult CommitTextureData(alm::gfx::TextureData&& texData, const std::string& id, TextureLoadFlags flags);
 
 	std::shared_ptr<LoadedTexture> CreateHandle();
 

@@ -14,6 +14,7 @@
 #include "Gfx/RenderStages/AtmosSkyRenderStage.h"
 #include "Gfx/RenderStages/CloudsRenderStage.h"
 #include "Gfx/LoadedTexture.h"
+#include "Gfx/SceneIBL.h"
 
 void alm::fw::FrameworkUI::BuildAtmospherePanel()
 {
@@ -82,31 +83,79 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
         }
     }
 
-    if (ImGui::CollapsingHeader("IBL"))
+    auto scene = GetScene();
+    gfx::SceneIBL* sceneIBL = scene ? scene->GetSceneIBL() : nullptr;
+
+    if (sceneIBL && ImGui::CollapsingHeader("IBL"))
     {
-        ImGui::Checkbox("Enabled##IBL", &FrameworkData.IBL.Enabled);
+        bool enabled = sceneIBL->IsEnabled();
+        if (ImGui::Checkbox("Enabled##IBL", &enabled))
+            sceneIBL->SetEnabled(enabled);
 
-        BuildTextureShowBrowseClearPred("Lambertian Texture##IBL", FrameworkData.IBL.LambTexture, alm::gfx::TextureLoadFlags::None,
-            cubemapPred);
+        ImGui::SeparatorText("Panorama HDR Texture");
+        
+        std::string currentPanorama = sceneIBL->GetPanoramaPath();
+        std::string title;
+        if (currentPanorama.empty())
+            title = "Browse";
+        else
+            title = GetFilenameFromPath(currentPanorama);
 
-        BuildTextureShowBrowseClearPred("GGX Texture##IBL", FrameworkData.IBL.GGXTexture, alm::gfx::TextureLoadFlags::None,
-            cubemapPred);
-    }
-
-    auto cubemapSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CubemapSkyRenderStage>();
-    if (cubemapSky && ImGui::CollapsingHeader("Cubemap Sky"))
-    {
-        bool enabled = cubemapSky->IsEnabled();
-        if (ImGui::Checkbox("Enabled##AtmosSky", &enabled))
+        if (ImGui::Button(title.c_str(), ImVec2(-1, 0)))
         {
-            cubemapSky->SetEnabled(enabled);
+            std::string newPanorama = OpenFileNativeDialog(currentPanorama, {
+                { "Image files", "*.png;*.tga;*.jpg;*.jpeg;*.dds;*.hdr;*.ktx2" },
+                { "TGA", "*.tga" },
+                { "PNG", "*.png" },
+                { "JPEG", "*.jpg;*.jpeg" },
+                { "DDS", "*.dds" },
+                { "KTX2", "*.ktx2" },
+                { "Radiance", "*.hdr" }});
+            if (!newPanorama.empty())
+            {
+                auto result = sceneIBL->SetPanorama(newPanorama);
+                if (!result)
+                    ShowErrorModal(result.error());
+            }
         }
 
-        auto cubemapTexture = cubemapSky->GetCubemapTexture();
-        if (BuildTextureShowBrowseClearPred("Cubemap Texture", cubemapTexture, alm::gfx::TextureLoadFlags::None, cubemapPred))
+        ImGui::Separator();
+        float buttonWidth = (availWidth - ImGui::GetStyle().ItemSpacing.x) / 4;
+
+        auto skyTexture = sceneIBL->GetSkyTexture();
+        ImGui::BeginDisabled(!(skyTexture && skyTexture->IsValid()));
+        if (ImGui::Button("SkyBox", ImVec2(buttonWidth, 0)))
         {
-            cubemapSky->SetCubemapTexture(cubemapTexture);
-        }
+            AddTextureWindow(skyTexture->id, skyTexture->texture.get_weak());
+        };
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        auto lambertTexture = sceneIBL->GetLambertTexture();
+        ImGui::BeginDisabled(!(lambertTexture && lambertTexture->IsValid()));
+        if (ImGui::Button("Lambert", ImVec2(buttonWidth, 0)))
+        {
+            AddTextureWindow(lambertTexture->id, lambertTexture->texture.get_weak());
+        };
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        auto ggxTexture = sceneIBL->GetGGXTexture();
+        ImGui::BeginDisabled(!(ggxTexture && ggxTexture->IsValid()));
+        if (ImGui::Button("GGX", ImVec2(buttonWidth, 0)))
+        {
+            AddTextureWindow(ggxTexture->id, ggxTexture->texture.get_weak());
+        };
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        auto dfgTexture = sceneIBL->GetDfgTexture();
+        ImGui::BeginDisabled(!(dfgTexture && dfgTexture->IsValid()));
+        if (ImGui::Button("DFG LUT", ImVec2(buttonWidth, 0)))
+        {
+            AddTextureWindow(dfgTexture->id, dfgTexture->texture.get_weak());
+        };
+        ImGui::EndDisabled();
     }
 
     auto atmosSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();

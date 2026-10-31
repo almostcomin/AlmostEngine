@@ -8,29 +8,9 @@
 #include "Gfx/Scene.h"
 #include "Gfx/Camera.h"
 #include "Gfx/LoadedTexture.h"
+#include "Gfx/SceneIBL.h"
 #include "Interop/RenderResources.h"
 #include "RHI/Device.h"
-
-void alm::gfx::CubemapSkyRenderStage::SetCubemapTexture(std::shared_ptr<alm::gfx::LoadedTexture> cubemap)
-{
-	m_CubemapTexture = {};
-	if (cubemap && cubemap->texture)
-	{
-		if (cubemap->texture->GetDesc().dimension == rhi::TextureDimension::TextureCube)
-		{
-			m_CubemapTexture = cubemap;
-		}
-		else
-		{
-			LOG_WARNING("Invalid texture '{}': Is not a cubemap", cubemap->texture->GetDebugName());
-		}
-	}
-}
-
-std::shared_ptr<alm::gfx::LoadedTexture> alm::gfx::CubemapSkyRenderStage::GetCubemapTexture() const
-{
-	return m_CubemapTexture;
-}
 
 void alm::gfx::CubemapSkyRenderStage::Setup(RenderGraphBuilder& builder)
 {
@@ -48,12 +28,9 @@ void alm::gfx::CubemapSkyRenderStage::Render(alm::rhi::CommandListHandle command
 	auto scene = GetScene();
 	if (!scene)
 		return;
-
-	if (!m_CubemapTexture || !m_CubemapTexture->texture)
-	{
-		//LOG_WARNING("No texture set in CubemapSkyRenderStage");
+	gfx::SceneIBL* sceneIBL = scene->GetSceneIBL();
+	if (!sceneIBL->IsEnabled() || !sceneIBL->GetSkySampledView().IsValid())
 		return;
-	}
 
 	commandList->BeginRenderPass(
 		m_RenderGraph->GetFrameBuffer(m_FB).get(),
@@ -65,7 +42,7 @@ void alm::gfx::CubemapSkyRenderStage::Render(alm::rhi::CommandListHandle command
 
 	interop::CubemapSkyConstants shaderConstants;
 	shaderConstants.matClipToTranslatedWorld = GetCamera()->GetClipToTranslatedWorldMatrix();
-	shaderConstants.cubemapTextureDI = m_CubemapTexture->texture->GetSampledView();
+	shaderConstants.cubemapTextureDI = sceneIBL->GetSkySampledView();
 	shaderConstants.exposureFactorTextureDI = GetRenderView()->GetPrevExposureSampledView();
 
 	commandList->PushGraphicsConstants(0, shaderConstants);

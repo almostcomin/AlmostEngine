@@ -258,8 +258,9 @@ namespace
         case DirectX::TEX_DIMENSION_TEXTURE2D:
             if (metadata.IsCubemap())
             {
-                texData.Dimension = metadata.arraySize > 1 ? alm::rhi::TextureDimension::TextureCubeArray : alm::rhi::TextureDimension::TextureCube;
-                texData.ArraySize = metadata.arraySize * 6;
+                // metadata.arraySize already counts faces (a multiple of 6)
+                texData.Dimension = metadata.arraySize > 6 ? alm::rhi::TextureDimension::TextureCubeArray : alm::rhi::TextureDimension::TextureCube;
+                texData.ArraySize = metadata.arraySize;
             }
             else
             {
@@ -508,4 +509,30 @@ alm::gfx::LoadImageTexture(const alm::WeakBlob& fileData, bool forceSRGB)
 	}
 
     return texData;
+}
+
+bool alm::gfx::SaveScratchImageToDDS(const DirectX::ScratchImage& image, const std::string& filename)
+{
+	const std::filesystem::path parent = std::filesystem::path(filename).parent_path();
+	if (!parent.empty())
+	{
+		std::error_code ec;
+		std::filesystem::create_directories(parent, ec);
+		if (ec)
+		{
+			LOG_ERROR("Could not create directory [{}]", parent.string());
+			return false;
+		}
+	}
+
+	const std::wstring wideFilename = ToWide(filename.c_str());
+	HRESULT hr = DirectX::SaveToDDSFile(image.GetImages(), image.GetImageCount(), image.GetMetadata(),
+		DirectX::DDS_FLAGS_NONE, wideFilename.c_str());
+	if (FAILED(hr))
+	{
+		LOG_ERROR("Failed saving texture, hr [{:#x}]", hr);
+		return false;
+	}
+
+	return true;
 }

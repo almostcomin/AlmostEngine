@@ -5,6 +5,11 @@
 #include "Gfx/TextureLoadFlags.h"
 #include "RHI/ResourceState.h"
 
+namespace DirectX
+{
+	class ScratchImage;
+}
+
 namespace alm::gfx
 {
 
@@ -16,7 +21,11 @@ std::expected<TextureData, std::string> LoadKTXTexture(const alm::WeakBlob& file
 std::expected<TextureData, std::string> LoadImageTexture(const alm::WeakBlob& fileData,
 	bool forceSRGB);
 
+// Saves a GPU texture to a DDS file (captures it back from the GPU first).
 bool SaveDDSTexture(rhi::TextureHandle texture, rhi::ResourceState currentState, rhi::ResourceState targetState, rhi::Device* device,
 	const std::string& filename);
+
+// Saves CPU-side image data to a DDS file. Creates parent directories as needed.
+bool SaveScratchImageToDDS(const DirectX::ScratchImage& image, const std::string& filename);
 
 } // namespace st::gfx

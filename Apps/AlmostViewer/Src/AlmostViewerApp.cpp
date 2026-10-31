@@ -71,7 +71,7 @@ public:
 			}
 		}
 
-#if 1
+#if 0
 		{
 			alm::gfx::MaterialManager* materialManager = m_DeviceManager->GetMaterialManager();
 
@@ -87,6 +87,7 @@ public:
 			}
 		}
 #endif
+#if 0
 		{
 			alm::gfx::SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
 			sceneIBL->SetEnabled(false);
@@ -100,6 +101,16 @@ public:
 			{
 				sceneIBL->SetEnvironment(lambTextureLoadResult->first, GGXTextureLoadResult->first);
 			}
+		}
+#endif
+		{
+			alm::gfx::SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
+			sceneIBL->SetEnabled(true);
+			auto panoramaResult = sceneIBL->SetPanorama("IBL/quattro_canti_4k.hdr");
+			if (!panoramaResult)
+				LOG_ERROR("{}", panoramaResult.error());
+
+			m_Scene->GetAtmosphereConfig()->SunLightEnabled = false;
 		}
 
 		return true;

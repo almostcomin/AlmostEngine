@@ -1145,8 +1145,10 @@ std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filena
     TCHAR szFile[260] = { 0 };
     if (!filename.empty())
     {
-        std::filesystem::path p(filename);
-        strncpy_s(szFile, p.filename().string().c_str(), _TRUNCATE);
+        std::error_code ec;
+        std::filesystem::path abs = std::filesystem::absolute(std::filesystem::path(filename), ec);
+        if (!ec)
+            strncpy_s(szFile, abs.string().c_str(), _TRUNCATE);
     }
 
     // Initialize OPENFILENAME
@@ -1180,22 +1182,7 @@ std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filena
     ofn.nFilterIndex = 0;
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
-
-    std::string initialDir;
-    if (!filename.empty())
-    {
-        std::error_code ec;
-        std::filesystem::path p(filename);
-
-        std::filesystem::path abs = std::filesystem::absolute(p, ec);
-        if (!ec)
-        {
-            std::filesystem::path dir = abs.parent_path();
-            if (std::filesystem::is_directory(dir, ec))
-                initialDir = dir.string();
-        }
-    }
-    ofn.lpstrInitialDir = initialDir.empty() ? NULL : initialDir.c_str();
+    ofn.lpstrInitialDir = NULL;
 
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 

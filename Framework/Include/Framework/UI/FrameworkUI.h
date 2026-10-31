@@ -63,13 +63,6 @@ public:
 		uint32_t CloudsRTDenom = 0;
 		bool CloudsEnabled = true;
 
-		struct
-		{
-			bool Enabled = true;
-			std::shared_ptr<alm::gfx::LoadedTexture> LambTexture;
-			std::shared_ptr<alm::gfx::LoadedTexture> GGXTexture;
-		} IBL;
-
 		alm::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
 
 		struct
