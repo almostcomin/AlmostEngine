@@ -1186,6 +1186,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplers[10] = {};
 
+	// PointClampSampler
 	staticSamplers[0] = {
 		D3D12_FILTER_MIN_MAG_MIP_POINT,			// filter
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// U
@@ -1202,6 +1203,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
 
+	// PointWrapSampler
 	staticSamplers[1] = {
 		D3D12_FILTER_MIN_MAG_MIP_POINT,			// filter
 		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
@@ -1218,6 +1220,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
 
+	// LinearClampSampler
 	staticSamplers[2] = {
 		D3D12_FILTER_MIN_MAG_MIP_LINEAR,		// filter
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// U
@@ -1234,6 +1237,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
 
+	// LinearWrapSampler
 	staticSamplers[3] = {
 		D3D12_FILTER_MIN_MAG_MIP_LINEAR,		// filter
 		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
@@ -1250,6 +1254,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
 
+	// MinMagLinearMipPointClampSampler
 	staticSamplers[4] = {
 		D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,	// filter
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// U
@@ -1266,6 +1271,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
 
+	// MinMagLinearMipPointWrapSampler
 	staticSamplers[5] = {
 		D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,	// filter
 		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
@@ -1282,6 +1288,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
 
+	// MinMagPointMipLinearClampSampler
 	staticSamplers[6] = {
 		D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR,	// filter
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,		// U
@@ -1298,6 +1305,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
 
+	// MinMagPointMipLinearWrapSampler
 	staticSamplers[7] = {
 		D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR,	// filter
 		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
@@ -1314,6 +1322,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
 
+	// AnisotropicSampler
 	staticSamplers[8] = {
 		D3D12_FILTER_ANISOTROPIC,				// filter
 		D3D12_TEXTURE_ADDRESS_MODE_WRAP,		// U
@@ -1330,6 +1339,7 @@ void alm::rhi::dx12::GpuDevice::CreateBindlessRootSignature()
 		D3D12_SHADER_VISIBILITY_ALL				// shaderVisibility
 	};
 
+	// LinearClampToBorder
 	staticSamplers[9] = {
 		D3D12_FILTER_MIN_MAG_MIP_LINEAR,		// filter
 		D3D12_TEXTURE_ADDRESS_MODE_BORDER,		// U

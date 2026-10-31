@@ -1142,7 +1142,12 @@ std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filena
     HWND hWnd = (HWND)SDL_GetPointerProperty(windowProps, SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
 
     OPENFILENAME ofn;       // common dialog box structure
-    TCHAR szFile[260] = { 0 };       // if using TCHAR macros
+    TCHAR szFile[260] = { 0 };
+    if (!filename.empty())
+    {
+        std::filesystem::path p(filename);
+        strncpy_s(szFile, p.filename().string().c_str(), _TRUNCATE);
+    }
 
     // Initialize OPENFILENAME
     ZeroMemory(&ofn, sizeof(ofn));
@@ -1175,7 +1180,23 @@ std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filena
     ofn.nFilterIndex = 0;
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
-    ofn.lpstrInitialDir = filename.empty() ? NULL : filename.c_str();
+
+    std::string initialDir;
+    if (!filename.empty())
+    {
+        std::error_code ec;
+        std::filesystem::path p(filename);
+
+        std::filesystem::path abs = std::filesystem::absolute(p, ec);
+        if (!ec)
+        {
+            std::filesystem::path dir = abs.parent_path();
+            if (std::filesystem::is_directory(dir, ec))
+                initialDir = dir.string();
+        }
+    }
+    ofn.lpstrInitialDir = initialDir.empty() ? NULL : initialDir.c_str();
+
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 
     if (GetOpenFileName(&ofn) == TRUE)

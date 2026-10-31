@@ -36,6 +36,7 @@
 #include "Gfx/Material.h"
 #include "Gfx/AtmosphereConfig.h"
 #include "Gfx/RaycastHit.h"
+#include "Gfx/SceneIBL.h"
 #include "RHI/Device.h"
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_init.h>
@@ -92,6 +93,7 @@ void alm::fw::FrameworkApp::Run(const AppArgs& args)
 	if (!InitInternal())
 		return;
 	Initialize();
+	RefreshUIData();
 
 	// Set viewport before first frame
 	if (m_FrameworkUI)
@@ -148,6 +150,14 @@ std::optional<int> alm::fw::FrameworkApp::GetStartupArgInt(const std::string& ke
 
 void alm::fw::FrameworkApp::RefreshUIData()
 {
+	if (!m_ImGuiRS)
+		return;
+
+	alm::gfx::InitImGuiViewportsRenderer(m_ImGuiRS, m_DeviceManager.get());
+	m_FrameworkUI = dynamic_cast<alm::fw::FrameworkUI*>(m_ImGuiRS.get());
+	if (!m_FrameworkUI)
+		return;
+
 	alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
 	auto shadowmapRS = renderGraph->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
 	auto simpleSkyRS = renderGraph->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
@@ -185,18 +195,10 @@ void alm::fw::FrameworkApp::RefreshUIData()
 	}
 
 	{
-		auto lambTextureLoadResult = m_DeviceManager->GetTextureCache()->Load(
-			"IBL/doge2/doge2_Lambertian.ktx2", alm::gfx::TextureLoadFlags::None);
-		if (lambTextureLoadResult)
-		{
-			data.IBL.LambTexture = lambTextureLoadResult->first;
-		}
-		auto GGXTextureLoadResult = m_DeviceManager->GetTextureCache()->Load(
-			"IBL/doge2/doge2_GGX.ktx2", alm::gfx::TextureLoadFlags::None);
-		if (GGXTextureLoadResult)
-		{
-			data.IBL.GGXTexture = GGXTextureLoadResult->first;
-		}
+		alm::gfx::SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
+		data.IBL.Enabled = sceneIBL->IsEnabled();
+		data.IBL.LambTexture = sceneIBL->GetLambertTexture();
+		data.IBL.GGXTexture = sceneIBL->GetGGXTexture();
 	}
 
 	if (SSAORS)
@@ -545,18 +547,6 @@ bool alm::fw::FrameworkApp::InitInternal()
 	m_MainRenderView->SetCamera(m_MainCamera);
 
 	InitRenderStages();
-
-	if (m_ImGuiRS)
-	{
-		alm::gfx::InitImGuiViewportsRenderer(m_ImGuiRS, m_DeviceManager.get());
-		m_FrameworkUI = dynamic_cast<alm::fw::FrameworkUI*>(m_ImGuiRS.get());
-
-		// UI initial values
-		if(m_FrameworkUI)
-		{
-			RefreshUIData();
-		}
-	}
 
 	m_DeviceManager->RegisterRenderView(m_MainRenderView.get_weak());
 
@@ -915,6 +905,12 @@ void alm::fw::FrameworkApp::MainLoop()
 				data.AmbientParamsUpdated = false;
 			}
 			atmos->Sky = data.AtmosSkyParams;
+
+			{
+				alm::gfx::SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
+				sceneIBL->SetEnabled(data.IBL.Enabled);
+				sceneIBL->SetEnvironment(data.IBL.LambTexture, data.IBL.GGXTexture);
+			}
 
 			if (simpleSkyRS)
 			{

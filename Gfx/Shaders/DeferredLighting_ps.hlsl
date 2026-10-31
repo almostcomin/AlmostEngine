@@ -127,12 +127,26 @@ float4 main(PS_INPUT input) : SV_Target
         specularRadiance += lightSpecularRadiance;
     }
         
-    // Ambient    
-    float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
-    diffuseRadiance += ambientColor * surfaceMat.diffuseAlbedo * ambientOcclusion;
-        
+    // IBL / Ambient
     float specAO = GetSpecularAO(surfaceMat.normal, surfaceMat.roughness, viewIncident, ambientOcclusion);
-    specularRadiance += ambientColor * surfaceMat.specularF0 * specAO;
+    if(sceneData.IBLEnabled)
+    {
+        float3 iblDiffuse;
+        float3 iblSpecular;
+        TextureCube lambCube = ResourceDescriptorHeap[sceneData.IBLLambCubemapTextureDI];
+        TextureCube ggxCube = ResourceDescriptorHeap[sceneData.IBLGGXCubemapTextureDI];
+                
+        ShaderSurface_IBL(lambCube, ggxCube, sceneData.IBLGGXCubeMipCount, (float3x3) sceneData.invCamViewMatrix, surfaceMat, viewIncident, iblDiffuse, iblSpecular);
+        
+        diffuseRadiance += iblDiffuse * ambientOcclusion;
+        specularRadiance += iblSpecular * specAO;
+    }
+    else
+    {
+        float3 ambientColor = lerp(sceneData.ambientBottom.rgb, sceneData.ambientTop.rgb, surfaceMat.normal.y * 0.5 + 0.5);
+        diffuseRadiance += ambientColor * surfaceMat.diffuseAlbedo * ambientOcclusion;
+        specularRadiance += ambientColor * surfaceMat.specularF0 * specAO;
+    }
 
     float3 color = diffuseRadiance + specularRadiance + surfaceMat.emissiveColor;
     color = ApplyExposure(color, sceneData.exposureFactorTextureDI);

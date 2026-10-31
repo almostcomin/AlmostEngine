@@ -22,6 +22,7 @@ namespace alm::gfx
 	class RenderView;
 	class SceneGraphLeaf;
 	class AtmosphereConfig;
+	class SceneIBL;
 }
 
 namespace alm::gfx
@@ -35,6 +36,7 @@ namespace alm::gfx
 		~Scene();
 
 		AtmosphereConfig* GetAtmosphereConfig() { return m_AtmosConfig.get(); }
+		SceneIBL* GetSceneIBL() { return m_SceneIBL.get(); }
 
 		alm::weak<SceneGraph> GetSceneGraph() const { return m_SceneGraph.get_weak(); }
 		
@@ -61,7 +63,8 @@ namespace alm::gfx
 		alm::unique<SceneGraph> m_SceneGraph;		
 		std::vector<alm::weak<RenderView>> m_RenderViews;
 
-		alm::unique<AtmosphereConfig> m_AtmosConfig;
+		std::unique_ptr<AtmosphereConfig> m_AtmosConfig;
+		std::unique_ptr<SceneIBL> m_SceneIBL;
 
 		GpuSceneBuffersHandle m_GpuBuffersHandle;
 		bool m_ResetGpuBuffers;

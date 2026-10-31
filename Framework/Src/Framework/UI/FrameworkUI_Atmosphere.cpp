@@ -84,12 +84,12 @@ void alm::fw::FrameworkUI::BuildSkySettings(float availWidth)
 
     if (ImGui::CollapsingHeader("IBL"))
     {
-        ImGui::Checkbox("Enabled", &FrameworkData.IBL.Enabled);
+        ImGui::Checkbox("Enabled##IBL", &FrameworkData.IBL.Enabled);
 
-        BuildTextureShowBrowseClearPred("Lambertian Texture", FrameworkData.IBL.LambTexture, alm::gfx::TextureLoadFlags::None,
+        BuildTextureShowBrowseClearPred("Lambertian Texture##IBL", FrameworkData.IBL.LambTexture, alm::gfx::TextureLoadFlags::None,
             cubemapPred);
 
-        BuildTextureShowBrowseClearPred("GGX Texture", FrameworkData.IBL.GGXTexture, alm::gfx::TextureLoadFlags::None,
+        BuildTextureShowBrowseClearPred("GGX Texture##IBL", FrameworkData.IBL.GGXTexture, alm::gfx::TextureLoadFlags::None,
             cubemapPred);
     }
 

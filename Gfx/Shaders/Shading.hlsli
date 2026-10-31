@@ -4,11 +4,21 @@
 #include "Material.hlsli"
 #include "BRDF.hlsli"
 
-void ShaderSurface_IBL(MaterialSample surfaceMaterial, float3 surfacePos, float3 viewIncident,
-    out float3 out_diffuseRadiance, out float3 out_specularRadiance)
-{
-    out_diffuseRadiance = float3(0.0, 0.0, 0.0);
-    out_specularRadiance = float3(0.0, 0.0, 0.0);
+void ShaderSurface_IBL(TextureCube lambCube, TextureCube ggxCube, uint ggxCubeMipCount, float3x3 invViewRot,
+    MaterialSample surfaceMaterial, float3 viewIncident, out float3 out_diffuseRadiance, out float3 out_specularRadiance)
+{    
+    float3 viewIncidentWorld = mul(invViewRot, viewIncident);
+    float3 normalWorld = mul(invViewRot, surfaceMaterial.normal);
+    
+    out_diffuseRadiance = lambCube.SampleLevel(linearClampSampler, normalWorld, 0).rgb;
+    out_diffuseRadiance *= surfaceMaterial.diffuseAlbedo;
+
+    float mip = surfaceMaterial.roughness * (ggxCubeMipCount - 1);
+    float3 reflectWorld = reflect(viewIncidentWorld, normalWorld);
+    float3 prefiltered = ggxCube.SampleLevel(linearClampSampler, reflectWorld, mip).rgb;
+    
+    float NdotV = saturate(dot(normalWorld, -viewIncidentWorld));
+    out_specularRadiance = prefiltered * BRDF_EnvApprox(surfaceMaterial.specularF0, surfaceMaterial.roughness, NdotV);
 }
 
 void ShadeSurface_DirLight(interop::DirLightData dirLight, MaterialSample surfaceMaterial, float3 surfacePos, float3 viewIncident,

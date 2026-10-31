@@ -17,12 +17,12 @@
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
 #include "Gfx/Camera.h"
-#include "Gfx/CommonResources.h"
 #include "Gfx/MeshInstance.h"
 #include "Gfx/Material.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/MaterialManager.h"
 #include "Gfx/RenderStages/CubemapSkyRenderStage.h"
+#include "Gfx/SceneIBL.h"
 #include <SDL3/SDL.h>
 #include <imgui/imgui_impl_sdl3.h>
 
@@ -71,10 +71,8 @@ public:
 			}
 		}
 
-		// TEST: Load KTX texture
 #if 1
 		{
-			alm::gfx::CommonResources* commonResources = m_DeviceManager->GetCommonResources();
 			alm::gfx::MaterialManager* materialManager = m_DeviceManager->GetMaterialManager();
 
 			auto cubemap = m_DeviceManager->GetTextureCache()->Load(
@@ -89,6 +87,21 @@ public:
 			}
 		}
 #endif
+		{
+			alm::gfx::SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
+			sceneIBL->SetEnabled(false);
+
+			auto lambTextureLoadResult = m_DeviceManager->GetTextureCache()->Load(
+				"IBL/doge2/doge2_Lambertian.ktx2", alm::gfx::TextureLoadFlags::None);
+			auto GGXTextureLoadResult = m_DeviceManager->GetTextureCache()->Load(
+				"IBL/doge2/doge2_GGX.ktx2", alm::gfx::TextureLoadFlags::None);
+
+			if (lambTextureLoadResult && GGXTextureLoadResult)
+			{
+				sceneIBL->SetEnvironment(lambTextureLoadResult->first, GGXTextureLoadResult->first);
+			}
+		}
+
 		return true;
 	}
 

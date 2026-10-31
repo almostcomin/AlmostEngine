@@ -22,6 +22,8 @@ public:
 	std::string id;
 	State state = State::Unloaded;
 
+	bool IsValid() const { return texture && state == State::Ready; }
+
 private:
 
 	LoadedTexture() = default;

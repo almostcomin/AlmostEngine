@@ -12,6 +12,7 @@
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/SceneHeightmap.h"
 #include "Gfx/AtmosphereConfig.h"
+#include "Gfx/SceneIBL.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 #include "Core/unique_vector.h"
@@ -32,8 +33,10 @@ alm::gfx::Scene::Scene(const std::string& name, DeviceManager* deviceManager) :
 		OnLeafRemoved(leaf);
 	});
 
-	m_AtmosConfig = alm::make_unique_with_weak<gfx::AtmosphereConfig>();
+	m_AtmosConfig = std::make_unique<gfx::AtmosphereConfig>();
 	m_AtmosConfig->Init(m_DeviceManager, false);
+
+	m_SceneIBL = std::make_unique<gfx::SceneIBL>();
 }
 
 alm::gfx::Scene::~Scene()

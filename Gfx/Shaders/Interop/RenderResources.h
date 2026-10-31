@@ -230,6 +230,11 @@ namespace interop
         BufferReadOnlyIndex patchDataBufferDI;  // HeightmapPatchData
 
         TextureSampledViewIndex exposureFactorTextureDI;
+
+        uint IBLEnabled;
+        TextureSampledViewIndex IBLLambCubemapTextureDI;
+        TextureSampledViewIndex IBLGGXCubemapTextureDI;
+        uint IBLGGXCubeMipCount;
     };
 
     struct DepthPrepassStageConstants

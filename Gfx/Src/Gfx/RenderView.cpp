@@ -18,6 +18,7 @@
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/HeightmapInstance.h"
 #include "Gfx/AtmosphereConfig.h"
+#include "Gfx/SceneIBL.h"
 
 static std::optional<double2> RayShellOutsideEarth(
 	const double3& rayOrigin, const double3& rayDir,
@@ -453,6 +454,15 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 			sceneShaderConstant->pointLightsDataDI = m_PointLightsVisibleBuffer.GetReadOnlyView();
 			sceneShaderConstant->spotLightCount = m_SpotLightsVisibleCount;
 			sceneShaderConstant->spotLightsDataDI = m_SpotLightsVisibleBuffer.GetReadOnlyView();;
+		}
+
+		// IBL
+		{
+			const SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
+			sceneShaderConstant->IBLEnabled = sceneIBL->IsValid() ? 1 : 0;
+			sceneShaderConstant->IBLLambCubemapTextureDI = sceneIBL->GetLambertSampledView();
+			sceneShaderConstant->IBLGGXCubemapTextureDI = sceneIBL->GetGGXSampledView();
+			sceneShaderConstant->IBLGGXCubeMipCount = sceneIBL->GetGGXTextureMipCount();
 		}
 
 		// Data buffers

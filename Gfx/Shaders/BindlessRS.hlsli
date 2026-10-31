@@ -30,10 +30,10 @@ SamplerState pointClampSampler : register(s0);
 SamplerState pointWrapSampler : register(s1);
 SamplerState linearClampSampler : register(s2);
 SamplerState linearWrapSampler : register(s3);
-SamplerState minMapLinearMipPointClampSampler : register(s4);
-SamplerState minMapLinearMipPointWrapSampler : register(s5);
-SamplerState minMapPointMipLinearClampSampler : register(s6);
-SamplerState minMapPointMipLinearWrapSampler : register(s7);
+SamplerState minMagLinearMipPointClampSampler : register(s4);
+SamplerState minMagLinearMipPointWrapSampler : register(s5);
+SamplerState minMagPointMipLinearClampSampler : register(s6);
+SamplerState minMagPointMipLinearWrapSampler : register(s7);
 SamplerState anisotropicSampler : register(s8);
 SamplerState linearClampToBorder : register(s9);
 
