@@ -64,6 +64,5 @@ void main(uint2 DTid : SV_DispatchThreadID)
     downsample += (j + k + l + m) * 0.125;
 
     RWTexture2D<float4> outputTex = ResourceDescriptorHeap[Constants.outputTextureDI];
-    //outputTex[DTid] = float4(max(downsample, 1e-6), 1.0);
     outputTex[DTid] = float4(downsample, 1.0);
 }

@@ -165,7 +165,6 @@ void alm::fw::FrameworkApp::RefreshUIData()
 	auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
 	auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
 	auto exposureRS = renderGraph->GetRenderStage<alm::gfx::ExposureRenderStage>();
-	auto bloomRS = renderGraph->GetRenderStage<alm::gfx::BloomRenderStage>();
 	auto tonemappingRS = renderGraph->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
 	auto compositeRS = renderGraph->GetRenderStage<alm::gfx::CompositeRenderStage>();
 	auto& data = m_FrameworkUI->FrameworkData;
@@ -199,13 +198,6 @@ void alm::fw::FrameworkApp::RefreshUIData()
 		data.SSAO.Radius = SSAORS->GetRadius();
 		data.SSAO.Power = SSAORS->GetPower();
 		data.SSAO.Bias = SSAORS->GetBias();
-	}
-
-	if (bloomRS)
-	{
-		data.Bloom.Radius = bloomRS->GetFilterRadius();
-		data.Bloom.Strength = bloomRS->GetStrength();
-		data.Bloom.MaxMip = bloomRS->GetMaxMipChainLenght();
 	}
 
 	if (exposureRS)
@@ -863,7 +855,6 @@ void alm::fw::FrameworkApp::MainLoop()
 			auto lightingRS = renderGraph->GetRenderStage<alm::gfx::DeferredLightingRenderStage>();
 			auto SSAORS = renderGraph->GetRenderStage<alm::gfx::SSAORenderStage>();
 			auto exposureRS = renderGraph->GetRenderStage<alm::gfx::ExposureRenderStage>();
-			auto bloomRS = renderGraph->GetRenderStage<alm::gfx::BloomRenderStage>();
 			auto tonemappingRS = renderGraph->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
 			auto compositeRS = renderGraph->GetRenderStage<alm::gfx::CompositeRenderStage>();
 			auto& data = m_FrameworkUI->FrameworkData;
@@ -929,14 +920,6 @@ void alm::fw::FrameworkApp::MainLoop()
 				SSAORS->SetRadius(data.SSAO.Radius);
 				SSAORS->SetPower(data.SSAO.Power);
 				SSAORS->SetBias(data.SSAO.Bias);
-			}
-
-			if (bloomRS)
-			{
-				bloomRS->SetBloomEnabled(data.Bloom.Enabled);
-				bloomRS->SetFilterRadius(data.Bloom.Radius);
-				bloomRS->SetStrength(data.Bloom.Strength);
-				bloomRS->SetMaxMipChainLenght(data.Bloom.MaxMip);
 			}
 
 			if (exposureRS)

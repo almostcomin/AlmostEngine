@@ -22,6 +22,7 @@
 #include "Gfx/RenderStages/GridRenderStage.h"
 #include "Gfx/RenderStages/ObjectOutlineRenderStage.h"
 #include "Gfx/RenderStages/ExposureRenderStage.h"
+#include "Gfx/RenderStages/BloomRenderStage.h"
 #include "RHI/Device.h"
 
 void alm::fw::FrameworkUI::BuildSettingsWindow()
@@ -310,14 +311,48 @@ void alm::fw::FrameworkUI::BuildBloomSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Bloom"))
     {
-        ImGui::Checkbox("Enabled##Bloom", &FrameworkData.Bloom.Enabled);
-        ImGui::InputFloat("Radius##Bloom", &FrameworkData.Bloom.Radius);
-        ImGui::InputFloat("Strength##Bloom", &FrameworkData.Bloom.Strength);
+        auto bloomRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::BloomRenderStage>();
+        if (!bloomRS)
+        { 
+            ImGui::TextUnformatted("No BloomRenderStage present");
+            return; 
+        }
+
+        bool enabled = bloomRS->IsBloomEnabled();
+        if (ImGui::Checkbox("Enabled##Bloom", &enabled))
+        {
+            bloomRS->SetBloomEnabled(enabled);
+        }
+
+        float radius = bloomRS->GetFilterRadius();
+        if (ImGui::InputFloat("Radius##Bloom", &radius))
+        {
+            bloomRS->SetFilterRadius(radius);
+        }
+
+        float internalBlend = bloomRS->GetInternalBlend();
+        if (ImGui::InputFloat("Internal Blend##Bloom", &internalBlend))
+        {
+            internalBlend = alm::saturate(internalBlend);
+            bloomRS->SetInternalBlend(internalBlend);
+        }
+
+        float strength = bloomRS->GetStrength();
+        if (ImGui::InputFloat("Strength##Bloom", &strength))
+        {
+            strength = alm::saturate(internalBlend);
+            bloomRS->SetStrength(strength);
+        }
 
         // Calc whats the max mip chain
         alm::rhi::TextureHandle tex = m_RenderViewUI->GetRenderGraph()->GetTexture("SceneColor");
         int maxMips = static_cast<int>(std::floor(std::log2((std::max)(tex->GetDesc().width, tex->GetDesc().height))));
-        ImGui::SliderInt("MaxMip##Bloom", &FrameworkData.Bloom.MaxMip, 1, maxMips);
+
+        int mipChainL = bloomRS->GetMipChainLength();
+        if (ImGui::SliderInt("Mip Chain Length##Bloom", &mipChainL, 1, maxMips))
+        {
+            bloomRS->SetMipChainLength(mipChainL);
+        }
     }
 }
 

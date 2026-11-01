@@ -51,5 +51,5 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
     RWTexture2D<float4> outputTex = ResourceDescriptorHeap[Constants.outputTextureDI];
     float4 currentC = outputTex[DTid];
-    outputTex[DTid] = float4(currentC.rgb + upsample, 1.0);
+    outputTex[DTid] = float4(lerp(currentC.rgb, upsample, Constants.blendFactor), 1.0);
 }

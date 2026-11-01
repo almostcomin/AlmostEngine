@@ -18,12 +18,15 @@ public:
 
 	void SetBloomEnabled(bool b) { m_BloomEnabled = b; }
 	void SetFilterRadius(float v) { m_FilterRadius = v; }
+	void SetInternalBlend(float v) { m_InternalBlend = v; }
 	void SetStrength(float v) { m_Strength = v; }
-	void SetMaxMipChainLenght(uint32_t v);
+	void SetMipChainLength(uint32_t v);
 
+	bool IsBloomEnabled() const { return m_BloomEnabled; }
 	float GetFilterRadius() const { return m_FilterRadius; }
+	float GetInternalBlend() const { return m_InternalBlend; }
 	float GetStrength() const { return m_Strength; }
-	uint32_t GetMaxMipChainLenght() const { return m_MipChainLength; }
+	uint32_t GetMipChainLength() const { return m_MipChainLength; }
 
 private:
 
@@ -54,6 +57,7 @@ private:
 
 	bool m_BloomEnabled;
 	float m_FilterRadius;
+	float m_InternalBlend;
 	float m_Strength;
 	uint32_t m_MipChainLength;
 };

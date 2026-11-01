@@ -11,11 +11,12 @@
 alm::gfx::BloomRenderStage::BloomRenderStage() : 
 	m_BloomEnabled{ true },
 	m_FilterRadius{ 0.005f },
-	m_Strength{ 0.04f },
-	m_MipChainLength { 7 }
+	m_InternalBlend{ 0.5f },
+	m_Strength{ 0.15f },
+	m_MipChainLength { 8 }
 {}
 
-void alm::gfx::BloomRenderStage::SetMaxMipChainLenght(uint32_t v) 
+void alm::gfx::BloomRenderStage::SetMipChainLength(uint32_t v) 
 { 
 	if (v != m_MipChainLength)
 	{
@@ -113,6 +114,7 @@ void alm::gfx::BloomRenderStage::Render(alm::rhi::CommandListHandle commandList)
 		shaderConstants.outputTexInvResolution = 1.f / float2{ outputTexDesc.width, outputTexDesc.height };
 		shaderConstants.outputTexResolution = uint2{ outputTexDesc.width, outputTexDesc.height };
 		shaderConstants.filterRadius = m_FilterRadius * (1080.f / sceneColorTexDesc.height);
+		shaderConstants.blendFactor = m_InternalBlend;
 
 		commandList->PushComputeConstants(0, shaderConstants);
 

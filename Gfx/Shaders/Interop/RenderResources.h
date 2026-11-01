@@ -527,7 +527,7 @@ namespace interop
         float2 outputTexInvResolution;
         uint2 outputTexResolution;
         float filterRadius;
-        uint _padding0;
+        float blendFactor;
     };
 
     struct BloomMixConstants

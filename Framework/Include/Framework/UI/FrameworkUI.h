@@ -76,14 +76,6 @@ public:
 
 		struct
 		{
-			bool Enabled = true;
-			float Radius;
-			float Strength;
-			int MaxMip;
-		} Bloom;
-
-		struct
-		{
 			float MinLogLuminance = -10.f;
 			float LogLuminanceRange = 12.f;
 			float AdaptationUpSpeed = 2.f;
