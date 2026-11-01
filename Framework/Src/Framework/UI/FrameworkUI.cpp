@@ -521,7 +521,7 @@ void alm::fw::FrameworkUI::BuildMainMenu()
             if (ImGui::MenuItem("Material Panel", "Ctrl+M", m_ShowMaterials))
                 m_ShowMaterials = !m_ShowMaterials;
 
-            if (ImGui::MenuItem("Atmosphere Panel", nullptr, m_ShowAtmospherePanel))
+            if (ImGui::MenuItem("Atmosphere / Lighting", nullptr, m_ShowAtmospherePanel))
                 m_ShowAtmospherePanel = !m_ShowAtmospherePanel;
 
             if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))

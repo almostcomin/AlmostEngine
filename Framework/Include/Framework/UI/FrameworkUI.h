@@ -233,7 +233,9 @@ private:
 	// --- FrameworkUI_Atmosphere.cpp ---
 
 	void BuildAtmospherePanel();
-	void BuildSkySettings(float availWidth);
+	void BuildSimpleSkySettings();
+	void BuildCubemapSettings(float availWidth);
+	void BuildSimSkySettings();
 	void BuildsCloudsSettings();
 
 	// --- FrameworkUI_WorldOutliner.cpp ---

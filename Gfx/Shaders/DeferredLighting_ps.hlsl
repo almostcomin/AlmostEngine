@@ -26,6 +26,13 @@ float4 main(PS_INPUT input) : SV_Target
     StructuredBuffer<interop::DirLightData> dirLightsDataBuffer = ResourceDescriptorHeap[sceneData.dirLightsDataDI];
     StructuredBuffer<interop::PointLightData> pointLightsDataBuffer = ResourceDescriptorHeap[sceneData.pointLightsDataDI];
     StructuredBuffer<interop::SpotLightData> spotLightsDataBuffer = ResourceDescriptorHeap[sceneData.spotLightsDataDI];
+
+    // Early exit on infinite-depth
+    float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
+    if (depth == 0.0)
+    {
+        return float4(0.0, 0.0, 0.0, 1.0);
+    }
                     
     // Sample G-Buffers
     float4 gbuffers[4];
@@ -37,7 +44,6 @@ float4 main(PS_INPUT input) : SV_Target
     MaterialSample surfaceMat = DecodeGBuffers(gbuffers);
 
     // World pos reconstruction
-    float depth = sceneDepth.SampleLevel(pointClampSampler, input.uv, 0).r;
     float4 surfacePosView = PosReconstruction(input.uv, depth, sceneData.invCamProjMatrix);
     
     // Sample cascade shadowmap
