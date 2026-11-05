@@ -155,7 +155,9 @@ void alm::gfx::ShadowmapRenderStage::RecreatePSO()
 	m_MaterialPassRenderer.Reset();
 	m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage", device);
 	m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
+	m_MaterialPassRenderer.AddDomain(MaterialDomain::OpaqueTransmission, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
 	m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
+	m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTestedTransmission, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
 	m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), m_PS_Opaque.get_weak());
 }
 

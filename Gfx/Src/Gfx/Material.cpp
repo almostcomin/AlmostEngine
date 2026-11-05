@@ -10,6 +10,7 @@ alm::gfx::Material::Material(const std::string& name, const std::string& filenam
 	m_NormalTextureScale{ 1.f },
 	m_OcclusionStrengh{ 1.f },
 	m_AlphaCutoff{ 0.f },
+	m_TransmissionFactor{ 0.f },
 	m_CullMode{ rhi::CullMode::Back },
 	m_Domain{ MaterialDomain::Opaque },
 	m_Name{ name.empty() ? "<null>" : name },
@@ -44,6 +45,11 @@ void alm::gfx::Material::SetOcclusionTexture(std::shared_ptr<alm::gfx::LoadedTex
 	m_OcclusionTexture = textureHandle;
 }
 
+void alm::gfx::Material::SetTransmissionTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
+{
+	m_TransmissionTexture = textureHandle;
+}
+
 alm::rhi::TextureHandle alm::gfx::Material::GetBaseColorTextureHandle() const
 {
 	return m_BaseColorTexture ? m_BaseColorTexture->texture.get_weak() : nullptr;
@@ -69,6 +75,11 @@ alm::rhi::TextureHandle alm::gfx::Material::GetOcclusionTextureHandle() const
 	return m_OcclusionTexture ? m_OcclusionTexture->texture.get_weak() : nullptr;
 }
 
+alm::rhi::TextureHandle alm::gfx::Material::GetTransmissionTextureHandle() const
+{
+	return m_TransmissionTexture ? m_TransmissionTexture->texture.get_weak() : nullptr;
+}
+
 bool alm::gfx::Material::operator==(const Material& other) const
 {
 	return
@@ -77,6 +88,7 @@ bool alm::gfx::Material::operator==(const Material& other) const
 		m_NormalTexture == other.m_NormalTexture &&
 		m_EmissiveTexture == other.m_EmissiveTexture &&
 		m_OcclusionTexture == other.m_OcclusionTexture &&
+		m_TransmissionTexture == other.m_TransmissionTexture &&
 		AlmostEqual(m_BaseColor, other.m_BaseColor) &&
 		AlmostEqual(m_Opacity, other.m_Opacity) &&
 		AlmostEqual(m_EmissiveColor, other.m_EmissiveColor) &&
@@ -85,5 +97,6 @@ bool alm::gfx::Material::operator==(const Material& other) const
 		AlmostEqual(m_NormalTextureScale, other.m_NormalTextureScale) &&
 		AlmostEqual(m_OcclusionStrengh, other.m_OcclusionStrengh) &&
 		AlmostEqual(m_AlphaCutoff, other.m_AlphaCutoff) &&
+		AlmostEqual(m_TransmissionFactor, other.m_TransmissionFactor) &&
 		m_Domain == other.m_Domain;
 }

@@ -10,9 +10,12 @@ static const int MaterialTextureSample_ValidMetalRough  = 0x00000002;
 static const int MaterialTextureSample_ValidNormal      = 0x00000004;
 static const int MaterialTextureSample_ValidEmissive    = 0x00000008;
 static const int MaterialTextureSample_ValidOcclusion   = 0x00000010;
+static const int MaterialTextureSample_ValidTransmission = 0x00000020;
 
 struct MaterialSample
 {
+    float3 baseColor;
+    float transmission;
     float3 diffuseAlbedo; // BRDF input Cdiff    
     float opacity;
     float3 specularF0; // BRDF input F0    
@@ -30,6 +33,7 @@ struct MaterialTextureSample
     float4 occlusion;
     float4 normal;
     float4 emissive;
+    float transmission;
     uint MaterialTextureSample_Flags;
 };
 
@@ -37,6 +41,8 @@ MaterialSample DefaultMaterialSample()
 {
     MaterialSample result;
 
+    result.baseColor = 0;
+    result.transmission = 0;
     result.diffuseAlbedo = 0;
     result.opacity = 0;
     result.specularF0 = 0;
@@ -51,56 +57,63 @@ MaterialSample DefaultMaterialSample()
 
 MaterialTextureSample DefaultMaterialTextureSample()
 {
-    MaterialTextureSample ret;
+    MaterialTextureSample result;
     
-    ret.baseColor = 0;
-    ret.metalRough = 0;
-    ret.occlusion = 0;
-    ret.normal = 0;
-    ret.emissive = 0;
-    ret.MaterialTextureSample_Flags = 0;
+    result.baseColor = 0;
+    result.metalRough = 0;
+    result.occlusion = 0;
+    result.normal = 0;
+    result.emissive = 0;
+    result.transmission = 0;
+    result.MaterialTextureSample_Flags = 0;
     
-    return ret;
+    return result;
 }
 
 MaterialTextureSample SampleMaterialTextures(float2 uv, interop::MaterialData mat)
 {
-    MaterialTextureSample ret = DefaultMaterialTextureSample();
+    MaterialTextureSample result = DefaultMaterialTextureSample();
     
     if (mat.baseColorTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
         Texture2D baseColorTexture = ResourceDescriptorHeap[mat.baseColorTextureDI];
-        ret.baseColor = baseColorTexture.Sample(linearWrapSampler, uv);
-        ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidBaseColor;
+        result.baseColor = baseColorTexture.Sample(linearWrapSampler, uv);
+        result.MaterialTextureSample_Flags |= MaterialTextureSample_ValidBaseColor;
     }
     if (mat.metalRoughTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
         // Typically OCR texture (r=Occlusion, g=Roughness, b=Metalness)
         Texture2D metalRoughTexture = ResourceDescriptorHeap[mat.metalRoughTextureDI];
-        ret.metalRough = metalRoughTexture.Sample(linearWrapSampler, uv);
-        ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidMetalRough;
+        result.metalRough = metalRoughTexture.Sample(linearWrapSampler, uv);
+        result.MaterialTextureSample_Flags |= MaterialTextureSample_ValidMetalRough;
     }
     if (mat.occlusionTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
         // Typically OCR texture (r=Occlusion, g=Roughness, b=Metalness)
         Texture2D occlusionTexture = ResourceDescriptorHeap[mat.occlusionTextureDI];
-        ret.occlusion = occlusionTexture.Sample(linearWrapSampler, uv);
-        ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidOcclusion;
+        result.occlusion = occlusionTexture.Sample(linearWrapSampler, uv);
+        result.MaterialTextureSample_Flags |= MaterialTextureSample_ValidOcclusion;
     }
     if (mat.normalTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
         Texture2D normalTexture = ResourceDescriptorHeap[mat.normalTextureDI];
-        ret.normal = normalTexture.Sample(linearWrapSampler, uv);
-        ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidNormal;
+        result.normal = normalTexture.Sample(linearWrapSampler, uv);
+        result.MaterialTextureSample_Flags |= MaterialTextureSample_ValidNormal;
     }
     if (mat.emissiveTextureDI != INVALID_DESCRIPTOR_INDEX)
     {
         Texture2D emissiveTexture = ResourceDescriptorHeap[mat.emissiveTextureDI];
-        ret.emissive = emissiveTexture.Sample(linearWrapSampler, uv);
-        ret.MaterialTextureSample_Flags |= MaterialTextureSample_ValidEmissive;
+        result.emissive = emissiveTexture.Sample(linearWrapSampler, uv);
+        result.MaterialTextureSample_Flags |= MaterialTextureSample_ValidEmissive;
+    }
+    if (mat.transmissionTextureDI != INVALID_DESCRIPTOR_INDEX)
+    {
+        Texture2D transmissionTexture = ResourceDescriptorHeap[mat.transmissionTextureDI];
+        result.transmission = transmissionTexture.Sample(linearWrapSampler, uv).r;
+        result.MaterialTextureSample_Flags |= MaterialTextureSample_ValidTransmission;
     }
     
-    return ret;
+    return result;
 }
 
 float SampleBaseColorAlpha(float2 uv, interop::MaterialData mat)
@@ -117,12 +130,12 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
 {
     MaterialSample result = DefaultMaterialSample();
     
-    // Base Color
-    float3 baseColor = mat.baseColor.rgb;
+    // Base Color & Opacity
+    result.baseColor = mat.baseColor.rgb;
     result.opacity = mat.baseColor.a;
     if ((textures.MaterialTextureSample_Flags & MaterialTextureSample_ValidBaseColor) != 0)
     {
-        baseColor *= textures.baseColor.rgb;
+        result.baseColor *= textures.baseColor.rgb;
         result.opacity *= textures.baseColor.a;
     }
     
@@ -150,11 +163,18 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
         result.occlusion *= textures.occlusion.r;
         result.occlusion *= mat.occlusion; // mat.occlusion is actually occlusion strength
     }
-                
+
+    // Transmission
+    result.transmission = mat.transmission;
+    if ((textures.MaterialTextureSample_Flags & MaterialTextureSample_ValidTransmission) != 0)
+    {
+        result.transmission *= textures.transmission;
+    }
+    
     // Compute the BRDF inputs for the metal-rough model
     // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#metal-brdf-and-dielectric-brdf
-    result.diffuseAlbedo = lerp(baseColor * (1.0 - c_DielectricSpecular), 0.0, result.metalness);
-    result.specularF0 = lerp(c_DielectricSpecular, baseColor.rgb, result.metalness);
+    result.diffuseAlbedo = lerp(result.baseColor * (1.0 - c_DielectricSpecular), 0.0, result.metalness);
+    result.specularF0 = lerp(c_DielectricSpecular, result.baseColor.rgb, result.metalness);
     
     // Normal
     if ((textures.MaterialTextureSample_Flags & MaterialTextureSample_ValidNormal) != 0)

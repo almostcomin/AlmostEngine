@@ -9,6 +9,19 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/MaterialManager.h"
 
+static bool IsTransmissionDomain(alm::gfx::MaterialDomain domain)
+{
+    switch (domain)
+    {
+    case alm::gfx::MaterialDomain::OpaqueTransmission:
+    case alm::gfx::MaterialDomain::AlphaTestedTransmission:
+    case alm::gfx::MaterialDomain::AlphaBlendedTransmission:
+        return true;
+    default:
+        return false;
+    }
+}
+
 void alm::fw::FrameworkUI::BuildMaterialsWindow()
 {
     auto* deviceManager = GetDeviceManager();
@@ -137,7 +150,9 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
 
             int domain = (int)mat->GetDomain();
             if (ImGui::Combo("Domain##mat", &domain,
-                "Opaque\0Alpha Tested\0Alpha Blended\0\0"))
+                "Opaque\0Alpha Tested\0Alpha Blended\0"
+                "Opaque Transmission\0Alpha Tested Transmission\0Alpha Blended Transmission\0"
+                "Terrain\0\0"))
             {
                 mat->SetDomain((gfx::MaterialDomain)domain);
                 matDirty = true;
@@ -193,6 +208,16 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
                 matDirty = true;
             }
 
+            if (IsTransmissionDomain(mat->GetDomain()))
+            {
+                float transmission = mat->GetTransmissionFactor();
+                if (ImGui::SliderFloat("Transmission Factor##mat", &transmission, 0.f, 1.f))
+                {
+                    mat->SetTransmissionFactor(transmission);
+                    matDirty = true;
+                }
+            }
+
             auto baseColorTexture = mat->GetBaseColorTexture();
             if (BuildTextureShowBrowseClear("Base Color Texture", baseColorTexture,
                 alm::gfx::TextureLoadFlags::ForceSRGB | alm::gfx::TextureLoadFlags::GenerateMips))
@@ -230,6 +255,14 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
                 alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->SetOcclusionTexture(occlusionTexture);
+                matDirty = true;
+            }
+
+            auto transmissionTexture = mat->GetTransmissionTexture();
+            if (BuildTextureShowBrowseClear("Transmission Texture", transmissionTexture,
+                alm::gfx::TextureLoadFlags::GenerateMips))
+            {
+                mat->SetTransmissionTexture(transmissionTexture);
                 matDirty = true;
             }
 

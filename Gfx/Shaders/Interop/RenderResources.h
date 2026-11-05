@@ -90,7 +90,7 @@ namespace interop
         TextureSampledViewIndex metalRoughTextureDI;    // offset 8
         TextureSampledViewIndex occlusionTextureDI;     // offset 12
         TextureSampledViewIndex normalTextureDI;        // offset 16
-        uint _padding0;                                 // offset 20
+        TextureSampledViewIndex transmissionTextureDI;  // offset 20
         float2 normalScale;                             // offset 24
         float4 baseColor; // rgb + opacity              // offset 32
         float3 emissiveColor;                           // offset 48
@@ -98,7 +98,7 @@ namespace interop
         float metalness;                                // offset 64
         float roughness;                                // offset 68
         float alphaCutoff;                              // offset 72
-        uint _padding1;                                 // offset 76
+        float transmission;                             // offset 76
     };                                                  // size 80
 
     struct TerrainMaterialLayer
@@ -276,6 +276,16 @@ namespace interop
         TextureSampledViewIndex exposureFactorTextureDI;
     };
 
+    struct TransmissiveStageConstants
+    {
+        BufferUniformIndex sceneDI;         // SceneConstants
+        TextureSampledViewIndex shadowMapDI;
+        float2 oneOverShadowmapResolution;
+        TextureSampledViewIndex SSAO_DI;
+        BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
+        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
+    };
+
     struct WireframeStageConstats
     {
         BufferUniformIndex sceneDI;         // SceneConstants
@@ -294,8 +304,9 @@ namespace interop
 
     // Bucket = (MaterialDomain, CullMode) pair. Counts must match the C++ enums
     // (static_asserts live in GpuSceneBuffers.cpp).
-    static const uint MaterialDomainCount = 4;   // Opaque, AlphaTested, AlphaBlended, Terrain
-    static const uint CullModeCount = 3;         // Back, Front, None
+    static const uint MaterialDomainCount = 7;  // Opaque, AlphaTested, AlphaBlended, 
+                                                // OpaqueTransmission, AlphaTestedTransmission, AlphaBlendedTransmission, Terrain
+    static const uint CullModeCount = 3;        // Back, Front, None
     static const uint BucketCount = MaterialDomainCount * CullModeCount;
 
     struct BatchTableEntry

@@ -36,6 +36,10 @@ static void SerializeMaterial(const alm::gfx::Material* mat, interop::MaterialDa
 	{
 		dest->occlusionTextureDI = mat->GetOcclusionTextureHandle()->GetSampledView();
 	}
+	if (mat->GetTransmissionTextureHandle())
+	{
+		dest->transmissionTextureDI = mat->GetTransmissionTextureHandle()->GetSampledView();
+	}
 
 	dest->normalScale = mat->GetNormalTextureScale();
 	dest->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
@@ -44,6 +48,7 @@ static void SerializeMaterial(const alm::gfx::Material* mat, interop::MaterialDa
 	dest->metalness = mat->GetMetallicFactor();
 	dest->roughness = mat->GetRoughnessFactor();
 	dest->alphaCutoff = mat->GetAlphaCutoff();
+	dest->transmission = mat->GetTransmissionFactor();
 }
 
 static void SerializeTerrainMaterialLayer(const alm::gfx::TerrainMaterialLayer* layer, interop::TerrainMaterialLayer* dest)

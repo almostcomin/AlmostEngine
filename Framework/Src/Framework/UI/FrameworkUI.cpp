@@ -89,6 +89,15 @@ void alm::fw::FrameworkUI::BuildUI()
     if (m_SelectedNode && ImGui::IsKeyChordPressed(ImGuiKey_Escape) && !ImGuizmo::IsUsingAny())
         SetSelectedNode(nullptr);
 
+    if (m_SelectedNode && ImGui::IsKeyChordPressed(ImGuiKey_Delete) && !ImGuizmo::IsUsingAny())
+    {
+        if (m_SelectedNode->GetParent())
+        {
+            m_SelectedNode->GetParent()->RemoveChild(m_SelectedNode);
+            SetSelectedNode(nullptr);
+        }
+    }
+
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S))
         m_ShowSettings = true;
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_W))

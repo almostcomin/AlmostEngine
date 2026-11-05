@@ -579,11 +579,6 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         std::unique_ptr<alm::gfx::Material> mat =
             std::make_unique<alm::gfx::Material>(srcMat.name ? srcMat.name : "<null>", path.c_str());
 
-        if (mat->GetName() == "material_041")
-        {
-            puts("hola");
-        }
-
         if (srcMat.has_pbr_specular_glossiness)
         {
             LOG_ERROR("Material {} unsupported mode: Specular-Glossiness", srcMat.name);
@@ -611,6 +606,14 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
 
         mat->SetAlphaCutoff(srcMat.alpha_cutoff);
 
+        bool useTransmission = false;
+        if (srcMat.has_transmission)
+        {
+            mat->SetTransmissionTexture(loadTex(srcMat.transmission.transmission_texture.texture, false, false));
+            mat->SetTransmissionFactor(srcMat.transmission.transmission_factor);
+            useTransmission = true;
+        }
+
         // Log warnings for all unsupported texture coordinate transformations
         if (srcMat.pbr_metallic_roughness.base_color_texture.has_transform ||
             srcMat.pbr_metallic_roughness.metallic_roughness_texture.has_transform ||
@@ -630,16 +633,16 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         switch (srcMat.alpha_mode)
         {
         case cgltf_alpha_mode_opaque:
-            mat->SetDomain(alm::gfx::MaterialDomain::Opaque);
+            mat->SetDomain(useTransmission ? alm::gfx::MaterialDomain::OpaqueTransmission : alm::gfx::MaterialDomain::Opaque);
             break;
         case cgltf_alpha_mode_mask:
-            mat->SetDomain(alm::gfx::MaterialDomain::AlphaTested);
+            mat->SetDomain(useTransmission ? alm::gfx::MaterialDomain::AlphaTestedTransmission : alm::gfx::MaterialDomain::AlphaTested);
             break;
         case cgltf_alpha_mode_blend:
-            mat->SetDomain(alm::gfx::MaterialDomain::AlphaBlended);
+            mat->SetDomain(useTransmission ? alm::gfx::MaterialDomain::AlphaBlendedTransmission : alm::gfx::MaterialDomain::AlphaBlended);
             break;
         default:
-            assert(0);
+            LOG_ERROR("Alpha mode not supported");
             break;
         }
 

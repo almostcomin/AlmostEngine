@@ -21,6 +21,7 @@
 #include "Gfx/RenderStages/WireframeRenderStage.h"
 #include "Gfx/RenderStages/WBOITAccumRenderStage.h"
 #include "Gfx/RenderStages/WBOITResolveRenderStage.h"
+#include "Gfx/RenderStages/TransmissiveRenderStage.h"
 #include "Gfx/RenderStages/BloomRenderStage.h"
 #include "Gfx/RenderStages/SimpleSkyRenderStage.h"
 #include "Gfx/RenderStages/CubemapSkyRenderStage.h"
@@ -588,6 +589,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 		auto GBuffersRS = gfx::RenderStageFactory::CreateShared<gfx::GBuffersRenderStage>();
 		auto deferredLightingRS = gfx::RenderStageFactory::CreateShared<gfx::DeferredLightingRenderStage>();
 		auto WBOITAccumRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
+		auto transmissiveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::TransmissiveRenderStage>();
 		auto WBOITResolveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
 		auto exposureRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ExposureRenderStage>();
 		auto bloomRS = gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
@@ -640,6 +642,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			cubemapSkyRS,
 			atmosSkyRS,
 			cloudsRS,
+			transmissiveRS,
 			WBOITAccumRS,
 			WBOITResolveRS,
 			exposureRS,
@@ -670,6 +673,7 @@ void alm::fw::FrameworkApp::InitRenderStages()
 			cubemapSkyRS.get(),
 			atmosSkyRS.get(),
 			cloudsRS.get(),
+			transmissiveRS.get(),
 			WBOITAccumRS.get(),
 			WBOITResolveRS.get(),
 			exposureRS.get(),

@@ -7,6 +7,9 @@ namespace alm::gfx
 		Opaque,
 		AlphaTested,
 		AlphaBlended,
+		OpaqueTransmission,
+		AlphaTestedTransmission,
+		AlphaBlendedTransmission,
 		Terrain,
 
 		_Size
@@ -19,6 +22,9 @@ namespace alm::gfx
 			"Opaque",
 			"AlphaTested",
 			"AlphaBlended",
+			"OpaqueTransmission",
+			"AlphaTestedTransmission",
+			"AlphaBlendedTransmission",
 			"Terrain"
 		};
 

@@ -30,7 +30,7 @@ class AlmostViewerApp : public alm::fw::FrameworkApp
 {
 public:
 
-	AlmostViewerApp() : alm::fw::FrameworkApp{ "Almost Viewer", alm::fw::FrameworkApp::RenderStageSetMode::Default_CubemapSky } {}
+	AlmostViewerApp() : alm::fw::FrameworkApp{ "Almost Viewer", alm::fw::FrameworkApp::RenderStageSetMode::Default_SimpleSky } {}
 	~AlmostViewerApp() override = default;
 
 	bool Initialize() override
@@ -70,39 +70,7 @@ public:
 				m_MainCamera->Frame(bounds);
 			}
 		}
-
 #if 0
-		{
-			alm::gfx::MaterialManager* materialManager = m_DeviceManager->GetMaterialManager();
-
-			auto cubemap = m_DeviceManager->GetTextureCache()->Load(
-				"IBL/doge2/doge2_Sky.ktx2", alm::gfx::TextureLoadFlags::None);
-
-			auto cubemapSky = m_MainRenderView->GetRenderGraph()->GetRenderStage<alm::gfx::CubemapSkyRenderStage>();
-			if (cubemapSky && cubemap)
-			{
-				cubemap->second.Wait();
-				assert(cubemap->first->texture->GetDesc().dimension == alm::rhi::TextureDimension::TextureCube);
-				cubemapSky->SetCubemapTexture(cubemap->first);
-			}
-		}
-#endif
-#if 0
-		{
-			alm::gfx::SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
-			sceneIBL->SetEnabled(false);
-
-			auto lambTextureLoadResult = m_DeviceManager->GetTextureCache()->Load(
-				"IBL/doge2/doge2_Lambertian.ktx2", alm::gfx::TextureLoadFlags::None);
-			auto GGXTextureLoadResult = m_DeviceManager->GetTextureCache()->Load(
-				"IBL/doge2/doge2_GGX.ktx2", alm::gfx::TextureLoadFlags::None);
-
-			if (lambTextureLoadResult && GGXTextureLoadResult)
-			{
-				sceneIBL->SetEnvironment(lambTextureLoadResult->first, GGXTextureLoadResult->first);
-			}
-		}
-#endif
 		{
 			alm::gfx::SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
 			sceneIBL->SetEnabled(true);
@@ -112,7 +80,7 @@ public:
 
 			m_Scene->GetAtmosphereConfig()->SunLightEnabled = false;
 		}
-
+#endif
 		return true;
 	}
 
