@@ -20,7 +20,7 @@ class ScenePointLight;
 class SceneSpotLight;
 class SceneHeightmap;
 class Mesh;
-class Material;
+struct Material;
 class GpuSceneBuffers;
 class RaycastHit;
 

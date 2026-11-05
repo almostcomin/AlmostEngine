@@ -203,7 +203,7 @@ namespace
                 ImGui::BeginTable("MatProps", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
                 ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 40.0f);
                 ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-                PropertyRowText("Name", mat->GetName().c_str(), [ui, mat]() { ui->OpenMaterialPanel(mat); });
+                PropertyRowText("Name", mat->Name.c_str(), [ui, mat]() { ui->OpenMaterialPanel(mat); });
                 ImGui::EndTable();
             }
         }

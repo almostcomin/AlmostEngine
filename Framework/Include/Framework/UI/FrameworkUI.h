@@ -18,7 +18,7 @@ struct MemoryEditor;
 namespace alm::gfx
 {
 	class SceneGraphNode;
-	class Material;
+	struct Material;
 	class LoadedTexture;
 }
 

@@ -239,7 +239,7 @@ void alm::fw::FrameworkApp::ShowArrow(const gfx::Transform& transform)
 			{
 				auto meshInstance = alm::checked_pointer_cast<gfx::MeshInstance>(node->GetLeaf());
 				auto* mat = meshInstance->GetMesh()->GetMaterial();
-				mat->SetDomain(gfx::MaterialDomain::AlphaBlended);
+				mat->Domain = gfx::MaterialDomain::AlphaBlended;
 			}
 		}
 	}

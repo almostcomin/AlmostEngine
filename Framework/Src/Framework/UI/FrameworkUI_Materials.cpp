@@ -48,7 +48,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
         for (int i = 0; i < materialManager->GetMaterialCount(); ++i)
         {
             gfx::MaterialRef matRef = materialManager->GetMaterial(i);
-            if (!m_MaterialFilter.PassFilter(matRef.GetMaterial()->GetName().c_str()))
+            if (!m_MaterialFilter.PassFilter(matRef.GetMaterial()->Name.c_str()))
                 continue;
 
             mats.push_back(matRef);
@@ -78,16 +78,16 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
                     std::ranges::sort(mats, [&sortSpecs](const gfx::MaterialRef& l, const gfx::MaterialRef& r)
                         {
                             return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
-                                l.GetMaterial()->GetName() < r.GetMaterial()->GetName() :
-                                l.GetMaterial()->GetName() >= r.GetMaterial()->GetName();
+                                l.GetMaterial()->Name < r.GetMaterial()->Name :
+                                l.GetMaterial()->Name >= r.GetMaterial()->Name;
                         });
                     break;
                 case 1:
                     std::ranges::sort(mats, [&sortSpecs](const gfx::MaterialRef& l, const gfx::MaterialRef& r)
                         {
                             return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
-                                l.GetMaterial()->GetSourceFilename() < r.GetMaterial()->GetSourceFilename() :
-                                l.GetMaterial()->GetSourceFilename() >= r.GetMaterial()->GetSourceFilename();
+                                l.GetMaterial()->SourceFileName < r.GetMaterial()->SourceFileName :
+                                l.GetMaterial()->SourceFileName >= r.GetMaterial()->SourceFileName;
                         });
                     break;
                 case 2:
@@ -111,7 +111,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
 
                 ImGui::TableSetColumnIndex(0);
                 bool isSelected = (m_SelectedMaterial == mat);
-                if (ImGui::Selectable(mat->GetName().c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
+                if (ImGui::Selectable(mat->Name.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
                 {
                     m_SelectedMaterial = mat;
                 }
@@ -123,7 +123,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
                 }
 
                 ImGui::TableNextColumn();
-                ImGui::TextUnformatted(mat->GetSourceFilename().c_str());
+                ImGui::TextUnformatted(mat->SourceFileName.c_str());
 
                 ImGui::TableNextColumn();
                 ImGui::Text("%d", matRef.GetRefCount() - 1);
@@ -143,126 +143,126 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
     {
         if (auto* mat = m_SelectedMaterial)
         {
-            ImGui::Text("%s", mat->GetName().c_str());
+            ImGui::Text("%s", mat->Name.c_str());
             ImGui::Separator();
 
             bool matDirty = false;
 
-            int domain = (int)mat->GetDomain();
+            int domain = (int)mat->Domain;
             if (ImGui::Combo("Domain##mat", &domain,
                 "Opaque\0Alpha Tested\0Alpha Blended\0"
                 "Opaque Transmission\0Alpha Tested Transmission\0Alpha Blended Transmission\0"
                 "Terrain\0\0"))
             {
-                mat->SetDomain((gfx::MaterialDomain)domain);
+                mat->Domain = (gfx::MaterialDomain)domain;
                 matDirty = true;
             }
             
-            int cullMode = (int)mat->GetCullMode();
+            int cullMode = (int)mat->CullMode;
             if (ImGui::Combo("Cull Mode##mat", &cullMode,
                 "Back\0Front\0None\0\0"))
             {
-                mat->SetCullMode((rhi::CullMode)cullMode);
+                mat->CullMode = (rhi::CullMode)cullMode;
                 matDirty = true;
             }
 
-            float3 baseColor = mat->GetBaseColor();
+            float3 baseColor = mat->BaseColor;
             if (ImGui::ColorEdit3("Base Color##mat", &baseColor.x, ImGuiColorEditFlags_Float))
             {
-                mat->SetBaseColor(baseColor);
+                mat->BaseColor = baseColor;
                 matDirty = true;
             }
 
-            float3 emissiveColor = mat->GetEmissiveColor();
+            float3 emissiveColor = mat->EmissiveColor;
             if (ImGui::ColorEdit3("Emissive Color##mat", &emissiveColor.x, ImGuiColorEditFlags_Float))
             {
-                mat->SetEmissiveColor(emissiveColor);
+                mat->EmissiveColor = emissiveColor;
                 matDirty = true;
             }
 
-            float opacity = mat->GetOpacity();
+            float opacity = mat->Opacity;
             if (ImGui::SliderFloat("Opacity##mat", &opacity, 0.f, 1.f))
             {
-                mat->SetOpacity(opacity);
+                mat->Opacity = opacity;
                 matDirty = true;
             }
 
-            float metallic = mat->GetMetallicFactor();
+            float metallic = mat->MetallicFactor;
             if (ImGui::SliderFloat("Metallic##mat", &metallic, 0.f, 1.f))
             {
-                mat->SetMetallicFactor(metallic);
+                mat->MetallicFactor = metallic;
                 matDirty = true;
             }
 
-            float roughness = mat->GetRoughnessFactor();
+            float roughness = mat->RoughnessFactor;
             if (ImGui::SliderFloat("Roughness##mat", &roughness, 0.f, 1.f))
             {
-                mat->SetRoughnessFactor(roughness);
+                mat->RoughnessFactor = roughness;
                 matDirty = true;
             }
 
-            float alphaCutoff = mat->GetAlphaCutoff();
+            float alphaCutoff = mat->AlphaCutoff;
             if (ImGui::SliderFloat("Alpha Cutoff##mat", &alphaCutoff, 0.f, 1.f))
             {
-                mat->SetAlphaCutoff(alphaCutoff);
+                mat->AlphaCutoff = alphaCutoff;
                 matDirty = true;
             }
 
-            if (IsTransmissionDomain(mat->GetDomain()))
+            if (IsTransmissionDomain(mat->Domain))
             {
-                float transmission = mat->GetTransmissionFactor();
+                float transmission = mat->TransmissionFactor;
                 if (ImGui::SliderFloat("Transmission Factor##mat", &transmission, 0.f, 1.f))
                 {
-                    mat->SetTransmissionFactor(transmission);
+                    mat->TransmissionFactor = transmission;
                     matDirty = true;
                 }
             }
 
-            auto baseColorTexture = mat->GetBaseColorTexture();
+            auto baseColorTexture = mat->BaseColorTexture;
             if (BuildTextureShowBrowseClear("Base Color Texture", baseColorTexture,
                 alm::gfx::TextureLoadFlags::ForceSRGB | alm::gfx::TextureLoadFlags::GenerateMips))
             {
-                mat->SetBaseColorTexture(baseColorTexture);
+                mat->BaseColorTexture = baseColorTexture;
                 matDirty = true;
             }
 
-            auto metalRoughTexture = mat->GetMetalRoughTexture();
+            auto metalRoughTexture = mat->MetalRoughTexture;
             if (BuildTextureShowBrowseClear("Metal-Rough Texture", metalRoughTexture,
                 alm::gfx::TextureLoadFlags::GenerateMips))
             {
-                mat->SetMetalRoughTexture(metalRoughTexture);
+                mat->MetalRoughTexture = metalRoughTexture;
                 matDirty = true;
             }
 
-            auto normalTexture = mat->GetNormalTexture();
+            auto normalTexture = mat->NormalTexture;
             if (BuildTextureShowBrowseClear("Normal Texture", normalTexture,
                 alm::gfx::TextureLoadFlags::IsNormalMap | alm::gfx::TextureLoadFlags::GenerateMips))
             {
-                mat->SetNormalTexture(normalTexture);
+                mat->NormalTexture = normalTexture;
                 matDirty = true;
             }
 
-            auto emissiveTexture = mat->GetEmissiveTexture();
+            auto emissiveTexture = mat->EmissiveTexture;
             if (BuildTextureShowBrowseClear("Emissive Texture", emissiveTexture,
                 alm::gfx::TextureLoadFlags::GenerateMips))
             {
-                mat->SetEmissiveTexture(emissiveTexture);
+                mat->EmissiveTexture = emissiveTexture;
                 matDirty = true;
             }
 
-            auto occlusionTexture = mat->GetOcclusionTexture();
+            auto occlusionTexture = mat->OcclusionTexture;
             if (BuildTextureShowBrowseClear("Occlusion Texture", occlusionTexture,
                 alm::gfx::TextureLoadFlags::GenerateMips))
             {
-                mat->SetOcclusionTexture(occlusionTexture);
+                mat->OcclusionTexture = occlusionTexture;
                 matDirty = true;
             }
 
-            auto transmissionTexture = mat->GetTransmissionTexture();
+            auto transmissionTexture = mat->TransmissionTexture;
             if (BuildTextureShowBrowseClear("Transmission Texture", transmissionTexture,
                 alm::gfx::TextureLoadFlags::GenerateMips))
             {
-                mat->SetTransmissionTexture(transmissionTexture);
+                mat->TransmissionTexture = transmissionTexture;
                 matDirty = true;
             }
 

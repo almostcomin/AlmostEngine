@@ -16,54 +16,54 @@ static void SerializeMaterial(const alm::gfx::Material* mat, interop::MaterialDa
 {
 	*dest = {};
 
-	if (mat->GetBaseColorTextureHandle())
+	if (mat->BaseColorTexture && mat->BaseColorTexture->IsValid())
 	{
-		dest->baseColorTextureDI = mat->GetBaseColorTextureHandle()->GetSampledView();
+		dest->baseColorTextureDI = mat->BaseColorTexture->texture->GetSampledView();
 	}
-	if (mat->GetEmissiveTextureHandle())
+	if (mat->EmissiveTexture && mat->EmissiveTexture->IsValid())
 	{
-		dest->emissiveTextureDI = mat->GetEmissiveTextureHandle()->GetSampledView();
+		dest->emissiveTextureDI = mat->EmissiveTexture->texture->GetSampledView();
 	}
-	if (mat->GetMetalRoughTextureHandle())
+	if (mat->MetalRoughTexture && mat->MetalRoughTexture->IsValid())
 	{
-		dest->metalRoughTextureDI = mat->GetMetalRoughTextureHandle()->GetSampledView();
+		dest->metalRoughTextureDI = mat->MetalRoughTexture->texture->GetSampledView();
 	}
-	if (mat->GetNormalTextureHandle())
+	if (mat->NormalTexture && mat->NormalTexture->IsValid())
 	{
-		dest->normalTextureDI = mat->GetNormalTextureHandle()->GetSampledView();
+		dest->normalTextureDI = mat->NormalTexture->texture->GetSampledView();
 	}
-	if (mat->GetOcclusionTextureHandle())
+	if (mat->OcclusionTexture && mat->OcclusionTexture->IsValid())
 	{
-		dest->occlusionTextureDI = mat->GetOcclusionTextureHandle()->GetSampledView();
+		dest->occlusionTextureDI = mat->OcclusionTexture->texture->GetSampledView();
 	}
-	if (mat->GetTransmissionTextureHandle())
+	if (mat->TransmissionTexture && mat->TransmissionTexture->IsValid())
 	{
-		dest->transmissionTextureDI = mat->GetTransmissionTextureHandle()->GetSampledView();
+		dest->transmissionTextureDI = mat->TransmissionTexture->texture->GetSampledView();
 	}
 
-	dest->normalScale = mat->GetNormalTextureScale();
-	dest->baseColor = { mat->GetBaseColor().x, mat->GetBaseColor().y, mat->GetBaseColor().z, mat->GetOpacity() };
-	dest->emissiveColor = mat->GetEmissiveColor();
-	dest->occlusion = mat->GetOcclusionStrengh();
-	dest->metalness = mat->GetMetallicFactor();
-	dest->roughness = mat->GetRoughnessFactor();
-	dest->alphaCutoff = mat->GetAlphaCutoff();
-	dest->transmission = mat->GetTransmissionFactor();
+	dest->normalScale = mat->NormalTextureScale;
+	dest->baseColor = { mat->BaseColor.x, mat->BaseColor.y, mat->BaseColor.z, mat->Opacity };
+	dest->emissiveColor = mat->EmissiveColor;
+	dest->occlusion = mat->OcclusionStrengh;
+	dest->metalness = mat->MetallicFactor;
+	dest->roughness = mat->RoughnessFactor;
+	dest->alphaCutoff = mat->AlphaCutoff;
+	dest->transmission = mat->TransmissionFactor;
 }
 
 static void SerializeTerrainMaterialLayer(const alm::gfx::TerrainMaterialLayer* layer, interop::TerrainMaterialLayer* dest)
 {
 	*dest = {};
 
-	if (layer->BaseColorTexture && layer->BaseColorTexture->texture)
+	if (layer->BaseColorTexture && layer->BaseColorTexture->IsValid())
 	{
 		dest->BaseColorTextureDI = layer->BaseColorTexture->texture->GetSampledView();
 	}
-	if (layer->NormalTexture && layer->NormalTexture->texture)
+	if (layer->NormalTexture && layer->NormalTexture->IsValid())
 	{
 		dest->NormalTextureDI = layer->NormalTexture->texture->GetSampledView();
 	}
-	if (layer->MetalRoughTexture && layer->MetalRoughTexture->texture)
+	if (layer->MetalRoughTexture && layer->MetalRoughTexture->IsValid())
 	{
 		dest->MetalRoughTextureDI = layer->MetalRoughTexture->texture->GetSampledView();
 	}

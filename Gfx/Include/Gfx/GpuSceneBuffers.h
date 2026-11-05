@@ -16,7 +16,7 @@ namespace alm::rhi
 
 namespace alm::gfx
 {
-	class Material;
+	struct Material;
 	class Mesh;
 	class MeshInstance;
 	struct TerrainMaterial;

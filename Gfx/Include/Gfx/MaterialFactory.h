@@ -5,7 +5,7 @@
 namespace alm::gfx
 {
 	class DeviceManager;
-	class Material;
+	struct Material;
 	class MaterialInstance;
 };
 

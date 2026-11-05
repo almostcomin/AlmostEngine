@@ -278,7 +278,7 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateUVSphere(float 
 	else
 	{
 		MaterialRef mRef = m_MaterialManager->CreateNewMaterial(std::format("{} - Material", name));
-		mRef->SetBaseColor(float3{ 1.f, 1.f, 1.f });
+		mRef->BaseColor = float3{ 1.f, 1.f, 1.f };
 		mesh->SetMaterial(mRef);
 	}
 
@@ -512,7 +512,7 @@ std::shared_ptr<alm::gfx::Mesh> alm::gfx::CommonResources::CreateCube(float size
 	else
 	{
 		MaterialRef mRef = m_MaterialManager->CreateNewMaterial(std::format("{} - Material", name));
-		mRef->SetBaseColor(float3{ 1.f, 1.f, 1.f });
+		mRef->BaseColor = float3{ 1.f, 1.f, 1.f };
 		mesh->SetMaterial(mRef);
 	}
 

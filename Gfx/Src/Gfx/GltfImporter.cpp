@@ -586,31 +586,31 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         }
         assert(srcMat.has_pbr_metallic_roughness);
 
-        mat->SetBaseColorTexture(loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true, false));
-        mat->SetMetalRoughTexture(loadTex(srcMat.pbr_metallic_roughness.metallic_roughness_texture.texture, false, false));
-        mat->SetNormalTexture(loadTex(srcMat.normal_texture.texture, false, true));
-        mat->SetEmissiveTexture(loadTex(srcMat.emissive_texture.texture, true, false));
-        mat->SetOcclusionTexture(loadTex(srcMat.occlusion_texture.texture, false, false));
+        mat->BaseColorTexture = loadTex(srcMat.pbr_metallic_roughness.base_color_texture.texture, true, false);
+        mat->MetalRoughTexture = loadTex(srcMat.pbr_metallic_roughness.metallic_roughness_texture.texture, false, false);
+        mat->NormalTexture = loadTex(srcMat.normal_texture.texture, false, true);
+        mat->EmissiveTexture = loadTex(srcMat.emissive_texture.texture, true, false);
+        mat->OcclusionTexture = loadTex(srcMat.occlusion_texture.texture, false, false);
 
-        mat->SetBaseColor(*(float3*)srcMat.pbr_metallic_roughness.base_color_factor);
-        mat->SetOpacity(srcMat.pbr_metallic_roughness.base_color_factor[3]);
-        mat->SetEmissiveColor(*(float3*)srcMat.emissive_factor);
-        mat->SetMetallicFactor(srcMat.pbr_metallic_roughness.metallic_factor);
-        mat->SetRoughnessFactor(srcMat.pbr_metallic_roughness.roughness_factor);
-        mat->SetOcclusionStrengh(srcMat.occlusion_texture.scale);
+        mat->BaseColor = *(float3*)srcMat.pbr_metallic_roughness.base_color_factor;
+        mat->Opacity = srcMat.pbr_metallic_roughness.base_color_factor[3];
+        mat->EmissiveColor = *(float3*)srcMat.emissive_factor;
+        mat->MetallicFactor = srcMat.pbr_metallic_roughness.metallic_factor;
+        mat->RoughnessFactor = srcMat.pbr_metallic_roughness.roughness_factor;
+        mat->OcclusionStrengh = srcMat.occlusion_texture.scale;
 
-        mat->SetNormalTextureScale(srcMat.normal_texture.has_transform ?
-            float2{ srcMat.normal_texture.transform.scale[0], srcMat.normal_texture.transform.scale[1] } : float2{ 1.f });
+        mat->NormalTextureScale = srcMat.normal_texture.has_transform ?
+            float2{ srcMat.normal_texture.transform.scale[0], srcMat.normal_texture.transform.scale[1] } : float2{ 1.f };
 
-        mat->SetCullMode(srcMat.double_sided ? alm::rhi::CullMode::None : alm::rhi::CullMode::Back);
+        mat->CullMode = srcMat.double_sided ? alm::rhi::CullMode::None : alm::rhi::CullMode::Back;
 
-        mat->SetAlphaCutoff(srcMat.alpha_cutoff);
+        mat->AlphaCutoff = srcMat.alpha_cutoff;
 
         bool useTransmission = false;
         if (srcMat.has_transmission)
         {
-            mat->SetTransmissionTexture(loadTex(srcMat.transmission.transmission_texture.texture, false, false));
-            mat->SetTransmissionFactor(srcMat.transmission.transmission_factor);
+            mat->TransmissionTexture = loadTex(srcMat.transmission.transmission_texture.texture, false, false);
+            mat->TransmissionFactor = srcMat.transmission.transmission_factor;
             useTransmission = true;
         }
 
@@ -633,13 +633,13 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         switch (srcMat.alpha_mode)
         {
         case cgltf_alpha_mode_opaque:
-            mat->SetDomain(useTransmission ? alm::gfx::MaterialDomain::OpaqueTransmission : alm::gfx::MaterialDomain::Opaque);
+            mat->Domain = useTransmission ? alm::gfx::MaterialDomain::OpaqueTransmission : alm::gfx::MaterialDomain::Opaque;
             break;
         case cgltf_alpha_mode_mask:
-            mat->SetDomain(useTransmission ? alm::gfx::MaterialDomain::AlphaTestedTransmission : alm::gfx::MaterialDomain::AlphaTested);
+            mat->Domain = useTransmission ? alm::gfx::MaterialDomain::AlphaTestedTransmission : alm::gfx::MaterialDomain::AlphaTested;
             break;
         case cgltf_alpha_mode_blend:
-            mat->SetDomain(useTransmission ? alm::gfx::MaterialDomain::AlphaBlendedTransmission : alm::gfx::MaterialDomain::AlphaBlended);
+            mat->Domain = useTransmission ? alm::gfx::MaterialDomain::AlphaBlendedTransmission : alm::gfx::MaterialDomain::AlphaBlended;
             break;
         default:
             LOG_ERROR("Alpha mode not supported");

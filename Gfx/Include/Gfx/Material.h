@@ -12,89 +12,39 @@ namespace alm::gfx
 namespace alm::gfx
 {
 
-class Material
+struct Material
 {
 public:
 
 	Material(const std::string& name, const std::string& filename = {});
-	~Material();
-
-	void SetBaseColorTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
-	void SetMetalRoughTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
-	void SetNormalTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
-	void SetEmissiveTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
-	void SetOcclusionTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
-	void SetTransmissionTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle);
-
-	void SetBaseColor(const float3& color) { m_BaseColor = color; }
-	void SetOpacity(float opacity) { m_Opacity = opacity; }
-	void SetEmissiveColor(const float3& color) { m_EmissiveColor = color; }
-	void SetMetallicFactor(float factor) { m_MetallicFactor = factor; }
-	void SetRoughnessFactor(float factor) { m_RoughnessFactor = factor; }
-	void SetNormalTextureScale(const float2& scale) { m_NormalTextureScale = scale; }
-	void SetOcclusionStrengh(float v) { m_OcclusionStrengh = v; }
-	void SetAlphaCutoff(float v) { m_AlphaCutoff = v; }
-	void SetTransmissionFactor(float v) { m_TransmissionFactor = v; }
-
-	const std::shared_ptr<alm::gfx::LoadedTexture> GetBaseColorTexture() const { return m_BaseColorTexture; }
-	const std::shared_ptr<alm::gfx::LoadedTexture> GetMetalRoughTexture() const { return m_MetalRoughTexture; }
-	const std::shared_ptr<alm::gfx::LoadedTexture> GetNormalTexture() const { return m_NormalTexture; }
-	const std::shared_ptr<alm::gfx::LoadedTexture> GetEmissiveTexture() const { return m_EmissiveTexture; }
-	const std::shared_ptr<alm::gfx::LoadedTexture> GetOcclusionTexture() const { return m_OcclusionTexture; }
-	const std::shared_ptr<alm::gfx::LoadedTexture> GetTransmissionTexture() const { return m_TransmissionTexture; }
-
-	rhi::TextureHandle GetBaseColorTextureHandle() const;
-	rhi::TextureHandle GetMetalRoughTextureHandle() const;
-	rhi::TextureHandle GetNormalTextureHandle() const;
-	rhi::TextureHandle GetEmissiveTextureHandle() const;
-	rhi::TextureHandle GetOcclusionTextureHandle() const;
-	rhi::TextureHandle GetTransmissionTextureHandle() const;
-
-	const float3& GetBaseColor() const { return m_BaseColor; }
-	const float3& GetEmissiveColor() const { return m_EmissiveColor; }
-	float GetOpacity() const { return m_Opacity; }
-	float GetOcclusionStrengh() const { return m_OcclusionStrengh; }
-	float GetMetallicFactor() const { return m_MetallicFactor; }
-	float GetRoughnessFactor() const { return m_RoughnessFactor; };
-	const float2& GetNormalTextureScale() const { return m_NormalTextureScale; }
-	float GetAlphaCutoff() const { return m_AlphaCutoff; }
-	float GetTransmissionFactor() const { return m_TransmissionFactor; }
-
-	void SetCullMode(rhi::CullMode cm) { m_CullMode = cm; }
-	rhi::CullMode GetCullMode() const { return m_CullMode; }
-
-	void SetDomain(MaterialDomain v) { m_Domain = v; }
-	MaterialDomain GetDomain() const { return m_Domain; }
-
-	const std::string& GetName() const { return m_Name; }
-	const std::string& GetSourceFilename() const { return m_SourceFileName; }
+	~Material() = default;
 
 	bool operator==(const Material& other) const;
 
-private:
+public:
 
-	std::shared_ptr<alm::gfx::LoadedTexture> m_BaseColorTexture;
-	std::shared_ptr<alm::gfx::LoadedTexture> m_MetalRoughTexture;
-	std::shared_ptr<alm::gfx::LoadedTexture> m_NormalTexture;
-	std::shared_ptr<alm::gfx::LoadedTexture> m_EmissiveTexture;
-	std::shared_ptr<alm::gfx::LoadedTexture> m_OcclusionTexture;
-	std::shared_ptr<alm::gfx::LoadedTexture> m_TransmissionTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> BaseColorTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> MetalRoughTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> NormalTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> EmissiveTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> OcclusionTexture;
+	std::shared_ptr<alm::gfx::LoadedTexture> TransmissionTexture;
 
-	float3 m_BaseColor; // Used only if BaseColorTexture or m_MetalRoughTexture is not present
-	float m_Opacity;	// Final opacity is multiplied by BaseColorTexture.a if present
-	float3 m_EmissiveColor;
-	float m_MetallicFactor;
-	float m_RoughnessFactor;
-	float2 m_NormalTextureScale;
-	float m_OcclusionStrengh;
-	float m_AlphaCutoff;
-	float m_TransmissionFactor;
+	float3 BaseColor = float3{ 1.f };
+	float Opacity = 1.f;
+	float3 EmissiveColor = float3{ 0.f };
+	float MetallicFactor = 0.f;
+	float RoughnessFactor = 0.5f;
+	float2 NormalTextureScale = float2{ 1.f };
+	float OcclusionStrengh = 1.f;
+	float AlphaCutoff = 0.f;
+	float TransmissionFactor = 0.f;
 
-	rhi::CullMode m_CullMode;
-	MaterialDomain m_Domain;
+	rhi::CullMode CullMode = rhi::CullMode::Back;
+	MaterialDomain Domain = MaterialDomain::Opaque;
 
-	std::string m_Name;
-	std::string m_SourceFileName; // where this material originated from, e.g. GLTF file name
+	std::string Name;
+	std::string SourceFileName; // where this material originated from, e.g. GLTF file name
 };
 
 }

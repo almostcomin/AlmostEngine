@@ -2,101 +2,28 @@
 #include "Gfx/Material.h"
 
 alm::gfx::Material::Material(const std::string& name, const std::string& filename) :
-	m_BaseColor{ 1.f },
-	m_Opacity{ 1.f },
-	m_EmissiveColor{ 0.f },
-	m_MetallicFactor{ 0.f },
-	m_RoughnessFactor{ 0.5f },
-	m_NormalTextureScale{ 1.f },
-	m_OcclusionStrengh{ 1.f },
-	m_AlphaCutoff{ 0.f },
-	m_TransmissionFactor{ 0.f },
-	m_CullMode{ rhi::CullMode::Back },
-	m_Domain{ MaterialDomain::Opaque },
-	m_Name{ name.empty() ? "<null>" : name },
-	m_SourceFileName{ filename.empty() ? "<null>" : filename }
+	Name{ name.empty() ? "<null>" : name },
+	SourceFileName{ filename.empty() ? "<null>" : filename }
 {}
-
-alm::gfx::Material::~Material()
-{}
-
-void alm::gfx::Material::SetBaseColorTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
-{
-	m_BaseColorTexture = textureHandle;
-}
-
-void alm::gfx::Material::SetMetalRoughTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
-{
-	m_MetalRoughTexture = textureHandle;
-}
-
-void alm::gfx::Material::SetNormalTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
-{
-	m_NormalTexture = textureHandle;
-}
-
-void alm::gfx::Material::SetEmissiveTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
-{
-	m_EmissiveTexture = textureHandle;
-}
-
-void alm::gfx::Material::SetOcclusionTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
-{
-	m_OcclusionTexture = textureHandle;
-}
-
-void alm::gfx::Material::SetTransmissionTexture(std::shared_ptr<alm::gfx::LoadedTexture> textureHandle)
-{
-	m_TransmissionTexture = textureHandle;
-}
-
-alm::rhi::TextureHandle alm::gfx::Material::GetBaseColorTextureHandle() const
-{
-	return m_BaseColorTexture ? m_BaseColorTexture->texture.get_weak() : nullptr;
-}
-
-alm::rhi::TextureHandle alm::gfx::Material::GetMetalRoughTextureHandle() const
-{
-	return m_MetalRoughTexture ? m_MetalRoughTexture->texture.get_weak() : nullptr;
-}
-
-alm::rhi::TextureHandle alm::gfx::Material::GetNormalTextureHandle() const
-{
-	return m_NormalTexture ? m_NormalTexture->texture.get_weak() : nullptr;
-}
-
-alm::rhi::TextureHandle alm::gfx::Material::GetEmissiveTextureHandle() const
-{
-	return m_EmissiveTexture ? m_EmissiveTexture->texture.get_weak() : nullptr;
-}
-
-alm::rhi::TextureHandle alm::gfx::Material::GetOcclusionTextureHandle() const
-{
-	return m_OcclusionTexture ? m_OcclusionTexture->texture.get_weak() : nullptr;
-}
-
-alm::rhi::TextureHandle alm::gfx::Material::GetTransmissionTextureHandle() const
-{
-	return m_TransmissionTexture ? m_TransmissionTexture->texture.get_weak() : nullptr;
-}
 
 bool alm::gfx::Material::operator==(const Material& other) const
 {
 	return
-		m_BaseColorTexture == other.m_BaseColorTexture &&
-		m_MetalRoughTexture == other.m_MetalRoughTexture &&
-		m_NormalTexture == other.m_NormalTexture &&
-		m_EmissiveTexture == other.m_EmissiveTexture &&
-		m_OcclusionTexture == other.m_OcclusionTexture &&
-		m_TransmissionTexture == other.m_TransmissionTexture &&
-		AlmostEqual(m_BaseColor, other.m_BaseColor) &&
-		AlmostEqual(m_Opacity, other.m_Opacity) &&
-		AlmostEqual(m_EmissiveColor, other.m_EmissiveColor) &&
-		AlmostEqual(m_MetallicFactor, other.m_MetallicFactor) &&
-		AlmostEqual(m_RoughnessFactor, other.m_RoughnessFactor) &&
-		AlmostEqual(m_NormalTextureScale, other.m_NormalTextureScale) &&
-		AlmostEqual(m_OcclusionStrengh, other.m_OcclusionStrengh) &&
-		AlmostEqual(m_AlphaCutoff, other.m_AlphaCutoff) &&
-		AlmostEqual(m_TransmissionFactor, other.m_TransmissionFactor) &&
-		m_Domain == other.m_Domain;
+		BaseColorTexture == other.BaseColorTexture &&
+		MetalRoughTexture == other.MetalRoughTexture &&
+		NormalTexture == other.NormalTexture &&
+		EmissiveTexture == other.EmissiveTexture &&
+		OcclusionTexture == other.OcclusionTexture &&
+		TransmissionTexture == other.TransmissionTexture &&
+		AlmostEqual(BaseColor, other.BaseColor) &&
+		AlmostEqual(Opacity, other.Opacity) &&
+		AlmostEqual(EmissiveColor, other.EmissiveColor) &&
+		AlmostEqual(MetallicFactor, other.MetallicFactor) &&
+		AlmostEqual(RoughnessFactor, other.RoughnessFactor) &&
+		AlmostEqual(NormalTextureScale, other.NormalTextureScale) &&
+		AlmostEqual(OcclusionStrengh, other.OcclusionStrengh) &&
+		AlmostEqual(AlphaCutoff, other.AlphaCutoff) &&
+		AlmostEqual(TransmissionFactor, other.TransmissionFactor) &&
+		CullMode == other.CullMode &&
+		Domain == other.Domain;
 }

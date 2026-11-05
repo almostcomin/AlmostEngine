@@ -3,7 +3,7 @@
 namespace alm::gfx
 {
 
-class Material;
+struct Material;
 
 class MaterialRef
 {
