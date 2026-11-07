@@ -107,17 +107,17 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 		alm::gfx::ShaderFactory* shaderFactory = GetDeviceManager()->GetShaderFactory();
 		if (deviceManager->GPUDrivenEnabled())
 		{
-			m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_GC_vs", rhi::ShaderType::Vertex);
-			m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_GC_vs", rhi::ShaderType::Vertex);
-			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_GC_vs", rhi::ShaderType::Vertex);
+			m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_vs", rhi::ShaderType::Vertex, { "GPU_CULL" });
+			m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_vs", rhi::ShaderType::Vertex, { "ALPHA_TEST", "GPU_CULL" });
+			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex, { "GPU_CULL" });
 		}
 		else
 		{
-			m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_OP_vs", rhi::ShaderType::Vertex);
-			m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_vs", rhi::ShaderType::Vertex);
+			m_VS_Opaque = shaderFactory->LoadShader("DepthPrepass_vs", rhi::ShaderType::Vertex);
+			m_VS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_vs", rhi::ShaderType::Vertex, { "ALPHA_TEST" });
 			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex);
 		}
-		m_PS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_AT_ps", rhi::ShaderType::Pixel);
+		m_PS_AlphaTest = shaderFactory->LoadShader("DepthPrepass_ps", rhi::ShaderType::Pixel, { "ALPHA_TEST" });
 	}
 
 	// Create PSO

@@ -120,14 +120,14 @@ void alm::gfx::TransmissiveRenderStage::OnAttached()
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		if (deviceManager->GPUDrivenEnabled())
 		{
-			m_VS = shaderFactory->LoadShader("Transmissive_GC_vs", rhi::ShaderType::Vertex);
+			m_VS = shaderFactory->LoadShader("Transmissive_vs", rhi::ShaderType::Vertex, { "GPU_CULL" });
 		}
 		else
 		{
 			m_VS = shaderFactory->LoadShader("Transmissive_vs", rhi::ShaderType::Vertex);
 		}
 		m_PS = shaderFactory->LoadShader("Transmissive_ps", rhi::ShaderType::Pixel);
-		m_PS_AT = shaderFactory->LoadShader("Transmissive_AT_ps", rhi::ShaderType::Pixel);
+		m_PS_AT = shaderFactory->LoadShader("Transmissive_ps", rhi::ShaderType::Pixel, { "ALPHA_TEST" });
 	}
 
 	// PSOs

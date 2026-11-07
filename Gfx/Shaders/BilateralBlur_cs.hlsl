@@ -1,3 +1,5 @@
+// ALM_REQUIRE_VARIANT(HORIZONTAL, VERTICAL)
+
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 
@@ -25,16 +27,18 @@ void main(uint3 DTid : SV_DispatchThreadID, uint3 GTid : SV_GroupThreadID)
     Texture2D<float> depthTex = ResourceDescriptorHeap[Constants.depthTextureDI]; // linear
     RWTexture2D<float> outputTex = ResourceDescriptorHeap[Constants.outputTextureDI];
     
-#ifdef HORIZONTAL // each shader group process a row
+#if HORIZONTAL // each shader group process a row
     int globalIdx = min(DTid.x, Constants.textureWidth - 1);
     int dimLimit = Constants.textureWidth;
     #define MAKE_COORD(idx, fixed) int2(idx, fixed)
     #define FIXED_COORD DTid.y
-#else // VERTICAL, each shader group process a column
+#elif VERTICAL // each shader group process a column
     int globalIdx = min(DTid.x, Constants.textureHeight - 1);
     int dimLimit = Constants.textureHeight;
     #define MAKE_COORD(idx, fixed) int2(fixed, idx)
     #define FIXED_COORD DTid.y
+#else
+#error "BilateralBlur requires one of the HORIZONTAL or VERTICAL variants"
 #endif
     
     int localIdx = GTid.x + RADIUS;

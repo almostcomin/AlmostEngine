@@ -16,27 +16,27 @@ static void SerializeMaterial(const alm::gfx::Material* mat, interop::MaterialDa
 {
 	*dest = {};
 
-	if (mat->BaseColorTexture && mat->BaseColorTexture->IsValid())
+	if (mat->BaseColorTexture)
 	{
 		dest->baseColorTextureDI = mat->BaseColorTexture->texture->GetSampledView();
 	}
-	if (mat->EmissiveTexture && mat->EmissiveTexture->IsValid())
+	if (mat->EmissiveTexture)
 	{
 		dest->emissiveTextureDI = mat->EmissiveTexture->texture->GetSampledView();
 	}
-	if (mat->MetalRoughTexture && mat->MetalRoughTexture->IsValid())
+	if (mat->MetalRoughTexture)
 	{
 		dest->metalRoughTextureDI = mat->MetalRoughTexture->texture->GetSampledView();
 	}
-	if (mat->NormalTexture && mat->NormalTexture->IsValid())
+	if (mat->NormalTexture)
 	{
 		dest->normalTextureDI = mat->NormalTexture->texture->GetSampledView();
 	}
-	if (mat->OcclusionTexture && mat->OcclusionTexture->IsValid())
+	if (mat->OcclusionTexture)
 	{
 		dest->occlusionTextureDI = mat->OcclusionTexture->texture->GetSampledView();
 	}
-	if (mat->TransmissionTexture && mat->TransmissionTexture->IsValid())
+	if (mat->TransmissionTexture)
 	{
 		dest->transmissionTextureDI = mat->TransmissionTexture->texture->GetSampledView();
 	}

@@ -89,18 +89,18 @@ void alm::gfx::ShadowmapRenderStage::InitResources()
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		if (deviceManager->GPUDrivenEnabled())
 		{
-			m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_GC_vs", rhi::ShaderType::Vertex);
-			m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_GC_vs", rhi::ShaderType::Vertex);
-			m_VS_Terrain = shaderFactory->LoadShader("CascadeShadowmap_Terrain_GC_vs", rhi::ShaderType::Vertex);
+			m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_vs", rhi::ShaderType::Vertex, { "GPU_CULL" });
+			m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_vs", rhi::ShaderType::Vertex, { "ALPHA_TEST", "GPU_CULL" });
+			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex, { "GPU_CULL", "SHADOW_MATRIX" });
 		}
 		else
 		{
-			m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_OP_vs", rhi::ShaderType::Vertex);
-			m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_vs", rhi::ShaderType::Vertex);
-			m_VS_Terrain = shaderFactory->LoadShader("CascadeShadowmap_Terrain_vs", rhi::ShaderType::Vertex);
+			m_VS_Opaque = shaderFactory->LoadShader("CascadeShadowmap_vs", rhi::ShaderType::Vertex);
+			m_VS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_vs", rhi::ShaderType::Vertex, { "ALPHA_TEST" });
+			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex, { "SHADOW_MATRIX" });
 		}
 
-		m_PS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_AT_ps", rhi::ShaderType::Pixel);
+		m_PS_AlphaTest = shaderFactory->LoadShader("CascadeShadowmap_ps", rhi::ShaderType::Pixel, { "ALPHA_TEST" });
 	}
 
 	// Create PSO

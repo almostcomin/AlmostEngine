@@ -137,7 +137,7 @@ void alm::gfx::WBOITAccumRenderStage::OnAttached()
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		if (deviceManager->GPUDrivenEnabled())
 		{
-			m_VS = shaderFactory->LoadShader("WBOITAccumulation_GC_vs", rhi::ShaderType::Vertex);
+			m_VS = shaderFactory->LoadShader("WBOITAccumulation_vs", rhi::ShaderType::Vertex, { "GPU_CULL" });
 		}
 		else
 		{

@@ -119,8 +119,8 @@ void alm::gfx::WireframeRenderStage::OnAttached()
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		if (deviceManager->GPUDrivenEnabled())
 		{
-			m_VS = shaderFactory->LoadShader("WireframeStage_GC_vs", rhi::ShaderType::Vertex);
-			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_GC_vs", rhi::ShaderType::Vertex);
+			m_VS = shaderFactory->LoadShader("WireframeStage_vs", rhi::ShaderType::Vertex, { "GPU_CULL" });
+			m_VS_Terrain = shaderFactory->LoadShader("Terrain_POSO_vs", rhi::ShaderType::Vertex, { "GPU_CULL" });
 		}
 		else
 		{

@@ -182,7 +182,7 @@ void alm::gfx::GPUCullingRenderStage::OnAttached()
 
 	m_PrepareCS = shaderFactory->LoadShader("CullingPrepare_cs", rhi::ShaderType::Compute);
 	m_CullingCS = shaderFactory->LoadShader("Culling_cs", rhi::ShaderType::Compute);
-	m_CullingStatsCS = shaderFactory->LoadShader("CullingStats_cs", rhi::ShaderType::Compute);
+	m_CullingStatsCS = shaderFactory->LoadShader("Culling_cs", rhi::ShaderType::Compute, { "RETRIEVE_STATS" });
 	m_CompactCS = shaderFactory->LoadShader("CullingCompact_cs", rhi::ShaderType::Compute);
 
 	m_PreparePSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{

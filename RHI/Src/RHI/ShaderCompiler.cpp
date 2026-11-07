@@ -76,7 +76,7 @@ namespace
     };
 
     static std::vector<std::wstring> GetCompilationArguments(alm::rhi::ShaderType shaderType, alm::rhi::ShaderModel model,
-        const std::wstring& wsEntryPoint, bool debugMode)
+        const std::wstring& wsEntryPoint, bool debugMode, const std::vector<std::string>& variant )
     {
         const wchar_t* sm = nullptr;
         switch (model)
@@ -121,6 +121,11 @@ namespace
             args.push_back(DXC_ARG_OPTIMIZATION_LEVEL3); // L"-O3"
         }
 
+        for (const auto& v : variant)
+        {
+            args.push_back(L"-D" + alm::ToWide(v.c_str()));
+        }
+
         return args;
     }
 
@@ -128,7 +133,7 @@ namespace
 
 alm::rhi::ShaderCompiler::CompilationResult alm::rhi::ShaderCompiler::Compile(
     const std::string& shaderName, ShaderType shaderType, const alm::WeakBlob& srcData, const std::wstring& includeFolder,
-    const std::string& entryPoint, bool debugMode, alm::rhi::ShaderModel model)
+    const std::string& entryPoint, bool debugMode, const std::vector<std::string>& variant, alm::rhi::ShaderModel model)
 {
     if (!Utils)
     {
@@ -137,7 +142,7 @@ alm::rhi::ShaderCompiler::CompilationResult alm::rhi::ShaderCompiler::Compile(
     }
 
     alm::ComPtr<RecordingIncludeHandler> includeHandler = new RecordingIncludeHandler(includeFolder);
-    const std::vector<std::wstring> args = GetCompilationArguments(shaderType, model, ToWide(entryPoint.c_str()), debugMode);
+    const std::vector<std::wstring> args = GetCompilationArguments(shaderType, model, ToWide(entryPoint.c_str()), debugMode, variant);
     std::wstring wsName = ToWide(shaderName.c_str());
 
     std::vector<LPCWSTR> compilationArguments;
@@ -195,7 +200,7 @@ alm::rhi::ShaderCompiler::CompilationResult alm::rhi::ShaderCompiler::Compile(
     void* data = std::malloc(compiledShaderBlob->GetBufferSize());
     std::memcpy(data, compiledShaderBlob->GetBufferPointer(), compiledShaderBlob->GetBufferSize());
 
-    // Remove duplciateds dependencies
+    // Remove duplicated dependencies
     std::ranges::sort(includeHandler->Dependencies);
     auto [first, last] = std::ranges::unique(includeHandler->Dependencies);
     includeHandler->Dependencies.erase(first, last);
@@ -206,9 +211,9 @@ alm::rhi::ShaderCompiler::CompilationResult alm::rhi::ShaderCompiler::Compile(
 }
 
 std::string alm::rhi::ShaderCompiler::GetToolchainString(alm::rhi::ShaderType shaderType, alm::rhi::ShaderModel model, 
-    const std::string& entryPoint, bool debugMode)
+    const std::string& entryPoint, bool debugMode, const std::vector<std::string>& variant)
 {
-    const std::vector<std::wstring> args = GetCompilationArguments(shaderType, model, ToWide(entryPoint.c_str()), debugMode);
+    const std::vector<std::wstring> args = GetCompilationArguments(shaderType, model, ToWide(entryPoint.c_str()), debugMode, variant);
 
     std::string tag = "dxc=" RHI_DXC_TAG;
     tag += " args=";
@@ -218,5 +223,6 @@ std::string alm::rhi::ShaderCompiler::GetToolchainString(alm::rhi::ShaderType sh
         if(arg != args.back())
             tag += ',';
     }
+
     return tag;
 }

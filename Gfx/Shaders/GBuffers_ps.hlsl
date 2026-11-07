@@ -1,3 +1,5 @@
+// ALM_REQUIRE_VARIANT(ALPHA_TEST)
+
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 #include "Material.hlsli"

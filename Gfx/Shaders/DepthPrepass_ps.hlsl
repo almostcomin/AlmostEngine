@@ -2,6 +2,8 @@
 #include "BindlessRS.hlsli"
 #include "Material.hlsli"
 
+// ALM_REQUIRE_VARIANT(ALPHA_TEST)
+
 ConstantBuffer<interop::DepthPrepassStageConstants> StageConstants : register(b0);
 
 struct PS_INPUT

@@ -1,8 +1,11 @@
+// ALM_REQUIRE_VARIANT(ALPHA_TEST, GPU_CULL)
+// ALM_REQUIRE_SM(6.8; GPU_CULL)
+
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
 #include "Common.hlsli"
 
-ConstantBuffer<interop::ShadowmapStageConstats> StageConstants : register(b0);
+ConstantBuffer<interop::DepthPrepassStageConstants> StageConstants : register(b0);
 ConstantBuffer<interop::MaterialPassRendererConstants> DrawConstants : register(b1);
 
 struct VS_OUTPUT
@@ -11,7 +14,7 @@ struct VS_OUTPUT
 #if ALPHA_TEST
     float2 uv : TEXCOORD0;
     nointerpolation uint materialIndex : MATERIAL;
-#endif
+#endif    
 };
 
 [RootSignature(BindlessRootSignature)]
@@ -22,7 +25,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
 )
 {
     VS_OUTPUT output;
-
+    
     ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[StageConstants.sceneDI];
     StructuredBuffer<interop::InstanceData> instancesDataBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
     StructuredBuffer<interop::MeshData> meshesDataBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
@@ -33,12 +36,12 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     interop::VisibleInstancePayload vp = payloadBuffer[startInstance + instanceID];
     interop::InstanceData instanceData = instancesDataBuffer[vp.InstanceIndex];
     interop::MeshData meshData = meshesDataBuffer[vp.MeshIndex];
-#if ALPHA_TEST
+#if ALPHA_TEST    
     output.materialIndex = vp.MaterialIndex;
 #endif
 #else
     ByteAddressBuffer instancesIndexBuffer = ResourceDescriptorHeap[StageConstants.instancesDI];
-
+    
     uint actualInstanceId = instanceID + DrawConstants.baseInstanceIdx;
     uint instanceIndex = instancesIndexBuffer.Load(actualInstanceId * 4);
     interop::InstanceData instanceData = instancesDataBuffer[instanceIndex];
@@ -47,7 +50,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     output.materialIndex = DrawConstants.materialIndex;
 #endif
 #endif
-
+    
     ByteAddressBuffer indexBuffer = ResourceDescriptorHeap[meshData.indexBufferDI];
     ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[meshData.vertexBufferDI];
     
@@ -58,14 +61,14 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     float3 pos = LoadVertexAttributeFloat3(vertexBuffer, vertexBufferOffset, meshData.vertexPositionOffset);
         
     // Transform
-    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));    
-    float4 posClip = mul(sceneData.shadowMapWorldToClipMatrix, posWorld);
-    output.pos = posClip;
+    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
+    float4 posClip = mul(sceneData.camViewProjMatrix, posWorld);
 
 #if ALPHA_TEST    
     float2 uv0 = LoadVertexAttributeFloat2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Offset);
-    output.uv = uv0;
-#endif
+    output.uv = uv0;    
+#endif    
     
+    output.pos = posClip;
     return output;
 }

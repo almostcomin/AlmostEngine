@@ -14,8 +14,10 @@ struct CompilationResult
 };
 
 CompilationResult Compile(const std::string& shaderName, ShaderType shaderType, const alm::WeakBlob& srcData,
-	const std::wstring& includeFolder, const std::string& entryPoint, bool debugMode, ShaderModel model = ShaderModel::SM_6_6);
+	const std::wstring& includeFolder, const std::string& entryPoint, bool debugMode, const std::vector<std::string>& variant,
+	ShaderModel model = ShaderModel::SM_6_6);
 
-std::string GetToolchainString(alm::rhi::ShaderType shaderType, alm::rhi::ShaderModel model, const std::string& entryPoint, bool debugMode);
+std::string GetToolchainString(alm::rhi::ShaderType shaderType, alm::rhi::ShaderModel model, const std::string& entryPoint,
+	bool debugMode, const std::vector<std::string>& variant);
 
 } // namespace alm::rhi::ShaderCompiler

@@ -18,7 +18,8 @@ public:
 
 	ShaderFactory(bool shadersDebug, alm::rhi::Device* device);
 
-	alm::rhi::ShaderOwner LoadShader(const std::string& name, rhi::ShaderType shaderType);
+	alm::rhi::ShaderOwner LoadShader(const std::string& name, rhi::ShaderType shaderType,
+		const std::vector<std::string>& variant = {});
 
 private:
 

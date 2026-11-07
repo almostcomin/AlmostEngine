@@ -147,8 +147,8 @@ void alm::gfx::GBuffersRenderStage::OnAttached()
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		if (deviceManager->GPUDrivenEnabled())
 		{
-			m_VS = shaderFactory->LoadShader("GBuffers_GC_vs", rhi::ShaderType::Vertex);
-			m_VS_Terrain = shaderFactory->LoadShader("GBuffers_Terrain_GC_vs", rhi::ShaderType::Vertex);
+			m_VS = shaderFactory->LoadShader("GBuffers_vs", rhi::ShaderType::Vertex, { "GPU_CULL" });
+			m_VS_Terrain = shaderFactory->LoadShader("GBuffers_Terrain_vs", rhi::ShaderType::Vertex, { "GPU_CULL" });
 		}
 		else
 		{
@@ -156,8 +156,8 @@ void alm::gfx::GBuffersRenderStage::OnAttached()
 			m_VS_Terrain = shaderFactory->LoadShader("GBuffers_Terrain_vs", rhi::ShaderType::Vertex);
 		}
 		
-		m_PS_Opaque = shaderFactory->LoadShader("GBuffers_OP_ps", rhi::ShaderType::Pixel);
-		m_PS_AlphaTest = shaderFactory->LoadShader("GBuffers_AT_ps", rhi::ShaderType::Pixel);
+		m_PS_Opaque = shaderFactory->LoadShader("GBuffers_ps", rhi::ShaderType::Pixel);
+		m_PS_AlphaTest = shaderFactory->LoadShader("GBuffers_ps", rhi::ShaderType::Pixel, { "ALPHA_TEST" });
 		m_PS_Terrain = shaderFactory->LoadShader("GBuffers_Terrain_ps", rhi::ShaderType::Pixel);
 	}
 

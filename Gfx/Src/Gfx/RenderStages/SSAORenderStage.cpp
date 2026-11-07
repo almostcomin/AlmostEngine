@@ -153,8 +153,8 @@ void alm::gfx::SSAORenderStage::OnAttached()
 	{
 		alm::gfx::ShaderFactory* shaderFactory = deviceManager->GetShaderFactory();
 		m_SSAO_CS = shaderFactory->LoadShader("SSAO_cs", rhi::ShaderType::Compute);
-		m_BilateralBlurV_CS = shaderFactory->LoadShader("BilateralBlurV_cs", rhi::ShaderType::Compute);
-		m_BilateralBlurH_CS = shaderFactory->LoadShader("BilateralBlurH_cs", rhi::ShaderType::Compute);
+		m_BilateralBlurV_CS = shaderFactory->LoadShader("BilateralBlur_cs", rhi::ShaderType::Compute, { "VERTICAL" });
+		m_BilateralBlurH_CS = shaderFactory->LoadShader("BilateralBlur_cs", rhi::ShaderType::Compute, { "HORIZONTAL" });
 	}
 
 	// Create PSOs
