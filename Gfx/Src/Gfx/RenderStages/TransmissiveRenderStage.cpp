@@ -30,6 +30,7 @@ void alm::gfx::TransmissiveRenderStage::Setup(RenderGraphBuilder& builder)
 	m_SceneDepthTexture = builder.GetTextureHandle("SceneDepth");
 	m_ShadowmapTexture = builder.GetTextureHandle("Shadowmap");
 	m_AmbientOcclusionTexture = builder.GetTextureHandle("AmbientOcclusion");
+	m_CloudsShadowmapTexture = builder.GetTextureHandle("CloudsShadowmap");
 
 	builder.AddTextureDependency(m_SceneColorTexture, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::RENDERTARGET, rhi::ResourceState::RENDERTARGET);
@@ -39,6 +40,10 @@ void alm::gfx::TransmissiveRenderStage::Setup(RenderGraphBuilder& builder)
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
 	builder.AddTextureDependency(m_AmbientOcclusionTexture, RenderGraph::AccessMode::Read,
 		rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	if (m_CloudsShadowmapTexture.IsValid())
+	{
+		builder.AddTextureDependency(m_CloudsShadowmapTexture, RenderGraph::AccessMode::Read, rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::SHADER_RESOURCE);
+	}
 
 	if (GetDeviceManager()->GPUDrivenEnabled())
 	{
@@ -85,6 +90,8 @@ void alm::gfx::TransmissiveRenderStage::Render(alm::rhi::CommandListHandle comma
 		m_RenderGraph->GetTextureSampledView(m_ShadowmapTexture) : interop::TextureSampledViewIndex{};
 	shaderConstants.oneOverShadowmapResolution = shadowmapTex ? 1.f / shadowMapResolution : float2{ 0.f, 0.f };
 	shaderConstants.SSAO_DI = m_RenderGraph->GetTextureSampledView(m_AmbientOcclusionTexture);
+	shaderConstants.CloudsShadowmapDI = m_CloudsShadowmapTexture.IsValid() ?
+		m_RenderGraph->GetTextureSampledView(m_CloudsShadowmapTexture) : rhi::TextureSampledView{};
 	shaderConstants.instancesDI = GetRenderView()->GetCameraVisiblityBufferROView();
 	shaderConstants.payloadDI = m_RenderGraph->GetBufferReadOnlyView(m_PayloadBuffer);
 

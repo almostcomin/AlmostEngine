@@ -265,6 +265,7 @@ namespace interop
         TextureSampledViewIndex shadowMapDI;
         float2 oneOverShadowmapResolution;
         TextureSampledViewIndex SSAO_DI;
+        TextureSampledViewIndex CloudsShadowmapDI;
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
         BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
     };
@@ -282,6 +283,7 @@ namespace interop
         TextureSampledViewIndex shadowMapDI;
         float2 oneOverShadowmapResolution;
         TextureSampledViewIndex SSAO_DI;
+        TextureSampledViewIndex CloudsShadowmapDI;
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
         BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
     };

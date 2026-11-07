@@ -32,6 +32,7 @@ private:
 	RGTextureHandle m_SceneDepthTexture;
 	RGTextureHandle m_ShadowmapTexture;
 	RGTextureHandle m_AmbientOcclusionTexture;
+	RGTextureHandle m_CloudsShadowmapTexture;
 	RGBufferHandle m_PayloadBuffer;
 	RGBufferHandle m_IndirectDrawArgsBuffer;
 	RGBufferHandle m_IndirectDrawCountsBuffer;
