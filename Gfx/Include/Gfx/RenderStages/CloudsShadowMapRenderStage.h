@@ -23,6 +23,8 @@ private:
 	void Render(alm::rhi::CommandListHandle commandList) override;
 	void OnAttached() override;
 	void OnDetached() override;
+	void OnEnabled() override;
+	void OnDisabled() override;
 
 private:
 

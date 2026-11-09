@@ -6,6 +6,7 @@
 #include "RHI/Buffer.h"
 #include "Gfx/SceneFlags.h"
 #include "Gfx/GpuSceneBuffersHandle.h"
+#include "Gfx/LightingMode.h"
 #include <map>
 
 namespace alm::rhi
@@ -35,6 +36,9 @@ namespace alm::gfx
 		Scene(const std::string& name, DeviceManager* deviceManager);
 		~Scene();
 
+		LightingMode GetLightingMode() const { return m_LightingMode; }
+		void SetLightingMode(LightingMode mode) { m_LightingMode = mode; }
+
 		AtmosphereConfig* GetAtmosphereConfig() { return m_AtmosConfig.get(); }
 		SceneIBL* GetSceneIBL() { return m_SceneIBL.get(); }
 
@@ -59,6 +63,8 @@ namespace alm::gfx
 		void OnLeafRemoved(SceneGraphLeaf* leaf);
 
 	private:
+
+		LightingMode m_LightingMode;
 
 		alm::unique<SceneGraph> m_SceneGraph;		
 		std::vector<alm::weak<RenderView>> m_RenderViews;

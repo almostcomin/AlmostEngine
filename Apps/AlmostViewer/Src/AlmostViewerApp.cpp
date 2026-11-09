@@ -30,7 +30,7 @@ class AlmostViewerApp : public alm::fw::FrameworkApp
 {
 public:
 
-	AlmostViewerApp() : alm::fw::FrameworkApp{ "Almost Viewer", alm::fw::FrameworkApp::RenderStageSetMode::Default_SimpleSky } {}
+	AlmostViewerApp() : alm::fw::FrameworkApp{ "Almost Viewer", alm::fw::FrameworkApp::RenderStageSetMode::Default_All } {}
 	~AlmostViewerApp() override = default;
 
 	bool Initialize() override

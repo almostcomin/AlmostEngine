@@ -133,7 +133,7 @@ public:
 
     // ---- Common planet parameters (shared by sky and clouds) ----
     float EarthRadius = kEarthRadiusRef;   // Effective planet radius (scaled)
-    float3 EarthCenter = { 0.f, 0.f, 0.f }; // World‑space center of the planet
+    float3 EarthCenter = { 0.f, -kEarthRadiusRef, 0.f }; // World‑space center of the planet
 
     // ---- Wind velocity (base value, unscaled) ----
     // Should be multiplied by EarthScaleFactor at binding time.

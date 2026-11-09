@@ -419,6 +419,7 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 	// Scene data
 	if (m_Scene)
 	{
+		const LightingMode mode = m_Scene->GetLightingMode();
 		const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
 		// ShadowMap matrices
 		{
@@ -442,7 +443,7 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		{
 			const float3 sunDir = atmos->GetSunDirection();
 
-			sceneShaderConstant->mainDirLightEnabled = (uint)atmos->SunLightEnabled;
+			sceneShaderConstant->mainDirLightEnabled = (uint)(mode == LightingMode::Atmosphere && atmos->SunLightEnabled);
 			sceneShaderConstant->mainDirLight.viewSpaceDirection = glm::normalize(m_Camera->GetViewMatrix() * float4 { sunDir, 0.f });
 			sceneShaderConstant->mainDirLight.irradiance = atmos->Sun.Irradiance;
 			sceneShaderConstant->mainDirLight.color = atmos->Sun.Color;
@@ -459,7 +460,8 @@ void alm::gfx::RenderView::UpdateSceneConstantBuffer()
 		// IBL
 		{
 			const SceneIBL* sceneIBL = m_Scene->GetSceneIBL();
-			sceneShaderConstant->IBLEnabled = sceneIBL->IsValid() ? 1 : 0;
+			sceneShaderConstant->IBLEnabled = (mode == LightingMode::Environment) &&
+				sceneIBL->IsValid() ? 1 : 0;
 			sceneShaderConstant->IBLLambCubemapTextureDI = sceneIBL->GetLambertSampledView();
 			sceneShaderConstant->IBLGGXCubemapTextureDI = sceneIBL->GetGGXSampledView();
 			sceneShaderConstant->IBLGGXCubeMipCount = sceneIBL->GetGGXTextureMipCount();
@@ -516,6 +518,8 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	m_ViewToShadowMapClipMatrix = {};
 
 	if (!m_Scene)
+		return false;
+	if (m_Scene->GetLightingMode() == LightingMode::Environment)
 		return false;
 	if (!m_CameraVisibleBounds.valid())
 		return false;
@@ -602,6 +606,8 @@ bool alm::gfx::RenderView::UpdateCloudsShadowmapData(rhi::ICommandList* commandL
 	m_CloudsZNear = 0.f;
 
 	if (!m_Scene)
+		return false;
+	if (m_Scene->GetLightingMode() == LightingMode::Environment)
 		return false;
 
 	const AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();

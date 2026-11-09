@@ -7,6 +7,7 @@
 #include "Gfx/RenderStages/CloudsRenderStage.h"
 #include "Gfx/RenderStageFactory.h"
 #include "Gfx/RenderGraph.h"
+#include "Gfx/LightingMode.h"
 #include "Gfx/Scene.h"
 #include "Gfx/RaycastHit.h"
 #include "Gfx/TextureLoadFlags.h"
@@ -57,11 +58,13 @@ public:
 
 		alm::gfx::AtmosphereConfig::SkyParams AtmosSkyParams;
 		alm::gfx::AtmosSkyRenderStage::SimParams AtmosSkySimParams;
-		bool AtmosSkyEnabled = true;
 
 		alm::gfx::CloudsRenderStage::CloudsSimParams CloudsSimParams;
 		uint32_t CloudsRTDenom = 0;
 		bool CloudsEnabled = true;
+
+		alm::gfx::SkySource SkySourceOption = alm::gfx::SkySource::Simple;
+		bool CloudsShadowsEnabled = true;
 
 		alm::gfx::DeferredLightingRenderStage::MaterialChannel MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
 

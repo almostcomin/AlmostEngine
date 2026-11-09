@@ -19,7 +19,10 @@
 #include <cassert>
 
 alm::gfx::Scene::Scene(const std::string& name, DeviceManager* deviceManager) : 
-	m_ResetGpuBuffers{ false }, m_Name{ name }, m_DeviceManager{ deviceManager }
+	m_LightingMode{ LightingMode::Atmosphere },
+	m_ResetGpuBuffers { false },
+	m_Name{ name },
+	m_DeviceManager{ deviceManager }
 {
 	m_GpuBuffersHandle = m_DeviceManager->GetGpuSceneBuffers()->RequestSceneHandle(m_Name);
 

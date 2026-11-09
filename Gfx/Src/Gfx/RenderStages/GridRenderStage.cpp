@@ -49,7 +49,7 @@ void alm::gfx::GridRenderStage::Render(alm::rhi::CommandListHandle commandList)
 	commandList->BeginRenderPass(
 		m_RenderGraph->GetFrameBuffer(m_FB).get(),
 		{ rhi::RenderPassOp{rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store} },
-		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::NoAccess },
+		rhi::RenderPassOp{ rhi::RenderPassOp::LoadOp::Load, rhi::RenderPassOp::StoreOp::Store },
 		{},
 		rhi::RenderPassFlags::None);
 

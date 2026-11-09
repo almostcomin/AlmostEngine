@@ -151,11 +151,6 @@ std::optional<int> alm::fw::FrameworkApp::GetStartupArgInt(const std::string& ke
 
 void alm::fw::FrameworkApp::RefreshUIData()
 {
-	if (!m_ImGuiRS)
-		return;
-
-	alm::gfx::InitImGuiViewportsRenderer(m_ImGuiRS, m_DeviceManager.get());
-	m_FrameworkUI = dynamic_cast<alm::fw::FrameworkUI*>(m_ImGuiRS.get());
 	if (!m_FrameworkUI)
 		return;
 
@@ -390,6 +385,54 @@ void alm::fw::FrameworkApp::HideNormal()
 	HideArrow();
 }
 
+void alm::fw::FrameworkApp::UpdateRenderStagesState()
+{
+	if (!m_FrameworkUI)
+		return;
+
+	auto& fwData = m_FrameworkUI->FrameworkData;
+	auto renderGraph = m_MainRenderView->GetRenderGraph();
+	const alm::gfx::LightingMode lm = m_Scene->GetLightingMode();
+
+	auto simpleSkyRS = renderGraph->GetRenderStage<gfx::SimpleSkyRenderStage>();
+	auto cubemapSkyRS = renderGraph->GetRenderStage<gfx::CubemapSkyRenderStage>();
+	auto cloudsSMRS = renderGraph->GetRenderStage<alm::gfx::CloudsShadowmapRenderStage>();
+	auto atmosSkyRS = renderGraph->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
+	auto cloudsRS = renderGraph->GetRenderStage<alm::gfx::CloudsRenderStage>();
+	auto shadowmapRS = renderGraph->GetRenderStage<gfx::ShadowmapRenderStage>();
+
+	const bool atmosMode = (lm == alm::gfx::LightingMode::Atmosphere);
+	const bool envMode = (lm == alm::gfx::LightingMode::Environment);
+
+	const bool hasSimpleSky = simpleSkyRS != nullptr;
+	const bool hasAtmosSky = atmosSkyRS != nullptr;
+	const bool hasEnv = cubemapSkyRS != nullptr;
+
+	// The lighting mode constrains the valid sky sources; coerce invalid combos
+	if (envMode && fwData.SkySourceOption != alm::gfx::SkySource::Cubemap)
+		fwData.SkySourceOption = alm::gfx::SkySource::Cubemap;
+	else if (atmosMode && fwData.SkySourceOption == alm::gfx::SkySource::Cubemap)
+		fwData.SkySourceOption = hasSimpleSky ? alm::gfx::SkySource::Simple : alm::gfx::SkySource::Atmos;
+
+	const bool useSimpleSky = atmosMode && (fwData.SkySourceOption == alm::gfx::SkySource::Simple);
+	const bool useAtmosSky = atmosMode && (fwData.SkySourceOption == alm::gfx::SkySource::Atmos);
+	const bool useCubemapSky = envMode && (fwData.SkySourceOption == alm::gfx::SkySource::Cubemap);
+	const bool shadows = atmosMode;
+
+	if (simpleSkyRS)
+		simpleSkyRS->SetEnabled(useSimpleSky);
+	if (atmosSkyRS)
+		atmosSkyRS->SetEnabled(useAtmosSky);
+	if (cloudsRS)
+		cloudsRS->SetEnabled(useAtmosSky && fwData.CloudsEnabled);
+	if (cubemapSkyRS)
+		cubemapSkyRS->SetEnabled(useCubemapSky);
+	if (cloudsSMRS)
+		cloudsSMRS->SetEnabled(useAtmosSky && fwData.CloudsEnabled && fwData.CloudsShadowsEnabled);
+	if (shadowmapRS)
+		shadowmapRS->SetEnabled(shadows);
+}
+
 alm::gfx::RenderStageTypeID alm::fw::FrameworkApp::GetUIRenderStageType() const
 { 
 	return alm::fw::FrameworkUI::StaticType(); 
@@ -534,6 +577,11 @@ bool alm::fw::FrameworkApp::InitInternal()
 
 	InitRenderStages();
 
+	if (m_ImGuiRS)
+	{
+		alm::gfx::InitImGuiViewportsRenderer(m_ImGuiRS, m_DeviceManager.get());
+	}
+
 	m_DeviceManager->RegisterRenderView(m_MainRenderView.get_weak());
 
 	return true;
@@ -570,139 +618,170 @@ void alm::fw::FrameworkApp::InitRenderStages()
 	}
 
 	// Lets create a default set of render stages
+
+	std::shared_ptr<gfx::GPUCullingRenderStage> gpuCullingRS;
+	std::shared_ptr<gfx::SimpleSkyRenderStage> simpleSkyRS;
+	std::shared_ptr<gfx::CubemapSkyRenderStage> cubemapSkyRS;
+	std::shared_ptr<gfx::AtmosSkyRenderStage> atmosSkyRS;
+	std::shared_ptr<gfx::CloudsRenderStage> cloudsRS;
+	std::shared_ptr<gfx::CloudsShadowmapRenderStage> cloudsSMRS;
+
+	if (m_DeviceManager->GPUDrivenEnabled())
 	{
-		std::shared_ptr<gfx::GPUCullingRenderStage> gpuCullingRS;
-		std::shared_ptr<gfx::SimpleSkyRenderStage> simpleSkyRS;
-		std::shared_ptr<gfx::CubemapSkyRenderStage> cubemapSkyRS;
-		std::shared_ptr<gfx::AtmosSkyRenderStage> atmosSkyRS;
-		std::shared_ptr<gfx::CloudsRenderStage> cloudsRS;
-		std::shared_ptr<gfx::CloudsShadowmapRenderStage> cloudsSMRS;
-
-		if (m_DeviceManager->GPUDrivenEnabled())
-		{
-			gpuCullingRS = gfx::RenderStageFactory::CreateShared<gfx::GPUCullingRenderStage>();
-		}
-		auto shadowmapRS = gfx::RenderStageFactory::CreateShared<gfx::ShadowmapRenderStage>();
-		auto depthPrepassRS = gfx::RenderStageFactory::CreateShared<gfx::DepthPrepassRenderStage>();
-		auto linearizeDepthRS = gfx::RenderStageFactory::CreateShared<gfx::LinearizeDepthRenderStage>();
-		auto SSAORS = gfx::RenderStageFactory::CreateShared<gfx::SSAORenderStage>();
-		auto GBuffersRS = gfx::RenderStageFactory::CreateShared<gfx::GBuffersRenderStage>();
-		auto deferredLightingRS = gfx::RenderStageFactory::CreateShared<gfx::DeferredLightingRenderStage>();
-		auto WBOITAccumRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
-		auto transmissiveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::TransmissiveRenderStage>();
-		auto WBOITResolveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
-		auto exposureRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ExposureRenderStage>();
-		auto bloomRS = gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
-		auto toneMappingRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ToneMappingRenderStage>();
-		auto gridRS = gfx::RenderStageFactory::CreateShared<alm::gfx::GridRenderStage>();
-		auto debugRS = gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
-		auto outlineRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ObjectOutlineRenderStage>();
-		auto wireframeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
-		auto compositeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
-
-		switch (m_RenderStageSetMode)
-		{
-		case RenderStageSetMode::Default_SimpleSky:
-			simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SimpleSkyRenderStage>();
-			break;
-		case RenderStageSetMode::Default_CubemapSky:
-			cubemapSkyRS = gfx::RenderStageFactory::CreateShared<gfx::CubemapSkyRenderStage>();
-			// TODO: We need a default texture
-			break;
-		case RenderStageSetMode::Default_FullAtmos:
-			cloudsSMRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsShadowmapRenderStage>();
-			atmosSkyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::AtmosSkyRenderStage>();
-			cloudsRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsRenderStage>();
-			break;
-		}
-
-		std::shared_ptr<alm::gfx::ImGuiRenderStage> ImGuiRS;
-		if (GetUIRenderStageType() != gfx::RenderStageType_None)
-		{
-			auto userUI = gfx::RenderStageFactory::CreateShared(GetUIRenderStageType());
-			ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(std::move(userUI));
-		}
-		else
-		{
-			ImGuiRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ImGuiRenderStage>();
-		}
-
-		// Add stages to render graph.
-		alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
-		std::vector< std::shared_ptr<alm::gfx::RenderStage>> renderStagesList = {
-			gpuCullingRS,
-			shadowmapRS,
-			depthPrepassRS,
-			linearizeDepthRS,
-			GBuffersRS,
-			SSAORS,
-			cloudsSMRS,
-			deferredLightingRS,
-			simpleSkyRS,
-			cubemapSkyRS,
-			atmosSkyRS,
-			cloudsRS,
-			transmissiveRS,
-			WBOITAccumRS,
-			WBOITResolveRS,
-			exposureRS,
-			bloomRS,
-			toneMappingRS,
-			gridRS,
-			debugRS,
-			outlineRS,
-			ImGuiRS,
-			compositeRS,
-			wireframeRS };
-		// Remove the null ones
-		std::erase_if(renderStagesList, [](const auto& sp) { return !sp; });
-
-		renderGraph->SetRenderStages(renderStagesList);
-
-		// Define default render mode.
-		std::vector<alm::gfx::RenderStage*> defaultRenderMode = {
-			gpuCullingRS.get(),
-			shadowmapRS.get(),
-			depthPrepassRS.get(),
-			linearizeDepthRS.get(),
-			GBuffersRS.get(),
-			SSAORS.get(),
-			cloudsSMRS.get(),
-			deferredLightingRS.get(),
-			simpleSkyRS.get(),
-			cubemapSkyRS.get(),
-			atmosSkyRS.get(),
-			cloudsRS.get(),
-			transmissiveRS.get(),
-			WBOITAccumRS.get(),
-			WBOITResolveRS.get(),
-			exposureRS.get(),
-			bloomRS.get(),
-			toneMappingRS.get(),
-			gridRS.get(),
-			debugRS.get(),
-			outlineRS.get(),
-			ImGuiRS.get(),
-			compositeRS.get() };
-		// Remove the null ones
-		std::erase_if(defaultRenderMode, [](const auto& p) { return !p; });
-		renderGraph->SetRenderMode("Default", defaultRenderMode);
-
-		// Define wireframe render mode
-		std::vector<alm::gfx::RenderStage*> wireframeRenderMode = {
-			gpuCullingRS.get(),
-			depthPrepassRS.get(),
-			wireframeRS.get(),
-			gridRS.get(),
-			debugRS.get(),
-			outlineRS.get(),
-			ImGuiRS.get(),
-			compositeRS.get() };
-		std::erase_if(wireframeRenderMode, [](const auto& p) { return !p; });
-		renderGraph->SetRenderMode("Wireframe", wireframeRenderMode);
-
-		m_ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(ImGuiRS);
+		gpuCullingRS = gfx::RenderStageFactory::CreateShared<gfx::GPUCullingRenderStage>();
 	}
+	auto shadowmapRS = gfx::RenderStageFactory::CreateShared<gfx::ShadowmapRenderStage>();
+	auto depthPrepassRS = gfx::RenderStageFactory::CreateShared<gfx::DepthPrepassRenderStage>();
+	auto linearizeDepthRS = gfx::RenderStageFactory::CreateShared<gfx::LinearizeDepthRenderStage>();
+	auto SSAORS = gfx::RenderStageFactory::CreateShared<gfx::SSAORenderStage>();
+	auto GBuffersRS = gfx::RenderStageFactory::CreateShared<gfx::GBuffersRenderStage>();
+	auto deferredLightingRS = gfx::RenderStageFactory::CreateShared<gfx::DeferredLightingRenderStage>();
+	auto WBOITAccumRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITAccumRenderStage>();
+	auto transmissiveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::TransmissiveRenderStage>();
+	auto WBOITResolveRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WBOITResolveRenderStage>();
+	auto exposureRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ExposureRenderStage>();
+	auto bloomRS = gfx::RenderStageFactory::CreateShared<alm::gfx::BloomRenderStage>();
+	auto toneMappingRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ToneMappingRenderStage>();
+	auto gridRS = gfx::RenderStageFactory::CreateShared<alm::gfx::GridRenderStage>();
+	auto debugRS = gfx::RenderStageFactory::CreateShared<alm::gfx::DebugRenderStage>();
+	auto outlineRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ObjectOutlineRenderStage>();
+	auto wireframeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::WireframeRenderStage>();
+	auto compositeRS = gfx::RenderStageFactory::CreateShared<alm::gfx::CompositeRenderStage>();
+
+	switch (m_RenderStageSetMode)
+	{
+	case RenderStageSetMode::Default_SimpleSky:
+		simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SimpleSkyRenderStage>();
+		break;
+	case RenderStageSetMode::Default_CubemapSky:
+		cubemapSkyRS = gfx::RenderStageFactory::CreateShared<gfx::CubemapSkyRenderStage>();
+		// TODO: We need a default texture
+		break;
+	case RenderStageSetMode::Default_FullAtmos:
+		cloudsSMRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsShadowmapRenderStage>();
+		atmosSkyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::AtmosSkyRenderStage>();
+		cloudsRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsRenderStage>();
+		break;
+	case RenderStageSetMode::Default_All:
+		simpleSkyRS = gfx::RenderStageFactory::CreateShared<gfx::SimpleSkyRenderStage>();
+		cubemapSkyRS = gfx::RenderStageFactory::CreateShared<gfx::CubemapSkyRenderStage>();
+		cloudsSMRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsShadowmapRenderStage>();
+		atmosSkyRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::AtmosSkyRenderStage>();
+		cloudsRS = alm::gfx::RenderStageFactory::CreateShared<alm::gfx::CloudsRenderStage>();
+		break;
+	}
+
+	std::shared_ptr<alm::gfx::ImGuiRenderStage> ImGuiRS;
+	if (GetUIRenderStageType() != gfx::RenderStageType_None)
+	{
+		auto userUI = gfx::RenderStageFactory::CreateShared(GetUIRenderStageType());
+		ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(std::move(userUI));
+	}
+	else
+	{
+		ImGuiRS = gfx::RenderStageFactory::CreateShared<alm::gfx::ImGuiRenderStage>();
+	}
+
+	// Add stages to render graph.
+	alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
+	std::vector< std::shared_ptr<alm::gfx::RenderStage>> renderStagesList = {
+		gpuCullingRS,
+		shadowmapRS,
+		depthPrepassRS,
+		linearizeDepthRS,
+		GBuffersRS,
+		SSAORS,
+		cloudsSMRS,
+		deferredLightingRS,
+		simpleSkyRS,
+		cubemapSkyRS,
+		atmosSkyRS,
+		cloudsRS,
+		transmissiveRS,
+		WBOITAccumRS,
+		WBOITResolveRS,
+		exposureRS,
+		bloomRS,
+		toneMappingRS,
+		gridRS,
+		debugRS,
+		outlineRS,
+		ImGuiRS,
+		compositeRS,
+		wireframeRS };
+	// Remove the null ones
+	std::erase_if(renderStagesList, [](const auto& sp) { return !sp; });
+
+	renderGraph->SetRenderStages(renderStagesList);
+
+	// Define default render mode.
+	std::vector<alm::gfx::RenderStage*> defaultRenderMode = {
+		gpuCullingRS.get(),
+		shadowmapRS.get(),
+		depthPrepassRS.get(),
+		linearizeDepthRS.get(),
+		GBuffersRS.get(),
+		SSAORS.get(),
+		cloudsSMRS.get(),
+		deferredLightingRS.get(),
+		simpleSkyRS.get(),
+		cubemapSkyRS.get(),
+		atmosSkyRS.get(),
+		cloudsRS.get(),
+		transmissiveRS.get(),
+		WBOITAccumRS.get(),
+		WBOITResolveRS.get(),
+		exposureRS.get(),
+		bloomRS.get(),
+		toneMappingRS.get(),
+		gridRS.get(),
+		debugRS.get(),
+		outlineRS.get(),
+		ImGuiRS.get(),
+		compositeRS.get() };
+	// Remove the null ones
+	std::erase_if(defaultRenderMode, [](const auto& p) { return !p; });
+	renderGraph->SetRenderMode("Default", defaultRenderMode);
+
+	// Define wireframe render mode
+	std::vector<alm::gfx::RenderStage*> wireframeRenderMode = {
+		gpuCullingRS.get(),
+		depthPrepassRS.get(),
+		wireframeRS.get(),
+		gridRS.get(),
+		debugRS.get(),
+		outlineRS.get(),
+		ImGuiRS.get(),
+		compositeRS.get() };
+	std::erase_if(wireframeRenderMode, [](const auto& p) { return !p; });
+	renderGraph->SetRenderMode("Wireframe", wireframeRenderMode);
+
+	m_ImGuiRS = std::dynamic_pointer_cast<alm::gfx::ImGuiRenderStage>(ImGuiRS);
+	if (m_ImGuiRS)
+	{
+		m_FrameworkUI = dynamic_cast<alm::fw::FrameworkUI*>(m_ImGuiRS.get());
+	}
+
+	// Set lighting model
+	const bool hasSimpleSky = simpleSkyRS != nullptr;
+	const bool hasAtmosSky = atmosSkyRS != nullptr;
+	const bool hasEnv = cubemapSkyRS != nullptr;
+	m_Scene->SetLightingMode((hasSimpleSky || hasAtmosSky) ? alm::gfx::LightingMode::Atmosphere
+		: (hasEnv ? alm::gfx::LightingMode::Environment : alm::gfx::LightingMode::Atmosphere));
+
+	// Normalize the sky source preference to what the stage set provides
+	if (m_FrameworkUI)
+	{
+		auto& fwData = m_FrameworkUI->FrameworkData;
+		if (hasSimpleSky)
+			fwData.SkySourceOption = alm::gfx::SkySource::Simple;
+		else if (hasAtmosSky)
+			fwData.SkySourceOption = alm::gfx::SkySource::Atmos;
+		else if (hasEnv)
+			fwData.SkySourceOption = alm::gfx::SkySource::Cubemap;
+	}
+
+	UpdateRenderStagesState();
 }
 
 void alm::fw::FrameworkApp::MainLoop()
@@ -848,6 +927,7 @@ void alm::fw::FrameworkApp::MainLoop()
 		cpuIdleMs = renderResult.cpuIdleMs;
 
 		// Apply UI settings
+		if(m_FrameworkUI)
 		{
 			alm::gfx::RenderGraph* renderGraph = m_MainRenderView->GetRenderGraph().get();
 			auto debugRS = renderGraph->GetRenderStage<gfx::DebugRenderStage>();
@@ -862,6 +942,7 @@ void alm::fw::FrameworkApp::MainLoop()
 			auto tonemappingRS = renderGraph->GetRenderStage<alm::gfx::ToneMappingRenderStage>();
 			auto compositeRS = renderGraph->GetRenderStage<alm::gfx::CompositeRenderStage>();
 			auto& data = m_FrameworkUI->FrameworkData;
+			gfx::AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
 
 			if (!data.RequestedRenderMode.empty())
 			{
@@ -875,8 +956,6 @@ void alm::fw::FrameworkApp::MainLoop()
 
 			if (shadowmapRS->GetSize() != data.ShadowmapSize)
 				shadowmapRS->SetSize(data.ShadowmapSize);
-
-			gfx::AtmosphereConfig* atmos = m_Scene->GetAtmosphereConfig();
 
 			if (data.SunParamsUpdated)
 			{
@@ -903,13 +982,11 @@ void alm::fw::FrameworkApp::MainLoop()
 
 			if (atmosSkyRS)
 			{
-				atmosSkyRS->SetEnabled(data.AtmosSkyEnabled);
 				atmosSkyRS->SetSimParams(data.AtmosSkySimParams);
 			}
 
 			if (cloudsRS)
 			{
-				cloudsRS->SetEnabled(data.CloudsEnabled);
 				cloudsRS->SetCloudsSimParams(data.CloudsSimParams);
 				cloudsRS->SetRenderTargetDenominator(data.CloudsRTDenom);
 			}
@@ -942,6 +1019,7 @@ void alm::fw::FrameworkApp::MainLoop()
 				tonemappingRS->SetTonemappingEnabled(data.Tonemapping.Enabled);
 			}
 		}
+		UpdateRenderStagesState();
 
 		fpsFrameCount++;
 

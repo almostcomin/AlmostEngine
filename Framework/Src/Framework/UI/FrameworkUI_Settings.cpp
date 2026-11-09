@@ -232,6 +232,12 @@ void alm::fw::FrameworkUI::BuildDirectionalLightSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Directional light"))
     {
+        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
+        {
+            ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
+            return;
+        }
+
         const float minAzimuth = -180.0;
         const float maxAzimuth = 180.0;
         const float minElevation = -90.0;
@@ -240,9 +246,11 @@ void alm::fw::FrameworkUI::BuildDirectionalLightSettings(float availWidth)
         FrameworkData.SunParamsUpdated |= ImGui::Checkbox(
             "Enabled", &FrameworkData.SunLightEnabled);
         FrameworkData.SunParamsUpdated |= ImGui::SliderScalar(
-            "Azimuth", ImGuiDataType_Float, &FrameworkData.SunParams.AzimuthDeg, &minAzimuth, &maxAzimuth, "%.1f deg", ImGuiSliderFlags_NoRoundToFormat);
+            "Azimuth", ImGuiDataType_Float, &FrameworkData.SunParams.AzimuthDeg, &minAzimuth, &maxAzimuth, "%.1f deg",
+            ImGuiSliderFlags_NoRoundToFormat);
         FrameworkData.SunParamsUpdated |= ImGui::SliderScalar(
-            "Elevation", ImGuiDataType_Float, &FrameworkData.SunParams.ElevationDeg, &minElevation, &maxElevation, "%.1f deg", ImGuiSliderFlags_NoRoundToFormat);
+            "Elevation", ImGuiDataType_Float, &FrameworkData.SunParams.ElevationDeg, &minElevation, &maxElevation, "%.1f deg",
+            ImGuiSliderFlags_NoRoundToFormat);
         FrameworkData.SunParamsUpdated |= ImGui::ColorEdit3(
             "Color", &FrameworkData.SunParams.Color.x, ImGuiColorEditFlags_Float);
         FrameworkData.SunParamsUpdated |= ImGui::SliderFloat(
@@ -256,6 +264,12 @@ void alm::fw::FrameworkUI::BuildAmbientLightSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Ambient"))
     {
+        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
+        {
+            ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
+            return;
+        }
+
         FrameworkData.AmbientParamsUpdated |= ImGui::SliderFloat("Intensity", &FrameworkData.AmbientParams.Intensity, 0.f, 1.f);
         FrameworkData.AmbientParamsUpdated |= ImGui::ColorEdit3("Sky Color", &FrameworkData.AmbientParams.SkyColor.x, ImGuiColorEditFlags_Float);
         FrameworkData.AmbientParamsUpdated |= ImGui::ColorEdit3("Ground Color", &FrameworkData.AmbientParams.GroundColor.x, ImGuiColorEditFlags_Float);

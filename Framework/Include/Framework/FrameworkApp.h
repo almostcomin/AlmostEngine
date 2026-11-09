@@ -39,6 +39,7 @@ public:
         Default_SimpleSky,
         Default_CubemapSky,
         Default_FullAtmos,
+        Default_All,
         User
     };
     
@@ -57,6 +58,8 @@ public:
 
     void ShowNormal(const uint2& screenPos);
     void HideNormal();
+
+    void UpdateRenderStagesState();
 
 protected:
 

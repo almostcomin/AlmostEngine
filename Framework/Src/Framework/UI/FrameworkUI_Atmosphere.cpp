@@ -29,8 +29,70 @@ void alm::fw::FrameworkUI::BuildAtmospherePanel()
         return;
     }
 
+    auto rg = m_RenderViewUI->GetRenderGraph();
+    const bool hasSimpleSky = rg->GetRenderStage<gfx::SimpleSkyRenderStage>() != nullptr;
+    const bool hasAtmosSky = rg->GetRenderStage<gfx::AtmosSkyRenderStage>() != nullptr;
+    const bool hasEnvSky = rg->GetRenderStage<gfx::CubemapSkyRenderStage>() != nullptr;
+    const bool atmosphereAvailable = hasSimpleSky || hasAtmosSky;
+    const bool environmentAvailable = hasEnvSky;
+
     const ImGuiStyle& style = ImGui::GetStyle();
     const float availWidth = ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 2;
+    const float startX = ImGui::GetCursorPosX();
+    const float halfWidth = availWidth / 2.0f;
+
+    ImGui::SeparatorText("Lighting Mode");
+    gfx::LightingMode lm = m_Scene->GetLightingMode();
+
+    ImGui::SetCursorPosX(startX + (halfWidth - ImGui::CalcTextSize("Atmosphere").x - ImGui::GetFrameHeight()) * 0.5f);
+    ImGui::BeginDisabled(!atmosphereAvailable);
+    if (ImGui::RadioButton("Atmosphere##Atmos", lm == gfx::LightingMode::Atmosphere))
+        lm = gfx::LightingMode::Atmosphere;
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(startX + halfWidth + (halfWidth - ImGui::CalcTextSize("Environment").x - ImGui::GetFrameHeight()) * 0.5f);
+    ImGui::BeginDisabled(!environmentAvailable);
+    if (ImGui::RadioButton("Environment##Atmos", lm == gfx::LightingMode::Environment))
+        lm = gfx::LightingMode::Environment;
+    ImGui::EndDisabled();
+
+    if (lm != m_Scene->GetLightingMode())
+    {
+        // Stage enables + Sky Source validation refresh per-frame via FrameworkApp::UpdateRenderStagesState
+        m_Scene->SetLightingMode(lm);
+    }
+
+    // Sky background source (constrained by lighting mode: Atmosphere -> Simple/Atmos; Environment -> Panorama)
+    const bool simpleSkyAvailable = atmosphereAvailable && hasSimpleSky && lm == gfx::LightingMode::Atmosphere;
+    const bool atmosSkyAvailable = atmosphereAvailable && hasAtmosSky && lm == gfx::LightingMode::Atmosphere;
+    const bool cubemapSkyAvailable = environmentAvailable && hasEnvSky && lm == gfx::LightingMode::Environment;
+
+    ImGui::SeparatorText("Sky Background");
+    const float skyThirdWidth = availWidth / 3.0f;
+    gfx::SkySource skySource = FrameworkData.SkySourceOption;
+
+    ImGui::SetCursorPosX(startX + (skyThirdWidth - ImGui::CalcTextSize("Simple").x - ImGui::GetFrameHeight()) * 0.5f);
+    ImGui::BeginDisabled(!simpleSkyAvailable);
+    if (ImGui::RadioButton("Simple##SkyBg", skySource == gfx::SkySource::Simple))
+        skySource = gfx::SkySource::Simple;
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(startX + skyThirdWidth + (skyThirdWidth - ImGui::CalcTextSize("Atmospheric").x - ImGui::GetFrameHeight()) * 0.5f);
+    ImGui::BeginDisabled(!atmosSkyAvailable);
+    if (ImGui::RadioButton("Atmospheric##SkyBg", skySource == gfx::SkySource::Atmos))
+        skySource = gfx::SkySource::Atmos;
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(startX + skyThirdWidth * 2.0f + (skyThirdWidth - ImGui::CalcTextSize("Panorama").x - ImGui::GetFrameHeight()) * 0.5f);
+    ImGui::BeginDisabled(!cubemapSkyAvailable);
+    if (ImGui::RadioButton("Panorama##SkyBg", skySource == gfx::SkySource::Cubemap))
+        skySource = gfx::SkySource::Cubemap;
+    ImGui::EndDisabled();
+
+    FrameworkData.SkySourceOption = skySource;
 
     BuildDirectionalLightSettings(availWidth);
     BuildAmbientLightSettings(availWidth);
@@ -46,13 +108,20 @@ void alm::fw::FrameworkUI::BuildSimpleSkySettings()
 {
     if (ImGui::CollapsingHeader("Simple Sky"))
     {
+        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
+        {
+            ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
+            return;
+        }
+        if (FrameworkData.SkySourceOption != gfx::SkySource::Simple)
+        {
+            ImGui::TextUnformatted("Unavailable - Set Sky Background to Simple");
+            return;
+        }
+
         auto simpleSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
         if(simpleSky)
         {
-            bool isEnabled = simpleSky->IsEnabled();
-            ImGui::Checkbox("Enabled##SimpleSky", &isEnabled);
-            simpleSky->SetEnabled(isEnabled);
-
             ImGui::ColorEdit3("Sky color##Sky", &FrameworkData.SimpleSkyParams.skyColor.x, ImGuiColorEditFlags_Float);
             ImGui::ColorEdit3("Horizon color##Sky", &FrameworkData.SimpleSkyParams.horizonColor.x, ImGuiColorEditFlags_Float);
             ImGui::ColorEdit3("Ground color##Sky", &FrameworkData.SimpleSkyParams.groundColor.x, ImGuiColorEditFlags_Float);
@@ -87,23 +156,15 @@ void alm::fw::FrameworkUI::BuildCubemapSettings(float availWidth)
 
     if (sceneIBL && ImGui::CollapsingHeader("IBL"))
     {
-        bool enabled = sceneIBL->IsEnabled();
-        if (ImGui::Checkbox("Enabled##IBL", &enabled))
-            sceneIBL->SetEnabled(enabled);
-
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(availWidth / 2);
-        auto skyBox = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CubemapSkyRenderStage>();
-        ImGui::BeginDisabled(!skyBox);
-        bool skyBoxEnabled = skyBox && skyBox->IsEnabled();
-        if (ImGui::Checkbox("SkyBox##IBL", &skyBoxEnabled))
+        if (m_Scene->GetLightingMode() != gfx::LightingMode::Environment)
         {
-            skyBox->SetEnabled(skyBoxEnabled);
+            ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
+            return;
         }
-        ImGui::EndDisabled();
-        if (!skyBox)
+
+        if (FrameworkData.SkySourceOption != gfx::SkySource::Cubemap)
         {
-            ImGui::SetItemTooltip("No CubemapSkyRenderStage present");
+            ImGui::TextUnformatted("SkyBox background disabled - Set Sky Background to Panorama");
         }
 
         ImGui::SeparatorText("Panorama HDR Texture");
@@ -177,12 +238,20 @@ void alm::fw::FrameworkUI::BuildSimSkySettings()
 {
     if (ImGui::CollapsingHeader("Atmospheric Sky"))
     {
+        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
+        {
+            ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
+            return;
+        }
+        if (FrameworkData.SkySourceOption != gfx::SkySource::Atmos)
+        {
+            ImGui::TextUnformatted("Unavailable - Set Sky Background to Atmospheric");
+            return;
+        }
+
         auto atmosSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
         if (atmosSky)
         {
-            ImGui::Checkbox("Enabled##AtmosSky", &FrameworkData.AtmosSkyEnabled);
-
-            ImGui::SameLine();
             float gpuMs = m_RenderViewUI->GetRenderGraph()->GetStageGPUTimeMs(alm::gfx::AtmosSkyRenderStage::StaticType());
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
             TextRightAligned("GPU: %1.2f ms", gpuMs);
@@ -208,6 +277,17 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
 {
     if(ImGui::CollapsingHeader("Clouds"))
     {
+        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
+        {
+            ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
+            return;
+        }
+        if (FrameworkData.SkySourceOption != gfx::SkySource::Atmos)
+        {
+            ImGui::TextUnformatted("Unavailable - Set Sky Background to Atmospheric");
+            return;
+        }
+
         const auto& scene = GetScene();
         auto cloudsRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CloudsRenderStage>();
         gfx::AtmosphereConfig* atmos = scene ? scene->GetAtmosphereConfig() : nullptr;
@@ -234,6 +314,10 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
         TextRightAligned("GPU: %1.2f ms", gpuMs);
         ImGui::PopStyleColor();
+
+        ImGui::BeginDisabled(!FrameworkData.CloudsEnabled);
+        ImGui::Checkbox("Shadows##Clouds", &FrameworkData.CloudsShadowsEnabled);
+        ImGui::SetItemTooltip("Clouds cast shadows onto the scene (CloudsShadowmapRenderStage)");
 
         ImGui::Spacing();
         ImGui::SeparatorText("Preset");
@@ -399,5 +483,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
             auto tex = atmos->GetCloudsDetailTexture();
             AddTextureWindow(tex->GetDebugName(), tex);
         }
+
+        ImGui::EndDisabled();
     }
 }
