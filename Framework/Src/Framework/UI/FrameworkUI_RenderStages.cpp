@@ -1,14 +1,16 @@
-// FrameworkUI "Render Stages" window (View > Render Stages) and the render-stage
-// texture/buffer inspection windows opened from it.
-// This is part of the alm::fw::FrameworkUI class: its member functions are split
-// across several FrameworkUI_*.cpp files, grouped by UI window.
+// "Render Stages" window (View > Render Stages) and the render-stage texture/
+// buffer inspection windows opened from it. UIWindow subclass of the FrameworkUI
+// window set (see Framework/UI/UIWindows.h). The inspection windows outlive the
+// main window: they are built while any of them is open, even if the main
+// window is closed.
 
 #include "Framework/FrameworkPCH.h"
 #include "Framework/UI/FrameworkUI.h"
+#include "Framework/UI/UIWindows.h"
 #include "Framework/UI/FrameworkUIWidgets.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
-#include <imgui/imgui_internal.h>   // ImGui::GetCurrentWindow() (BuildRSTexView)
+#include <imgui/imgui_internal.h>   // ImGui::GetCurrentWindow() (BuildTextureView)
 #include <sstream>
 #include "imgui_memory_editor.h"
 
@@ -32,9 +34,9 @@ namespace
         ImGui::TextUnformatted(label);
         ImGui::SameLine(90.0f);
 
-        float width = 160.0f;
         float height = ImGui::GetTextLineHeightWithSpacing();
         ImVec2 pos = ImGui::GetCursorScreenPos();
+        float width = ImGui::GetContentRegionMax().x - 90.f - 36.f - ImGui::GetStyle().WindowPadding.x;// 160.0f;
 
         // hitbox
         ImGui::InvisibleButton("##select", ImVec2(width, height));
@@ -50,152 +52,214 @@ namespace
         ImGui::TextUnformatted(value);
 
         // Button
-        ImGui::SameLine(startX + 90.f + width + 8.0f);
-        ret.clicked = ImGui::Button("...", ImVec2(24, 0));
+        ImGui::SameLine(ImGui::GetContentRegionMax().x - 36.0f);
+        ret.clicked = ImGui::Button("...", ImVec2(36, 0));
 
         ImGui::PopID();
         return ret;
     }
 } // anonymous namespace
 
-void alm::fw::FrameworkUI::BuildRenderStagesWindow()
+alm::fw::RenderStagesWindow::~RenderStagesWindow() = default;
+
+alm::fw::RenderStagesWindow::BufferView::BufferView(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode,
+	const std::string& bufferId, alm::gfx::RGBufferViewTicket ticket)
+	: renderStageId(rsId)
+	, accessMode(accessMode)
+	, bufferId(bufferId)
+	, ticket(ticket)
 {
-    if (!m_ShowRenderStages)
-        return;
+	memEditor = std::make_unique<MemoryEditor>();
+	memEditor->ReadOnly = true;
+}
 
-    alm::gfx::RenderGraph* renderGraph = m_RenderViewUI->GetRenderGraph().get();
-    const float parentHeight = ImGui::GetIO().DisplaySize.y;
-    const float windowHeight = parentHeight * 0.9f;
+alm::fw::RenderStagesWindow::BufferView::~BufferView() = default;
 
-    ImGui::SetNextWindowSize(ImVec2(320, windowHeight), ImGuiCond_Once);
-    std::string title = m_RenderViewUI->GetName() + " - " + renderGraph->GetCurrentRenderMode() + "###RenderViewWindow";
-    if (!ImGui::Begin(title.c_str(), &m_ShowRenderStages, ImGuiWindowFlags_None))
+alm::fw::RenderStagesWindow::BufferView::BufferView(BufferView&& other) noexcept = default;
+
+alm::fw::RenderStagesWindow::BufferView& alm::fw::RenderStagesWindow::BufferView::operator=(BufferView&& other) noexcept = default;
+
+void alm::fw::RenderStagesWindow::AddTextureView(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode,
+    const std::string& textureId)
+{
+    alm::gfx::RenderGraph* renderGraph = m_UI.GetUIRenderView()->GetRenderGraph().get();
+
+    // Check if it already exists
+    for (auto& entry : m_TextureViews)
     {
-        ImGui::End();
-        return;
+        if (entry.renderStageId == rsId && entry.accessMode == accessMode && entry.textureId == textureId)
+        {
+            m_TexViewFocus = entry.ticket;
+            return;
+        }
     }
 
-    int propid = 0;
-    std::string newHoveredId;
-    for (int rs_idx = 0; rs_idx < renderGraph->GetNumRenderStages(); ++rs_idx)
-    {
-        const auto* rs = renderGraph->GetRenderStageDataFromIndex(rs_idx);
-        if (ImGui::CollapsingHeader(rs->renderStage->GetDebugName(), ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            auto addDep = [this, &newHoveredId, &propid, rs]<typename T>(const std::vector<T>&deps, bool isWrite, bool isBuffer)
-            {
-                for (const auto& dep : deps)
-                {
-                    const std::string& id = m_RenderViewUI->GetRenderGraph()->GetId(dep.handle);
-                    bool selected = (m_RenderStageIOHoveredId == id);
+    auto ticket = renderGraph->RequestTextureView(rsId, accessMode, renderGraph->GetTextureHandle(textureId));
+    m_TextureViews.emplace_back(rsId, accessMode, textureId, ticket);
+}
 
-                    RSDepActionResult result = ShowRSDep(isBuffer ? "BUFFER" : "TEXTURE", id.c_str(), selected, propid++);
-                    if (result.hovered)
+void alm::fw::RenderStagesWindow::AddBufferView(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode,
+    const std::string& bufferId)
+{
+    alm::gfx::RenderGraph* renderGraph = m_UI.GetUIRenderView()->GetRenderGraph().get();
+
+    // Check if it already exists
+    for (auto& entry : m_BufferViews)
+    {
+        if (entry.renderStageId == rsId && entry.accessMode == accessMode && entry.bufferId == bufferId)
+        {
+            m_BufferViewFocus = entry.ticket;
+            return;
+        }
+    }
+
+    auto ticket = renderGraph->RequestBufferView(rsId, accessMode, renderGraph->GetBufferHandle(bufferId));
+    m_BufferViews.emplace_back(rsId, accessMode, bufferId, ticket);
+}
+
+void alm::fw::RenderStagesWindow::Build()
+{
+    if (m_Open)
+    {
+        alm::gfx::RenderGraph* renderGraph = m_UI.GetUIRenderView()->GetRenderGraph().get();
+        const float parentHeight = ImGui::GetIO().DisplaySize.y;
+        const float windowHeight = parentHeight * 0.9f;
+
+        ImGui::SetNextWindowSize(ImVec2(520, windowHeight), ImGuiCond_Once);
+        std::string title = "Render Stgages: " + m_UI.GetUIRenderView()->GetName() + " - "
+            + renderGraph->GetCurrentRenderMode() + "###RenderViewWindow";
+        if (!ImGui::Begin(title.c_str(), &m_Open, ImGuiWindowFlags_None))
+        {
+            ImGui::End();
+        }
+        else
+        {
+            int propid = 0;
+            std::string newHoveredId;
+            for (int rs_idx = 0; rs_idx < renderGraph->GetNumRenderStages(); ++rs_idx)
+            {
+                const auto* rs = renderGraph->GetRenderStageDataFromIndex(rs_idx);
+                if (ImGui::CollapsingHeader(rs->renderStage->GetDebugName(), ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    auto addDep = [this, renderGraph, &newHoveredId, &propid, rs]<typename T>(const std::vector<T>&deps, bool isWrite, bool isBuffer)
                     {
-                        newHoveredId = id;
+                        for (const auto& dep : deps)
+                        {
+                            const std::string& id = renderGraph->GetId(dep.handle);
+                            bool selected = (m_IOHoveredId == id);
+
+                            RSDepActionResult result = ShowRSDep(isBuffer ? "BUFFER" : "TEXTURE", id.c_str(), selected, propid++);
+                            if (result.hovered)
+                            {
+                                newHoveredId = id;
+                            }
+                            if (result.clicked)
+                            {
+                                if (isBuffer)
+                                {
+                                    AddBufferView(
+                                        rs->renderStage->GetType(),
+                                        isWrite ? alm::gfx::RenderGraph::AccessMode::Write : alm::gfx::RenderGraph::AccessMode::Read,
+                                        id);
+                                }
+                                else
+                                {
+                                    AddTextureView(
+                                        rs->renderStage->GetType(),
+                                        isWrite ? alm::gfx::RenderGraph::AccessMode::Write : alm::gfx::RenderGraph::AccessMode::Read,
+                                        id);
+                                }
+                            }
+                        }
+                    };
+
+                    if (!rs->textureReads.empty() || !rs->bufferReads.empty())
+                    {
+                        ImGui::SeparatorText("Reads");
+                        addDep(rs->textureReads, false, false);
+                        addDep(rs->bufferReads, false, true);
                     }
-                    if (result.clicked)
+
+                    if (!rs->textureWrites.empty() || !rs->bufferWrites.empty())
                     {
-                        if (isBuffer)
-                        {
-                            AddRenderStageBufferWindow(
-                                rs->renderStage->GetType(),
-                                isWrite ? alm::gfx::RenderGraph::AccessMode::Write : alm::gfx::RenderGraph::AccessMode::Read,
-                                id);
-                        }
-                        else
-                        {
-                            AddRenderStageTextureWindow(
-                                rs->renderStage->GetType(),
-                                isWrite ? alm::gfx::RenderGraph::AccessMode::Write : alm::gfx::RenderGraph::AccessMode::Read,
-                                id);
-                        }
+                        ImGui::SeparatorText("Writes");
+                        addDep(rs->textureWrites, true, false);
+                        addDep(rs->bufferWrites, true, true);
+                    }
+
+                    ImGui::SeparatorText("Stats");
+                    {
+                        float gpuTimeMs = renderGraph->GetStageGPUTimeMs(rs->renderStage->GetType());
+                        float cpuTimeMs = renderGraph->GetStageCPUTimeMs(rs->renderStage->GetType());
+
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+
+                        ImGui::Text("CPU time: %1.3fms", cpuTimeMs);
+                        ImGui::SameLine();
+                        TextRightAligned("GPU time: %1.3fms", gpuTimeMs);
+
+                        ImGui::PopStyleColor();
                     }
                 }
-            };
-
-            if (!rs->textureReads.empty() || !rs->bufferReads.empty())
-            {
-                ImGui::SeparatorText("Reads");
-                addDep(rs->textureReads, false, false);
-                addDep(rs->bufferReads, false, true);
             }
+            m_IOHoveredId = newHoveredId;
 
-            if (!rs->textureWrites.empty() || !rs->bufferWrites.empty())
-            {
-                ImGui::SeparatorText("Writes");
-                addDep(rs->textureWrites, true, false);
-                addDep(rs->bufferWrites, true, true);
-            }
-
-            ImGui::SeparatorText("Stats");
-            {
-                float gpuTimeMs = renderGraph->GetStageGPUTimeMs(rs->renderStage->GetType());
-                float cpuTimeMs = renderGraph->GetStageCPUTimeMs(rs->renderStage->GetType());
-
-                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-
-                ImGui::Text("CPU time: %1.3fms", cpuTimeMs);
-                ImGui::SameLine();
-                TextRightAligned("GPU time: %1.3fms", gpuTimeMs);
-
-                ImGui::PopStyleColor();
-            }
+            ImGui::End();
         }
     }
-    m_RenderStageIOHoveredId = newHoveredId;
 
-    ImGui::End();
+    // The inspection windows outlive the main window: build them while any is open
+    BuildViews();
 }
 
-void alm::fw::FrameworkUI::BuildRSViews()
+void alm::fw::RenderStagesWindow::BuildViews()
 {
-    for (auto it = m_RSTextureViews.begin(); it != m_RSTextureViews.end();)
+    for (auto it = m_TextureViews.begin(); it != m_TextureViews.end();)
     {
-        if (m_RSTexViewFocus == it->ticket)
+        if (m_TexViewFocus == it->ticket)
         {
             ImGui::SetNextWindowFocus();
         }
 
-        if (BuildRSTexView(&(*it)))
+        if (BuildTextureView(&(*it)))
         {
             it++;
         }
         else
         {
-            m_RenderViewUI->GetRenderGraph()->ReleaseTextureView(it->ticket);
-            it = m_RSTextureViews.erase(it);
+            m_UI.GetUIRenderView()->GetRenderGraph()->ReleaseTextureView(it->ticket);
+            it = m_TextureViews.erase(it);
         }
     }
 
-    for (auto it = m_RSBufferViews.begin(); it != m_RSBufferViews.end();)
+    for (auto it = m_BufferViews.begin(); it != m_BufferViews.end();)
     {
-        if (m_RSBufferViewFocus == it->ticket)
+        if (m_BufferViewFocus == it->ticket)
         {
             ImGui::SetNextWindowFocus();
         }
 
-        if (BuildRSBufferView(&(*it)))
+        if (BuildBufferView(&(*it)))
         {
             it++;
         }
         else
         {
-            m_RenderViewUI->GetRenderGraph()->ReleaseBufferView(it->ticket);
-            it = m_RSBufferViews.erase(it);
+            m_UI.GetUIRenderView()->GetRenderGraph()->ReleaseBufferView(it->ticket);
+            it = m_BufferViews.erase(it);
         }
     }
 
-    m_RSTexViewFocus = { nullptr };
-    m_RSBufferViewFocus = { nullptr };
+    m_TexViewFocus = { nullptr };
+    m_BufferViewFocus = { nullptr };
 }
 
-bool alm::fw::FrameworkUI::BuildRSTexView(RenderStageTextureView* rsTexView)
+bool alm::fw::RenderStagesWindow::BuildTextureView(TextureView* rsTexView)
 {
-    alm::gfx::RenderGraph* renderGraph = m_RenderViewUI->GetRenderGraph().get();
+    alm::gfx::RenderGraph* renderGraph = m_UI.GetUIRenderView()->GetRenderGraph().get();
     bool isOpen = true;
 
-    auto renderStage = m_RenderViewUI->GetRenderGraph()->GetRenderStage(rsTexView->renderStageId);
+    auto renderStage = renderGraph->GetRenderStage(rsTexView->renderStageId);
     if (!renderStage)
         return isOpen;
 
@@ -237,7 +301,10 @@ bool alm::fw::FrameworkUI::BuildRSTexView(RenderStageTextureView* rsTexView)
         return isOpen;
     }
 
-    ImGuiTexFlags texFlags = 0;
+    // ImGui texture flags live in ImGuiRenderStage (this window is not part of that
+    // class hierarchy anymore, so they are qualified).
+    using ImGuiRS = alm::gfx::ImGuiRenderStage;
+    ImGuiRS::ImGuiTexFlags texFlags = ImGuiRS::ImGuiTexFlags_None;
     bool fitPressed = false;
 
     //
@@ -250,33 +317,33 @@ bool alm::fw::FrameworkUI::BuildRSTexView(RenderStageTextureView* rsTexView)
         const float labelWidth = 80.f;
         const float labelHeight = 120.f;
 
-        ShowPropertyInt("Width", labelWidth, texDesc.width, labelHeight, ++id);
-        ShowPropertyInt("Height", labelWidth, texDesc.height, labelHeight, ++id);
-        ShowPropertyInt("Depth", labelWidth, texDesc.depth, labelHeight, ++id);
-        ShowPropertyInt("ArraySize", labelWidth, texDesc.arraySize, labelHeight, ++id);
-        ShowPropertyInt("MipLevels", labelWidth, texDesc.mipLevels, labelHeight, ++id);
-        ShowPropertyText("Format", labelWidth, alm::rhi::GetFormatString(texDesc.format), labelHeight, ++id);
+        FrameworkUI::ShowPropertyInt("Width", labelWidth, texDesc.width, labelHeight, ++id);
+        FrameworkUI::ShowPropertyInt("Height", labelWidth, texDesc.height, labelHeight, ++id);
+        FrameworkUI::ShowPropertyInt("Depth", labelWidth, texDesc.depth, labelHeight, ++id);
+        FrameworkUI::ShowPropertyInt("ArraySize", labelWidth, texDesc.arraySize, labelHeight, ++id);
+        FrameworkUI::ShowPropertyInt("MipLevels", labelWidth, texDesc.mipLevels, labelHeight, ++id);
+        FrameworkUI::ShowPropertyText("Format", labelWidth, alm::rhi::GetFormatString(texDesc.format), labelHeight, ++id);
 
         fitPressed = ImGui::Button("Fit");
         ImGui::SameLine();
-        ShowToggleButton("Alpha", &rsTexView->applyAlpha);
+        FrameworkUI::ShowToggleButton("Alpha", &rsTexView->applyAlpha);
         ImGui::SameLine();
-        if (ShowToggleButton("R", &rsTexView->redChannel))
+        if (FrameworkUI::ShowToggleButton("R", &rsTexView->redChannel))
         {
             rsTexView->alphaChannel = false;
         }
         ImGui::SameLine();
-        if (ShowToggleButton("G", &rsTexView->greenChannel))
+        if (FrameworkUI::ShowToggleButton("G", &rsTexView->greenChannel))
         {
             rsTexView->alphaChannel = false;
         }
         ImGui::SameLine();
-        if (ShowToggleButton("B", &rsTexView->blueChannel))
+        if (FrameworkUI::ShowToggleButton("B", &rsTexView->blueChannel))
         {
             rsTexView->alphaChannel = false;
         }
         ImGui::SameLine();
-        if (ShowToggleButton("A", &rsTexView->alphaChannel))
+        if (FrameworkUI::ShowToggleButton("A", &rsTexView->alphaChannel))
         {
             rsTexView->redChannel = false;
             rsTexView->greenChannel = false;
@@ -284,15 +351,15 @@ bool alm::fw::FrameworkUI::BuildRSTexView(RenderStageTextureView* rsTexView)
         }
 
         if (!rsTexView->applyAlpha)
-            texFlags |= ImGuiTexFlags_IgnoreAlpha;
+            texFlags |= ImGuiRS::ImGuiTexFlags_IgnoreAlpha;
         if (!rsTexView->redChannel)
-            texFlags |= ImGuiTexFlags_HideRedChannel;
+            texFlags |= ImGuiRS::ImGuiTexFlags_HideRedChannel;
         if (!rsTexView->greenChannel)
-            texFlags |= ImGuiTexFlags_HideGreenChannel;
+            texFlags |= ImGuiRS::ImGuiTexFlags_HideGreenChannel;
         if (!rsTexView->blueChannel)
-            texFlags |= ImGuiTexFlags_HideBlueChannel;
+            texFlags |= ImGuiRS::ImGuiTexFlags_HideBlueChannel;
         if (rsTexView->alphaChannel)
-            texFlags |= ImGuiTexFlags_ShowAlphaChannel;
+            texFlags |= ImGuiRS::ImGuiTexFlags_ShowAlphaChannel;
     }
     ImGui::EndChild();
 
@@ -336,7 +403,7 @@ bool alm::fw::FrameworkUI::BuildRSTexView(RenderStageTextureView* rsTexView)
             }
 
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-            ShowImage(tex, tex->GetSampledView(), { imageSize.x, imageSize.y }, { 0.f , 0.f }, { 1.f, 1.f }, 0, 0, texFlags);
+            m_UI.ShowUIImage(tex, tex->GetSampledView(), { imageSize.x, imageSize.y }, { 0.f , 0.f }, { 1.f, 1.f }, 0, 0, texFlags);
             ImGui::PopStyleVar();
         }
     }
@@ -348,15 +415,16 @@ bool alm::fw::FrameworkUI::BuildRSTexView(RenderStageTextureView* rsTexView)
     return isOpen;
 }
 
-bool alm::fw::FrameworkUI::BuildRSBufferView(RenderStageBufferView* rsBufferView)
+bool alm::fw::RenderStagesWindow::BuildBufferView(BufferView* rsBufferView)
 {
     bool isOpen = true;
 
-    auto renderStage = m_RenderViewUI->GetRenderGraph()->GetRenderStage(rsBufferView->renderStageId);
+    alm::gfx::RenderGraph* renderGraph = m_UI.GetUIRenderView()->GetRenderGraph().get();
+    auto renderStage = renderGraph->GetRenderStage(rsBufferView->renderStageId);
     if (!renderStage)
         return isOpen;
 
-    alm::rhi::BufferHandle buffer = m_RenderViewUI->GetRenderGraph()->GetBufferView(rsBufferView->ticket);
+    alm::rhi::BufferHandle buffer = renderGraph->GetBufferView(rsBufferView->ticket);
     if (!buffer)
         return isOpen;
 
@@ -375,4 +443,3 @@ bool alm::fw::FrameworkUI::BuildRSBufferView(RenderStageBufferView* rsBufferView
 
     return rsBufferView->memEditor->Open;
 }
-

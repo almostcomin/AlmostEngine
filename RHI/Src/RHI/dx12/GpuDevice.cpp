@@ -1091,6 +1091,15 @@ void alm::rhi::dx12::GpuDevice::Shutdown()
 	}
 }
 
+void alm::rhi::dx12::GpuDevice::EnumerateLivingResources(const std::function<void(IResource*)>& fn) const
+{
+	std::scoped_lock lock{ m_LivingResourcesMutex };
+	for (IResource* res : m_LivingResources)
+	{
+		fn(res);
+	}
+}
+
 std::pair<int, int> alm::rhi::dx12::GpuDevice::GetMaxShaderModelSupported() const
 {
 	if (m_SM_6_8_Supported)

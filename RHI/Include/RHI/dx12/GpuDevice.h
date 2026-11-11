@@ -86,6 +86,8 @@ namespace alm::rhi::dx12
 
 		const Stats& GetStats() const override { return m_LastStats; }
 
+		void EnumerateLivingResources(const std::function<void(IResource*)>& fn) const override;
+
 		bool SupportBindless() const override { return m_HeapDirectlyIndexedSupported; }
 		bool SupportGPUDriven() const override { return m_ExtendedCommandInfoSupported; }
 		std::pair<int, int> GetMaxShaderModelSupported() const override;
@@ -190,7 +192,7 @@ namespace alm::rhi::dx12
 
 		ComPtr<ID3D12RootSignature> m_BindlessRootSignature;
 
-		std::mutex m_LivingResourcesMutex;
+		mutable std::mutex m_LivingResourcesMutex;
 		std::unordered_set<IResource*> m_LivingResources;
 
 		std::mutex m_StaleResourcesMutex;

@@ -1,37 +1,49 @@
-// FrameworkUI "Material Panel" window (View > Material Panel).
-// This is part of the alm::fw::FrameworkUI class: its member functions are split
-// across several FrameworkUI_*.cpp files, grouped by UI window.
+// "Materials Panel" window (View > Material Panel). UIWindow subclass of the
+// FrameworkUI window set (see Framework/UI/UIWindows.h).
 
 #include "Framework/FrameworkPCH.h"
 #include "Framework/UI/FrameworkUI.h"
+#include "Framework/UI/UIWindows.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Material.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/MaterialManager.h"
 
-static bool IsTransmissionDomain(alm::gfx::MaterialDomain domain)
+namespace
 {
-    switch (domain)
+
+    static bool IsTransmissionDomain(alm::gfx::MaterialDomain domain)
     {
-    case alm::gfx::MaterialDomain::OpaqueTransmission:
-    case alm::gfx::MaterialDomain::AlphaTestedTransmission:
-    case alm::gfx::MaterialDomain::AlphaBlendedTransmission:
-        return true;
-    default:
-        return false;
+        switch (domain)
+        {
+        case alm::gfx::MaterialDomain::OpaqueTransmission:
+        case alm::gfx::MaterialDomain::AlphaTestedTransmission:
+        case alm::gfx::MaterialDomain::AlphaBlendedTransmission:
+            return true;
+        default:
+            return false;
+        }
     }
+
+} // anonymous namespace
+
+void alm::fw::MaterialsWindow::SelectMaterial(alm::gfx::Material* material)
+{
+    m_SelectedMaterial = material;
+    SetOpen(true);
+    m_ScrollToSelectedMaterial = true;
 }
 
-void alm::fw::FrameworkUI::BuildMaterialsWindow()
+void alm::fw::MaterialsWindow::Build()
 {
-    auto* deviceManager = GetDeviceManager();
+    auto* deviceManager = m_UI.GetDeviceManager();
     auto* materialManager = deviceManager->GetMaterialManager();
 
-    if (!m_ShowMaterials)
+    if (!m_Open)
         return;
 
     ImGui::SetNextWindowSize(ImVec2(1200, 800), ImGuiCond_Once);
-    if (!ImGui::Begin("Materials Panel", &m_ShowMaterials, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Materials Panel", &m_Open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
@@ -40,7 +52,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
     // Left panel
     if (ImGui::BeginChild("##materials_panel_left", ImVec2(400, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
     {
-        m_MaterialFilter.Draw("Filter");
+        m_Filter.Draw("Filter");
 
         std::vector<gfx::MaterialRef> mats;
         mats.reserve(materialManager->GetMaterialCount());
@@ -48,7 +60,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
         for (int i = 0; i < materialManager->GetMaterialCount(); ++i)
         {
             gfx::MaterialRef matRef = materialManager->GetMaterial(i);
-            if (!m_MaterialFilter.PassFilter(matRef.GetMaterial()->Name.c_str()))
+            if (!m_Filter.PassFilter(matRef.GetMaterial()->Name.c_str()))
                 continue;
 
             mats.push_back(matRef);
@@ -100,9 +112,9 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
                 }
             }
 
-            for(const auto& matRef : mats)
+            for (const auto& matRef : mats)
             {
-                auto* mat = matRef.GetMaterial();                
+                auto* mat = matRef.GetMaterial();
                 if (!mat)
                     continue;
 
@@ -128,7 +140,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
                 ImGui::TableNextColumn();
                 ImGui::Text("%d", matRef.GetRefCount() - 1);
 
-                ImGui::PopID();                
+                ImGui::PopID();
             }
 
             ImGui::EndTable();
@@ -157,7 +169,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
                 mat->Domain = (gfx::MaterialDomain)domain;
                 matDirty = true;
             }
-            
+
             int cullMode = (int)mat->CullMode;
             if (ImGui::Combo("Cull Mode##mat", &cullMode,
                 "Back\0Front\0None\0\0"))
@@ -219,7 +231,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
             }
 
             auto baseColorTexture = mat->BaseColorTexture;
-            if (BuildTextureShowBrowseClear("Base Color Texture", baseColorTexture,
+            if (m_UI.BuildTextureShowBrowseClear("Base Color Texture", baseColorTexture,
                 alm::gfx::TextureLoadFlags::ForceSRGB | alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->BaseColorTexture = baseColorTexture;
@@ -227,7 +239,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
             }
 
             auto metalRoughTexture = mat->MetalRoughTexture;
-            if (BuildTextureShowBrowseClear("Metal-Rough Texture", metalRoughTexture,
+            if (m_UI.BuildTextureShowBrowseClear("Metal-Rough Texture", metalRoughTexture,
                 alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->MetalRoughTexture = metalRoughTexture;
@@ -235,7 +247,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
             }
 
             auto normalTexture = mat->NormalTexture;
-            if (BuildTextureShowBrowseClear("Normal Texture", normalTexture,
+            if (m_UI.BuildTextureShowBrowseClear("Normal Texture", normalTexture,
                 alm::gfx::TextureLoadFlags::IsNormalMap | alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->NormalTexture = normalTexture;
@@ -243,7 +255,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
             }
 
             auto emissiveTexture = mat->EmissiveTexture;
-            if (BuildTextureShowBrowseClear("Emissive Texture", emissiveTexture,
+            if (m_UI.BuildTextureShowBrowseClear("Emissive Texture", emissiveTexture,
                 alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->EmissiveTexture = emissiveTexture;
@@ -251,7 +263,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
             }
 
             auto occlusionTexture = mat->OcclusionTexture;
-            if (BuildTextureShowBrowseClear("Occlusion Texture", occlusionTexture,
+            if (m_UI.BuildTextureShowBrowseClear("Occlusion Texture", occlusionTexture,
                 alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->OcclusionTexture = occlusionTexture;
@@ -259,7 +271,7 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
             }
 
             auto transmissionTexture = mat->TransmissionTexture;
-            if (BuildTextureShowBrowseClear("Transmission Texture", transmissionTexture,
+            if (m_UI.BuildTextureShowBrowseClear("Transmission Texture", transmissionTexture,
                 alm::gfx::TextureLoadFlags::GenerateMips))
             {
                 mat->TransmissionTexture = transmissionTexture;
@@ -276,4 +288,3 @@ void alm::fw::FrameworkUI::BuildMaterialsWindow()
 
     ImGui::End();
 }
-

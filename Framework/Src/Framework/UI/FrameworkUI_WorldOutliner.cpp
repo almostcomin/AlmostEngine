@@ -1,10 +1,12 @@
-// FrameworkUI "World Outliner" window (View > World Outliner), including the
-// viewport node picking and the per-leaf-type inspector builders.
-// This is part of the alm::fw::FrameworkUI class: its member functions are split
-// across several FrameworkUI_*.cpp files, grouped by UI window.
+// "World Outliner" window (View > World Outliner), including the 3D viewport
+// node picking and the per-leaf-type inspector sections. UIWindow subclass of
+// the FrameworkUI window set (see Framework/UI/UIWindows.h). It also owns the
+// node selection: BuildSelectionInput() runs every frame from FrameworkUI,
+// whether the window is open or not.
 
 #include "Framework/FrameworkPCH.h"
 #include "Framework/UI/FrameworkUI.h"
+#include "Framework/UI/UIWindows.h"
 #include "Framework/UI/FrameworkUIWidgets.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
@@ -15,6 +17,8 @@
 #include "Gfx/SceneLights.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/Camera.h"
+#include "Gfx/RenderStages/ObjectOutlineRenderStage.h"
+#include "ImGuizmo/ImGuizmo.h"
 #include <SDL3/SDL.h>
 #include <imgui/imgui_internal.h>   // ImGui::IsMouseDragPastThreshold (BuildViewportPicking)
 
@@ -353,10 +357,35 @@ namespace
     }
 } // anonymous namespace
 
-void alm::fw::FrameworkUI::OpenWorldOutliner()
+void alm::fw::WorldOutlinerWindow::SetSelectedNode(const alm::weak<alm::gfx::SceneGraphNode>& node)
 {
-    m_ShowWorldOutliner = true;
+    m_SelectedNode = node;
 
+    auto outlineRS = m_UI.GetUIRenderView()->GetRenderGraph()->GetRenderStage<alm::gfx::ObjectOutlineRenderStage>();
+    if (outlineRS)
+    {
+        if (m_SelectedNode && m_SelectedNode->GetLeaf() && m_SelectedNode->GetLeaf()->GetType() == gfx::SceneGraphLeaf::Type::MeshInstance)
+        {
+            auto meshInstance = alm::checked_pointer_cast<gfx::MeshInstance>(m_SelectedNode->GetLeaf());
+            outlineRS->SetSelectedObject(meshInstance);
+        }
+        else
+        {
+            outlineRS->SetSelectedObject(nullptr);
+        }
+    }
+}
+
+void alm::fw::WorldOutlinerWindow::OpenWithSelectedNodeFocus()
+{
+    // Opens if closed (OnOpen focuses the selection), and re-focuses even if
+    // the window was already open.
+    SetOpen(true);
+    FocusSelectedNode();
+}
+
+void alm::fw::WorldOutlinerWindow::FocusSelectedNode()
+{
     if (!m_SelectedNode || m_SelectedNode.expired())
         return;
 
@@ -366,13 +395,36 @@ void alm::fw::FrameworkUI::OpenWorldOutliner()
     m_ScrollToSelectedNode = true;
 }
 
-void alm::fw::FrameworkUI::BuildWorldOutliner()
+void alm::fw::WorldOutlinerWindow::BuildSelectionInput()
 {
-    if (!m_ShowWorldOutliner)
+    if (m_SelectedNode && m_SelectedNode.expired())
+        SetSelectedNode(nullptr);
+    // ESC deselects the node, but not while the gizmo is being dragged: there ESC cancels the
+    // drag itself (handled in BuildGizmo) and the selection is kept.
+    // NOTE: IsUsingAny() must be used here: IsUsing() compares against ImGuizmo's own ID stack
+    // and always returns false when queried outside the gizmo's PushID scope.
+    if (m_SelectedNode && ImGui::IsKeyChordPressed(ImGuiKey_Escape) && !ImGuizmo::IsUsingAny())
+        SetSelectedNode(nullptr);
+
+    if (m_SelectedNode && ImGui::IsKeyChordPressed(ImGuiKey_Delete) && !ImGuizmo::IsUsingAny())
+    {
+        if (m_SelectedNode->GetParent())
+        {
+            m_SelectedNode->GetParent()->RemoveChild(m_SelectedNode);
+            SetSelectedNode(nullptr);
+        }
+    }
+
+    BuildViewportPicking();
+}
+
+void alm::fw::WorldOutlinerWindow::Build()
+{
+    if (!m_Open)
         return;
 
     ImGui::SetNextWindowSize(ImVec2(1300, 1000), ImGuiCond_Once);
-    if (!ImGui::Begin("World Outliner", &m_ShowWorldOutliner, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("World Outliner", &m_Open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
@@ -383,7 +435,7 @@ void alm::fw::FrameworkUI::BuildWorldOutliner()
         // Left side
         if (ImGui::BeginTable("##tree", 1, ImGuiTableFlags_RowBg))
         {
-            alm::gfx::SceneGraph::Walker walker(*m_Scene->GetSceneGraph());
+            alm::gfx::SceneGraph::Walker walker(*m_UI.GetScene()->GetSceneGraph());
             while (walker)
             {
                 alm::gfx::SceneGraphNode* node = *walker;
@@ -424,7 +476,7 @@ void alm::fw::FrameworkUI::BuildWorldOutliner()
 
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                 {
-                    auto camera = m_RenderViewUI->GetCamera();
+                    auto camera = m_UI.GetUIRenderView()->GetCamera();
                     const alm::aabox3f& bounds = m_SelectedNode->GetWorldBounds(gfx::SceneContentType::Meshes);
                     camera->Frame(bounds);
                 }
@@ -564,7 +616,7 @@ void alm::fw::FrameworkUI::BuildWorldOutliner()
                 switch (leaf->GetType())
                 {
                 case alm::gfx::SceneGraphLeaf::Type::MeshInstance:
-                    BuildMeshInstanceLeaf(this, alm::checked_cast<const alm::gfx::MeshInstance*>(leaf));
+                    BuildMeshInstanceLeaf(&m_UI, alm::checked_cast<const alm::gfx::MeshInstance*>(leaf));
                     break;
                 case alm::gfx::SceneGraphLeaf::Type::Camera:
                     assert(0);
@@ -592,15 +644,17 @@ void alm::fw::FrameworkUI::BuildWorldOutliner()
     ImGui::End();
 }
 
-void alm::fw::FrameworkUI::BuildViewportPicking()
+void alm::fw::WorldOutlinerWindow::BuildViewportPicking()
 {
     // Deselects and raycasts the 3D viewport at the given mouse position (window-relative).
     auto trySelectAt = [this](const float2& mousePos) -> std::optional<gfx::RaycastHit>
     {
         SetSelectedNode(nullptr);
 
-        auto sceneGraph = m_Scene ? m_Scene->GetSceneGraph() : nullptr;
-        auto camera = m_RenderViewUI ? m_RenderViewUI->GetCamera() : nullptr;
+        auto scene = m_UI.GetScene();
+        auto sceneGraph = scene ? scene->GetSceneGraph() : nullptr;
+        auto renderView = m_UI.GetUIRenderView();
+        auto camera = renderView ? renderView->GetCamera() : nullptr;
         if (!sceneGraph || !camera)
             return {};
 
@@ -633,9 +687,7 @@ void alm::fw::FrameworkUI::BuildViewportPicking()
             // (io.MouseClickedCount is zeroed every frame and only filled on clicks). On this
             // release frame, read the persistent click counter instead (stays valid after release).
             if (ImGui::GetIO().MouseClickedLastCount[ImGuiMouseButton_Right] >= 2)
-                OpenWorldOutliner();
-
-            m_ScrollToSelectedNode = true;
+                OpenWithSelectedNodeFocus();
         }
         else
         {

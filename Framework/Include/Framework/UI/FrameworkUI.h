@@ -8,13 +8,17 @@
 #include "Gfx/RenderStageFactory.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/LightingMode.h"
+#include "Gfx/AtmosphereConfig.h"
 #include "Gfx/Scene.h"
 #include "Gfx/RaycastHit.h"
 #include "Gfx/TextureLoadFlags.h"
-#include "Framework/UI/CloudsPresets.h"
-#include "Framework/UI/TimePlot.h"
+#include "Framework/UI/UIWindow.h"
+#include "Framework/UI/SettingsWidgets.h"
 
-struct MemoryEditor;
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace alm::gfx
 {
@@ -105,13 +109,40 @@ public:
 
 	weak<alm::gfx::Scene> GetScene() const { return m_Scene; }
 
+	// The render view the UI was initialized with (the one the panels inspect).
+	alm::gfx::RenderView* GetUIRenderView() const { return m_RenderViewUI.get(); }
+
+	CameraController* GetCameraController() const { return m_CameraController; }
+
+	// Window registry: the UI windows are UIWindow subclasses (see UIWindows.h),
+	// created by the FrameworkUI constructor and RegisterWindow() for app-specific
+	// ones. They are drawn every frame by BuildUI and auto-listed in the View menu.
+	template<class T>
+	T* GetWindow()
+	{
+		for (const auto& window : m_Windows)
+			if (T* result = dynamic_cast<T*>(window.get()))
+				return result;
+		return nullptr;
+	}
+
+	// Shared settings sections, shown by both the Settings and the Atmosphere windows.
+	ShadowmapSettingsWidget& GetShadowmapWidget() { return m_ShadowmapWidget; }
+	DirectionalLightWidget& GetDirectionalLightWidget() { return m_DirectionalLightWidget; }
+	AmbientLightWidget& GetAmbientLightWidget() { return m_AmbientLightWidget; }
+
 	void ShowBottomBar(bool b) { m_ShowBottomBar = b; }
 	void AddBottomBarText(const std::string& text);
 
 	void SetRenderStats(float fps, float cpuTime, float cpuIdleTime, float gpuTime);
+	float GetFPS() const { return m_FPS; }
+	float GetCPUTimeMs() const { return m_CPUTime; }
+	float GetCPUIdleTimeMs() const { return m_CPUIdleTime; }
+	float GetGPUTimeMs() const { return m_GPUTime; }
 
 	void AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture);
 
+	// Render stage IO inspection windows (delegates to the Render Stages window).
 	void AddRenderStageTextureWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& textureId);
 	void AddRenderStageBufferWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& bufferId);
 
@@ -119,6 +150,8 @@ public:
 
 	void ShowErrorModal(const std::string& message);
 
+	// Selects a scene graph node (delegates to the World Outliner window, which
+	// owns the selection and syncs the ObjectOutlineRenderStage).
 	void SetSelectedNode(const alm::weak<alm::gfx::SceneGraphNode>& node);
 
 	// Selects the material and opens the Material Panel (e.g. clicking the material name button in the World Outliner)
@@ -136,23 +169,34 @@ public:
 	std::function<void()> m_RequestClose;
 	std::function<void()> m_RequestQuit;
 
-protected:
-
-	void BuildUI() override;
-	
+	// ImGui helpers shared by the windows and the app UIs.
 	static bool ShowToggleButton(const char* label, bool* v);
 	static void ShowPropertyInt(const char* label, float labelWidth, int value, float valueWidth, int id);
 	static void ShowPropertyText(const char* label, float labelWidth, const char* value, float valueWidth, int id);
-
 	static void TextRightAlignedPosX(float xpos, const char* fmt, ...);
 
+	// Texture show/browse/clear row, used by the Materials window and the app UIs.
 	bool BuildTextureShowBrowseClear(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
 		alm::gfx::TextureLoadFlags loadFlags);
 	bool BuildTextureShowBrowseClearPred(const char* id, std::shared_ptr<alm::gfx::LoadedTexture>& loadedTex,
 		alm::gfx::TextureLoadFlags loadFlags, std::function<bool(const alm::gfx::LoadedTexture&)> pred);
 
+	// Native file dialogs.
 	std::string OpenFileNativeDialog(const std::string& filename, const std::vector<std::pair<std::string, std::string>>& filters);
 	std::string SaveFileNativeDialog(const std::string& filename);
+
+	// ImGui image helper exposed to the windows (ShowImage is protected in ImGuiRenderStage).
+	void ShowUIImage(alm::rhi::TextureHandle tex, alm::rhi::TextureSampledView view, const float2& size, const float2& uv0,
+		const float2& uv1, int mip = 0, int slice = 0, ImGuiTexFlags flags = ImGuiTexFlags_None);
+
+protected:
+
+	void BuildUI() override;
+
+	// Registers an app-specific window (call it from the app UI constructor). The
+	// window is drawn after the framework ones and appended to the View menu
+	// (unless it opts out of it). Returns the registered window.
+	alm::fw::UIWindow* RegisterWindow(std::unique_ptr<UIWindow> window);
 
 private:
 
@@ -175,127 +219,25 @@ private:
 		int selectedSlice = 0;
 	};
 
-	struct RenderStageTextureView
-	{
-		alm::gfx::RenderStageTypeID renderStageId;
-		alm::gfx::RenderGraph::AccessMode accessMode;
-		std::string textureId;
-		alm::gfx::RGTextureViewTicket ticket;
-		bool applyAlpha = false;
-		bool redChannel = true;
-		bool greenChannel = true;
-		bool blueChannel = true;
-		bool alphaChannel = false;
-		float defaultImageWidth = 360.f;
-		bool firstShow = true;
-	};
-
-	struct RenderStageBufferView
-	{
-		alm::gfx::RenderStageTypeID renderStageId;
-		alm::gfx::RenderGraph::AccessMode accessMode;
-		std::string bufferId;
-		alm::gfx::RGBufferViewTicket ticket;
-		std::unique_ptr<MemoryEditor> memEditor;
-	};
-
-private:
-
 	void BuildMainMenu();
 	void BuildBottomBar();
 
 	void BuildGizmo(ImGuiID dockspaceId);
 
-	// NOTE: The class implementation is split across several FrameworkUI_*.cpp files,
-	// one per UI window. The member functions below are grouped by the file they
-	// are defined in.
-
-	// --- FrameworkUI_Settings.cpp ---
-
-	void BuildSettingsWindow();
-	void BuildRenderModesSettings();
-	void BuildCameraSettings(float availWidth);
-	void BuildDebugViewSettings(float availWidth);
-	void BuildShadowmapSettings(float availWidth);
-	void BuildDirectionalLightSettings(float availWidth);
-	void BuildAmbientLightSettings(float availWidth);
-	void BuildMaterialChannelsSettings(float availWidth);
-	void BuildSSAOSettings(float availWidth);
-	void BuildBloomSettings(float availWidth);
-	void BuildExposureSettings(float availWidth);
-	void BuildTonemappingSettings(float availWidth);
-	void BuildLumninanceHistogram();
-
-	// --- FrameworkUI_Atmosphere.cpp ---
-
-	void BuildAtmospherePanel();
-	void BuildSimpleSkySettings();
-	void BuildCubemapSettings(float availWidth);
-	void BuildSimSkySettings();
-	void BuildsCloudsSettings();
-
-	// --- FrameworkUI_WorldOutliner.cpp ---
-
-	void BuildWorldOutliner();
-	void BuildViewportPicking();
-	void OpenWorldOutliner();
-
-	// --- FrameworkUI_RenderStages.cpp ---
-
-	void BuildRenderStagesWindow();
-	void BuildRSViews();
-	bool BuildRSTexView(RenderStageTextureView* rsTexView);
-	bool BuildRSBufferView(RenderStageBufferView* rsBufferView);
-
-	// --- FrameworkUI_Materials.cpp ---
-
-	void BuildMaterialsWindow();
-
-	// --- FrameworkUI_Stats.cpp ---
-
-	void BuildStatsWindow();
-	void BuildGPUCPUGraphWindow();
-	void BuildStagesGPUGraphWindow();
-	void BuildStagesCPUGraphWindow();
-
-	// --- FrameworkUI.cpp ---
-
 	void BuildTextureWindows();
 	bool BuildTextureWindow(UITextureWindow& textureWindow);
 	void ShowPendingErrorModal();
 
-protected:
+private:
 
-	SDL_Window* m_Window;
-	alm::weak<alm::gfx::Scene> m_Scene;
-	alm::weak<alm::gfx::RenderView> m_RenderViewUI;
-	CameraController* m_CameraController;
+	std::vector<std::unique_ptr<UIWindow>> m_Windows;
+
+	ShadowmapSettingsWidget m_ShadowmapWidget;
+	DirectionalLightWidget m_DirectionalLightWidget;
+	AmbientLightWidget m_AmbientLightWidget;
 
 	bool m_ShowMainMenu = true;
 	bool m_ShowBottomBar = true;
-
-	bool m_ShowSettings = false;
-	bool m_ShowWorldOutliner = false;
-	bool m_ShowRenderStages = false;
-	bool m_ShowMaterials = false;
-	bool m_ShowAtmospherePanel = false;
-	bool m_ShowStats = false;
-    bool m_ShowImGuiDebugger = false;   // ImGui Metrics/Debugger window (window list, draw commands, input routing)
-    bool m_StatsRequestedByUI = false;  // Whether this UI holds a culling stats request (RequestStats/UnrequestStats)
-    bool m_TimePlotReady = false;       // Whether the time plot lines have been registered
-    bool m_StagesGPUPlotReady = false;  // Whether the render stages GPU plot lines have been registered
-    bool m_StagesCPUPlotReady = false;  // Whether the render stages CPU plot lines have been registered
-
-    // Independent graph windows (opened from the stats window buttons)
-    bool m_ShowGPUCPUGraph = false;
-    bool m_ShowStagesGPUGraph = false;
-    bool m_ShowStagesCPUGraph = false;
-
-    alm::fw::TimePlot m_TimePlot;       // CPU/GPU time plot
-    alm::fw::TimePlot m_StagesGPUPlot;  // Per-render-stage GPU time plot
-    alm::fw::TimePlot m_StagesCPUPlot;  // Per-render-stage CPU time plot
-
-private:
 
 	float m_FPS = 0.f;
 	float m_CPUTime = 0.f;
@@ -304,34 +246,19 @@ private:
 
 	std::string m_PendingErrorModal;  // Message shown by the "Error" modal (empty = no modal)
 
-	std::vector<RenderStageTextureView> m_RSTextureViews;
-	std::vector<RenderStageBufferView> m_RSBufferViews;
-	alm::gfx::RGTextureViewTicket m_RSTexViewFocus;
-	alm::gfx::RGBufferViewTicket m_RSBufferViewFocus;
-
 	std::vector<UITextureWindow> m_TextureWindows;
 
-	alm::weak<alm::gfx::SceneGraphNode> m_SelectedNode;
-	bool m_ScrollToSelectedNode = false;
-	std::vector<const alm::gfx::SceneGraphNode*> m_ExpandAncestors;
-
-	std::string m_RenderStageIOHoveredId;
+	// Right-aligned texts shown by the bottom bar on the next frame (AddBottomBarText)
 	std::vector<std::string> m_BottomBarRightAlignTexts;
-
-	int2 m_ShadowmapSizeCached = {-1, -1};
-
-	bool m_ShowLuminanceHistogram = false;
-	alm::gfx::RGBufferViewTicket m_LumHistogramBufferTicket;
-	int m_LumHistogramMode = 0;
-
-	CloudsPreset m_CloudsPreset = CloudsPreset::FairWeather;
-	alm::gfx::CloudsRenderStage::DebugChannel m_CloudsDebugChannel = alm::gfx::CloudsRenderStage::DebugChannel::Disabled;
 
 	std::vector<std::pair<std::string, const std::function<void()>>> m_MainMenuAdditionalItems;
 
-	gfx::Material* m_SelectedMaterial = nullptr;
-	bool m_ScrollToSelectedMaterial = false;
-	ImGuiTextFilter m_MaterialFilter;
+protected:
+
+	SDL_Window* m_Window;
+	alm::weak<alm::gfx::Scene> m_Scene;
+	alm::weak<alm::gfx::RenderView> m_RenderViewUI;
+	CameraController* m_CameraController;
 };
 
 } // namespace alm::fw

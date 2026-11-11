@@ -1,6 +1,7 @@
 #include "Framework/FrameworkPCH.h"
 #include "Framework/CameraController.h"
 #include "Framework/UI/FrameworkUI.h"
+#include "Framework/UI/UIWindows.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"
@@ -28,9 +29,11 @@
 #include "Gfx/RenderStages/ExposureRenderStage.h"
 #include "RHI/Device.h"
 #include "ImGuizmo/ImGuizmo.h"
-#include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow()
+#include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow() and GetKeyChordName() (View menu)
 #include <SDL3/SDL.h>
 #include <commdlg.h>
+// Complete type for the MemoryEditor held by the Render Stages window views:
+// the window registry (destroyed in ~FrameworkUI) instantiates its destructor here.
 #include "imgui_memory_editor.h"
 
 namespace
@@ -64,11 +67,45 @@ namespace
 
 } // anonymous namespace
 
-alm::fw::FrameworkUI::FrameworkUI() : m_Window(nullptr)
-{}
+alm::fw::FrameworkUI::FrameworkUI()
+	: m_ShadowmapWidget(*this)
+	, m_DirectionalLightWidget(*this)
+	, m_AmbientLightWidget(*this)
+	, m_Window(nullptr)
+{
+	// Window registry. Creation order = drawing order and View menu order.
+	m_Windows.push_back(std::make_unique<SettingsWindow>(*this));
+	m_Windows.push_back(std::make_unique<WorldOutlinerWindow>(*this));
+	m_Windows.push_back(std::make_unique<RenderStagesWindow>(*this));
+	m_Windows.push_back(std::make_unique<MaterialsWindow>(*this));
+	m_Windows.push_back(std::make_unique<AtmosphereWindow>(*this));
+	m_Windows.push_back(std::make_unique<StatsWindow>(*this));
+
+	// Secondary windows, opened from other windows (not listed in the View menu).
+	m_Windows.push_back(std::make_unique<GPUCPUGraphWindow>(*this));
+	m_Windows.push_back(std::make_unique<StagesGPUGraphWindow>(*this));
+	m_Windows.push_back(std::make_unique<StagesCPUGraphWindow>(*this));
+	m_Windows.push_back(std::make_unique<LuminanceHistogramWindow>(*this));
+
+	m_Windows.push_back(std::make_unique<ImGuiDebuggerWindow>(*this));
+}
 
 alm::fw::FrameworkUI::~FrameworkUI()
 {}
+
+alm::fw::UIWindow* alm::fw::FrameworkUI::RegisterWindow(std::unique_ptr<UIWindow> window)
+{
+	m_Windows.push_back(std::move(window));
+	return m_Windows.back().get();
+}
+
+void alm::fw::ImGuiDebuggerWindow::Build()
+{
+    if (!m_Open)
+        return;
+
+    ImGui::ShowMetricsWindow(&m_Open);
+}
 
 void alm::fw::FrameworkUI::Init(SDL_Window* window, weak<gfx::Scene> scene, weak<gfx::RenderView> renderView, CameraController* cameraController)
 {
@@ -80,32 +117,18 @@ void alm::fw::FrameworkUI::Init(SDL_Window* window, weak<gfx::Scene> scene, weak
 
 void alm::fw::FrameworkUI::BuildUI()
 {
-    if (m_SelectedNode && m_SelectedNode.expired())
-        SetSelectedNode(nullptr);
-    // ESC deselects the node, but not while the gizmo is being dragged: there ESC cancels the
-    // drag itself (handled in BuildGizmo) and the selection is kept.
-    // NOTE: IsUsingAny() must be used here: IsUsing() compares against ImGuizmo's own ID stack
-    // and always returns false when queried outside the gizmo's PushID scope.
-    if (m_SelectedNode && ImGui::IsKeyChordPressed(ImGuiKey_Escape) && !ImGuizmo::IsUsingAny())
-        SetSelectedNode(nullptr);
+    // Selection input (owned by the World Outliner window) runs every frame,
+    // whether that window is open or not.
+    if (auto* outliner = GetWindow<WorldOutlinerWindow>())
+        outliner->BuildSelectionInput();
 
-    if (m_SelectedNode && ImGui::IsKeyChordPressed(ImGuiKey_Delete) && !ImGuizmo::IsUsingAny())
+    // Window open hotkeys: they open the window, they do not toggle it.
+    for (const auto& window : m_Windows)
     {
-        if (m_SelectedNode->GetParent())
-        {
-            m_SelectedNode->GetParent()->RemoveChild(m_SelectedNode);
-            SetSelectedNode(nullptr);
-        }
+        if (const ImGuiKeyChord hotkey = window->GetOpenHotkey(); hotkey != ImGuiKey_None && ImGui::IsKeyChordPressed(hotkey))
+            window->SetOpen(true);
     }
 
-    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S))
-        m_ShowSettings = true;
-    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_W))
-        m_ShowWorldOutliner = true;
-    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_R))
-        m_ShowRenderStages = true;
-    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_M))
-        m_ShowMaterials = true;
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_G))
         SetGridVisible(!IsGridVisible());
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Alt | ImGuiKey_W))
@@ -114,36 +137,25 @@ void alm::fw::FrameworkUI::BuildUI()
     BuildMainMenu();
     BuildBottomBar();
 
-    BuildSettingsWindow();
-    BuildWorldOutliner();
-    BuildRenderStagesWindow();
-    BuildMaterialsWindow();
-    BuildAtmospherePanel();
-    BuildStatsWindow();
+    for (const auto& window : m_Windows)
+        window->Build();
 
-    BuildGPUCPUGraphWindow();
-    BuildStagesGPUGraphWindow();
-    BuildStagesCPUGraphWindow();
-
-    BuildViewportPicking();
-
-    BuildLumninanceHistogram();
     BuildTextureWindows();
-    BuildRSViews();
 
     ShowPendingErrorModal();
 
     BuildGizmo(GetDockspaceId());
-
-    if (m_ShowImGuiDebugger)
-    {
-        ImGui::ShowMetricsWindow(&m_ShowImGuiDebugger);
-    }
 }
 
 void alm::fw::FrameworkUI::BuildGizmo(ImGuiID dockspaceId)
 {
-    if (!m_SelectedNode)
+    // The selection lives in the World Outliner window
+    auto* outliner = GetWindow<WorldOutlinerWindow>();
+    alm::weak<alm::gfx::SceneGraphNode> selectedNode;
+    if (outliner)
+        selectedNode = outliner->GetSelectedNode();
+
+    if (!selectedNode)
         return;
 
     ImGuizmo::SetOrthographic(false);
@@ -151,7 +163,7 @@ void alm::fw::FrameworkUI::BuildGizmo(ImGuiID dockspaceId)
     // each axis towards the camera when it sits on the negative half of that axis.
     ImGuizmo::AllowAxisFlip(false);
     ImGuizmo::BeginFrame();
-    ImGuizmo::PushID(m_SelectedNode.get());
+    ImGuizmo::PushID(selectedNode.get());
     ImGuizmo::Enable(true);
 
     // Gizmo hotkeys (ignored while typing in text fields)
@@ -175,7 +187,7 @@ void alm::fw::FrameworkUI::BuildGizmo(ImGuiID dockspaceId)
         float4x4 view = camera->GetViewMatrix();
         float4x4 proj = camera->GetProjectionMatrix();
 
-        auto* node = m_SelectedNode.get();
+        auto* node = selectedNode.get();
         float4x4 world = node->GetWorldTransform();
 
         ImGuizmo::Manipulate(
@@ -247,41 +259,21 @@ void alm::fw::FrameworkUI::AddTextureWindow(const std::string& title, alm::rhi::
 void alm::fw::FrameworkUI::AddRenderStageTextureWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode,
     const std::string& textureId)
 {
-    alm::gfx::RenderGraph* renderGraph = m_RenderViewUI->GetRenderGraph().get();
-
-    // Check if it already exists
-    for (auto& entry : m_RSTextureViews)
-    {
-        if (entry.renderStageId == rsId && entry.accessMode == accessMode && entry.textureId == textureId)
-        {
-            m_RSTexViewFocus = entry.ticket;
-            return;
-        }
-    }
-
-    auto ticket = renderGraph->RequestTextureView(rsId, accessMode, renderGraph->GetTextureHandle(textureId));
-    m_RSTextureViews.emplace_back(rsId, accessMode, textureId, ticket);
+    if (auto* renderStages = GetWindow<RenderStagesWindow>())
+        renderStages->AddTextureView(rsId, accessMode, textureId);
 }
 
 void alm::fw::FrameworkUI::AddRenderStageBufferWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode,
     const std::string& bufferId)
 {
-    alm::gfx::RenderGraph* renderGraph = m_RenderViewUI->GetRenderGraph().get();
+    if (auto* renderStages = GetWindow<RenderStagesWindow>())
+        renderStages->AddBufferView(rsId, accessMode, bufferId);
+}
 
-    // Check if it already exists
-    for (auto& entry : m_RSBufferViews)
-    {
-        if (entry.renderStageId == rsId && entry.accessMode == accessMode && entry.bufferId == bufferId)
-        {
-            m_RSBufferViewFocus = entry.ticket;
-            return;
-        }
-    }
-
-    auto ticket = renderGraph->RequestBufferView(rsId, accessMode, renderGraph->GetBufferHandle(bufferId));
-    MemoryEditor* memEditor = new MemoryEditor;
-    memEditor->ReadOnly = true;
-    m_RSBufferViews.emplace_back(rsId, accessMode, bufferId, ticket, std::unique_ptr<MemoryEditor>{ memEditor });
+void alm::fw::FrameworkUI::ShowUIImage(alm::rhi::TextureHandle tex, alm::rhi::TextureSampledView view, const float2& size,
+    const float2& uv0, const float2& uv1, int mip, int slice, ImGuiTexFlags flags)
+{
+    ShowImage(tex, view, size, uv0, uv1, mip, slice, flags);
 }
 
 void alm::fw::FrameworkUI::RegisterMainMenuItem(const std::string& name, std::function<void()> item)
@@ -296,21 +288,8 @@ void alm::fw::FrameworkUI::ShowErrorModal(const std::string& message)
 
 void alm::fw::FrameworkUI::SetSelectedNode(const alm::weak<alm::gfx::SceneGraphNode>& node)
 {
-    m_SelectedNode = node;
-
-    auto outlineRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::ObjectOutlineRenderStage>();
-    if (outlineRS)
-    {
-        if (m_SelectedNode && m_SelectedNode->GetLeaf() && m_SelectedNode->GetLeaf()->GetType() == gfx::SceneGraphLeaf::Type::MeshInstance)
-        {
-            auto meshInstance = alm::checked_pointer_cast<gfx::MeshInstance>(m_SelectedNode->GetLeaf());
-            outlineRS->SetSelectedObject(meshInstance);
-        }
-        else
-        {
-            outlineRS->SetSelectedObject(nullptr);
-        }
-    }
+    if (auto* outliner = GetWindow<WorldOutlinerWindow>())
+        outliner->SetSelectedNode(node);
 }
 
 void alm::fw::FrameworkUI::SetGridVisible(bool b)
@@ -376,9 +355,8 @@ std::optional<std::pair<uint2, uint2>> alm::fw::FrameworkUI::GetCentralViewport(
 
 void alm::fw::FrameworkUI::OpenMaterialPanel(alm::gfx::Material* material)
 {
-    m_SelectedMaterial = material;
-    m_ShowMaterials = true;
-    m_ScrollToSelectedMaterial = true;
+    if (auto* materials = GetWindow<MaterialsWindow>())
+        materials->SelectMaterial(material);
 }
 
 void alm::fw::FrameworkUI::SetRenderStats(float fps, float cpuTime, float cpuIdleTime, float gpuTime)
@@ -510,34 +488,19 @@ void alm::fw::FrameworkUI::BuildMainMenu()
 
         if (ImGui::BeginMenu("View"))
         {
-            if (ImGui::MenuItem("Settings", "Ctrl+S", m_ShowSettings))
-                m_ShowSettings = !m_ShowSettings;
-            if (ImGui::MenuItem("World Outliner", "Ctrl+W", m_ShowWorldOutliner))
+            // Auto-generated from the window registry (creation order).
+            // Opening from the menu toggles; the per-window hotkeys only open.
+            for (const auto& window : m_Windows)
             {
-                if (!m_ShowWorldOutliner)
-                {
-                    OpenWorldOutliner();
-                }
-                else
-                {
-                    m_ShowWorldOutliner = false;
-                }
+                if (!window->ShowInViewMenu())
+                    continue;
+
+                const ImGuiKeyChord hotkey = window->GetOpenHotkey();
+                const char* hotkeyLabel = (hotkey != ImGuiKey_None) ? ImGui::GetKeyChordName(hotkey) : nullptr;
+
+                if (ImGui::MenuItem(window->GetName(), hotkeyLabel, window->IsOpen()))
+                    window->Toggle();
             }
-
-            if (ImGui::MenuItem("Render Stages", "Ctrl+R", m_ShowRenderStages))
-                m_ShowRenderStages = !m_ShowRenderStages;
-
-            if (ImGui::MenuItem("Material Panel", "Ctrl+M", m_ShowMaterials))
-                m_ShowMaterials = !m_ShowMaterials;
-
-            if (ImGui::MenuItem("Atmosphere / Lighting", nullptr, m_ShowAtmospherePanel))
-                m_ShowAtmospherePanel = !m_ShowAtmospherePanel;
-
-            if (ImGui::MenuItem("Statistics", nullptr, m_ShowStats))
-                m_ShowStats = !m_ShowStats;
-
-            if (ImGui::MenuItem("ImGui Debugger", nullptr, m_ShowImGuiDebugger))
-                m_ShowImGuiDebugger = !m_ShowImGuiDebugger;
 
             ImGui::EndMenu();
         }

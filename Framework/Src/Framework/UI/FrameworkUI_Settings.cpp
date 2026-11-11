@@ -1,38 +1,32 @@
-// FrameworkUI "Settings" window (View > Settings).
-// This is part of the alm::fw::FrameworkUI class: its member functions are split
-// across several FrameworkUI_*.cpp files, grouped by UI window.
+// "Settings" window (View > Settings) and the "Luminance histogram" window opened
+// from its Exposure section. These are UIWindow subclasses of the FrameworkUI
+// window set (see Framework/UI/UIWindows.h); the Shadowmap, Directional light and
+// Ambient sections live in the shared SettingsWidgets, shown by this window and
+// by the Atmosphere/Lighting window.
 
 #include "Framework/FrameworkPCH.h"
 #include "Framework/CameraController.h"
 #include "Framework/UI/FrameworkUI.h"
+#include "Framework/UI/UIWindows.h"
 #include "Framework/UI/FrameworkUIWidgets.h"
-#include "Gfx/SceneLights.h"
+#include "Gfx/Scene.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/DeviceManager.h"
 #include "Gfx/Camera.h"
-#include "Gfx/RenderStages/ShadowmapRenderStage.h"
-#include "Gfx/RenderStages/DepthPrepassRenderStage.h"
-#include "Gfx/RenderStages/GBuffersRenderStage.h"
-#include "Gfx/RenderStages/WBOITAccumRenderStage.h"
-#include "Gfx/RenderStages/WireframeRenderStage.h"
-#include "Gfx/RenderStages/GPUCullingRenderStage.h"
 #include "Gfx/RenderStages/DeferredLightingRenderStage.h"
-#include "Gfx/RenderStages/ToneMappingRenderStage.h"
-#include "Gfx/RenderStages/GridRenderStage.h"
-#include "Gfx/RenderStages/ObjectOutlineRenderStage.h"
-#include "Gfx/RenderStages/ExposureRenderStage.h"
 #include "Gfx/RenderStages/BloomRenderStage.h"
+#include "Gfx/RenderStages/ExposureRenderStage.h"
 #include "RHI/Device.h"
 
-void alm::fw::FrameworkUI::BuildSettingsWindow()
+void alm::fw::SettingsWindow::Build()
 {
-    if (!m_ShowSettings)
+    if (!m_Open)
         return;
 
     ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Settings", &m_ShowSettings, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Settings", &m_Open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
@@ -44,9 +38,9 @@ void alm::fw::FrameworkUI::BuildSettingsWindow()
     BuildRenderModesSettings();
     BuildCameraSettings(availWidth);
     BuildDebugViewSettings(availWidth);
-    BuildShadowmapSettings(availWidth);
-    BuildDirectionalLightSettings(availWidth);
-    BuildAmbientLightSettings(availWidth);
+    m_UI.GetShadowmapWidget().Build(availWidth);
+    m_UI.GetDirectionalLightWidget().Build(availWidth);
+    m_UI.GetAmbientLightWidget().Build(availWidth);
     BuildMaterialChannelsSettings(availWidth);
     BuildSSAOSettings(availWidth);
     BuildBloomSettings(availWidth);
@@ -56,15 +50,16 @@ void alm::fw::FrameworkUI::BuildSettingsWindow()
     ImGui::End();
 }
 
-void alm::fw::FrameworkUI::BuildRenderModesSettings()
+void alm::fw::SettingsWindow::BuildRenderModesSettings()
 {
     if (ImGui::CollapsingHeader("Render modes", ImGuiTreeNodeFlags_None))
     {
-        std::vector<std::string> renderModes = m_RenderViewUI->GetRenderGraph()->GetRenderModes();
+        auto renderGraph = m_UI.GetUIRenderView()->GetRenderGraph();
+        std::vector<std::string> renderModes = renderGraph->GetRenderModes();
         int selectedIdx = 0;
         for (int i = 0; i < renderModes.size(); ++i)
         {
-            if (renderModes[i] == m_RenderViewUI->GetRenderGraph()->GetCurrentRenderMode())
+            if (renderModes[i] == renderGraph->GetCurrentRenderMode())
             {
                 selectedIdx = i;
                 break;
@@ -85,16 +80,16 @@ void alm::fw::FrameworkUI::BuildRenderModesSettings()
             ImGui::EndListBox();
         }
 
-        if (renderModes[selectedIdx] != m_RenderViewUI->GetRenderGraph()->GetCurrentRenderMode())
-            FrameworkData.RequestedRenderMode = renderModes[selectedIdx];
+        if (renderModes[selectedIdx] != renderGraph->GetCurrentRenderMode())
+            m_UI.FrameworkData.RequestedRenderMode = renderModes[selectedIdx];
     }
 }
 
-void alm::fw::FrameworkUI::BuildCameraSettings(float availWidth)
+void alm::fw::SettingsWindow::BuildCameraSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_None))
     {
-        auto camera = m_RenderViewUI->GetCamera();
+        auto camera = m_UI.GetUIRenderView()->GetCamera();
 
         // Position
         float3 pos = camera->GetPosition();
@@ -134,196 +129,84 @@ void alm::fw::FrameworkUI::BuildCameraSettings(float availWidth)
         }
 
         // Speed 
-        if (m_CameraController)
+        if (auto* cameraController = m_UI.GetCameraController())
         {
             ImGui::SameLine();
             ImGui::SetNextItemWidth(itemWidth);
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + itemWidth / 2.f);
-            float speed = m_CameraController->GetSpeed();
+            float speed = cameraController->GetSpeed();
             if (ImGui::InputFloat("Speed", &speed, 0.f, 0.f, "%.3f", 0))
             {
-                m_CameraController->SetSpeed(speed);
+                cameraController->SetSpeed(speed);
             }
         }
     }
 }
 
-void alm::fw::FrameworkUI::BuildDebugViewSettings(float availWidth)
+void alm::fw::SettingsWindow::BuildDebugViewSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Debug view", ImGuiTreeNodeFlags_None))
     {
-        ImGui::Checkbox("Mesh BBoxes", &FrameworkData.Debug.ShowMeshBBoxes);
+        ImGui::Checkbox("Mesh BBoxes", &m_UI.FrameworkData.Debug.ShowMeshBBoxes);
         ImGui::SameLine(availWidth / 2);
-        ImGui::Checkbox("Light BBoxes", &FrameworkData.Debug.ShowLightBBoxes);
-        ImGui::Checkbox("Heightmap BBoxes", &FrameworkData.Debug.ShowHeightmapBBoxes);
+        ImGui::Checkbox("Light BBoxes", &m_UI.FrameworkData.Debug.ShowLightBBoxes);
+        ImGui::Checkbox("Heightmap BBoxes", &m_UI.FrameworkData.Debug.ShowHeightmapBBoxes);
     }
 }
 
-void alm::fw::FrameworkUI::BuildShadowmapSettings(float availWidth)
-{
-    const ImGuiStyle& style = ImGui::GetStyle();
-
-    if (ImGui::CollapsingHeader("Shadowmap", ImGuiTreeNodeFlags_None))
-    {
-        auto shadowmapRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::ShadowmapRenderStage>();
-        if (!shadowmapRS)
-            return;
-
-        auto lightingRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::DeferredLightingRenderStage>();
-
-        ImGui::SetNextItemWidth(availWidth / 2);
-        ImGui::Checkbox("Enabled##Shadowmap", &FrameworkData.ShadowmapEnabled);
-
-        ImGui::SameLine(availWidth / 2);
-        ImGui::SetNextItemWidth(availWidth / 2);
-        bool showShadowmap = lightingRS->GetShowShadowmap();
-        if(ImGui::Checkbox("Show##Shadowmap", &showShadowmap))
-            lightingRS->ShowShadowmap(showShadowmap);
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        ImGui::SetNextItemWidth(availWidth / 4);
-        int depthBias = shadowmapRS->GetDepthBias();
-        if(ImGui::InputInt("Depth Bias##Shadowmap", &depthBias))
-            shadowmapRS->SetDepthBias(depthBias);
-
-        ImGui::SameLine(availWidth / 2);
-        ImGui::SetNextItemWidth(availWidth / 4);
-        float slopeBias = shadowmapRS->GetSlopeScaledDepthBias();
-        if (ImGui::InputFloat("Slope scaled Depth Bias##Shadowmap", &slopeBias))
-            shadowmapRS->SetSlopeScaledDepthBias(slopeBias);
-
-        ImGui::Spacing();
-
-        float itemWidth = availWidth / 5;
-        ImGui::SetCursorPosX(style.ItemSpacing.x);
-
-        ImGui::Text("Size");
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(itemWidth + style.ItemSpacing.x);
-
-        if (m_ShadowmapSizeCached.x < 0)
-            m_ShadowmapSizeCached = shadowmapRS->GetSize();
-
-        ImGui::SetNextItemWidth(itemWidth);
-        ImGui::InputInt("##sizex", (int*)&m_ShadowmapSizeCached.x, ImGuiInputTextFlags_None);
-        ImGui::SameLine();
-
-        ImGui::SetNextItemWidth(itemWidth);
-        ImGui::InputInt("##sizey", (int*)&m_ShadowmapSizeCached.y, ImGuiInputTextFlags_None);
-        ImGui::SameLine();
-
-        if (ImGui::Button("Reset", ImVec2{ itemWidth - style.ItemSpacing.x / 2, 0 }))
-            m_ShadowmapSizeCached = shadowmapRS->GetSize();
-
-        ImGui::SameLine();
-        if (ImGui::Button("Apply", ImVec2{ itemWidth - style.ItemSpacing.x / 2, 0 }))
-        {
-            FrameworkData.ShadowmapSize = m_ShadowmapSizeCached;
-        }
-    }
-}
-
-void alm::fw::FrameworkUI::BuildDirectionalLightSettings(float availWidth)
-{
-    if (ImGui::CollapsingHeader("Directional light"))
-    {
-        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
-        {
-            ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
-            return;
-        }
-
-        const float minAzimuth = -180.0;
-        const float maxAzimuth = 180.0;
-        const float minElevation = -90.0;
-        const float maxElevation = 90.0;
-
-        FrameworkData.SunParamsUpdated |= ImGui::Checkbox(
-            "Enabled", &FrameworkData.SunLightEnabled);
-        FrameworkData.SunParamsUpdated |= ImGui::SliderScalar(
-            "Azimuth", ImGuiDataType_Float, &FrameworkData.SunParams.AzimuthDeg, &minAzimuth, &maxAzimuth, "%.1f deg",
-            ImGuiSliderFlags_NoRoundToFormat);
-        FrameworkData.SunParamsUpdated |= ImGui::SliderScalar(
-            "Elevation", ImGuiDataType_Float, &FrameworkData.SunParams.ElevationDeg, &minElevation, &maxElevation, "%.1f deg",
-            ImGuiSliderFlags_NoRoundToFormat);
-        FrameworkData.SunParamsUpdated |= ImGui::ColorEdit3(
-            "Color", &FrameworkData.SunParams.Color.x, ImGuiColorEditFlags_Float);
-        FrameworkData.SunParamsUpdated |= ImGui::SliderFloat(
-            "Irradiance", &FrameworkData.SunParams.Irradiance, 0.f, 100.f, "%.2f", ImGuiSliderFlags_Logarithmic);
-        FrameworkData.SunParamsUpdated |= ImGui::SliderFloat(
-            "Angular Size", &FrameworkData.SunParams.AngularSizeDeg, 0.0f, 20.f);
-    }
-}
-
-void alm::fw::FrameworkUI::BuildAmbientLightSettings(float availWidth)
-{
-    if (ImGui::CollapsingHeader("Ambient"))
-    {
-        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
-        {
-            ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
-            return;
-        }
-
-        FrameworkData.AmbientParamsUpdated |= ImGui::SliderFloat("Intensity", &FrameworkData.AmbientParams.Intensity, 0.f, 1.f);
-        FrameworkData.AmbientParamsUpdated |= ImGui::ColorEdit3("Sky Color", &FrameworkData.AmbientParams.SkyColor.x, ImGuiColorEditFlags_Float);
-        FrameworkData.AmbientParamsUpdated |= ImGui::ColorEdit3("Ground Color", &FrameworkData.AmbientParams.GroundColor.x, ImGuiColorEditFlags_Float);
-    }
-}
-
-void alm::fw::FrameworkUI::BuildMaterialChannelsSettings(float availWidth)
+void alm::fw::SettingsWindow::BuildMaterialChannelsSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Material channels"))
     {
-        if (ImGui::RadioButton("Disabled##matDisabled", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
-        if (ImGui::RadioButton("Base Color##matBaseColor", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor;
-        if (ImGui::RadioButton("Metalness##matMetalness", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness;
-        if (ImGui::RadioButton("Anisotropy##matAnisotropy", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy;
-        if (ImGui::RadioButton("Roughness##matRoughness", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness;
-        if (ImGui::RadioButton("Scattering##matScattering", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering;
-        if (ImGui::RadioButton("Translucency##matTranslucency", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency;
-        if (ImGui::RadioButton("Normal Map##matNormalMap", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap;
-        if (ImGui::RadioButton("Occlusion Map##matOcclusionMap", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap;
-        if (ImGui::RadioButton("Emissive##matEmissive", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive;
-        if (ImGui::RadioButton("Specular F0##matSpecularF0", FrameworkData.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0))
-            FrameworkData.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0;
+        auto& data = m_UI.FrameworkData;
+        if (ImGui::RadioButton("Disabled##matDisabled", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Disabled;
+        if (ImGui::RadioButton("Base Color##matBaseColor", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::BaseColor;
+        if (ImGui::RadioButton("Metalness##matMetalness", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Metalness;
+        if (ImGui::RadioButton("Anisotropy##matAnisotropy", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Anisotropy;
+        if (ImGui::RadioButton("Roughness##matRoughness", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Roughness;
+        if (ImGui::RadioButton("Scattering##matScattering", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Scattering;
+        if (ImGui::RadioButton("Translucency##matTranslucency", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Translucency;
+        if (ImGui::RadioButton("Normal Map##matNormalMap", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::NormalMap;
+        if (ImGui::RadioButton("Occlusion Map##matOcclusionMap", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::OcclusionMap;
+        if (ImGui::RadioButton("Emissive##matEmissive", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::Emissive;
+        if (ImGui::RadioButton("Specular F0##matSpecularF0", data.MatChannel == alm::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0))
+            data.MatChannel = alm::gfx::DeferredLightingRenderStage::MaterialChannel::SpecularF0;
     }
 }
 
-void alm::fw::FrameworkUI::BuildSSAOSettings(float availWidth)
+void alm::fw::SettingsWindow::BuildSSAOSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("SSAO"))
     {
+        auto& ssao = m_UI.FrameworkData.SSAO;
+
         ImGui::SetNextItemWidth(availWidth / 2);
-        ImGui::Checkbox("Enabled##SSAO", &FrameworkData.SSAO.Enabled);
+        ImGui::Checkbox("Enabled##SSAO", &ssao.Enabled);
         ImGui::SameLine(availWidth / 2);
         ImGui::SetNextItemWidth(availWidth / 2);
-        ImGui::Checkbox("Show##SSAO", &FrameworkData.SSAO.View);
+        ImGui::Checkbox("Show##SSAO", &ssao.View);
 
-        ImGui::InputFloat("Radius##SSAO", &FrameworkData.SSAO.Radius);
-        ImGui::InputFloat("Power##SSAO", &FrameworkData.SSAO.Power);
-        ImGui::InputFloat("Bias##Bias", &FrameworkData.SSAO.Bias);
+        ImGui::InputFloat("Radius##SSAO", &ssao.Radius);
+        ImGui::InputFloat("Power##SSAO", &ssao.Power);
+        ImGui::InputFloat("Bias##Bias", &ssao.Bias);
     }
 }
 
-void alm::fw::FrameworkUI::BuildBloomSettings(float availWidth)
+void alm::fw::SettingsWindow::BuildBloomSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Bloom"))
     {
-        auto bloomRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::BloomRenderStage>();
+        auto bloomRS = m_UI.GetUIRenderView()->GetRenderGraph()->GetRenderStage<alm::gfx::BloomRenderStage>();
         if (!bloomRS)
         { 
             ImGui::TextUnformatted("No BloomRenderStage present");
@@ -357,7 +240,7 @@ void alm::fw::FrameworkUI::BuildBloomSettings(float availWidth)
         }
 
         // Calc whats the max mip chain
-        alm::rhi::TextureHandle tex = m_RenderViewUI->GetRenderGraph()->GetTexture("SceneColor");
+        alm::rhi::TextureHandle tex = m_UI.GetUIRenderView()->GetRenderGraph()->GetTexture("SceneColor");
         int maxMips = static_cast<int>(std::floor(std::log2((std::max)(tex->GetDesc().width, tex->GetDesc().height))));
 
         int mipChainL = bloomRS->GetMipChainLength();
@@ -368,55 +251,61 @@ void alm::fw::FrameworkUI::BuildBloomSettings(float availWidth)
     }
 }
 
-void alm::fw::FrameworkUI::BuildExposureSettings(float availWidth)
+void alm::fw::SettingsWindow::BuildExposureSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Exposure"))
     {
+        auto& exposure = m_UI.FrameworkData.Exposure;
+
         // Luminance
 
         const float minLogLuminance = -20.f;
         const float maxLogLuminance = 0.f;
-        ImGui::SliderScalar("Min log luminance", ImGuiDataType_Float, &FrameworkData.Exposure.MinLogLuminance,
+        ImGui::SliderScalar("Min log luminance", ImGuiDataType_Float, &exposure.MinLogLuminance,
             &minLogLuminance, &maxLogLuminance, "%.3f");
 
         const float minLogRange = 0.f;
         const float maxLogRange = 36.f;
-        ImGui::SliderScalar("Log luminance range", ImGuiDataType_Float, &FrameworkData.Exposure.LogLuminanceRange,
+        ImGui::SliderScalar("Log luminance range", ImGuiDataType_Float, &exposure.LogLuminanceRange,
             &minLogRange, &maxLogRange, "%.3f");
 
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-        const float minLum = exp2(FrameworkData.Exposure.MinLogLuminance);
-        const float maxLum = minLum * std::exp2(FrameworkData.Exposure.LogLuminanceRange);
+        const float minLum = exp2(exposure.MinLogLuminance);
+        const float maxLum = minLum * std::exp2(exposure.LogLuminanceRange);
         ImGui::Text("Luminance [%1.6f .. %1.6f]", minLum, maxLum);
         ImGui::PopStyleColor();
 
         ImGui::Spacing();
 
-        ImGui::SliderFloat("Middle Gray Nits", &FrameworkData.Exposure.MiddleGrayNits, 0.f, 1000.f);
+        ImGui::SliderFloat("Middle Gray Nits", &exposure.MiddleGrayNits, 0.f, 1000.f);
 
         const float minExposureBias = 0.f;
         const float maxExposureBias = 1.f;
-        ImGui::SliderScalar("SDR Exposure Bias", ImGuiDataType_Float, &FrameworkData.Exposure.SdrExposureBias,
+        ImGui::SliderScalar("SDR Exposure Bias", ImGuiDataType_Float, &exposure.SdrExposureBias,
             &minExposureBias, &maxExposureBias, "%.3f");
 
         ImGui::Spacing();
 
-        ImGui::InputFloat("Dark to light adaptation speed", &FrameworkData.Exposure.AdaptationUpSpeed);
-        ImGui::InputFloat("Light to dark adaptation speed", &FrameworkData.Exposure.AdaptationDownSpeed);
+        ImGui::InputFloat("Dark to light adaptation speed", &exposure.AdaptationUpSpeed);
+        ImGui::InputFloat("Light to dark adaptation speed", &exposure.AdaptationDownSpeed);
 
         ImGui::Spacing();
 
-        m_ShowLuminanceHistogram |= ImGui::Button("View Histogram");
+        if (ImGui::Button("View Histogram"))
+        {
+            if (auto* histogram = m_UI.GetWindow<LuminanceHistogramWindow>())
+                histogram->SetOpen(true);
+        }
     }
 }
 
-void alm::fw::FrameworkUI::BuildTonemappingSettings(float availWidth)
+void alm::fw::SettingsWindow::BuildTonemappingSettings(float availWidth)
 {
     if (ImGui::CollapsingHeader("Tonemapping"))
     {
-        ImGui::Checkbox("Enabled##Tonemapping", &FrameworkData.Tonemapping.Enabled);
+        ImGui::Checkbox("Enabled##Tonemapping", &m_UI.FrameworkData.Tonemapping.Enabled);
 
-        alm::rhi::ColorSpace colorSpace = GetDeviceManager()->GetColorSpace();
+        alm::rhi::ColorSpace colorSpace = m_UI.GetDeviceManager()->GetColorSpace();
         ImGui::SameLine(0.f, availWidth / 8);
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
         TextRightAligned("Color Space: %s", colorSpace == alm::rhi::ColorSpace::HDR10_ST2084 ? "HDR10" : "SDR");
@@ -426,44 +315,49 @@ void alm::fw::FrameworkUI::BuildTonemappingSettings(float availWidth)
         ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::SliderFloat("Paper White Nits", &FrameworkData.Tonemapping.PaperWhiteNits, 0.f, 1000.f);
+        ImGui::SliderFloat("Paper White Nits", &m_UI.FrameworkData.Tonemapping.PaperWhiteNits, 0.f, 1000.f);
     }
 }
 
-void alm::fw::FrameworkUI::BuildLumninanceHistogram()
+void alm::fw::LuminanceHistogramWindow::Build()
 {
-    auto exposureRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::ExposureRenderStage>();
+    auto renderGraph = m_UI.GetUIRenderView()->GetRenderGraph().get();
+    auto exposureRS = renderGraph->GetRenderStage<alm::gfx::ExposureRenderStage>();
 
-    if (!exposureRS || !m_ShowLuminanceHistogram)
+    if (!exposureRS)
         return;
 
-    alm::gfx::RenderGraph* renderGraph = m_RenderViewUI->GetRenderGraph().get();
-
-    if (!m_LumHistogramBufferTicket.IsValid())
+    if (!m_Open)
     {
-        m_LumHistogramBufferTicket = renderGraph->RequestBufferView(
+        // Closed: release the render graph buffer view ticket
+        if (m_BufferTicket.IsValid())
+        {
+            renderGraph->ReleaseBufferView(m_BufferTicket);
+            m_BufferTicket = { nullptr };
+        }
+        return;
+    }
+
+    if (!m_BufferTicket.IsValid())
+    {
+        m_BufferTicket = renderGraph->RequestBufferView(
             exposureRS->GetType(), alm::gfx::RenderGraph::AccessMode::Write, renderGraph->GetBufferHandle("LuminanceHistogram"));
     }
-    if (!m_LumHistogramBufferTicket.IsValid())
+    if (!m_BufferTicket.IsValid())
     {
         LOG_ERROR("Failed to requesting histogram buffer ticket");
         return;
     }
 
     ImGui::SetNextWindowSize(ImVec2{ 600, 200 }, ImGuiCond_Once);
-    if (!ImGui::Begin("Luminance histogram", &m_ShowLuminanceHistogram, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Luminance histogram", &m_Open, ImGuiWindowFlags_None))
     {
         ImGui::End();
-        if (!m_ShowLuminanceHistogram)
-        {
-            renderGraph->ReleaseBufferView(m_LumHistogramBufferTicket);
-            m_LumHistogramBufferTicket = { nullptr };
-        }
         return;
     }
 
     alm::gfx::ExposureRenderStage::Stats stats = exposureRS->GetStats();
-    alm::rhi::BufferHandle buffer = renderGraph->GetBufferView(m_LumHistogramBufferTicket);
+    alm::rhi::BufferHandle buffer = renderGraph->GetBufferView(m_BufferTicket);
     if (buffer)
     {
         void* data_ptr = buffer->Map();
@@ -480,7 +374,7 @@ void alm::fw::FrameworkUI::BuildLumninanceHistogram()
 
         ImVec2 size = ImGui::GetContentRegionAvail();
         size.y -= ImGui::GetFrameHeightWithSpacing();
-        if (m_LumHistogramMode == 0)
+        if (m_Mode == 0)
         {
             ImGui::PlotHistogram("##LuminanceHistogram",
                 getValueLog2, data_ptr, buffer->GetDesc().sizeBytes / 4, 0, nullptr, 0.f, log2f(stats.totalPixels), size);
@@ -493,15 +387,14 @@ void alm::fw::FrameworkUI::BuildLumninanceHistogram()
 
         buffer->Unmap();
 
-        if (ImGui::RadioButton("Log2", m_LumHistogramMode == 0))
-            m_LumHistogramMode = 0;
+        if (ImGui::RadioButton("Log2", m_Mode == 0))
+            m_Mode = 0;
         ImGui::SameLine();
-        if (ImGui::RadioButton("Linear", m_LumHistogramMode == 1))
-            m_LumHistogramMode = 1;
+        if (ImGui::RadioButton("Linear", m_Mode == 1))
+            m_Mode = 1;
         ImGui::SameLine();
         ImGui::Text("| Min: %1.3f | Max: %1.3f | Avg: %1.3f | Bin: %1.1f", stats.minLuminance, stats.maxLuminance, stats.avgLuminance, stats.avgBin);
     }
 
     ImGui::End();
 }
-

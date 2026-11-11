@@ -1,9 +1,11 @@
-// FrameworkUI "Atmosphere Panel" window (View > Atmosphere Panel).
-// This is part of the alm::fw::FrameworkUI class: its member functions are split
-// across several FrameworkUI_*.cpp files, grouped by UI window.
+// "Atmosphere / Lighting" window (View > Atmosphere / Lighting). UIWindow
+// subclass of the FrameworkUI window set (see Framework/UI/UIWindows.h). The
+// Shadowmap, Directional light and Ambient sections are the shared widgets of
+// SettingsWidgets.h, shown by this window and by the Settings window.
 
 #include "Framework/FrameworkPCH.h"
 #include "Framework/UI/FrameworkUI.h"
+#include "Framework/UI/UIWindows.h"
 #include "Framework/UI/FrameworkUIWidgets.h"
 #include "Framework/UI/CloudsPresets.h"
 #include "Gfx/Scene.h"
@@ -16,20 +18,22 @@
 #include "Gfx/LoadedTexture.h"
 #include "Gfx/SceneIBL.h"
 
-void alm::fw::FrameworkUI::BuildAtmospherePanel()
+void alm::fw::AtmosphereWindow::Build()
 {
-    if (!m_ShowAtmospherePanel)
+    if (!m_Open)
         return;
 
     ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Atmosphere / Lighting", &m_ShowAtmospherePanel, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Atmosphere / Lighting", &m_Open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
     }
 
-    auto rg = m_RenderViewUI->GetRenderGraph();
+    auto renderView = m_UI.GetUIRenderView();
+    auto rg = renderView->GetRenderGraph();
+    auto& data = m_UI.FrameworkData;
     const bool hasSimpleSky = rg->GetRenderStage<gfx::SimpleSkyRenderStage>() != nullptr;
     const bool hasAtmosSky = rg->GetRenderStage<gfx::AtmosSkyRenderStage>() != nullptr;
     const bool hasEnvSky = rg->GetRenderStage<gfx::CubemapSkyRenderStage>() != nullptr;
@@ -42,7 +46,7 @@ void alm::fw::FrameworkUI::BuildAtmospherePanel()
     const float halfWidth = availWidth / 2.0f;
 
     ImGui::SeparatorText("Lighting Mode");
-    gfx::LightingMode lm = m_Scene->GetLightingMode();
+    gfx::LightingMode lm = m_UI.GetScene()->GetLightingMode();
 
     ImGui::SetCursorPosX(startX + (halfWidth - ImGui::CalcTextSize("Atmosphere").x - ImGui::GetFrameHeight()) * 0.5f);
     ImGui::BeginDisabled(!atmosphereAvailable);
@@ -57,10 +61,10 @@ void alm::fw::FrameworkUI::BuildAtmospherePanel()
         lm = gfx::LightingMode::Environment;
     ImGui::EndDisabled();
 
-    if (lm != m_Scene->GetLightingMode())
+    if (lm != m_UI.GetScene()->GetLightingMode())
     {
         // Stage enables + Sky Source validation refresh per-frame via FrameworkApp::UpdateRenderStagesState
-        m_Scene->SetLightingMode(lm);
+        m_UI.GetScene()->SetLightingMode(lm);
     }
 
     // Sky background source (constrained by lighting mode: Atmosphere -> Simple/Atmos; Environment -> Panorama)
@@ -70,7 +74,7 @@ void alm::fw::FrameworkUI::BuildAtmospherePanel()
 
     ImGui::SeparatorText("Sky Background");
     const float skyThirdWidth = availWidth / 3.0f;
-    gfx::SkySource skySource = FrameworkData.SkySourceOption;
+    gfx::SkySource skySource = data.SkySourceOption;
 
     ImGui::SetCursorPosX(startX + (skyThirdWidth - ImGui::CalcTextSize("Simple").x - ImGui::GetFrameHeight()) * 0.5f);
     ImGui::BeginDisabled(!simpleSkyAvailable);
@@ -92,55 +96,57 @@ void alm::fw::FrameworkUI::BuildAtmospherePanel()
         skySource = gfx::SkySource::Cubemap;
     ImGui::EndDisabled();
 
-    FrameworkData.SkySourceOption = skySource;
+    data.SkySourceOption = skySource;
 
-    BuildDirectionalLightSettings(availWidth);
-    BuildAmbientLightSettings(availWidth);
+    m_UI.GetDirectionalLightWidget().Build(availWidth);
+    m_UI.GetAmbientLightWidget().Build(availWidth);
     BuildSimpleSkySettings();
     BuildSimSkySettings();
-    BuildsCloudsSettings();
+    BuildCloudsSettings();
     BuildCubemapSettings(availWidth);
+    m_UI.GetShadowmapWidget().Build(availWidth);
 
     ImGui::End();
 }
 
-void alm::fw::FrameworkUI::BuildSimpleSkySettings()
+void alm::fw::AtmosphereWindow::BuildSimpleSkySettings()
 {
     if (ImGui::CollapsingHeader("Simple Sky"))
     {
-        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
+        if (m_UI.GetScene()->GetLightingMode() != gfx::LightingMode::Atmosphere)
         {
             ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
             return;
         }
-        if (FrameworkData.SkySourceOption != gfx::SkySource::Simple)
+        if (m_UI.FrameworkData.SkySourceOption != gfx::SkySource::Simple)
         {
             ImGui::TextUnformatted("Unavailable - Set Sky Background to Simple");
             return;
         }
 
-        auto simpleSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
-        if(simpleSky)
+        auto simpleSky = m_UI.GetUIRenderView()->GetRenderGraph()->GetRenderStage<alm::gfx::SimpleSkyRenderStage>();
+        if (simpleSky)
         {
-            ImGui::ColorEdit3("Sky color##Sky", &FrameworkData.SimpleSkyParams.skyColor.x, ImGuiColorEditFlags_Float);
-            ImGui::ColorEdit3("Horizon color##Sky", &FrameworkData.SimpleSkyParams.horizonColor.x, ImGuiColorEditFlags_Float);
-            ImGui::ColorEdit3("Ground color##Sky", &FrameworkData.SimpleSkyParams.groundColor.x, ImGuiColorEditFlags_Float);
-            ImGui::SliderFloat("Brightness scaler", &FrameworkData.SimpleSkyParams.brightness, 0.f, 10.f);
+            auto& params = m_UI.FrameworkData.SimpleSkyParams;
+            ImGui::ColorEdit3("Sky color##Sky", &params.skyColor.x, ImGuiColorEditFlags_Float);
+            ImGui::ColorEdit3("Horizon color##Sky", &params.horizonColor.x, ImGuiColorEditFlags_Float);
+            ImGui::ColorEdit3("Ground color##Sky", &params.groundColor.x, ImGuiColorEditFlags_Float);
+            ImGui::SliderFloat("Brightness scaler", &params.brightness, 0.f, 10.f);
 
-            float horizonSizeRad = glm::radians(FrameworkData.SimpleSkyParams.horizonSize);
+            float horizonSizeRad = glm::radians(params.horizonSize);
             if (ImGui::SliderAngle("Horizon size", &horizonSizeRad, 0.f, 90.f))
             {
-                FrameworkData.SimpleSkyParams.horizonSize = glm::degrees(horizonSizeRad);
+                params.horizonSize = glm::degrees(horizonSizeRad);
             }
-            float glowSizeRad = glm::radians(FrameworkData.SimpleSkyParams.glowSize);
+            float glowSizeRad = glm::radians(params.glowSize);
             if (ImGui::SliderAngle("Glow size", &glowSizeRad, 0.f, 90.f))
             {
-                FrameworkData.SimpleSkyParams.glowSize = glm::degrees(glowSizeRad);
+                params.glowSize = glm::degrees(glowSizeRad);
             }
 
-            ImGui::SliderFloat("Glow intensity", &FrameworkData.SimpleSkyParams.glowIntensity, 0.f, 1.f);
-            ImGui::SliderFloat("Glow sharpness", &FrameworkData.SimpleSkyParams.glowSharpness, 1.f, 10.f);
-            ImGui::InputFloat("Max radiance", &FrameworkData.SimpleSkyParams.maxLightRadiance);
+            ImGui::SliderFloat("Glow intensity", &params.glowIntensity, 0.f, 1.f);
+            ImGui::SliderFloat("Glow sharpness", &params.glowSharpness, 1.f, 10.f);
+            ImGui::InputFloat("Max radiance", &params.maxLightRadiance);
         }
         else
         {
@@ -149,20 +155,20 @@ void alm::fw::FrameworkUI::BuildSimpleSkySettings()
     }
 }
 
-void alm::fw::FrameworkUI::BuildCubemapSettings(float availWidth)
+void alm::fw::AtmosphereWindow::BuildCubemapSettings(float availWidth)
 {
-    auto scene = GetScene();
+    auto scene = m_UI.GetScene();
     gfx::SceneIBL* sceneIBL = scene ? scene->GetSceneIBL() : nullptr;
 
     if (sceneIBL && ImGui::CollapsingHeader("IBL"))
     {
-        if (m_Scene->GetLightingMode() != gfx::LightingMode::Environment)
+        if (m_UI.GetScene()->GetLightingMode() != gfx::LightingMode::Environment)
         {
             ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
             return;
         }
 
-        if (FrameworkData.SkySourceOption != gfx::SkySource::Cubemap)
+        if (m_UI.FrameworkData.SkySourceOption != gfx::SkySource::Cubemap)
         {
             ImGui::TextUnformatted("SkyBox background disabled - Set Sky Background to Panorama");
         }
@@ -178,7 +184,7 @@ void alm::fw::FrameworkUI::BuildCubemapSettings(float availWidth)
 
         if (ImGui::Button(title.c_str(), ImVec2(-1, 0)))
         {
-            std::string newPanorama = OpenFileNativeDialog(currentPanorama, {
+            std::string newPanorama = m_UI.OpenFileNativeDialog(currentPanorama, {
                 { "Image files", "*.png;*.tga;*.jpg;*.jpeg;*.dds;*.hdr;*.ktx2" },
                 { "TGA", "*.tga" },
                 { "PNG", "*.png" },
@@ -190,7 +196,7 @@ void alm::fw::FrameworkUI::BuildCubemapSettings(float availWidth)
             {
                 auto result = sceneIBL->SetPanorama(newPanorama);
                 if (!result)
-                    ShowErrorModal(result.error());
+                    m_UI.ShowErrorModal(result.error());
             }
         }
 
@@ -201,7 +207,7 @@ void alm::fw::FrameworkUI::BuildCubemapSettings(float availWidth)
         ImGui::BeginDisabled(!(skyTexture && skyTexture->IsValid()));
         if (ImGui::Button("SkyBox", ImVec2(buttonWidth, 0)))
         {
-            AddTextureWindow(skyTexture->id, skyTexture->texture.get_weak());
+            m_UI.AddTextureWindow(skyTexture->id, skyTexture->texture.get_weak());
         };
         ImGui::EndDisabled();
 
@@ -210,7 +216,7 @@ void alm::fw::FrameworkUI::BuildCubemapSettings(float availWidth)
         ImGui::BeginDisabled(!(lambertTexture && lambertTexture->IsValid()));
         if (ImGui::Button("Lambert", ImVec2(buttonWidth, 0)))
         {
-            AddTextureWindow(lambertTexture->id, lambertTexture->texture.get_weak());
+            m_UI.AddTextureWindow(lambertTexture->id, lambertTexture->texture.get_weak());
         };
         ImGui::EndDisabled();
 
@@ -219,7 +225,7 @@ void alm::fw::FrameworkUI::BuildCubemapSettings(float availWidth)
         ImGui::BeginDisabled(!(ggxTexture && ggxTexture->IsValid()));
         if (ImGui::Button("GGX", ImVec2(buttonWidth, 0)))
         {
-            AddTextureWindow(ggxTexture->id, ggxTexture->texture.get_weak());
+            m_UI.AddTextureWindow(ggxTexture->id, ggxTexture->texture.get_weak());
         };
         ImGui::EndDisabled();
 
@@ -228,43 +234,46 @@ void alm::fw::FrameworkUI::BuildCubemapSettings(float availWidth)
         ImGui::BeginDisabled(!(dfgTexture && dfgTexture->IsValid()));
         if (ImGui::Button("DFG LUT", ImVec2(buttonWidth, 0)))
         {
-            AddTextureWindow(dfgTexture->id, dfgTexture->texture.get_weak());
+            m_UI.AddTextureWindow(dfgTexture->id, dfgTexture->texture.get_weak());
         };
         ImGui::EndDisabled();
     }
 }
 
-void alm::fw::FrameworkUI::BuildSimSkySettings()
+void alm::fw::AtmosphereWindow::BuildSimSkySettings()
 {
     if (ImGui::CollapsingHeader("Atmospheric Sky"))
     {
-        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
+        if (m_UI.GetScene()->GetLightingMode() != gfx::LightingMode::Atmosphere)
         {
             ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
             return;
         }
-        if (FrameworkData.SkySourceOption != gfx::SkySource::Atmos)
+        if (m_UI.FrameworkData.SkySourceOption != gfx::SkySource::Atmos)
         {
             ImGui::TextUnformatted("Unavailable - Set Sky Background to Atmospheric");
             return;
         }
 
-        auto atmosSky = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
+        auto rg = m_UI.GetUIRenderView()->GetRenderGraph();
+        auto atmosSky = rg->GetRenderStage<alm::gfx::AtmosSkyRenderStage>();
         if (atmosSky)
         {
-            float gpuMs = m_RenderViewUI->GetRenderGraph()->GetStageGPUTimeMs(alm::gfx::AtmosSkyRenderStage::StaticType());
+            float gpuMs = rg->GetStageGPUTimeMs(alm::gfx::AtmosSkyRenderStage::StaticType());
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
             TextRightAligned("GPU: %1.2f ms", gpuMs);
             ImGui::PopStyleColor();
 
             ImGui::Spacing();
 
-            ImGui::InputFloat("Atmospheric depth", &FrameworkData.AtmosSkyParams.AtmosHeight);
-            ImGui::InputFloat3("Rayleigh Wave Lengths", &FrameworkData.AtmosSkyParams.RayleighWaveLengths.x, "%.1f");
-            ImGui::InputFloat("Turbidity factor", &FrameworkData.AtmosSkyParams.Turbidity);
-            ImGui::SliderFloat("Mie Anisotropy##Sky", &FrameworkData.AtmosSkyParams.MieAnisotropy, 0.f, 1.f);
-            ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &FrameworkData.AtmosSkySimParams.NumSteps);
-            ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &FrameworkData.AtmosSkySimParams.NumLightSteps);
+            auto& skyParams = m_UI.FrameworkData.AtmosSkyParams;
+            auto& simParams = m_UI.FrameworkData.AtmosSkySimParams;
+            ImGui::InputFloat("Atmospheric depth", &skyParams.AtmosHeight);
+            ImGui::InputFloat3("Rayleigh Wave Lengths", &skyParams.RayleighWaveLengths.x, "%.1f");
+            ImGui::InputFloat("Turbidity factor", &skyParams.Turbidity);
+            ImGui::SliderFloat("Mie Anisotropy##Sky", &skyParams.MieAnisotropy, 0.f, 1.f);
+            ImGui::InputScalar("Atmos interations##Sky", ImGuiDataType_U32, &simParams.NumSteps);
+            ImGui::InputScalar("Light interations##Sky", ImGuiDataType_U32, &simParams.NumLightSteps);
         }
         else
         {
@@ -273,23 +282,25 @@ void alm::fw::FrameworkUI::BuildSimSkySettings()
     }
 }
 
-void alm::fw::FrameworkUI::BuildsCloudsSettings()
+void alm::fw::AtmosphereWindow::BuildCloudsSettings()
 {
-    if(ImGui::CollapsingHeader("Clouds"))
+    if (ImGui::CollapsingHeader("Clouds"))
     {
-        if (m_Scene->GetLightingMode() != gfx::LightingMode::Atmosphere)
+        if (m_UI.GetScene()->GetLightingMode() != gfx::LightingMode::Atmosphere)
         {
             ImGui::TextUnformatted("Unavailable - Change Lighting Mode in Atmosphere panel");
             return;
         }
-        if (FrameworkData.SkySourceOption != gfx::SkySource::Atmos)
+        if (m_UI.FrameworkData.SkySourceOption != gfx::SkySource::Atmos)
         {
             ImGui::TextUnformatted("Unavailable - Set Sky Background to Atmospheric");
             return;
         }
 
-        const auto& scene = GetScene();
-        auto cloudsRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::CloudsRenderStage>();
+        auto& data = m_UI.FrameworkData;
+        const auto& scene = m_UI.GetScene();
+        auto rg = m_UI.GetUIRenderView()->GetRenderGraph();
+        auto cloudsRS = rg->GetRenderStage<alm::gfx::CloudsRenderStage>();
         gfx::AtmosphereConfig* atmos = scene ? scene->GetAtmosphereConfig() : nullptr;
 
         if (!cloudsRS)
@@ -306,17 +317,17 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
             }
             return;
         }
-        
-        ImGui::Checkbox("Enabled##Clouds", &FrameworkData.CloudsEnabled);
+
+        ImGui::Checkbox("Enabled##Clouds", &data.CloudsEnabled);
 
         ImGui::SameLine();
-        float gpuMs = m_RenderViewUI->GetRenderGraph()->GetStageGPUTimeMs(alm::gfx::CloudsRenderStage::StaticType());
+        float gpuMs = rg->GetStageGPUTimeMs(alm::gfx::CloudsRenderStage::StaticType());
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
         TextRightAligned("GPU: %1.2f ms", gpuMs);
         ImGui::PopStyleColor();
 
-        ImGui::BeginDisabled(!FrameworkData.CloudsEnabled);
-        ImGui::Checkbox("Shadows##Clouds", &FrameworkData.CloudsShadowsEnabled);
+        ImGui::BeginDisabled(!data.CloudsEnabled);
+        ImGui::Checkbox("Shadows##Clouds", &data.CloudsShadowsEnabled);
         ImGui::SetItemTooltip("Clouds cast shadows onto the scene (CloudsShadowmapRenderStage)");
 
         ImGui::Spacing();
@@ -405,7 +416,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
             atmos->CloudsShape.AbsorptionCoeff = muA_Km / 1000.f;
 
         float muS_Km = atmos->CloudsShape.ScatteringCoeff * 1000.f;
-        if(ImGui::SliderFloat("Scattering Coeff 1/km (norm)##Clouds", &muS_Km, 0.f, 10.f))
+        if (ImGui::SliderFloat("Scattering Coeff 1/km (norm)##Clouds", &muS_Km, 0.f, 10.f))
             atmos->CloudsShape.ScatteringCoeff = muS_Km / 1000.f;
 
         ImGui::Spacing();
@@ -441,21 +452,21 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         ImGui::SeparatorText("Performance");
         ImGui::Spacing();
 
-        ImGui::InputScalar("Density interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsSimParams.CloudRaymarchIterations);
-        ImGui::Checkbox("Volumetric shadows##Clouds", &FrameworkData.CloudsSimParams.VolumetricShadows);
-        ImGui::InputScalar("Light interations##Clouds", ImGuiDataType_U32, &FrameworkData.CloudsSimParams.LightRaymarchIterations);
-        ImGui::SliderInt("Multi scatter octaves##Clouds", (int*)&FrameworkData.CloudsSimParams.MultiScatterOctaves, 0, 8);
+        ImGui::InputScalar("Density interations##Clouds", ImGuiDataType_U32, &data.CloudsSimParams.CloudRaymarchIterations);
+        ImGui::Checkbox("Volumetric shadows##Clouds", &data.CloudsSimParams.VolumetricShadows);
+        ImGui::InputScalar("Light interations##Clouds", ImGuiDataType_U32, &data.CloudsSimParams.LightRaymarchIterations);
+        ImGui::SliderInt("Multi scatter octaves##Clouds", (int*)&data.CloudsSimParams.MultiScatterOctaves, 0, 8);
 
         ImGui::Spacing();
 
-        if (ImGui::RadioButton("Render Target 1/1##Clouds", FrameworkData.CloudsRTDenom == 1))
-            FrameworkData.CloudsRTDenom = 1;
+        if (ImGui::RadioButton("Render Target 1/1##Clouds", data.CloudsRTDenom == 1))
+            data.CloudsRTDenom = 1;
         ImGui::SameLine();
-        if (ImGui::RadioButton("Render Target 1/2##Clouds", FrameworkData.CloudsRTDenom == 2))
-            FrameworkData.CloudsRTDenom = 2;
+        if (ImGui::RadioButton("Render Target 1/2##Clouds", data.CloudsRTDenom == 2))
+            data.CloudsRTDenom = 2;
         ImGui::SameLine();
-        if (ImGui::RadioButton("Render Target 1/4##Clouds", FrameworkData.CloudsRTDenom == 4))
-            FrameworkData.CloudsRTDenom = 4;
+        if (ImGui::RadioButton("Render Target 1/4##Clouds", data.CloudsRTDenom == 4))
+            data.CloudsRTDenom = 4;
 
         ImGui::Spacing();
         ImGui::SeparatorText("Debug");
@@ -464,8 +475,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         if (ImGui::Combo("Channel##Debug", (int*)&m_CloudsDebugChannel,
             "Disabled\0Transmittance\0\0"))
         {
-            auto debugChannel = (alm::gfx::CloudsRenderStage::DebugChannel)m_CloudsDebugChannel;
-            cloudsRS->SetDebugChannel(debugChannel);
+            cloudsRS->SetDebugChannel(m_CloudsDebugChannel);
         }
 
         ImGui::Spacing();
@@ -473,7 +483,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         if (ImGui::Button("Open Shape Texture"))
         {
             auto tex = atmos->GetCloudsShapeTexture();
-            AddTextureWindow(tex->GetDebugName(), tex);
+            m_UI.AddTextureWindow(tex->GetDebugName(), tex);
         }
 
         ImGui::SameLine();
@@ -481,7 +491,7 @@ void alm::fw::FrameworkUI::BuildsCloudsSettings()
         if (ImGui::Button("Open Detail Texture"))
         {
             auto tex = atmos->GetCloudsDetailTexture();
-            AddTextureWindow(tex->GetDebugName(), tex);
+            m_UI.AddTextureWindow(tex->GetDebugName(), tex);
         }
 
         ImGui::EndDisabled();

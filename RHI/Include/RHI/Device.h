@@ -97,6 +97,7 @@ namespace alm::rhi
         virtual void NextFrame() = 0;
 
         virtual const Stats& GetStats() const = 0;
+        virtual void EnumerateLivingResources(const std::function<void(IResource*)>& fn) const = 0;
 
         virtual bool SupportBindless() const = 0;
         virtual bool SupportGPUDriven() const = 0;

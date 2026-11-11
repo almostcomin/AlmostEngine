@@ -1,12 +1,13 @@
 #pragma once
 
 #include "Framework/UI/FrameworkUI.h"
-#include "Gfx/NoiseHeightmapSource.h"
 
 namespace alm::gfx
 {
 	class SceneHeightmap;
 }
+
+class HeightmapSettingsWindow;
 
 class OutdoorsUI : public alm::fw::FrameworkUI
 {
@@ -14,26 +15,20 @@ class OutdoorsUI : public alm::fw::FrameworkUI
 
 public:
 
+	OutdoorsUI();
+
 	void Init(SDL_Window* window, alm::weak<alm::gfx::Scene> scene, alm::weak<alm::gfx::RenderView> renderView, alm::fw::CameraController* cameraController) override;
 
-	void SetHeightmap(alm::weak<alm::gfx::SceneHeightmap> sceneHeightmap) { m_SceneHeightmap = sceneHeightmap; }
+	void SetHeightmap(alm::weak<alm::gfx::SceneHeightmap> sceneHeightmap);
 
 private:
-
-	void BuildUI() override;
 
 	void BuildHeightmapMenuItem();
 
 private:
 
+	HeightmapSettingsWindow* m_HeightmapWindow = nullptr;
+
+	// Kept for the "Heightmap" menu item enable state and the source data view
 	alm::weak<alm::gfx::SceneHeightmap> m_SceneHeightmap;
-	bool m_ShowHeightmapSettings = true;
-
-	bool m_ForceSetMaxDepth;
-	int m_ComboDataSource = -1;
-	bool m_FreezeTesselation = false;
-
-	alm::gfx::NoiseHeightmapSource::Params m_NoiseHeightmapParams;
-	uint32_t m_NoiseTextureSize = 0;
-	int m_DebugChannel = 0;
 };

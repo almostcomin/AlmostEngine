@@ -1,10 +1,10 @@
-// FrameworkUI "Statistics" window (View > Statistics) and the standalone graph
-// windows opened from it.
-// This is part of the alm::fw::FrameworkUI class: its member functions are split
-// across several FrameworkUI_*.cpp files, grouped by UI window.
+// "Statistics" window (View > Statistics) and the standalone graph windows
+// opened from it. UIWindow subclasses of the FrameworkUI window set
+// (see Framework/UI/UIWindows.h).
 
 #include "Framework/FrameworkPCH.h"
 #include "Framework/UI/FrameworkUI.h"
+#include "Framework/UI/UIWindows.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/RenderStages/GPUCullingRenderStage.h"
@@ -12,35 +12,35 @@
 namespace
 {
 
-    // BuildStatsWindow: time plot series colors
+    // StatsWindow graph series colors
     const ImVec4 s_GPULineColor(0.0f, 0.45f, 1.0f, 1.0f);
     const ImVec4 s_CPULineColor(0.25f, 1.0f, 0.35f, 1.0f);
 } // anonymous namespace
 
-void alm::fw::FrameworkUI::BuildStatsWindow()
-{    
-    auto cullingRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::GPUCullingRenderStage>();
+void alm::fw::StatsWindow::Build()
+{
+    auto cullingRS = m_UI.GetUIRenderView()->GetRenderGraph()->GetRenderStage<alm::gfx::GPUCullingRenderStage>();
 
     // Culling stats lifecycle: request while the window is open, release on close
     if (cullingRS)
     {
-        if (m_ShowStats && !m_StatsRequestedByUI)
+        if (m_Open && !m_CullingStatsRequested)
         {
             cullingRS->RequestStats();
-            m_StatsRequestedByUI = true;
+            m_CullingStatsRequested = true;
         }
-        else if (!m_ShowStats && m_StatsRequestedByUI)
+        else if (!m_Open && m_CullingStatsRequested)
         {
             cullingRS->UnrequestStats();
-            m_StatsRequestedByUI = false;
+            m_CullingStatsRequested = false;
         }
     }
 
-    if (!m_ShowStats)
+    if (!m_Open)
         return;
 
     ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_Once);
-    if (!ImGui::Begin("Statistics", &m_ShowStats, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Statistics", &m_Open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
@@ -48,11 +48,20 @@ void alm::fw::FrameworkUI::BuildStatsWindow()
 
     // Graph windows openers
     if (ImGui::Button("View CPU/GPU time graph", ImVec2(-1, 0)))
-        m_ShowGPUCPUGraph = true;
+    {
+        if (auto* graph = m_UI.GetWindow<GPUCPUGraphWindow>())
+            graph->SetOpen(true);
+    }
     if (ImGui::Button("View Stages GPU time graph", ImVec2(-1, 0)))
-        m_ShowStagesGPUGraph = true;
+    {
+        if (auto* graph = m_UI.GetWindow<StagesGPUGraphWindow>())
+            graph->SetOpen(true);
+    }
     if (ImGui::Button("View Stages CPU time graph", ImVec2(-1, 0)))
-        m_ShowStagesCPUGraph = true;
+    {
+        if (auto* graph = m_UI.GetWindow<StagesCPUGraphWindow>())
+            graph->SetOpen(true);
+    }
 
     ImGui::Spacing();
 
@@ -116,7 +125,7 @@ void alm::fw::FrameworkUI::BuildStatsWindow()
     // stages) is the workload that pass submits.
     ImGui::SeparatorText("Draw stats");
     {
-        alm::gfx::RenderGraph* renderGraph = m_RenderViewUI->GetRenderGraph().get();
+        alm::gfx::RenderGraph* renderGraph = m_UI.GetUIRenderView()->GetRenderGraph().get();
         const std::string& currentMode = renderGraph->GetCurrentRenderMode();
 
         if (ImGui::BeginTable("##RenderedPerPass", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit))
@@ -172,40 +181,40 @@ void alm::fw::FrameworkUI::BuildStatsWindow()
     ImGui::End();
 }
 
-void alm::fw::FrameworkUI::BuildGPUCPUGraphWindow()
+void alm::fw::GPUCPUGraphWindow::Build()
 {
-    if (!m_ShowGPUCPUGraph)
+    if (!m_Open)
         return;
 
     // Register the series once: each line is fed by a functor sampled on Update
-    if (!m_TimePlotReady)
+    if (!m_PlotReady)
     {
-        m_TimePlot.AddLine("GPU ms", s_GPULineColor, [this] { return m_GPUTime; });
-        m_TimePlot.AddLine("CPU ms", s_CPULineColor, [this] { return m_CPUTime - m_CPUIdleTime; });
-        m_TimePlot.SetBottomMargin(ImGui::GetStyle().FramePadding.y * 2.f);
-        m_TimePlotReady = true;
+        m_Plot.AddLine("GPU ms", s_GPULineColor, [this] { return m_UI.GetGPUTimeMs(); });
+        m_Plot.AddLine("CPU ms", s_CPULineColor, [this] { return m_UI.GetCPUTimeMs() - m_UI.GetCPUIdleTimeMs(); });
+        m_Plot.SetBottomMargin(ImGui::GetStyle().FramePadding.y * 2.f);
+        m_PlotReady = true;
     }
 
     ImGui::SetNextWindowSize(ImVec2(600, 240), ImGuiCond_Once);
-    if (!ImGui::Begin("CPU/GPU time graph", &m_ShowGPUCPUGraph, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("CPU/GPU time graph", &m_Open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
     }
 
-    m_TimePlot.Update();
+    m_Plot.Update();
     ImGui::End();
 }
 
-void alm::fw::FrameworkUI::BuildStagesGPUGraphWindow()
+void alm::fw::StagesGPUGraphWindow::Build()
 {
-    if (!m_ShowStagesGPUGraph)
+    if (!m_Open)
         return;
 
-    auto* renderGraph = m_RenderViewUI->GetRenderGraph().get();
+    auto* renderGraph = m_UI.GetUIRenderView()->GetRenderGraph().get();
 
     // GPU times of every render stage in the graph (fed by the stages' timer queries)
-    if (!m_StagesGPUPlotReady)
+    if (!m_PlotReady)
     {
         const size_t numStages = renderGraph->GetNumRenderStages();
         for (size_t i = 0; i < numStages; ++i)
@@ -215,34 +224,34 @@ void alm::fw::FrameworkUI::BuildStagesGPUGraphWindow()
                 continue;
 
             const auto stageType = rs->renderStage->GetType();
-            m_StagesGPUPlot.AddLine(rs->renderStage->GetDebugName(),
+            m_Plot.AddLine(rs->renderStage->GetDebugName(),
                 [renderGraph, stageType] { return renderGraph->GetStageGPUTimeMs(stageType); });
         }
-        m_StagesGPUPlot.SetBottomMargin(ImGui::GetStyle().FramePadding.y * 2.f);
-        m_StagesGPUPlot.SetMinY(0.01f);
-        m_StagesGPUPlotReady = true;
+        m_Plot.SetBottomMargin(ImGui::GetStyle().FramePadding.y * 2.f);
+        m_Plot.SetMinY(0.01f);
+        m_PlotReady = true;
     }
 
     ImGui::SetNextWindowSize(ImVec2(600, 240), ImGuiCond_Once);
-    if (!ImGui::Begin("Stages GPU time graph", &m_ShowStagesGPUGraph, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Stages GPU time graph", &m_Open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
     }
 
-    m_StagesGPUPlot.Update();
+    m_Plot.Update();
     ImGui::End();
 }
 
-void alm::fw::FrameworkUI::BuildStagesCPUGraphWindow()
+void alm::fw::StagesCPUGraphWindow::Build()
 {
-    if (!m_ShowStagesCPUGraph)
+    if (!m_Open)
         return;
 
-    auto* renderGraph = m_RenderViewUI->GetRenderGraph().get();
+    auto* renderGraph = m_UI.GetUIRenderView()->GetRenderGraph().get();
 
     // CPU times of every render stage in the graph (fed by the stages' timer queries)
-    if (!m_StagesCPUPlotReady)
+    if (!m_PlotReady)
     {
         const size_t numStages = renderGraph->GetNumRenderStages();
         for (size_t i = 0; i < numStages; ++i)
@@ -252,22 +261,21 @@ void alm::fw::FrameworkUI::BuildStagesCPUGraphWindow()
                 continue;
 
             const auto stageType = rs->renderStage->GetType();
-            m_StagesCPUPlot.AddLine(rs->renderStage->GetDebugName(),
+            m_Plot.AddLine(rs->renderStage->GetDebugName(),
                 [renderGraph, stageType] { return renderGraph->GetStageCPUTimeMs(stageType); });
         }
-        m_StagesCPUPlot.SetBottomMargin(ImGui::GetStyle().FramePadding.y * 2.f);
-        m_StagesCPUPlot.SetMinY(0.01f);
-        m_StagesCPUPlotReady = true;
+        m_Plot.SetBottomMargin(ImGui::GetStyle().FramePadding.y * 2.f);
+        m_Plot.SetMinY(0.01f);
+        m_PlotReady = true;
     }
 
     ImGui::SetNextWindowSize(ImVec2(600, 240), ImGuiCond_Once);
-    if (!ImGui::Begin("Stages CPU time graph", &m_ShowStagesCPUGraph, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Stages CPU time graph", &m_Open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
     }
 
-    m_StagesCPUPlot.Update();
+    m_Plot.Update();
     ImGui::End();
 }
-
