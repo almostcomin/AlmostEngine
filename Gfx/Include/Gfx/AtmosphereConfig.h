@@ -15,6 +15,7 @@ public:
     // Reference constants (unscaled base values)
     // ------------------------------------------------------------
     static constexpr float kEarthRadiusRef = 6360000.f;
+    static constexpr float3 kEarthCenterRef = { 0.f, -kEarthRadiusRef, 0.f };
 
     static constexpr float kAtmosHeightRef = 60000.f;
     static constexpr float3 kRefRayleighWaveLengths = { 680, 530.f, 440.f };
@@ -133,7 +134,7 @@ public:
 
     // ---- Common planet parameters (shared by sky and clouds) ----
     float EarthRadius = kEarthRadiusRef;   // Effective planet radius (scaled)
-    float3 EarthCenter = { 0.f, -kEarthRadiusRef, 0.f }; // World‑space center of the planet
+    float3 EarthCenter = kEarthCenterRef; // World‑space center of the planet
 
     // ---- Wind velocity (base value, unscaled) ----
     // Should be multiplied by EarthScaleFactor at binding time.
@@ -151,6 +152,7 @@ public:
     {
         EarthScaleFactor = scale;
         EarthRadius = kEarthRadiusRef * scale;
+        EarthCenter = kEarthCenterRef * scale;
         Sky.AtmosHeight = kAtmosHeightRef * scale;
         CloudsShape.CloudsLayerMinH = kCloudsLayerMinHRef * scale;
         CloudsShape.CloudsLayerMaxH = kCloudsLayerMaxHRef * scale;
@@ -163,23 +165,12 @@ public:
     // other scalable distance parameters.
     // If keepRelativeScale == true, the distance parameters are scaled
     // by the ratio (newRadius / oldRadius), and EarthScaleFactor is updated.
-    // Otherwise, only EarthRadius is changed and EarthScaleFactor becomes 1.
     // ------------------------------------------------------------
     void SetEarthRadius(float r, bool keepRelativeScale)
     {
         if (keepRelativeScale)
         {
-            float oldRadius = EarthRadius;
-            float ratio = (oldRadius != 0.f) ? (r / oldRadius) : 1.f;
-
-            EarthRadius = r;
-            CloudsShape.CloudsLayerMinH *= ratio;
-            CloudsShape.CloudsLayerMaxH *= ratio;
-            Clouds.CloudsFadeDistance *= ratio;
-            Clouds.CloudsShadowMaxDistance *= ratio;
-            Sky.AtmosHeight *= ratio;
-
-            EarthScaleFactor = r / kEarthRadiusRef;
+            ApplyEarthScale(r / kEarthRadiusRef);
         }
         else
         {

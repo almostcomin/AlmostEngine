@@ -136,6 +136,10 @@ void alm::gfx::AtmosphereConfig::Init(gfx::DeviceManager* deviceManager, bool in
 	{
 		InitCloudsSubsystem(false, true);
 	}
+
+	// HACK: Fixed 0.1 scale so clouds render correctly. Ideally clouds should
+	// handle the real planet scale; revisit once cloud rendering is fixed.
+	ApplyEarthScale(0.1f);
 }
 
 void alm::gfx::AtmosphereConfig::InitCloudsSubsystem(bool forceNew, bool saveCache)
