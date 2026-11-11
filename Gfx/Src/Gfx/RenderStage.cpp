@@ -54,12 +54,8 @@ void alm::gfx::RenderStage::SetEnabled(bool b)
 		return;
 
 	m_Enabled = b; 
-	if (m_Enabled)
+	if (m_RenderGraph)
 	{
-		OnEnabled();
-	}
-	else
-	{
-		OnDisabled();
+		m_RenderGraph->OnRenderStageEnableStatusChanged(this);
 	}
 }

@@ -222,6 +222,8 @@ bool alm::gfx::RenderGraph::BeginRender(rhi::ICommandList* /*commandList*/)
 {
 	assert(m_State == State::Ready);
 
+	ProcessRenderStagesEnableStatusChanges();
+
 	m_IsRendering = true;
 	return false; // no-operation needed
 }
@@ -286,7 +288,6 @@ void alm::gfx::RenderGraph::Render(alm::rhi::FramebufferHandle /*frameBuffer*/)
 	}
 
 	const std::vector<StageData*>& renderStages = it->second;
-
 	// Get initial textures state
 	m_TexturesState.clear();
 	for (auto& entry : m_Textures)
@@ -510,8 +511,24 @@ void alm::gfx::RenderGraph::ResolvePendingResources()
 		DeclaredTexture* declTex = entry.second.get();
 		if (declTex && declTex->pendingResourceCreation)
 		{
-			CreateTexture(declTex);
+			if (declTex->owner->IsEnabled())
+			{
+				EnableTexture(declTex);
+			}
 			declTex->pendingResourceCreation = false;
+		}
+	}
+
+	for (const auto& entry : m_Buffers)
+	{
+		DeclaredBuffer* declBuffer = entry.second.get();
+		if (declBuffer && declBuffer->pendingResourceCreation)
+		{
+			if (declBuffer->owner->IsEnabled())
+			{
+				EnableBuffer(declBuffer);
+			}
+			declBuffer->pendingResourceCreation = false;
 		}
 	}
 
@@ -562,11 +579,11 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraph::RegisterTexture(RenderStage* re
 		.pendingResourceCreation = true
 	};
 
-	auto result = m_Textures.insert({ id, std::unique_ptr<DeclaredTexture>{declTex} });
+	auto result = m_Textures.insert({ id, std::unique_ptr<DeclaredTexture>{ declTex}});
 	return { result.first->second.get() };
 }
 
-alm::gfx::RGBufferHandle alm::gfx::RenderGraph::CreateBuffer(RenderStage* renderStage, const std::string& id, const alm::rhi::BufferDesc& desc)
+alm::gfx::RGBufferHandle alm::gfx::RenderGraph::RegisterBuffer(RenderStage* renderStage, const std::string& id, const alm::rhi::BufferDesc& desc)
 {
 	assert(!m_IsRendering);
 
@@ -578,8 +595,14 @@ alm::gfx::RGBufferHandle alm::gfx::RenderGraph::CreateBuffer(RenderStage* render
 		return { nullptr };
 	}
 
-	rhi::BufferOwner buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, id);
-	auto result = m_Buffers.insert({ id, std::make_unique<DeclaredBuffer>(id, std::move(buffer), renderStage) });
+	DeclaredBuffer* declBuffer = new DeclaredBuffer{
+		.id = id,
+		.desc = desc,
+		.buffer = nullptr,
+		.owner = renderStage,
+		.pendingResourceCreation = true
+	};
+	auto result = m_Buffers.insert({ id, std::unique_ptr<DeclaredBuffer>{ declBuffer }});
 
 	return { result.first->second.get() };
 }
@@ -663,6 +686,21 @@ void alm::gfx::RenderGraph::DisableTexture(RGTextureHandle handle)
 {
 	auto* declTex = GetDeclTex(handle);
 	declTex->texture.reset();
+}
+
+void alm::gfx::RenderGraph::EnableBuffer(RGBufferHandle handle)
+{
+	auto* declBuffer = GetDeclBuffer(handle);
+	if (!declBuffer->buffer)
+	{
+		declBuffer->buffer = m_DeviceManager->GetDevice()->CreateBuffer(declBuffer->desc, rhi::ResourceState::SHADER_RESOURCE, declBuffer->id);
+	}
+}
+
+void alm::gfx::RenderGraph::DisableBuffer(RGBufferHandle handle)
+{
+	auto* declBuffer = GetDeclBuffer(handle);
+	declBuffer->buffer.reset();
 }
 
 alm::gfx::RGTextureHandle alm::gfx::RenderGraph::GetTextureHandle(const std::string& id)
@@ -1031,6 +1069,21 @@ alm::rhi::BufferHandle alm::gfx::RenderGraph::GetBufferView(RGBufferViewTicket t
 	return (*it)->buffer.get_weak();
 }
 
+void alm::gfx::RenderGraph::OnRenderStageEnableStatusChanged(RenderStage* renderStage)
+{
+	auto it = std::ranges::find(m_RenderStagesToEval, renderStage);
+	if (it == m_RenderStagesToEval.end())
+	{
+		m_RenderStagesToEval.push_back(renderStage);
+	}
+	else
+	{
+		// Just remove from the stages to eval. Two calls to OnRenderStageEnableStatusChanged
+		// means we are returning to the original status value.
+		alm::fast_erase(m_RenderStagesToEval, it);
+	}
+}
+
 alm::rhi::FramebufferHandle alm::gfx::RenderGraph::GetBackbuffer()
 {
 	return m_RenderView->GetBackbuffer();
@@ -1309,24 +1362,10 @@ uint2 alm::gfx::RenderGraph::GetActualTextureSize(const DeclaredTexture* declTex
 		backbufferSize, backbufferViewportVpSize, declTex->sizeSpace);
 }
 
-void alm::gfx::RenderGraph::CreateTexture(DeclaredTexture* declTex)
-{
-
-	uint2 texSize = GetActualTextureSize(int2{ declTex->requestedWidth, declTex->requestedHeight },
-		m_RenderView->GetBackbufferSize(), m_RenderView->GetBackbufferViewportSize(), declTex->sizeSpace);
-	rhi::TextureDesc desc
-	{
-		.width = texSize.x,
-		.height = texSize.y,
-		.arraySize = (uint32_t)declTex->arraySize,
-		.format = declTex->format,
-		.shaderUsage = GetTextureShaderUsage(declTex->type, declTex->needsUAV) };
-
-	declTex->texture = m_DeviceManager->GetDevice()->CreateTexture(desc, GetInitialState(declTex->type), declTex->id);
-}
-
 void alm::gfx::RenderGraph::CreateFramebuffer(RequestedFramebufferData* fbData)
 {
+	assert(!m_IsRendering);
+
 	rhi::FramebufferDesc desc;
 	for (RGTextureHandle handle : fbData->colorTargets)
 	{
@@ -1369,4 +1408,69 @@ void alm::gfx::RenderGraph::InternalRecreateTexture(RGTextureHandle handle)
 	{
 		m_DeviceManager->GetDevice()->ReleaseQueued(std::move((*it)->tex));
 	}
+}
+
+std::vector<alm::gfx::RenderGraph::DeclaredTexture*> alm::gfx::RenderGraph::GetTexturesOwnedByStage(const RenderStage* renderStage) const
+{
+	std::vector<alm::gfx::RenderGraph::DeclaredTexture*> result;
+	for (const auto& texEntry : m_Textures)
+	{
+		if (texEntry.second->owner == renderStage)
+			result.push_back(texEntry.second.get());
+	}
+	return result;
+}
+
+std::vector<alm::gfx::RenderGraph::DeclaredBuffer*> alm::gfx::RenderGraph::GetBuffersOwnedByStage(const RenderStage* renderStage) const
+{
+	std::vector<alm::gfx::RenderGraph::DeclaredBuffer*> result;
+	for (const auto& bufferEntry : m_Buffers)
+	{
+		if (bufferEntry.second->owner == renderStage)
+			result.push_back(bufferEntry.second.get());
+	}
+	return result;
+}
+
+void alm::gfx::RenderGraph::ProcessRenderStagesEnableStatusChanges()
+{
+	for (auto* renderStage : m_RenderStagesToEval)
+	{
+		std::vector<DeclaredTexture*> texturesToCheck = GetTexturesOwnedByStage(renderStage);
+		for (auto* declTex : texturesToCheck)
+		{
+			if (renderStage->IsEnabled() && !declTex->texture)
+			{
+				EnableTexture(declTex);
+			}
+			else if (!renderStage->IsEnabled() && declTex->texture)
+			{
+				DisableTexture(declTex);
+			}
+		}
+
+		std::vector<DeclaredBuffer*> buffersToCheck = GetBuffersOwnedByStage(renderStage);
+		for (auto* declBuffer : buffersToCheck)
+		{
+			if (renderStage->IsEnabled() && !declBuffer->buffer)
+			{
+				EnableBuffer(declBuffer);
+			}
+			else if (!renderStage->IsEnabled() && declBuffer->buffer)
+			{
+				DisableBuffer(declBuffer);
+			}
+		}
+
+		if (renderStage->IsEnabled())
+		{
+			renderStage->OnEnabled();
+		}
+		else
+		{
+			renderStage->OnDisabled();
+		}
+	}
+
+	m_RenderStagesToEval.clear();
 }

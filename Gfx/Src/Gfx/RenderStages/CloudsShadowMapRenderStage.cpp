@@ -93,13 +93,3 @@ void alm::gfx::CloudsShadowmapRenderStage::OnDetached()
 	m_PSO.reset();
 	m_CS.reset();
 }
-
-void alm::gfx::CloudsShadowmapRenderStage::OnEnabled()
-{
-	m_RenderGraph->EnableTexture(m_CloudsShadowmapTexture);
-}
-
-void alm::gfx::CloudsShadowmapRenderStage::OnDisabled()
-{
-	m_RenderGraph->DisableTexture(m_CloudsShadowmapTexture);
-}

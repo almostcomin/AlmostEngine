@@ -246,13 +246,11 @@ void alm::gfx::ShadowmapRenderStage::OnEnabled()
 {
 	if (IsAttached())
 	{
-		m_RenderGraph->EnableTexture(m_ShadowMapTexture);
 		InitResources();
 	}
 }
 
 void alm::gfx::ShadowmapRenderStage::OnDisabled()
 {
-	m_RenderGraph->DisableTexture(m_ShadowMapTexture);
 	ReleaseResources();
 }

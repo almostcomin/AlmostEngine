@@ -61,7 +61,7 @@ alm::gfx::RGTextureHandle alm::gfx::RenderGraphBuilder::CreateTexture(const std:
 
 alm::gfx::RGBufferHandle alm::gfx::RenderGraphBuilder::CreateBuffer(const std::string& id, const rhi::BufferDesc& desc)
 {
-	auto handle = m_RenderGraph->CreateBuffer(m_RenderStage, id, desc);
+	auto handle = m_RenderGraph->RegisterBuffer(m_RenderStage, id, desc);
 	m_CreatedBuffers.push_back(handle);
 	return handle;
 }

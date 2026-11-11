@@ -45,6 +45,7 @@ public:
 			bool ShowHeightmapBBoxes = false;
 		} Debug;
 
+		bool ShadowmapEnabled = true;
 		int2 ShadowmapSize = { 0, 0 };
 
 		bool SunLightEnabled = true;

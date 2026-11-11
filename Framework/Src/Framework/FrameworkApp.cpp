@@ -417,7 +417,7 @@ void alm::fw::FrameworkApp::UpdateRenderStagesState()
 	const bool useSimpleSky = atmosMode && (fwData.SkySourceOption == alm::gfx::SkySource::Simple);
 	const bool useAtmosSky = atmosMode && (fwData.SkySourceOption == alm::gfx::SkySource::Atmos);
 	const bool useCubemapSky = envMode && (fwData.SkySourceOption == alm::gfx::SkySource::Cubemap);
-	const bool shadows = atmosMode;
+	const bool shadows = atmosMode && fwData.ShadowmapEnabled;
 
 	if (simpleSkyRS)
 		simpleSkyRS->SetEnabled(useSimpleSky);
@@ -431,6 +431,8 @@ void alm::fw::FrameworkApp::UpdateRenderStagesState()
 		cloudsSMRS->SetEnabled(useAtmosSky && fwData.CloudsEnabled && fwData.CloudsShadowsEnabled);
 	if (shadowmapRS)
 		shadowmapRS->SetEnabled(shadows);
+
+	m_MainRenderView->SetShadowmapEnabled(shadows);
 }
 
 alm::gfx::RenderStageTypeID alm::fw::FrameworkApp::GetUIRenderStageType() const

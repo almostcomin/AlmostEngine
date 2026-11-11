@@ -46,6 +46,8 @@ public:
 	void SetScene(alm::weak<Scene> scene);
 	void SetCamera(std::shared_ptr<Camera> camera);
 
+	void SetShadowmapEnabled(bool b) { m_ShadowmapEnabled = b; }
+
 	// Sets render to an offscreen backbuffer. If not initialized or set to null, will render to 
 	// main on-screen backbuffer
 	void SetOffscreenBackbuffer(alm::rhi::FramebufferHandle framebuffer);
@@ -135,6 +137,8 @@ private:
 	alm::weak<Scene> m_Scene;
 	std::shared_ptr<Camera> m_Camera;
 	alm::unique<RenderGraph> m_RenderGraph;
+
+	bool m_ShadowmapEnabled;
 
 	// Prev frame camera
 	float4x4 m_PrevViewProjectionMatrix;

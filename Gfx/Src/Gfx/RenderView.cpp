@@ -64,6 +64,7 @@ alm::gfx::RenderView::RenderView(DeviceManager* deviceManager, const char* debug
 {}
 
 alm::gfx::RenderView::RenderView(ViewportSwapChainId viewportId, DeviceManager* deviceManager, const char* debugName) :
+	m_ShadowmapEnabled{ true },
 	m_PrevViewProjectionMatrix{ glm::identity<float4x4>() },
 	m_PrevCameraPosition{ 0.f, 0.f, 0.f },
 	m_ResetPrevFrameCamera{ true },
@@ -517,9 +518,9 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 	m_ShadowMapWorldToClipMatrix = {};
 	m_ViewToShadowMapClipMatrix = {};
 
-	if (!m_Scene)
+	if (!m_ShadowmapEnabled)
 		return false;
-	if (m_Scene->GetLightingMode() == LightingMode::Environment)
+	if (!m_Scene)
 		return false;
 	if (!m_CameraVisibleBounds.valid())
 		return false;

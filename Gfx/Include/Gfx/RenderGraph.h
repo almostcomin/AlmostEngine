@@ -99,7 +99,7 @@ public:
 	RGTextureHandle RegisterTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type, int width, int height, SizeSpace sizeSpace,
 		int arraySize, rhi::Format format, bool needsUAV);
 
-	RGBufferHandle CreateBuffer(RenderStage* renderStage, const std::string& id, const rhi::BufferDesc& desc);
+	RGBufferHandle RegisterBuffer(RenderStage* renderStage, const std::string& id, const rhi::BufferDesc& desc);
 
 	bool RecreateTexture(RGTextureHandle handle, int width, int height, int arraySize, rhi::Format format);
 	bool RecreateTexture(RGTextureHandle handle, int sizeDenom, SizeSpace sizeSpace, int arraySize, rhi::Format format);
@@ -107,6 +107,9 @@ public:
 
 	void EnableTexture(RGTextureHandle handle);
 	void DisableTexture(RGTextureHandle handle);
+
+	void EnableBuffer(RGBufferHandle handle);
+	void DisableBuffer(RGBufferHandle handle);
 
 	RGTextureHandle GetTextureHandle(const std::string& id);
 	RGBufferHandle GetBufferHandle(const std::string& id);
@@ -160,6 +163,8 @@ public:
 	rhi::TextureHandle GetTextureView(RGTextureViewTicket ticket);
 	rhi::BufferHandle GetBufferView(RGBufferViewTicket ticket);
 
+	void OnRenderStageEnableStatusChanged(RenderStage* renderStage);
+
 	alm::rhi::FramebufferHandle GetBackbuffer();
 	RenderView* GetRenderView() { return m_RenderView; }
 	DeviceManager* GetDeviceManager() { return m_DeviceManager; }
@@ -185,8 +190,10 @@ private:
 	struct DeclaredBuffer
 	{
 		std::string id;
+		rhi::BufferDesc desc;
 		rhi::BufferOwner buffer;
 		RenderStage* owner;
+		bool pendingResourceCreation;
 	};
 
 	struct RequestedFramebufferData
@@ -249,9 +256,13 @@ private:
 	uint2 GetActualTextureSize(const int2& desired, const uint2& backbufferSize, const uint2& backbufferViewportVpSize, SizeSpace sizeSpace) const;
 	uint2 GetActualTextureSize(const DeclaredTexture* declTex, const uint2& backbufferSize, const uint2& backbufferViewportVpSize) const;
 
-	void CreateTexture(DeclaredTexture* declTex);	
 	void CreateFramebuffer(RequestedFramebufferData* fbData);
 	void InternalRecreateTexture(RGTextureHandle handle);
+
+	std::vector<DeclaredTexture*> GetTexturesOwnedByStage(const RenderStage* renderStage) const;
+	std::vector<DeclaredBuffer*> GetBuffersOwnedByStage(const RenderStage* renderStage) const;
+
+	void ProcessRenderStagesEnableStatusChanges();
 
 private:
 
@@ -272,6 +283,9 @@ private:
 	// Living requests for visualizing resources
 	std::vector<TextureViewRequest*> m_TexViewRequests;
 	std::vector<BufferViewRequest*> m_BufferViewRequests;
+
+	// Render stages that changed its enable status
+	std::vector<RenderStage*> m_RenderStagesToEval;
 
 	std::vector<alm::rhi::CommandListOwner> m_CommandLists;
 

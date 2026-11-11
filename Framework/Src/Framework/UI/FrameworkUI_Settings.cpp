@@ -172,9 +172,7 @@ void alm::fw::FrameworkUI::BuildShadowmapSettings(float availWidth)
         auto lightingRS = m_RenderViewUI->GetRenderGraph()->GetRenderStage<alm::gfx::DeferredLightingRenderStage>();
 
         ImGui::SetNextItemWidth(availWidth / 2);
-        bool isEnabled = shadowmapRS->IsEnabled();
-        if(ImGui::Checkbox("Enabled##Shadowmap", &isEnabled))
-            shadowmapRS->SetEnabled(isEnabled);
+        ImGui::Checkbox("Enabled##Shadowmap", &FrameworkData.ShadowmapEnabled);
 
         ImGui::SameLine(availWidth / 2);
         ImGui::SetNextItemWidth(availWidth / 2);
