@@ -109,14 +109,6 @@ alm::fw::UIWindow* alm::fw::FrameworkUI::RegisterWindow(std::unique_ptr<UIWindow
 	return m_Windows.back().get();
 }
 
-void alm::fw::ImGuiDebuggerWindow::Build()
-{
-    if (!m_Open)
-        return;
-
-    ImGui::ShowMetricsWindow(&m_Open);
-}
-
 void alm::fw::FrameworkUI::Init(SDL_Window* window, weak<gfx::Scene> scene, weak<gfx::RenderView> renderView, CameraController* cameraController)
 {
     m_Window = window;
