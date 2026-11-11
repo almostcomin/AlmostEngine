@@ -35,6 +35,7 @@ public:
     virtual void Swap(IBuffer& other) = 0;
 
     ResourceType GetResourceType() const override { return ResourceType::Buffer; }
+    uint64_t GetSizeInBytes() const override;
 
 protected:
 

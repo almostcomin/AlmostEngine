@@ -1,5 +1,6 @@
 #include "RHI/RHI_PCH.h"
 #include "RHI/Texture.h"
+#include "RHI/Device.h"
 
 alm::rhi::MipLevel alm::rhi::TextureSubresourceSet::GetLastMipLevel(const TextureDesc& desc) const
 {
@@ -58,4 +59,10 @@ bool alm::rhi::TextureSubresourceSet::IsEntireTexture(const alm::rhi::TextureDes
     default:
         return true;
     }
+}
+
+uint64_t alm::rhi::ITexture::GetSizeInBytes() const
+{
+    StorageRequirements req = GetDevice()->GetStorageRequirements(GetDesc());
+    return req.size;
 }

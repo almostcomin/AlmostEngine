@@ -27,6 +27,8 @@ namespace alm::gfx
 	class LoadedTexture;
 }
 
+struct MemoryEditor;
+
 namespace alm::fw
 {
 	class CameraController;
@@ -142,6 +144,7 @@ public:
 	float GetGPUTimeMs() const { return m_GPUTime; }
 
 	void AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture);
+	void AddBufferWindow(const std::string& title, alm::rhi::BufferHandle buffer);
 
 	// Render stage IO inspection windows (delegates to the Render Stages window).
 	void AddRenderStageTextureWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& textureId);
@@ -220,6 +223,22 @@ private:
 		int selectedSlice = 0;
 	};
 
+	// Buffer inspection window (opened by AddBufferWindow, e.g. from the Resources
+	// Inspector). NOTE: out-of-line special members (defined in FrameworkUI.cpp)
+	// because it owns a MemoryEditor whose complete type is only visible there.
+	struct UIBufferWindow
+	{
+		UIBufferWindow() = default;
+		UIBufferWindow(std::string title, alm::rhi::BufferHandle buffer);
+		~UIBufferWindow();
+		UIBufferWindow(UIBufferWindow&& other) noexcept;
+		UIBufferWindow& operator=(UIBufferWindow&& other) noexcept;
+
+		std::string title;
+		alm::rhi::BufferHandle buffer;
+		std::unique_ptr<MemoryEditor> memEditor;
+	};
+
 	void BuildMainMenu();
 	void BuildBottomBar();
 
@@ -227,6 +246,8 @@ private:
 
 	void BuildTextureWindows();
 	bool BuildTextureWindow(UITextureWindow& textureWindow);
+	void BuildBufferWindows();
+	bool BuildBufferWindow(UIBufferWindow& bufferWindow);
 	void ShowPendingErrorModal();
 
 private:
@@ -248,6 +269,8 @@ private:
 	std::string m_PendingErrorModal;  // Message shown by the "Error" modal (empty = no modal)
 
 	std::vector<UITextureWindow> m_TextureWindows;
+
+	std::vector<UIBufferWindow> m_BufferWindows;
 
 	// Right-aligned texts shown by the bottom bar on the next frame (AddBottomBarText)
 	std::vector<std::string> m_BottomBarRightAlignTexts;

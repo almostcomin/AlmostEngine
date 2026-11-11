@@ -22,7 +22,9 @@ namespace alm::rhi
 		GraphicsPipelineState,
 		ComputePipelineState,
 		CommandSignature,
-		TimerQuery
+		TimerQuery,
+
+		_Count
 	};
 
 	inline const char* ResourceTypeToString(ResourceType type)
@@ -36,6 +38,9 @@ namespace alm::rhi
 		case ResourceType::CommandList: return "CommandList";
 		case ResourceType::Shader: return "Shader";
 		case ResourceType::GraphicsPipelineState: return "GraphicsPipelineState";
+		case ResourceType::ComputePipelineState: return "ComputePipelineState";
+		case ResourceType::CommandSignature: return "CommandSignature";
+		case ResourceType::TimerQuery: return "TimerQuery";
 		case ResourceType::Unknown:
 		default:
 			return "Unknown";
@@ -56,9 +61,11 @@ namespace alm::rhi
 
 		virtual void Release(Device* device) = 0;
 
+		virtual uint64_t GetSizeInBytes() const { return 0ull; }
+
 		const std::string& GetDebugName() const { return m_DebugName; }
-		const Device* GetDevice() const { return m_Device; }
-		Device* GetDevice() { return m_Device; }
+
+		Device* GetDevice() const { return m_Device; }
 
 	protected:
 

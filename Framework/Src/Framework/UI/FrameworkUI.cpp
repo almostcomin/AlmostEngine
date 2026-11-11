@@ -1,5 +1,4 @@
 #include "Framework/FrameworkPCH.h"
-#include "Framework/CameraController.h"
 #include "Framework/UI/FrameworkUI.h"
 #include "Framework/UI/SettingsWindow.h"
 #include "Framework/UI/WorldOutlinerWindow.h"
@@ -12,31 +11,15 @@
 #include "Framework/UI/StagesCPUGraphWindow.h"
 #include "Framework/UI/LuminanceHistogramWindow.h"
 #include "Framework/UI/ImGuiDebuggerWindow.h"
-#include "Gfx/GpuSceneBuffers.h"
+#include "Framework/UI/ResourcesWindow.h"
+#include "Framework/CameraController.h"
 #include "Gfx/Scene.h"
-#include "Gfx/SceneGraph.h"
-#include "Gfx/MeshInstance.h"
-#include "Gfx/SceneHeightmap.h"
-#include "Gfx/Mesh.h"
 #include "Gfx/Material.h"
-#include "Gfx/SceneLights.h"
 #include "Gfx/RenderView.h"
-#include "Gfx/RenderGraph.h"
 #include "Gfx/DeviceManager.h"
-#include "Gfx/MaterialManager.h"
 #include "Gfx/Camera.h"
 #include "Gfx/TextureCache.h"
-#include "Gfx/RenderStages/ShadowmapRenderStage.h"
-#include "Gfx/RenderStages/DepthPrepassRenderStage.h"
-#include "Gfx/RenderStages/GBuffersRenderStage.h"
-#include "Gfx/RenderStages/WBOITAccumRenderStage.h"
-#include "Gfx/RenderStages/WireframeRenderStage.h"
-#include "Gfx/RenderStages/GPUCullingRenderStage.h"
-#include "Gfx/RenderStages/DeferredLightingRenderStage.h"
-#include "Gfx/RenderStages/ToneMappingRenderStage.h"
 #include "Gfx/RenderStages/GridRenderStage.h"
-#include "Gfx/RenderStages/ObjectOutlineRenderStage.h"
-#include "Gfx/RenderStages/ExposureRenderStage.h"
 #include "RHI/Device.h"
 #include "ImGuizmo/ImGuizmo.h"
 #include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow() and GetKeyChordName() (View menu)
@@ -75,7 +58,52 @@ namespace
         }
     }
 
+    const char* GetMemoryAccessText(alm::rhi::MemoryAccess access)
+    {
+        switch (access)
+        {
+        case alm::rhi::MemoryAccess::Default: return "Default";
+        case alm::rhi::MemoryAccess::Upload: return "Upload (CPU write, GPU read)";
+        case alm::rhi::MemoryAccess::Readback: return "Readback (CPU read, GPU write)";
+        default: return "Unknown";
+        }
+    }
+
+    std::string GetBufferShaderUsageText(alm::rhi::BufferShaderUsage usage)
+    {
+        if (usage == alm::rhi::BufferShaderUsage::None)
+            return "None";
+
+        std::string text;
+        const std::pair<alm::rhi::BufferShaderUsage, const char*> flags[] = {
+            { alm::rhi::BufferShaderUsage::Uniform, "Uniform" },
+            { alm::rhi::BufferShaderUsage::ReadOnly, "ReadOnly" },
+            { alm::rhi::BufferShaderUsage::ReadWrite, "ReadWrite" },
+            { alm::rhi::BufferShaderUsage::IndirectArguments, "IndirectArguments" },
+        };
+        for (const auto& [flag, name] : flags)
+        {
+            if (alm::has_any_flag(usage, flag))
+                text += (text.empty() ? "" : " | ") + std::string(name);
+        }
+        return text;
+    }
+
 } // anonymous namespace
+
+// Out-of-line special members of UIBufferWindow: MemoryEditor's complete type is
+// only visible in this file (see FrameworkUI.h).
+alm::fw::FrameworkUI::UIBufferWindow::UIBufferWindow(std::string title, alm::rhi::BufferHandle buffer) :
+    title{ std::move(title) },
+    buffer{ buffer },
+    memEditor{ std::make_unique<MemoryEditor>() }
+{
+    memEditor->ReadOnly = true;
+}
+
+alm::fw::FrameworkUI::UIBufferWindow::~UIBufferWindow() = default;
+alm::fw::FrameworkUI::UIBufferWindow::UIBufferWindow(UIBufferWindow&& other) noexcept = default;
+alm::fw::FrameworkUI::UIBufferWindow& alm::fw::FrameworkUI::UIBufferWindow::operator=(UIBufferWindow&& other) noexcept = default;
 
 alm::fw::FrameworkUI::FrameworkUI()
 	: m_ShadowmapWidget(*this)
@@ -84,12 +112,13 @@ alm::fw::FrameworkUI::FrameworkUI()
 	, m_Window(nullptr)
 {
 	// Window registry. Creation order = drawing order and View menu order.
-	m_Windows.push_back(std::make_unique<SettingsWindow>(*this));
-	m_Windows.push_back(std::make_unique<WorldOutlinerWindow>(*this));
-	m_Windows.push_back(std::make_unique<RenderStagesWindow>(*this));
-	m_Windows.push_back(std::make_unique<MaterialsWindow>(*this));
-	m_Windows.push_back(std::make_unique<AtmosphereWindow>(*this));
-	m_Windows.push_back(std::make_unique<StatsWindow>(*this));
+    m_Windows.push_back(std::make_unique<SettingsWindow>(*this));
+    m_Windows.push_back(std::make_unique<WorldOutlinerWindow>(*this));
+    m_Windows.push_back(std::make_unique<RenderStagesWindow>(*this));
+    m_Windows.push_back(std::make_unique<MaterialsWindow>(*this));
+    m_Windows.push_back(std::make_unique<AtmosphereWindow>(*this));
+    m_Windows.push_back(std::make_unique<StatsWindow>(*this));
+    m_Windows.push_back(std::make_unique<ResourcesWindow>(*this));
 
 	// Secondary windows, opened from other windows (not listed in the View menu).
 	m_Windows.push_back(std::make_unique<GPUCPUGraphWindow>(*this));
@@ -143,6 +172,7 @@ void alm::fw::FrameworkUI::BuildUI()
         window->Build();
 
     BuildTextureWindows();
+    BuildBufferWindows();
 
     ShowPendingErrorModal();
 
@@ -256,6 +286,17 @@ void alm::fw::FrameworkUI::AddTextureWindow(const std::string& title, alm::rhi::
     {
         ImGui::SetWindowFocus(title.c_str());
     }
+}
+
+void alm::fw::FrameworkUI::AddBufferWindow(const std::string& title, alm::rhi::BufferHandle buffer)
+{
+    auto it = std::ranges::find_if(m_BufferWindows, [&title](const UIBufferWindow& elem)
+        { return elem.title == title; });
+
+    if (it == m_BufferWindows.end())
+        m_BufferWindows.emplace_back(title, buffer);
+    else
+        ImGui::SetWindowFocus(title.c_str());
 }
 
 void alm::fw::FrameworkUI::AddRenderStageTextureWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode,
@@ -981,6 +1022,116 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
     tw.firstShow = false;
     if (tw.settleFrames > 0)
         --tw.settleFrames;
+    return isOpen;
+}
+
+void alm::fw::FrameworkUI::BuildBufferWindows()
+{
+    auto it = m_BufferWindows.begin();
+    while (it != m_BufferWindows.end())
+    {
+        if (!BuildBufferWindow(*it))
+            it = m_BufferWindows.erase(it);
+        else
+            ++it;
+    }
+}
+
+bool alm::fw::FrameworkUI::BuildBufferWindow(UIBufferWindow& bw)
+{
+    if (!bw.buffer || bw.buffer.expired())
+        return false;
+
+    bool isOpen = true;
+
+    ImGui::SetNextWindowSize(ImVec2(780, 520), ImGuiCond_Appearing);
+    if (!ImGui::Begin(bw.title.c_str(), &isOpen))
+    {
+        ImGui::End();
+        return isOpen;
+    }
+
+    const rhi::BufferDesc& desc = bw.buffer->GetDesc();
+
+    //
+    // Details child
+    //
+
+    ImGui::BeginChild("##details", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
+    {
+        const struct
+        {
+            const char* label;
+            std::string value;
+        } properties[] = {
+            { "Size", std::format("{} bytes", (unsigned long long)desc.sizeBytes) },
+            { "Memory access", GetMemoryAccessText(desc.memoryAccess) },
+            { "Shader usage", GetBufferShaderUsageText(desc.shaderUsage) },
+            { "Format", rhi::GetFormatString(desc.format) },
+            { "Stride", std::format("{}", desc.stride) },
+        };
+
+        const int propertyCount = (int)std::size(properties);
+        const int propertyRows = (propertyCount + 1) / 2;
+        if (ImGui::BeginTable("##properties", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchProp))
+        {
+            ImGui::TableSetupColumn("##t0", ImGuiTableColumnFlags_WidthStretch, 0.8f);
+            ImGui::TableSetupColumn("##v0", ImGuiTableColumnFlags_WidthStretch, 1.2f);
+            ImGui::TableSetupColumn("##t1", ImGuiTableColumnFlags_WidthStretch, 0.8f);
+            ImGui::TableSetupColumn("##v1", ImGuiTableColumnFlags_WidthStretch, 1.2f);
+
+            int id = 0;
+            for (int row = 0; row < propertyRows; ++row)
+            {
+                ImGui::TableNextRow(0, ImGui::GetFrameHeight());
+                for (int half = 0; half < 2; ++half)
+                {
+                    const int propIdx = row * 2 + half;
+
+                    // Title cell
+                    ImGui::TableSetColumnIndex(half * 2);
+                    if (propIdx < propertyCount)
+                    {
+                        ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::GetColorU32(ImGuiCol_TableHeaderBg));
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::TextUnformatted(properties[propIdx].label);
+                    }
+
+                    // Value cell
+                    ImGui::TableSetColumnIndex(half * 2 + 1);
+                    if (propIdx < propertyCount)
+                    {
+                        ImGui::PushID(++id);
+                        ImGui::BeginDisabled();
+                        ImGui::SetNextItemWidth(-FLT_MIN);
+                        ImGui::InputText("##value", (char*)properties[propIdx].value.c_str(),
+                            properties[propIdx].value.size() + 1, ImGuiInputTextFlags_ReadOnly);
+                        ImGui::EndDisabled();
+                        ImGui::PopID();
+                    }
+                }
+            }
+            ImGui::EndTable();
+        }
+    }
+    ImGui::EndChild();
+
+    //
+    // Contents: only CPU-mappable buffers (Upload/Readback) can be shown
+    //
+
+    if (desc.memoryAccess == rhi::MemoryAccess::Default)
+    {
+        ImGui::TextDisabled("Buffer is not CPU-mappable (Default access); contents are not shown.");
+    }
+    else if (void* dataPtr = bw.buffer->Map())
+    {
+        bw.memEditor->DrawContents(dataPtr, desc.sizeBytes);
+        bw.buffer->Unmap();
+    }
+
+    ImGui::End();
+
     return isOpen;
 }
 

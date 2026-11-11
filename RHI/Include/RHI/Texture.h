@@ -115,6 +115,8 @@ namespace alm::rhi
 
         virtual void Swap(ITexture& other) = 0;
 
+        uint64_t GetSizeInBytes() const override;
+
     protected:
 
         ITexture(Device* device, const std::string& debugName) : IResource(device, debugName) {};

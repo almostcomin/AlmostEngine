@@ -73,6 +73,7 @@ namespace alm::rhi
 		virtual const WeakBlob& GetBytecode() const = 0;
 
         ResourceType GetResourceType() const override { return ResourceType::Shader; }
+        uint64_t GetSizeInBytes() const override { return uint64_t(GetBytecode().size()); }
 
     protected:
 

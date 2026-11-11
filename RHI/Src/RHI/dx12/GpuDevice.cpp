@@ -1445,7 +1445,7 @@ D3D12_RESOURCE_DESC alm::rhi::dx12::GpuDevice::BuildD3d12Desc(const TextureDesc&
 	d3d12Desc.Format = IsDepthFormat(desc.format) ? formatMap.typelessFormat : formatMap.srvFormat;
 	d3d12Desc.SampleDesc.Count = desc.sampleCount;
 	d3d12Desc.SampleDesc.Quality = desc.sampleQuality;
-	if (!has_any_flag(desc.shaderUsage, TextureShaderUsage::Sampled))
+	if (!has_any_flag(desc.shaderUsage, TextureShaderUsage::Sampled) && has_any_flag(desc.shaderUsage, TextureShaderUsage::DepthTarget))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	if (has_any_flag(desc.shaderUsage, TextureShaderUsage::Storage))
 		d3d12Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
