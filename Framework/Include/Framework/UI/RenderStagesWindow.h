@@ -24,7 +24,7 @@ public:
 
 	explicit RenderStagesWindow(FrameworkUI& ui) : UIWindow(ui) {}
 
-	// Defined out-of-line in FrameworkUI_RenderStages.cpp: the BufferView views hold a
+	// Defined out-of-line in RenderStagesWindow.cpp: the BufferView views hold a
 	// MemoryEditor whose complete type is only visible there.
 	~RenderStagesWindow() override;
 
@@ -54,7 +54,7 @@ private:
 	};
 
 	// NOTE: BufferView has out-of-line special members (defined in
-	// FrameworkUI_RenderStages.cpp) because it owns a MemoryEditor whose complete
+	// RenderStagesWindow.cpp) because it owns a MemoryEditor whose complete
 	// type is only visible there: an implicitly-generated destructor would fail to
 	// compile ("can't delete an incomplete type") in every other window TU.
 	struct BufferView
