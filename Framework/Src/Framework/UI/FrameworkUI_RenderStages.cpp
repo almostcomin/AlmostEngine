@@ -1,12 +1,11 @@
 // "Render Stages" window (View > Render Stages) and the render-stage texture/
-// buffer inspection windows opened from it. UIWindow subclass of the FrameworkUI
-// window set (see Framework/UI/UIWindows.h). The inspection windows outlive the
+// buffer inspection windows opened from it. The inspection windows outlive the
 // main window: they are built while any of them is open, even if the main
 // window is closed.
 
 #include "Framework/FrameworkPCH.h"
+#include "Framework/UI/RenderStagesWindow.h"
 #include "Framework/UI/FrameworkUI.h"
-#include "Framework/UI/UIWindows.h"
 #include "Framework/UI/FrameworkUIWidgets.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"

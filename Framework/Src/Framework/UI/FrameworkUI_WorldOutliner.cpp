@@ -1,12 +1,11 @@
 // "World Outliner" window (View > World Outliner), including the 3D viewport
-// node picking and the per-leaf-type inspector sections. UIWindow subclass of
-// the FrameworkUI window set (see Framework/UI/UIWindows.h). It also owns the
-// node selection: BuildSelectionInput() runs every frame from FrameworkUI,
-// whether the window is open or not.
+// node picking and the per-leaf-type inspector sections. It also owns the node
+// selection: BuildSelectionInput() runs every frame from FrameworkUI, whether
+// the window is open or not.
 
 #include "Framework/FrameworkPCH.h"
+#include "Framework/UI/WorldOutlinerWindow.h"
 #include "Framework/UI/FrameworkUI.h"
-#include "Framework/UI/UIWindows.h"
 #include "Framework/UI/FrameworkUIWidgets.h"
 #include "Gfx/Scene.h"
 #include "Gfx/SceneGraph.h"

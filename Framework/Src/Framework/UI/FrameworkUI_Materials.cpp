@@ -1,9 +1,9 @@
-// "Materials Panel" window (View > Material Panel). UIWindow subclass of the
-// FrameworkUI window set (see Framework/UI/UIWindows.h).
+// "Materials Panel" window (View > Material Panel): material list with name
+// filter on the left, material editor on the right.
 
 #include "Framework/FrameworkPCH.h"
+#include "Framework/UI/MaterialsWindow.h"
 #include "Framework/UI/FrameworkUI.h"
-#include "Framework/UI/UIWindows.h"
 #include "Gfx/GpuSceneBuffers.h"
 #include "Gfx/Material.h"
 #include "Gfx/DeviceManager.h"

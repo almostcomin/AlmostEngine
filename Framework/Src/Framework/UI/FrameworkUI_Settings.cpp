@@ -1,13 +1,13 @@
 // "Settings" window (View > Settings) and the "Luminance histogram" window opened
-// from its Exposure section. These are UIWindow subclasses of the FrameworkUI
-// window set (see Framework/UI/UIWindows.h); the Shadowmap, Directional light and
-// Ambient sections live in the shared SettingsWidgets, shown by this window and
-// by the Atmosphere/Lighting window.
+// from its Exposure section. The Shadowmap, Directional light and Ambient sections
+// live in the shared CommonWidgets, shown by this window and by the
+// Atmosphere/Lighting window.
 
 #include "Framework/FrameworkPCH.h"
 #include "Framework/CameraController.h"
+#include "Framework/UI/SettingsWindow.h"
+#include "Framework/UI/LuminanceHistogramWindow.h"
 #include "Framework/UI/FrameworkUI.h"
-#include "Framework/UI/UIWindows.h"
 #include "Framework/UI/FrameworkUIWidgets.h"
 #include "Gfx/Scene.h"
 #include "Gfx/RenderView.h"

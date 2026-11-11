@@ -7,10 +7,9 @@ namespace alm::fw
 
 class FrameworkUI;
 
-// UI sections shared by more than one window: the Settings window and the
-// Atmosphere/Lighting window both show the Shadowmap, Directional light and
-// Ambient sections. Both edit the same FrameworkData fields, so each section is
-// a single widget object owned by FrameworkUI (never duplicated state).
+// UI sections shared by more than one window (see CommonWidgets.cpp). They edit
+// the same FrameworkData fields, so each section is a single widget object owned
+// by FrameworkUI (never duplicated state).
 class ShadowmapSettingsWidget
 {
 public:

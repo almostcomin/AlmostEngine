@@ -1,10 +1,12 @@
 // "Statistics" window (View > Statistics) and the standalone graph windows
-// opened from it. UIWindow subclasses of the FrameworkUI window set
-// (see Framework/UI/UIWindows.h).
+// opened from it.
 
 #include "Framework/FrameworkPCH.h"
+#include "Framework/UI/StatsWindow.h"
+#include "Framework/UI/GPUCPUGraphWindow.h"
+#include "Framework/UI/StagesGPUGraphWindow.h"
+#include "Framework/UI/StagesCPUGraphWindow.h"
 #include "Framework/UI/FrameworkUI.h"
-#include "Framework/UI/UIWindows.h"
 #include "Gfx/RenderView.h"
 #include "Gfx/RenderGraph.h"
 #include "Gfx/RenderStages/GPUCullingRenderStage.h"

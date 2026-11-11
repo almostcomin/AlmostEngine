@@ -13,7 +13,7 @@
 #include "Gfx/RaycastHit.h"
 #include "Gfx/TextureLoadFlags.h"
 #include "Framework/UI/UIWindow.h"
-#include "Framework/UI/SettingsWidgets.h"
+#include "Framework/UI/CommonWidgets.h"
 
 #include <functional>
 #include <memory>
@@ -114,9 +114,10 @@ public:
 
 	CameraController* GetCameraController() const { return m_CameraController; }
 
-	// Window registry: the UI windows are UIWindow subclasses (see UIWindows.h),
-	// created by the FrameworkUI constructor and RegisterWindow() for app-specific
-	// ones. They are drawn every frame by BuildUI and auto-listed in the View menu.
+	// Window registry: the UI windows are UIWindow subclasses, one class per
+	// window (Framework/UI/*Window.h), created by the FrameworkUI constructor
+	// and RegisterWindow() for app-specific ones. They are drawn every frame by
+	// BuildUI and auto-listed in the View menu.
 	template<class T>
 	T* GetWindow()
 	{

@@ -1,11 +1,10 @@
-// "Atmosphere / Lighting" window (View > Atmosphere / Lighting). UIWindow
-// subclass of the FrameworkUI window set (see Framework/UI/UIWindows.h). The
-// Shadowmap, Directional light and Ambient sections are the shared widgets of
-// SettingsWidgets.h, shown by this window and by the Settings window.
+// "Atmosphere / Lighting" window (View > Atmosphere / Lighting). The Shadowmap,
+// Directional light and Ambient sections are the shared widgets of
+// CommonWidgets.h, shown by this window and by the Settings window.
 
 #include "Framework/FrameworkPCH.h"
+#include "Framework/UI/AtmosphereWindow.h"
 #include "Framework/UI/FrameworkUI.h"
-#include "Framework/UI/UIWindows.h"
 #include "Framework/UI/FrameworkUIWidgets.h"
 #include "Framework/UI/CloudsPresets.h"
 #include "Gfx/Scene.h"

@@ -1,8 +1,9 @@
-// Shared settings widgets (Shadowmap, Directional light, Ambient) used by both
-// the Settings window and the Atmosphere/Lighting window (see SettingsWidgets.h).
+// Shared widgets (Shadowmap, Directional light, Ambient) used by more than one
+// window: the Settings window and the Atmosphere/Lighting window both show them
+// (see CommonWidgets.h).
 
 #include "Framework/FrameworkPCH.h"
-#include "Framework/UI/SettingsWidgets.h"
+#include "Framework/UI/CommonWidgets.h"
 #include "Framework/UI/FrameworkUI.h"
 #include "Gfx/Scene.h"
 #include "Gfx/RenderView.h"
