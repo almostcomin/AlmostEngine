@@ -25,8 +25,8 @@
 #include <imgui/imgui_internal.h> // For ImGui::GetCurrentWindow() and GetKeyChordName() (View menu)
 #include <SDL3/SDL.h>
 #include <commdlg.h>
-// Complete type for the MemoryEditor held by the Render Stages window views:
-// the window registry (destroyed in ~FrameworkUI) instantiates its destructor here.
+// Complete type for the MemoryEditor held by FrameworkUI::UIBufferWindow: its
+// special members are defined in this file.
 #include "imgui_memory_editor.h"
 
 namespace
@@ -93,10 +93,11 @@ namespace
 
 // Out-of-line special members of UIBufferWindow: MemoryEditor's complete type is
 // only visible in this file (see FrameworkUI.h).
-alm::fw::FrameworkUI::UIBufferWindow::UIBufferWindow(std::string title, alm::rhi::BufferHandle buffer) :
+alm::fw::FrameworkUI::UIBufferWindow::UIBufferWindow(std::string title, alm::rhi::BufferHandle buffer, std::function<void()> onClose) :
     title{ std::move(title) },
     buffer{ buffer },
-    memEditor{ std::make_unique<MemoryEditor>() }
+    memEditor{ std::make_unique<MemoryEditor>() },
+    onClose{ std::move(onClose) }
 {
     memEditor->ReadOnly = true;
 }
@@ -261,42 +262,56 @@ void alm::fw::FrameworkUI::BuildGizmo(ImGuiID dockspaceId)
     ImGuizmo::PopID();
 }
 
-void alm::fw::FrameworkUI::AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture)
+bool alm::fw::FrameworkUI::AddTextureWindow(alm::rhi::TextureHandle texture, const std::string& title, std::function<void()> onClose)
 {
-    auto* device = GetDeviceManager()->GetDevice();
+    if (!texture)
+        return false;
 
-    auto it = std::ranges::find_if(m_TextureWindows, [&title](const UITextureWindow& elem)
-        { return elem.title == title; });
+    std::string windowTitle = title.empty() ? texture->GetDebugName() : title;
 
-    if (it == m_TextureWindows.end())
+    auto it = std::ranges::find_if(m_TextureWindows, [&windowTitle](const UITextureWindow& elem)
+        { return elem.title == windowTitle; });
+
+    if (it != m_TextureWindows.end())
     {
-        auto textureWindow = UITextureWindow{
-            .title = title,
-            .texture = texture };
-        
-        if (texture->GetDesc().dimension == rhi::TextureDimension::TextureCube)
-        {
-            textureWindow.arrayView = device->CreateTextureSampledView(texture.get(), rhi::TextureSubresourceSet{
-                0, rhi::TextureSubresourceSet::AllMipLevels, 0, 6 }, rhi::Format::UNKNOWN, rhi::TextureDimension::Texture2DArray);
-        }
+        ImGui::SetWindowFocus(windowTitle.c_str());
+        return false;
+    }
 
-        m_TextureWindows.push_back(textureWindow);
-    }
-    else
+    auto textureWindow = UITextureWindow{
+        .title = std::move(windowTitle),
+        .texture = texture,
+        .onClose = std::move(onClose) };
+
+    if (texture->GetDesc().dimension == rhi::TextureDimension::TextureCube)
     {
-        ImGui::SetWindowFocus(title.c_str());
+        auto* device = GetDeviceManager()->GetDevice();
+        textureWindow.arrayView = device->CreateTextureSampledView(texture.get(), rhi::TextureSubresourceSet{
+            0, rhi::TextureSubresourceSet::AllMipLevels, 0, 6 }, rhi::Format::UNKNOWN, rhi::TextureDimension::Texture2DArray);
     }
+
+    m_TextureWindows.push_back(std::move(textureWindow));
+    return true;
 }
 
-void alm::fw::FrameworkUI::AddBufferWindow(const std::string& title, alm::rhi::BufferHandle buffer)
+bool alm::fw::FrameworkUI::AddBufferWindow(alm::rhi::BufferHandle buffer, const std::string& title, std::function<void()> onClose)
 {
-    auto it = std::ranges::find_if(m_BufferWindows, [&title](const UIBufferWindow& elem)
-        { return elem.title == title; });
+    if (!buffer)
+        return false;
 
-    if (it == m_BufferWindows.end())
-        m_BufferWindows.emplace_back(title, buffer);
-    else
-        ImGui::SetWindowFocus(title.c_str());
+    std::string windowTitle = title.empty() ? buffer->GetDebugName() : title;
+
+    auto it = std::ranges::find_if(m_BufferWindows, [&windowTitle](const UIBufferWindow& elem)
+        { return elem.title == windowTitle; });
+
+    if (it != m_BufferWindows.end())
+    {
+        ImGui::SetWindowFocus(windowTitle.c_str());
+        return false;
+    }
+
+    m_BufferWindows.emplace_back(std::move(windowTitle), buffer, std::move(onClose));
+    return true;
 }
 
 void alm::fw::FrameworkUI::AddRenderStageTextureWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode,
@@ -685,6 +700,9 @@ void alm::fw::FrameworkUI::BuildTextureWindows()
             if (it->arrayView.IsValid())
                 device->ReleaseTextureSampledView(it->arrayView);
 
+            if (it->onClose)
+                it->onClose();
+
             it = m_TextureWindows.erase(it);
         }
         else
@@ -713,7 +731,6 @@ bool alm::fw::FrameworkUI::BuildTextureWindow(UITextureWindow& tw)
         2.0f + childBorder + scrollbar + 1.0f + 40.f;
 
     ImGui::SetNextWindowSize(ImVec2{ windowWidth, windowHeight }, ImGuiCond_Appearing);
-
     if (!ImGui::Begin(tw.title.c_str(), &isOpen, ImGuiWindowFlags_None))
     {
         ImGui::End();
@@ -1031,7 +1048,12 @@ void alm::fw::FrameworkUI::BuildBufferWindows()
     while (it != m_BufferWindows.end())
     {
         if (!BuildBufferWindow(*it))
+        {
+            if (it->onClose)
+                it->onClose();
+
             it = m_BufferWindows.erase(it);
+        }
         else
             ++it;
     }
@@ -1198,7 +1220,7 @@ bool alm::fw::FrameworkUI::BuildTextureShowBrowseClear(const char* id, std::shar
     ImGui::BeginDisabled(!loadedTex);
     if (ImGui::Button("Show", ImVec2(buttonWidth, 0.f)))
     {
-        AddTextureWindow(title, loadedTex->texture.get_weak());
+        AddTextureWindow(loadedTex->texture.get_weak(), title);
     }
     ImGui::EndDisabled();
 

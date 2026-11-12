@@ -206,7 +206,7 @@ void alm::fw::AtmosphereWindow::BuildCubemapSettings(float availWidth)
         ImGui::BeginDisabled(!(skyTexture && skyTexture->IsValid()));
         if (ImGui::Button("SkyBox", ImVec2(buttonWidth, 0)))
         {
-            m_UI.AddTextureWindow(skyTexture->id, skyTexture->texture.get_weak());
+            m_UI.AddTextureWindow(skyTexture->texture.get_weak(), skyTexture->id);
         };
         ImGui::EndDisabled();
 
@@ -215,7 +215,7 @@ void alm::fw::AtmosphereWindow::BuildCubemapSettings(float availWidth)
         ImGui::BeginDisabled(!(lambertTexture && lambertTexture->IsValid()));
         if (ImGui::Button("Lambert", ImVec2(buttonWidth, 0)))
         {
-            m_UI.AddTextureWindow(lambertTexture->id, lambertTexture->texture.get_weak());
+            m_UI.AddTextureWindow(lambertTexture->texture.get_weak(), lambertTexture->id);
         };
         ImGui::EndDisabled();
 
@@ -224,7 +224,7 @@ void alm::fw::AtmosphereWindow::BuildCubemapSettings(float availWidth)
         ImGui::BeginDisabled(!(ggxTexture && ggxTexture->IsValid()));
         if (ImGui::Button("GGX", ImVec2(buttonWidth, 0)))
         {
-            m_UI.AddTextureWindow(ggxTexture->id, ggxTexture->texture.get_weak());
+            m_UI.AddTextureWindow(ggxTexture->texture.get_weak(), ggxTexture->id);
         };
         ImGui::EndDisabled();
 
@@ -233,7 +233,7 @@ void alm::fw::AtmosphereWindow::BuildCubemapSettings(float availWidth)
         ImGui::BeginDisabled(!(dfgTexture && dfgTexture->IsValid()));
         if (ImGui::Button("DFG LUT", ImVec2(buttonWidth, 0)))
         {
-            m_UI.AddTextureWindow(dfgTexture->id, dfgTexture->texture.get_weak());
+            m_UI.AddTextureWindow(dfgTexture->texture.get_weak(), dfgTexture->id);
         };
         ImGui::EndDisabled();
     }
@@ -482,7 +482,7 @@ void alm::fw::AtmosphereWindow::BuildCloudsSettings()
         if (ImGui::Button("Open Shape Texture"))
         {
             auto tex = atmos->GetCloudsShapeTexture();
-            m_UI.AddTextureWindow(tex->GetDebugName(), tex);
+            m_UI.AddTextureWindow(tex);
         }
 
         ImGui::SameLine();
@@ -490,7 +490,7 @@ void alm::fw::AtmosphereWindow::BuildCloudsSettings()
         if (ImGui::Button("Open Detail Texture"))
         {
             auto tex = atmos->GetCloudsDetailTexture();
-            m_UI.AddTextureWindow(tex->GetDebugName(), tex);
+            m_UI.AddTextureWindow(tex);
         }
 
         ImGui::EndDisabled();

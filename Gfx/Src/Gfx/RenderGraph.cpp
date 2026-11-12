@@ -467,6 +467,18 @@ void alm::gfx::RenderGraph::OnRenderTargetSizeChanged(const int2& newSize, const
 			{
 				framebuffersToUpdate.insert(fbHandle);
 			}
+
+			// Recreate debug view requests
+			for (TextureViewRequest* req : m_TexViewRequests)
+			{
+				if (req->handle == GetHandle(declTex.get()))
+				{
+					CreateTextureForView(*req);
+				}
+			}
+
+			// Buffer view requests reading from this texture must be resized too
+			RecreateBufferViewRequests(GetHandle(declTex.get()));
 		}
 	}
 
@@ -494,51 +506,6 @@ void alm::gfx::RenderGraph::OnRenderTargetSizeChanged(const int2& newSize, const
 		if (rs->renderStage->IsAttached())
 		{
 			rs->renderStage->OnBackbufferResize();
-		}
-	}
-
-	// Recreate texture view requests
-	for (auto* req : m_TexViewRequests)
-	{
-		m_DeviceManager->GetDevice()->ReleaseImmediately(std::move(req->tex));
-	}
-}
-
-void alm::gfx::RenderGraph::ResolvePendingResources()
-{
-	for (const auto& entry : m_Textures)
-	{
-		DeclaredTexture* declTex = entry.second.get();
-		if (declTex && declTex->pendingResourceCreation)
-		{
-			if (declTex->owner->IsEnabled())
-			{
-				EnableTexture(declTex);
-			}
-			declTex->pendingResourceCreation = false;
-		}
-	}
-
-	for (const auto& entry : m_Buffers)
-	{
-		DeclaredBuffer* declBuffer = entry.second.get();
-		if (declBuffer && declBuffer->pendingResourceCreation)
-		{
-			if (declBuffer->owner->IsEnabled())
-			{
-				EnableBuffer(declBuffer);
-			}
-			declBuffer->pendingResourceCreation = false;
-		}
-	}
-
-	for (const auto& entry : m_Framebuffers)
-	{
-		RequestedFramebufferData* fbData = GetReqFb(entry.get());
-		if (fbData && fbData->pendingResourceCreation)
-		{
-			CreateFramebuffer(fbData);
-			fbData->pendingResourceCreation = false;
 		}
 	}
 }
@@ -652,8 +619,11 @@ bool alm::gfx::RenderGraph::RecreateBuffer(RGBufferHandle handle, const rhi::Buf
 {
 	assert(!m_IsRendering);
 
-	// Check that texture has not been already created
 	auto* declBuffer = GetDeclBuffer(handle);
+
+	// Keep the declared desc in sync, so EnableBuffer recreates the buffer with
+	// the up-to-date description after a disable/enable cycle of its stage
+	declBuffer->desc = desc;
 
 	// Create new buffer
 	rhi::BufferOwner newBuffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::SHADER_RESOURCE, declBuffer->id);
@@ -661,6 +631,9 @@ bool alm::gfx::RenderGraph::RecreateBuffer(RGBufferHandle handle, const rhi::Buf
 
 	// Swap
 	oldBuffer->Swap(*newBuffer.get());
+
+	// Recreate debug view requests
+	RecreateBufferViewRequests(handle);
 
 	return true;
 }
@@ -852,7 +825,7 @@ size_t alm::gfx::RenderGraph::GetNumRenderStages(const std::string& mode) const
 	return it->second.size();
 }
 
-const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageDataFromType(RenderStageTypeID id)
+const alm::gfx::RenderGraph::StageData* alm::gfx::RenderGraph::GetRenderStageDataFromType(RenderStageTypeID id) const
 {
 	auto it = std::ranges::find_if(m_RenderStages, [id](const std::unique_ptr<StageData>& stageDataPtr)
 	{
@@ -936,22 +909,6 @@ float alm::gfx::RenderGraph::GetStageCPUTimeMs(RenderStageTypeID id) const
 	return result;
 }
 
-alm::gfx::RGTextureViewTicket alm::gfx::RenderGraph::RequestTextureView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle)
-{
-	for (auto& entry : m_TexViewRequests)
-	{
-		if (entry->rsId == rsId && entry->accessMode == accessMode && entry->handle == handle)
-		{
-			++entry->refCount;
-			return RGTextureViewTicket{ entry };
-		}
-	}
-
-	auto* ticket = new TextureViewRequest{ rsId, accessMode, handle, 1, rhi::TextureOwner{} };
-	m_TexViewRequests.push_back(ticket);
-	return RGTextureViewTicket{ ticket };
-}
-
 float alm::gfx::RenderGraph::GetAggregatedGPUTimeMs() const
 {
 	float result = 0.f;
@@ -979,24 +936,55 @@ float alm::gfx::RenderGraph::GetAggregatedGPUTimeMs() const
 	return result;
 }
 
+alm::gfx::RGTextureViewTicket alm::gfx::RenderGraph::RequestTextureView(RenderStageTypeID rsId, AccessMode accessMode, RGTextureHandle handle)
+{
+	for (auto& entry : m_TexViewRequests)
+	{
+		if (entry->rsId == rsId && entry->accessMode == accessMode && entry->handle == handle)
+		{
+			++entry->refCount;
+			return RGTextureViewTicket{ entry };
+		}
+	}
+
+	auto* ticket = new TextureViewRequest{ rsId, accessMode, handle, 1, {} };
+	CreateTextureForView(*ticket);
+
+	m_TexViewRequests.push_back(ticket);
+	return RGTextureViewTicket{ ticket };
+}
+
 alm::gfx::RGBufferViewTicket alm::gfx::RenderGraph::RequestBufferView(RenderStageTypeID rsId, AccessMode accessMode, RGBufferHandle handle)
 {
 	for (auto& entry : m_BufferViewRequests)
 	{
-		if (entry->type == BufferViewRequest::Type::Buffer && entry->rsId == rsId && entry->accessMode == accessMode && entry->bufferHandle == handle)
+		if (entry->type == BufferViewRequest::Type::Buffer &&
+			entry->rsId == rsId &&
+			entry->accessMode == accessMode &&
+			entry->bufferHandle == handle)
 		{
 			++entry->refCount;
 			return RGBufferViewTicket{ entry };
 		}
 	}
 
-	auto* ticket = new BufferViewRequest{ 
+	// Fail fast so the caller can retry when the source buffer exists
+	const auto* stageData = GetRenderStageDataFromType(rsId);
+	if (!stageData || !stageData->renderStage)
+		return {};
+
+	if (!GetDeclBuffer(handle)->buffer.get_weak())
+		return {};
+
+	auto* ticket = new BufferViewRequest{
 		.type = BufferViewRequest::Type::Buffer,
 		.rsId = rsId,
 		.accessMode = accessMode,
 		.bufferHandle = handle,
 		.refCount = 1,
 		.buffer = rhi::BufferOwner{} };
+
+	CreateBufferForView(*ticket);
 
 	m_BufferViewRequests.push_back(ticket);
 	return RGBufferViewTicket{ ticket };
@@ -1006,12 +994,23 @@ alm::gfx::RGBufferViewTicket alm::gfx::RenderGraph::RequestBufferView(RenderStag
 {
 	for (auto& entry : m_BufferViewRequests)
 	{
-		if (entry->type == BufferViewRequest::Type::Texture && entry->rsId == rsId && entry->accessMode == accessMode && entry->textureHandle == handle)
+		if (entry->type == BufferViewRequest::Type::Texture &&
+			entry->rsId == rsId &&
+			entry->accessMode == accessMode &&
+			entry->textureHandle == handle)
 		{
 			++entry->refCount;
 			return RGBufferViewTicket{ entry };
 		}
 	}
+
+	// Fail fast so the caller can retry when the source texture exists
+	const auto* stageData = GetRenderStageDataFromType(rsId);
+	if (!stageData || !stageData->renderStage)
+		return {};
+
+	if (!GetDeclTex(handle)->texture.get_weak())
+		return {};
 
 	auto* ticket = new BufferViewRequest{
 		.type = BufferViewRequest::Type::Texture,
@@ -1020,6 +1019,8 @@ alm::gfx::RGBufferViewTicket alm::gfx::RenderGraph::RequestBufferView(RenderStag
 		.textureHandle = handle,
 		.refCount = 1,
 		.buffer = rhi::BufferOwner{} };
+
+	CreateBufferForView(*ticket);
 
 	m_BufferViewRequests.push_back(ticket);
 	return RGBufferViewTicket{ ticket };
@@ -1051,7 +1052,7 @@ void alm::gfx::RenderGraph::ReleaseBufferView(RGBufferViewTicket ticket)
 	}
 }
 
-alm::rhi::TextureHandle alm::gfx::RenderGraph::GetTextureView(RGTextureViewTicket ticket)
+alm::rhi::TextureHandle alm::gfx::RenderGraph::GetTextureViewTexture(RGTextureViewTicket ticket)
 {
 	auto it = std::find(m_TexViewRequests.begin(), m_TexViewRequests.end(), ticket.ptr);
 	if (it == m_TexViewRequests.end())
@@ -1060,7 +1061,7 @@ alm::rhi::TextureHandle alm::gfx::RenderGraph::GetTextureView(RGTextureViewTicke
 	return (*it)->tex.get_weak();
 }
 
-alm::rhi::BufferHandle alm::gfx::RenderGraph::GetBufferView(RGBufferViewTicket ticket)
+alm::rhi::BufferHandle alm::gfx::RenderGraph::GetBufferViewBuffer(RGBufferViewTicket ticket)
 {
 	auto it = std::find(m_BufferViewRequests.begin(), m_BufferViewRequests.end(), ticket.ptr);
 	if (it == m_BufferViewRequests.end())
@@ -1089,12 +1090,51 @@ alm::rhi::FramebufferHandle alm::gfx::RenderGraph::GetBackbuffer()
 	return m_RenderView->GetBackbuffer();
 }
 
-alm::gfx::RenderGraph::DeclaredTexture* alm::gfx::RenderGraph::GetDeclTex(RGTextureHandle handle)
+void alm::gfx::RenderGraph::ResolvePendingResources()
+{
+	for (const auto& entry : m_Textures)
+	{
+		DeclaredTexture* declTex = entry.second.get();
+		if (declTex && declTex->pendingResourceCreation)
+		{
+			if (declTex->owner->IsEnabled())
+			{
+				EnableTexture(declTex);
+			}
+			declTex->pendingResourceCreation = false;
+		}
+	}
+
+	for (const auto& entry : m_Buffers)
+	{
+		DeclaredBuffer* declBuffer = entry.second.get();
+		if (declBuffer && declBuffer->pendingResourceCreation)
+		{
+			if (declBuffer->owner->IsEnabled())
+			{
+				EnableBuffer(declBuffer);
+			}
+			declBuffer->pendingResourceCreation = false;
+		}
+	}
+
+	for (const auto& entry : m_Framebuffers)
+	{
+		RequestedFramebufferData* fbData = GetReqFb(entry.get());
+		if (fbData && fbData->pendingResourceCreation)
+		{
+			CreateFramebuffer(fbData);
+			fbData->pendingResourceCreation = false;
+		}
+	}
+}
+
+alm::gfx::RenderGraph::DeclaredTexture* alm::gfx::RenderGraph::GetDeclTex(RGTextureHandle handle) const
 {
 	return reinterpret_cast<DeclaredTexture*>(handle.ptr);
 }
 
-alm::gfx::RenderGraph::DeclaredBuffer* alm::gfx::RenderGraph::GetDeclBuffer(RGBufferHandle handle)
+alm::gfx::RenderGraph::DeclaredBuffer* alm::gfx::RenderGraph::GetDeclBuffer(RGBufferHandle handle) const
 {
 	return reinterpret_cast<DeclaredBuffer*>(handle.ptr);
 }
@@ -1140,34 +1180,16 @@ void alm::gfx::RenderGraph::UpdateRequestedTextureViews(alm::rhi::ICommandList* 
 			if (!sourceTex)
 				continue;
 
-			const rhi::TextureDesc& sourceTexDesc = sourceTex->GetDesc();
-
-			// Create the target texture if does not exists
-			// TODO: If the source texture changed (resized for example) we need to re-create de texture
+			// (Re)create the view texture if it is missing (e.g. the source texture
+			// did not exist yet when the view was requested)
 			if (!req->tex)
 			{
-				rhi::TextureDesc desc{
-					.width = sourceTexDesc.width,
-					.height = sourceTexDesc.height,
-					.depth = sourceTexDesc.depth,
-					.arraySize = sourceTexDesc.arraySize,
-					.mipLevels = sourceTexDesc.mipLevels,
-					.format = sourceTexDesc.format,
-					.shaderUsage = rhi::TextureShaderUsage::Sampled
-				};
-
-				std::stringstream debugName;
-				debugName << rs->GetDebugName() << " - ";
-				if (accessMode == alm::gfx::RenderGraph::AccessMode::Read)
-					debugName << "Read";
-				else
-					debugName << "Write";
-				debugName << " - " << sourceTex->GetDebugName();
-
-				req->tex = m_DeviceManager->GetDevice()->CreateTexture(desc, rhi::ResourceState::SHADER_RESOURCE, debugName.str().c_str());
-				assert(req->tex);
+				CreateTextureForView(*req);
+				if (!req->tex)
+					continue;
 			}
 
+			const rhi::TextureDesc& sourceTexDesc = sourceTex->GetDesc();
 			rhi::ResourceState srcTexState = resourceStates.find(req->handle)->second;
 
 			rhi::Barrier entryBarriers[] = {
@@ -1232,29 +1254,13 @@ void alm::gfx::RenderGraph::UpdateRequestedBufferFromBufferView(BufferViewReques
 	if (!srcBuffer)
 		return;
 
-	// Create the target buffer if does not exists
-	// TODO: If the source buffer changed we need to re-create it
+	// (Re)create the readback buffer if it is missing (e.g. the source buffer
+	// did not exist yet when the view was requested)
 	if (!req->buffer)
 	{
-		const rhi::BufferDesc& srcBufferDesc = srcBuffer->GetDesc();
-
-		rhi::BufferDesc desc{
-			.memoryAccess = rhi::MemoryAccess::Readback,
-			.shaderUsage = rhi::BufferShaderUsage::None,
-			.sizeBytes = srcBufferDesc.sizeBytes,
-			.format = rhi::Format::UNKNOWN,
-			.stride = 0 };
-
-		std::stringstream debugName;
-		debugName << rs->GetDebugName() << " - ";
-		if (req->accessMode == alm::gfx::RenderGraph::AccessMode::Read)
-			debugName << "Read";
-		else
-			debugName << "Write";
-		debugName << " - " << srcBuffer->GetDebugName();
-
-		req->buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COMMON, debugName.str().c_str());
-		assert(req->buffer);
+		CreateBufferForView(*req);
+		if (!req->buffer)
+			return;
 	}
 
 	rhi::ResourceState srcBufferState = resourceStates.find(req->bufferHandle)->second;
@@ -1279,31 +1285,13 @@ void alm::gfx::RenderGraph::UpdateRequestedBufferFromTextureView(BufferViewReque
 	if (!srcTex)
 		return;
 
-	// Create the target buffer if does not exists
-	// TODO: If the source texture changed we need to re-create it
+	// (Re)create the readback buffer if it is missing (e.g. the source texture
+	// did not exist yet when the view was requested)
 	if (!req->buffer)
 	{
-		const rhi::TextureDesc& srcTexDesc = srcTex->GetDesc();
-
-		rhi::StorageRequirements storageReq = m_DeviceManager->GetDevice()->GetCopyableRequirements(srcTexDesc, rhi::AllSubresources);
-
-		rhi::BufferDesc desc{
-			.memoryAccess = rhi::MemoryAccess::Readback,
-			.shaderUsage = rhi::BufferShaderUsage::None,
-			.sizeBytes = storageReq.size,
-			.format = rhi::Format::UNKNOWN,
-			.stride = 0 };
-
-		std::stringstream debugName;
-		debugName << rs->GetDebugName() << " - ";
-		if (req->accessMode == alm::gfx::RenderGraph::AccessMode::Read)
-			debugName << "Read";
-		else
-			debugName << "Write";
-		debugName << " - " << srcTex->GetDebugName();
-
-		req->buffer = m_DeviceManager->GetDevice()->CreateBuffer(desc, rhi::ResourceState::COMMON, debugName.str().c_str());
-		assert(req->buffer);
+		CreateBufferForView(*req);
+		if (!req->buffer)
+			return;
 	}
 
 	rhi::ResourceState srcTexState = resourceStates.find(req->textureHandle)->second;
@@ -1319,6 +1307,148 @@ void alm::gfx::RenderGraph::UpdateRequestedBufferFromTextureView(BufferViewReque
 		rhi::Barrier::Texture(srcTex.get(), rhi::ResourceState::COPY_SRC, srcTexState),
 		rhi::Barrier::Buffer(req->buffer.get(), rhi::ResourceState::COPY_DST, rhi::ResourceState::COMMON) };
 	commandList->PushBarriers(exitBarriers);
+}
+
+void alm::gfx::RenderGraph::CreateTextureForView(TextureViewRequest& req) const
+{
+	const auto* stageData = GetRenderStageDataFromType(req.rsId);
+	if (!stageData || !stageData->renderStage)
+	{
+		LOG_ERROR("Invalid Render Stage");
+		return;
+	}
+
+	rhi::TextureHandle sourceTex = GetDeclTex(req.handle)->texture.get_weak();
+	if (!sourceTex)
+	{
+		LOG_ERROR("Texture does not exists");
+		return;
+	}
+
+	const rhi::TextureDesc& sourceTexDesc = sourceTex->GetDesc();
+
+	rhi::TextureDesc desc{
+		.width = sourceTexDesc.width,
+		.height = sourceTexDesc.height,
+		.depth = sourceTexDesc.depth,
+		.arraySize = sourceTexDesc.arraySize,
+		.mipLevels = sourceTexDesc.mipLevels,
+		.format = sourceTexDesc.format,
+		.shaderUsage = rhi::TextureShaderUsage::Sampled };
+
+	std::stringstream debugName;
+	debugName << stageData->renderStage->GetDebugName() << " - ";
+	if (req.accessMode == alm::gfx::RenderGraph::AccessMode::Read)
+		debugName << "Read";
+	else
+		debugName << "Write";
+	debugName << " - " << sourceTex->GetDebugName();
+
+	rhi::TextureOwner tex = m_DeviceManager->GetDevice()->CreateTexture(
+		desc, rhi::ResourceState::SHADER_RESOURCE, debugName.str().c_str());
+	assert(tex);
+
+	if (req.tex)
+	{
+		req.tex->Swap(*tex.get());
+	}
+	else
+	{
+		req.tex = std::move(tex);
+	}
+}
+
+void alm::gfx::RenderGraph::CreateBufferForView(BufferViewRequest& req) const
+{
+	const auto* stageData = GetRenderStageDataFromType(req.rsId);
+	if (!stageData || !stageData->renderStage)
+	{
+		LOG_ERROR("Invalid Render Stage");
+		return;
+	}
+
+	size_t sizeBytes = 0;
+	const std::string* sourceDebugName = nullptr;
+
+	if (req.type == BufferViewRequest::Type::Buffer)
+	{
+		rhi::BufferHandle srcBuffer = GetDeclBuffer(req.bufferHandle)->buffer.get_weak();
+		if (!srcBuffer)
+		{
+			LOG_ERROR("Buffer does not exists");
+			return;
+		}
+
+		sizeBytes = srcBuffer->GetDesc().sizeBytes;
+		sourceDebugName = &srcBuffer->GetDebugName();
+	}
+	else if (req.type == BufferViewRequest::Type::Texture)
+	{
+		rhi::TextureHandle srcTex = GetDeclTex(req.textureHandle)->texture.get_weak();
+		if (!srcTex)
+		{
+			LOG_ERROR("Texture does not exists");
+			return;
+		}
+
+		sizeBytes = m_DeviceManager->GetDevice()->GetCopyableRequirements(srcTex->GetDesc(), rhi::AllSubresources).size;
+		sourceDebugName = &srcTex->GetDebugName();
+	}
+	else
+	{
+		assert(0);
+		return;
+	}
+
+	rhi::BufferDesc desc{
+		.memoryAccess = rhi::MemoryAccess::Readback,
+		.shaderUsage = rhi::BufferShaderUsage::None,
+		.sizeBytes = sizeBytes,
+		.format = rhi::Format::UNKNOWN,
+		.stride = 0 };
+
+	std::stringstream debugName;
+	debugName << stageData->renderStage->GetDebugName() << " - ";
+	if (req.accessMode == alm::gfx::RenderGraph::AccessMode::Read)
+		debugName << "Read";
+	else
+		debugName << "Write";
+	debugName << " - " << *sourceDebugName;
+
+	rhi::BufferOwner buffer = m_DeviceManager->GetDevice()->CreateBuffer(
+		desc, rhi::ResourceState::COMMON, debugName.str().c_str());
+	assert(buffer);
+
+	if (req.buffer)
+	{
+		req.buffer->Swap(*buffer.get());
+	}
+	else
+	{
+		req.buffer = std::move(buffer);
+	}
+}
+
+void alm::gfx::RenderGraph::RecreateBufferViewRequests(RGBufferHandle sourceHandle)
+{
+	for (auto* req : m_BufferViewRequests)
+	{
+		if (req->type == BufferViewRequest::Type::Buffer && req->bufferHandle == sourceHandle)
+		{
+			CreateBufferForView(*req);
+		}
+	}
+}
+
+void alm::gfx::RenderGraph::RecreateBufferViewRequests(RGTextureHandle sourceHandle)
+{
+	for (auto* req : m_BufferViewRequests)
+	{
+		if (req->type == BufferViewRequest::Type::Texture && req->textureHandle == sourceHandle)
+		{
+			CreateBufferForView(*req);
+		}
+	}
 }
 
 uint2 alm::gfx::RenderGraph::GetActualTextureSize(const int2& desired, const uint2& backbufferSize,
@@ -1402,12 +1532,16 @@ void alm::gfx::RenderGraph::InternalRecreateTexture(RGTextureHandle handle)
 	m_DeviceManager->GetDevice()->ReleaseQueued(std::move(newTexture));
 
 	// Recreate debug view requests
-	auto it = std::find_if(m_TexViewRequests.begin(), m_TexViewRequests.end(), [handle](const TextureViewRequest* entry)
-		{ return entry->handle == handle; });
-	if (it != m_TexViewRequests.end())
+	for (TextureViewRequest* req : m_TexViewRequests)
 	{
-		m_DeviceManager->GetDevice()->ReleaseQueued(std::move((*it)->tex));
+		if (req->handle == handle)
+		{
+			CreateTextureForView(*req);
+		}
 	}
+
+	// Buffer view requests reading from this texture must be resized too
+	RecreateBufferViewRequests(handle);
 }
 
 std::vector<alm::gfx::RenderGraph::DeclaredTexture*> alm::gfx::RenderGraph::GetTexturesOwnedByStage(const RenderStage* renderStage) const

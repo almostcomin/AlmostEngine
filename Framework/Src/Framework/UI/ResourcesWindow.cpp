@@ -61,11 +61,11 @@ void alm::fw::ResourcesWindow::Inspect(rhi::IResource* res)
 	switch (res->GetResourceType())
 	{
 	case rhi::ResourceType::Texture:
-		m_UI.AddTextureWindow(res->GetDebugName(), alm::checked_pointer_cast<rhi::ITexture>(res->weak_from_this()));
+		m_UI.AddTextureWindow(alm::checked_pointer_cast<rhi::ITexture>(res->weak_from_this()));
 		break;
 
 	case rhi::ResourceType::Buffer:
-		m_UI.AddBufferWindow(res->GetDebugName(), alm::checked_pointer_cast<rhi::IBuffer>(res->weak_from_this()));
+		m_UI.AddBufferWindow(alm::checked_pointer_cast<rhi::IBuffer>(res->weak_from_this()));
 		break;
 
 	default:

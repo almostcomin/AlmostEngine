@@ -94,8 +94,6 @@ public:
 	void OnSceneChanged();
 	void OnRenderTargetSizeChanged(const int2& newSize, const int2& newViewportSize);
 
-	void ResolvePendingResources();
-
 	RGTextureHandle RegisterTexture(RenderStage* renderStage, const std::string& id, TextureResourceType type, int width, int height, SizeSpace sizeSpace,
 		int arraySize, rhi::Format format, bool needsUAV);
 
@@ -138,7 +136,7 @@ public:
 
 	size_t GetNumRenderStages(const std::string& mode = {}) const;
 
-	const StageData* GetRenderStageDataFromType(RenderStageTypeID id);
+	const StageData* GetRenderStageDataFromType(RenderStageTypeID id) const;
 	const StageData* GetRenderStageDataFromIndex(uint32_t idx, const std::string& mode = {}) const;
 	
 	std::shared_ptr<RenderStage> GetRenderStage(RenderStageTypeID id);
@@ -160,8 +158,8 @@ public:
 
 	void ReleaseTextureView(RGTextureViewTicket ticket);
 	void ReleaseBufferView(RGBufferViewTicket ticket);
-	rhi::TextureHandle GetTextureView(RGTextureViewTicket ticket);
-	rhi::BufferHandle GetBufferView(RGBufferViewTicket ticket);
+	rhi::TextureHandle GetTextureViewTexture(RGTextureViewTicket ticket);
+	rhi::BufferHandle GetBufferViewBuffer(RGBufferViewTicket ticket);
 
 	void OnRenderStageEnableStatusChanged(RenderStage* renderStage);
 
@@ -233,8 +231,10 @@ private:
 
 private:
 
-	DeclaredTexture* GetDeclTex(RGTextureHandle handle);
-	DeclaredBuffer* GetDeclBuffer(RGBufferHandle handle);
+	void ResolvePendingResources();
+
+	DeclaredTexture* GetDeclTex(RGTextureHandle handle) const;
+	DeclaredBuffer* GetDeclBuffer(RGBufferHandle handle) const;
 	RequestedFramebufferData* GetReqFb(RGFramebufferHandle handle);
 
 	RGTextureHandle GetHandle(DeclaredTexture* declTex);
@@ -252,6 +252,14 @@ private:
 		alm::rhi::ICommandList* commandList);
 	void UpdateRequestedBufferFromTextureView(BufferViewRequest* req, RenderStage* rs, const std::map<RGTextureHandle, rhi::ResourceState> resourceStates,
 		alm::rhi::ICommandList* commandList);
+
+	void CreateTextureForView(TextureViewRequest& req) const;
+	void CreateBufferForView(BufferViewRequest& req) const;
+
+	// Recreates the readback buffers of all the buffer view requests reading/writing
+	// the given source resource (its size may have changed).
+	void RecreateBufferViewRequests(RGBufferHandle sourceHandle);
+	void RecreateBufferViewRequests(RGTextureHandle sourceHandle);
 
 	uint2 GetActualTextureSize(const int2& desired, const uint2& backbufferSize, const uint2& backbufferViewportVpSize, SizeSpace sizeSpace) const;
 	uint2 GetActualTextureSize(const DeclaredTexture* declTex, const uint2& backbufferSize, const uint2& backbufferViewportVpSize) const;

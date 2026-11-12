@@ -43,6 +43,6 @@ void OutdoorsUI::BuildHeightmapMenuItem()
 	if (ImGui::MenuItem("View source data", nullptr, false, hasHeightmap))
 	{
 		alm::rhi::TextureHandle texture = m_SceneHeightmap->GetHeightmap()->GetHeightsTexture();
-		AddTextureWindow(texture->GetDebugName(), texture);		
+		AddTextureWindow(texture);
 	}
 }

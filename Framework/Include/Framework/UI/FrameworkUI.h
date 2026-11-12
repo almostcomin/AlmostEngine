@@ -142,9 +142,13 @@ public:
 	float GetCPUTimeMs() const { return m_CPUTime; }
 	float GetCPUIdleTimeMs() const { return m_CPUIdleTime; }
 	float GetGPUTimeMs() const { return m_GPUTime; }
-
-	void AddTextureWindow(const std::string& title, alm::rhi::TextureHandle texture);
-	void AddBufferWindow(const std::string& title, alm::rhi::BufferHandle buffer);
+	// Opens a texture/buffer inspection window. Returns false if the window could
+	// not be created (invalid resource) or one with the same title was already
+	// open (it just gets focused); in both cases the caller is responsible for
+	// any resource acquired for it. onClose is invoked once, when the window is
+	// closed. An empty title defaults to the resource debug name.
+	bool AddTextureWindow(alm::rhi::TextureHandle texture, const std::string& title = {}, std::function<void()> onClose = nullptr);
+	bool AddBufferWindow(alm::rhi::BufferHandle buffer, const std::string& title = {}, std::function<void()> onClose = nullptr);
 
 	// Render stage IO inspection windows (delegates to the Render Stages window).
 	void AddRenderStageTextureWindow(alm::gfx::RenderStageTypeID rsId, alm::gfx::RenderGraph::AccessMode accessMode, const std::string& textureId);
@@ -221,6 +225,7 @@ private:
 		int settleFrames = 4;
 		int selectedMip = 0;
 		int selectedSlice = 0;
+		std::function<void()> onClose;
 	};
 
 	// Buffer inspection window (opened by AddBufferWindow, e.g. from the Resources
@@ -229,7 +234,7 @@ private:
 	struct UIBufferWindow
 	{
 		UIBufferWindow() = default;
-		UIBufferWindow(std::string title, alm::rhi::BufferHandle buffer);
+		UIBufferWindow(std::string title, alm::rhi::BufferHandle buffer, std::function<void()> onClose = nullptr);
 		~UIBufferWindow();
 		UIBufferWindow(UIBufferWindow&& other) noexcept;
 		UIBufferWindow& operator=(UIBufferWindow&& other) noexcept;
@@ -237,6 +242,7 @@ private:
 		std::string title;
 		alm::rhi::BufferHandle buffer;
 		std::unique_ptr<MemoryEditor> memEditor;
+		std::function<void()> onClose;
 	};
 
 	void BuildMainMenu();

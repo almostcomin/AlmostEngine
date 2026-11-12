@@ -317,8 +317,8 @@ void alm::fw::FrameworkApp::ShowNormal(const uint2& screenPos)
 	float3 worldPos = { 0.f, 0.f, 0.f };
 	bool validPos = false;
 
-	alm::rhi::BufferHandle gBuffer2Buffer = renderGraph->GetBufferView(m_GBuffer2ViewTicket);
-	alm::rhi::BufferHandle linearDepthBuffer = renderGraph->GetBufferView(m_LinearDepthViewTicket);
+	alm::rhi::BufferHandle gBuffer2Buffer = renderGraph->GetBufferViewBuffer(m_GBuffer2ViewTicket);
+	alm::rhi::BufferHandle linearDepthBuffer = renderGraph->GetBufferViewBuffer(m_LinearDepthViewTicket);
 	if (gBuffer2Buffer && linearDepthBuffer)
 	{
 		// Get normal

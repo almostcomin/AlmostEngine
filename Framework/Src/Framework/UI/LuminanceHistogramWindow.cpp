@@ -46,7 +46,7 @@ void alm::fw::LuminanceHistogramWindow::Build()
     }
 
     alm::gfx::ExposureRenderStage::Stats stats = exposureRS->GetStats();
-    alm::rhi::BufferHandle buffer = renderGraph->GetBufferView(m_BufferTicket);
+    alm::rhi::BufferHandle buffer = renderGraph->GetBufferViewBuffer(m_BufferTicket);
     if (buffer)
     {
         void* data_ptr = buffer->Map();

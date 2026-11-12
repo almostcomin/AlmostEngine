@@ -136,7 +136,7 @@ void HeightmapSettingsWindow::Build()
         if (ImGui::Button("View##TextureResolution", ImVec2(availWidth / 3, 0.f)))
         {
             alm::rhi::TextureHandle texture = heightmap->GetHeightsTexture();
-            m_UI.AddTextureWindow(texture->GetDebugName(), texture);
+            m_UI.AddTextureWindow(texture);
         }
 
         ImGui::Spacing();
@@ -185,7 +185,7 @@ void HeightmapSettingsWindow::Build()
             ImGui::BeginDisabled(!loadedTex);
             if (ImGui::Button("Show"))
             {
-                m_UI.AddTextureWindow(loadedTex->id, loadedTex->texture.get_weak());
+                m_UI.AddTextureWindow(loadedTex->texture.get_weak(), loadedTex->id);
             }
             ImGui::EndDisabled();
 
