@@ -10,15 +10,15 @@
 
 namespace alm::rhi
 {
-	class Device;
 	class ICommandList;
 }
 
 namespace alm::gfx
 {
-	struct Material;
+	class DeviceManager;
 	class Mesh;
 	class MeshInstance;
+	struct Material;
 	struct TerrainMaterial;
 }
 
@@ -92,7 +92,7 @@ public:
 
 	static constexpr uint32_t MaxInstances() { return kMaxStaticInstanceCount + kMaxTransientInstanceCount; }
 
-	GpuSceneBuffers(rhi::Device* device);
+	GpuSceneBuffers(gfx::DeviceManager* deviceManager);
 	~GpuSceneBuffers();
 
 	GpuSceneBuffersHandle RequestSceneHandle(const std::string& debugName);
@@ -173,15 +173,15 @@ private:
 		RefreshState MeshInstancesState;								// Deferred updates for the static instance buffer
 
 		rhi::BufferOwner MeshInstancesBuffer;							// interop::InstanceData (static + transient)
-		rhi::BufferOwner TransientInstacesStagingBuffer;				// Staging buffer for transient instances
+		std::vector<rhi::BufferOwner> TransientInstacesStagingBuffer;	// Staging buffer for transient instances. 1 per frame in flight
 		interop::InstanceData* TransientInstancesDataPtr = nullptr;		// Cached pointer to TransientInstacesStagingBuffer mapped ptr
 
 		rhi::BufferOwner MeshInstanceCullDataBuffer;					// interop::InstanceCullData (static + transient). 1:1 with MeshInstancesBuffer
-		rhi::BufferOwner TransientInstanceCullDataStagingBuffer;		// Staging buffer for transient instances - cull data
+		std::vector<rhi::BufferOwner> TransientInstanceCullDataStagingBuffer;	// Staging buffer for transient instances - cull data. 1 per frame in flight
 		interop::InstanceCullData* TransientInstanceCullDataPtr = nullptr; // Cached pointer to TransientInstanceCullDataBuffer mapped ptr
 
 		rhi::BufferOwner HeightmapPatchDataBuffer;						// interop::HeightmapPatchData (transient only)
-		rhi::BufferOwner HeightmapPatchDataStagingBuffer;				// Staging buffer for heightmap patch data
+		std::vector<rhi::BufferOwner> HeightmapPatchDataStagingBuffer;	// Staging buffer for heightmap patch data
 		interop::HeightmapPatchData* HeightmapPatchDataPtr = nullptr;	// Cached pointer to HeightmapPatchDataStagingBuffer mapped ptr
 
 		uint32_t TransientsAllocated = 0;								// Next index free in the transient instances region
@@ -192,7 +192,7 @@ private:
 		std::vector<interop::BatchTableEntry> BatchTable;
 		// GPU version of BatchTable
 		rhi::BufferOwner BatchTableBuffer;
-		rhi::BufferOwner TransientBatchTableStagingBuffer;
+		std::vector<rhi::BufferOwner> TransientBatchTableStagingBuffer;	// 1 per frame in flight
 		interop::BatchTableEntry* TransientBatchTablePtr = nullptr;
 
 		// Used by MaterialPassRenderer::DrawIndirect indicates the number of instances that share (domain, cullmode)
@@ -271,7 +271,7 @@ private:
 	rhi::BufferOwner m_TerrainMaterialsBuffer;		// interop::TerrainMaterialData
 	rhi::BufferOwner m_MeshesBuffer;				// interop::MeshData
 
-	rhi::Device* m_Device;
+	gfx::DeviceManager* m_DeviceManager;
 };
 
 } // namespace alm::gfx

@@ -44,7 +44,7 @@ alm::gfx::DeviceManager::InitResult alm::gfx::DeviceManager::Init(const DevicePa
 		m_MaterialManager = std::make_unique<alm::gfx::MaterialManager>();
 		m_CommonResources = std::make_unique<alm::gfx::CommonResources>(m_ShaderFactory.get(), m_MaterialManager.get(), m_Device.get());
 		m_UploadBuffer = std::make_unique<alm::gfx::UploadBuffer>(m_FrameIndex, MiB(8), m_Device.get());		
-		m_GpuSceneBuffers = std::make_unique<alm::gfx::GpuSceneBuffers>(m_Device.get());
+		m_GpuSceneBuffers = std::make_unique<alm::gfx::GpuSceneBuffers>(this);
 
 		m_BeginCommandLists.resize(params.SwapChainBufferCount);
 		m_EndCommandLists.resize(params.SwapChainBufferCount);

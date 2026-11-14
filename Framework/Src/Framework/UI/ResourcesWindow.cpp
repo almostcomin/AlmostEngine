@@ -19,7 +19,7 @@ namespace
 	void BuildTypeFilter(uint32_t& visibleTypeMask)
 	{
 		// Tri-state "All": checked = all visible, unchecked = none, mixed = partial.
-		const bool allOn = visibleTypeMask == kAllTypesMask;
+		const bool allOn = (visibleTypeMask & kAllTypesMask) == kAllTypesMask;
 		const bool allOff = visibleTypeMask == 0;
 		ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, !allOn && !allOff);
 		bool allValue = allOn;
@@ -140,14 +140,14 @@ void alm::fw::ResourcesWindow::Build()
                     switch (sortSpecs->Specs->ColumnIndex)
                     {
                     case 0:
-                        std::ranges::sort(resources, [&sortSpecs](const auto& l, const auto& r)
+                        std::ranges::stable_sort(resources, [&sortSpecs](const auto& l, const auto& r)
                         {
                             return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
                                 l.first->GetDebugName() < r.first->GetDebugName() : l.first->GetDebugName() > r.first->GetDebugName();
                         });
                         break;
                     case 1:
-                        std::ranges::sort(resources, [&sortSpecs](const auto& l, const auto& r)
+                        std::ranges::stable_sort(resources, [&sortSpecs](const auto& l, const auto& r)
                             {
                                 int cmp_result = std::strcmp(
                                     rhi::ResourceTypeToString(l.first->GetResourceType()), rhi::ResourceTypeToString(r.first->GetResourceType()));
@@ -156,7 +156,7 @@ void alm::fw::ResourcesWindow::Build()
                             });
                         break;
                     case 2:
-                        std::ranges::sort(resources, [&sortSpecs](const auto& l, const auto& r)
+                        std::ranges::stable_sort(resources, [&sortSpecs](const auto& l, const auto& r)
                         {
                             return sortSpecs->Specs->SortDirection == ImGuiSortDirection_Ascending ?
                                 l.second < r.second : l.second > r.second;
