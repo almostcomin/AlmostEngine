@@ -122,8 +122,8 @@ private:
 
 	void UpdateHeightmaps(const uint2& backbufferSize, rhi::ICommandList* commandList);
 
-	void GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType type,
-		RenderSet* opt_outRenderSet, aabox3f* opt_outBounds = nullptr) const;
+	void GetVisibleSet(const VisibleSetContext& context, const float3& eyePos, const std::span<const plane3f>& planes,
+		SceneContentType type, RenderSet* opt_outRenderSet, aabox3f* opt_outBounds = nullptr) const;
 	void UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer, rhi::ICommandList* commandList, const char* marker);
 
 	aabox3d BuildCloudsShadowVolume() const;

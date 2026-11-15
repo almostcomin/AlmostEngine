@@ -3,6 +3,8 @@
 #include "Gfx/RenderSet.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/MeshInstance.h"
+#include "Gfx/IDrawStrategy.h"
+#include "Gfx/CanonicalDrawStrategy.h"
 #include "RHI/Device.h"
 #include "RHI/PipelineState.h"
 #include "RHI/CommandSignature.h"
@@ -115,84 +117,59 @@ alm::rhi::IGraphicsPipelineState* alm::gfx::MaterialPassRenderer::GetPSO(Materia
 }
 
 alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(
-	const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const
+	const RenderSet& renderSet, alm::rhi::ICommandList* commandList) const
+{
+	CanonicalDrawStrategy drawStrategy;
+	return DrawRenderSetInstanced(renderSet, drawStrategy, commandList);
+}
+
+alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(
+	const RenderSet& renderSet, alm::gfx::IDrawStrategy& drawStrategy, alm::rhi::ICommandList* commandList) const
 {
 	RenderStats out{};
 
-	if (renderSet.Elements.empty())
-		return out;
+	drawStrategy.Prepare(renderSet);
 
+	rhi::IGraphicsPipelineState* prevPSO = nullptr;
 	interop::MaterialPassRendererConstants shaderConstants = {};
-
-	int visibleInstanceIndex = 0; // Index to the visible buffer
-	for (const auto& domainBase : renderSet.Elements)
+	while (true)
 	{
-		// Ignore not defined domains for this render context
-		if (!m_ValidDomains[(int)domainBase.first])
+		IDrawStrategy::DrawBucket drawBucket = drawStrategy.GetNextBucket();
+		if (drawBucket.DrawInfos.empty())
+			break;
+
+		const RenderableDrawInfo& firstDrawInfo = drawBucket.DrawInfos.front();
+		const MaterialDomain domain = firstDrawInfo.MaterialDomain;
+		const rhi::CullMode cullMode = firstDrawInfo.CullMode;
+
+		if (!m_ValidDomains[(int)domain])
+			continue;   // Domain not registered: Skip
+
+		rhi::IGraphicsPipelineState* PSO = GetPSO(domain, cullMode);
+		if (!PSO)
 		{
-			for (const auto& cullBase : domainBase.second)
-			{
-				visibleInstanceIndex += cullBase.second.size();
-			}
+			LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
+				GetMaterialDomainString(domain), rhi::GetCullModeString(cullMode),
+				m_BaseDebugName);
 			continue;
 		}
-
-		for (const auto& cullBase : domainBase.second)
+		if (PSO != prevPSO)
 		{
-			if (cullBase.second.empty())
-				continue;
-
-			rhi::IGraphicsPipelineState* PSO = GetPSO(domainBase.first, cullBase.first);
-			if (!PSO)
-			{
-				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
-					GetMaterialDomainString(domainBase.first), rhi::GetCullModeString(cullBase.first),
-					m_BaseDebugName);
-				continue;
-			}
-
 			commandList->SetPipelineState(PSO);
-			const auto& drawInfos = cullBase.second;
-
-			uintptr_t batchKey = drawInfos[0].BatchKey;
-			int prevIdx = 0;
-			for (int i = 1; i < drawInfos.size(); ++i)
-			{
-				const RenderableDrawInfo& drawInfo = drawInfos[i];
-				if (batchKey != drawInfo.BatchKey)
-				{
-					const RenderableDrawInfo& prevDrawInfo = drawInfos[prevIdx];
-
-					shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
-					shaderConstants.rawInstanceBaseIdx = prevDrawInfo.InstanceIdx;
-					shaderConstants.meshIndex = prevDrawInfo.MeshIndex;
-					shaderConstants.materialIndex = prevDrawInfo.MaterialIndex;
-					shaderConstants.extraDataBaseIdx = prevDrawInfo.TransientBaseIndex;
-					commandList->PushGraphicsConstants(1, shaderConstants);
-					commandList->DrawInstanced(prevDrawInfo.IndexCount, i - prevIdx, 0);
-
-					out.VisibleInstances += i - prevIdx;
-					out.VisiblePrimitives += GetPrimitiveCount(prevDrawInfo.IndexCount, m_BasePSODesc.primTopo) * uint32_t(i - prevIdx);
-
-					batchKey = drawInfo.BatchKey;
-					prevIdx = i;
-				}
-			}
-
-			const RenderableDrawInfo& drawInfo = drawInfos[prevIdx];
-			shaderConstants.baseInstanceIdx = visibleInstanceIndex + prevIdx;
-			shaderConstants.rawInstanceBaseIdx = drawInfo.InstanceIdx;
-			shaderConstants.meshIndex = drawInfo.MeshIndex;
-			shaderConstants.materialIndex = drawInfo.MaterialIndex;
-			shaderConstants.extraDataBaseIdx = drawInfo.TransientBaseIndex;
-			commandList->PushGraphicsConstants(1, shaderConstants);
-			commandList->DrawInstanced(drawInfo.IndexCount, drawInfos.size() - prevIdx, 0);
-
-			out.VisibleInstances += uint32_t(drawInfos.size() - prevIdx);
-			out.VisiblePrimitives += GetPrimitiveCount(drawInfo.IndexCount, m_BasePSODesc.primTopo) * uint32_t(drawInfos.size() - prevIdx);
-
-			visibleInstanceIndex += drawInfos.size();
+			prevPSO = PSO;
 		}
+
+		shaderConstants.baseInstanceIdx = drawBucket.FirstSlot;
+		shaderConstants.rawInstanceBaseIdx = firstDrawInfo.InstanceIdx;
+		shaderConstants.meshIndex = firstDrawInfo.MeshIndex;
+		shaderConstants.materialIndex = firstDrawInfo.MaterialIndex;
+		shaderConstants.extraDataBaseIdx = firstDrawInfo.TransientBaseIndex;
+		commandList->PushGraphicsConstants(1, shaderConstants);
+		commandList->DrawInstanced(firstDrawInfo.IndexCount, drawBucket.DrawInfos.size(), 0);
+
+		out.VisibleInstances += drawBucket.DrawInfos.size();
+		out.VisiblePrimitives += GetPrimitiveCount(
+			firstDrawInfo.IndexCount, m_BasePSODesc.primTopo) * drawBucket.DrawInfos.size();
 	}
 
 	return out;

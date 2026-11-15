@@ -633,13 +633,13 @@ GetMaterialsMap(const cgltf_data* objects, LoadTexCache& loadCache, const cgltf_
         switch (srcMat.alpha_mode)
         {
         case cgltf_alpha_mode_opaque:
-            mat->Domain = useTransmission ? alm::gfx::MaterialDomain::OpaqueTransmission : alm::gfx::MaterialDomain::Opaque;
+            mat->Domain = useTransmission ? alm::gfx::MaterialDomain::TransmissiveOpaque : alm::gfx::MaterialDomain::Opaque;
             break;
         case cgltf_alpha_mode_mask:
-            mat->Domain = useTransmission ? alm::gfx::MaterialDomain::AlphaTestedTransmission : alm::gfx::MaterialDomain::AlphaTested;
+            mat->Domain = useTransmission ? alm::gfx::MaterialDomain::TransmissiveAlphaTested : alm::gfx::MaterialDomain::AlphaTested;
             break;
         case cgltf_alpha_mode_blend:
-            mat->Domain = useTransmission ? alm::gfx::MaterialDomain::AlphaBlendedTransmission : alm::gfx::MaterialDomain::AlphaBlended;
+            mat->Domain = useTransmission ? alm::gfx::MaterialDomain::TransmissiveAlphaBlended : alm::gfx::MaterialDomain::AlphaBlended;
             break;
         default:
             LOG_ERROR("Alpha mode not supported");

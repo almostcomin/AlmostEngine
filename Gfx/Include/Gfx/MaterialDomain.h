@@ -7,9 +7,9 @@ namespace alm::gfx
 		Opaque,
 		AlphaTested,
 		AlphaBlended,
-		OpaqueTransmission,
-		AlphaTestedTransmission,
-		AlphaBlendedTransmission,
+		TransmissiveOpaque,
+		TransmissiveAlphaTested,
+		TransmissiveAlphaBlended,
 		Terrain,
 
 		_Size
@@ -22,9 +22,9 @@ namespace alm::gfx
 			"Opaque",
 			"AlphaTested",
 			"AlphaBlended",
-			"OpaqueTransmission",
-			"AlphaTestedTransmission",
-			"AlphaBlendedTransmission",
+			"TransmissiveOpaque",
+			"TransmissiveAlphaTested",
+			"TransmissiveAlphaBlended",
 			"Terrain"
 		};
 
@@ -32,5 +32,18 @@ namespace alm::gfx
 
 		return debugStrings[(int)domain];
 	};
+
+	constexpr bool IsBackToFrontSorted(MaterialDomain domain)
+	{
+		return
+			domain == MaterialDomain::TransmissiveOpaque ||
+			domain == MaterialDomain::TransmissiveAlphaTested;
+			//domain == MaterialDomain::TransmissiveAlphaBlended; // TODO
+	};
+
+	constexpr bool RequiresStableSort(MaterialDomain domain)
+	{
+		return domain == MaterialDomain::Terrain;
+	}
 
 } // namespace st::gfx

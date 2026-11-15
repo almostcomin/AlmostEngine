@@ -486,7 +486,7 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 {
 	ZoneScoped;
 
-	m_CameraVisibleSet.Elements.clear();
+	m_CameraVisibleSet.clear();
 	m_CameraVisibleBounds.reset();
 	if (!m_Camera || !m_Scene || !m_Scene->GetSceneGraph())
 	{
@@ -499,6 +499,7 @@ void alm::gfx::RenderView::UpdateCameraVisibleSet(rhi::ICommandList* commandList
 
 	GetVisibleSet(
 		context,
+		m_Camera->GetPosition(),
 		m_CameraFrustum.get_planes(),
 		SceneContentType::Meshes,
 		m_DeviceManager->GPUDrivenEnabled() ? nullptr : &m_CameraVisibleSet,
@@ -514,7 +515,7 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 {
 	ZoneScoped;
 
-	m_ShadowMapVisibleSet.Elements.clear();
+	m_ShadowMapVisibleSet.clear();
 	m_ShadowMapWorldToClipMatrix = {};
 	m_ViewToShadowMapClipMatrix = {};
 
@@ -570,6 +571,7 @@ bool alm::gfx::RenderView::UpdateShadowmapData(rhi::ICommandList* commandList)
 
 	GetVisibleSet(
 		context,
+		float3{}, // unused: no back-to-front sorting for shadows
 		searchPlanes,
 		SceneContentType::ShadowCasters,
 		m_DeviceManager->GPUDrivenEnabled() ? nullptr : &m_ShadowMapVisibleSet,
@@ -857,8 +859,8 @@ void alm::gfx::RenderView::UpdateHeightmaps(const uint2& backbufferSize, rhi::IC
 	commandList->EndMarker();
 }
 
-void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const std::span<const plane3f>& planes, SceneContentType type,
-	RenderSet* opt_outRenderSet, aabox3f* opt_outBounds) const
+void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const float3& eyePos,
+	const std::span<const plane3f>& planes, SceneContentType type, RenderSet* opt_outRenderSet, aabox3f* opt_outBounds) const
 {
 	ZoneScoped;
 
@@ -866,13 +868,11 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 	const auto* gpuSceneBuffers = m_DeviceManager->GetGpuSceneBuffers();
 
 	if(opt_outRenderSet)
-		opt_outRenderSet->Elements.clear();
+		opt_outRenderSet->clear();
 
 	if (!m_Scene || !m_Scene->GetSceneGraph())
 		return;
 	
-	std::vector<RenderableDrawInfo> drawInfos[(int)MaterialDomain::_Size][(int)rhi::CullMode::_Size];
-
 	if (opt_outBounds)
 		opt_outBounds->reset();
 
@@ -892,11 +892,14 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 					{
 						if (opt_outRenderSet)
 						{
-							std::vector<RenderableDrawInfo> renderableDrawInfos;
-							renderable->CollectDrawInfos(context, gpuSceneBuffers, renderableDrawInfos);
-							for (const RenderableDrawInfo& drawInfo : renderableDrawInfos)
+							const float3 worldCenter = node->GetWorldBounds(type).center();
+							const float viewDepth = glm::distance2(worldCenter, eyePos);
+
+							size_t prevSize = opt_outRenderSet->size();
+							renderable->CollectDrawInfos(context, gpuSceneBuffers, *opt_outRenderSet);
+							for(size_t i = prevSize; i < opt_outRenderSet->size(); ++i)
 							{
-								drawInfos[(int)drawInfo.MaterialDomain][(int)drawInfo.CullMode].push_back(drawInfo);
+								(*opt_outRenderSet)[i].ViewDepth = viewDepth;
 							}
 						}
 
@@ -920,45 +923,8 @@ void alm::gfx::RenderView::GetVisibleSet(const VisibleSetContext& context, const
 	if (!opt_outRenderSet)
 		return;
 
-	// Sort by mesh to be friendly with DrawIndirect
-	for(int domain = 0; domain < (int)MaterialDomain::_Size; ++domain)
-	{
-		for(int cullMode = 0; cullMode < (int)rhi::CullMode::_Size; ++cullMode)
-		{
-			// Sort by BatchKey so consecutive draw infos sharing a key can be issued as
-			// a single DrawInstanced call.
-			//
-			// Stable sort is required (not just sort): inside a batch, the draw infos are
-			// expected to have consecutive InstanceIdx values (e.g. baseInstance..baseInstance+N-1),
-			// because the shader will read instances[baseInstance + SV_InstanceID].
-			// Reordering draw infos within the same BatchKey would break that invariant.
-			//
-			// This matters in particular for HeightmapInstance, which pre-sorts its leaf
-			// nodes by mesh variant before allocating consecutive transient slots; any
-			// reshuffling here would mismatch slots and shader instance accesses.
-			std::ranges::stable_sort(drawInfos[domain][cullMode], [](const RenderableDrawInfo& a, const RenderableDrawInfo& b)
-			{
-				return a.BatchKey < b.BatchKey;
-			});
-		}
-	}
-
-	// Move to result
-	for (int domain = 0; domain < (int)MaterialDomain::_Size; ++domain)
-	{
-		RenderSet::MaterialDomainSet domainSet{ (MaterialDomain)domain, {} };
-		for (int cullMode = 0; cullMode < (int)rhi::CullMode::_Size; ++cullMode)
-		{
-			if (!drawInfos[domain][cullMode].empty())
-			{
-				domainSet.second.emplace_back((rhi::CullMode)cullMode, std::move(drawInfos[domain][cullMode]));
-			}
-		}
-		if (!domainSet.second.empty())
-		{
-			opt_outRenderSet->Elements.emplace_back(std::move(domainSet));
-		}
-	}
+	// Canonical sort
+	std::ranges::stable_sort(*opt_outRenderSet, CompareRenderableDrawInfo_Canonical);
 }
 
 void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderSet, gfx::MultiBuffer& multiBuffer,
@@ -966,7 +932,7 @@ void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderS
 {
 	UploadBuffer* uploadBuffer = m_DeviceManager->GetUploadBuffer();
 
-	size_t reqSize = std::ranges::distance(renderSet.AllInstances()) * sizeof(uint32_t);
+	size_t reqSize = renderSet.size() * sizeof(uint32_t);
 	if (reqSize == 0)
 		return;
 
@@ -979,14 +945,13 @@ void alm::gfx::RenderView::UpdateVisibilityShaderBuffer(const RenderSet& renderS
 	commandList->PushBarrier(
 		rhi::Barrier::Buffer(buffer.get(), rhi::ResourceState::SHADER_RESOURCE, rhi::ResourceState::COPY_DST));
 
-	// Copy to upload data
+	// Copy to upload data in canonical order
 	auto [data, offset] = uploadBuffer->RequestSpaceForBufferDataUpload(reqSize);
 
 	uint32_t* ptr = (uint32_t*)data;
-	for (const RenderableDrawInfo& drawInfo : renderSet.AllInstances())
+	for (const RenderableDrawInfo& drawInfo : renderSet)
 	{
-		*ptr = drawInfo.InstanceIdx;
-		ptr++;
+		*ptr++ = drawInfo.InstanceIdx;
 	}
 
 	// Copy to buffer

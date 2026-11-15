@@ -2,6 +2,7 @@
 
 #include "Gfx/MaterialDomain.h"
 #include "Gfx/GpuSceneBuffers.h"
+#include "Gfx/RenderSet.h"
 #include "RHI/PipelineState.h"
 #include "RHI/Framebuffer.h"
 
@@ -14,7 +15,7 @@ namespace alm::rhi
 
 namespace alm::gfx
 {
-	struct RenderSet;
+	class IDrawStrategy;
 }
 
 namespace alm::gfx
@@ -52,8 +53,13 @@ public:
 
 	rhi::IGraphicsPipelineState* GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const;
 
-	// Returns the workload submitted: instances drawn and primitives rasterized
-	RenderStats DrawRenderSetInstanced(const alm::gfx::RenderSet& renderSet, alm::rhi::ICommandList* commandList) const;
+	// Returns the workload submitted: instances drawn and primitives rasterized.
+	// Fallback to CanonicalDrawStrategy
+	RenderStats DrawRenderSetInstanced(const RenderSet& renderSet, alm::rhi::ICommandList* commandList) const;
+
+	RenderStats DrawRenderSetInstanced(const RenderSet& renderSet, alm::gfx::IDrawStrategy& drawStrategy,
+		alm::rhi::ICommandList* commandList) const;
+
 	void DrawIndirect(const IndirectDrawParams& params, alm::rhi::ICommandList* commandList) const;
 
 	// Sums the per-bucket culling stats over this renderer's valid domains:

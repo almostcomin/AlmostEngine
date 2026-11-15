@@ -16,9 +16,9 @@ namespace
     {
         switch (domain)
         {
-        case alm::gfx::MaterialDomain::OpaqueTransmission:
-        case alm::gfx::MaterialDomain::AlphaTestedTransmission:
-        case alm::gfx::MaterialDomain::AlphaBlendedTransmission:
+        case alm::gfx::MaterialDomain::TransmissiveOpaque:
+        case alm::gfx::MaterialDomain::TransmissiveAlphaTested:
+        case alm::gfx::MaterialDomain::TransmissiveAlphaBlended:
             return true;
         default:
             return false;

@@ -10,7 +10,6 @@ class RenderView;
 struct VisibleSetContext
 {
     const std::unordered_map<const SceneHeightmap*, std::unique_ptr<HeightmapInstance>>* HeightmapInstances = nullptr;
-
     const RenderView* View = nullptr;
 };
 

@@ -160,8 +160,8 @@ void alm::gfx::TransmissiveRenderStage::OnAttached()
 
 		m_MaterialPassRenderer.Init(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(),
 			"TransmissiveRenderStage", device);
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::OpaqueTransmission, m_VS.get_weak(), m_PS.get_weak());
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTestedTransmission, m_VS.get_weak(), m_PS_AT.get_weak());
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveOpaque, m_VS.get_weak(), m_PS.get_weak());
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveAlphaTested, m_VS.get_weak(), m_PS_AT.get_weak());
 	}
 }
 

@@ -307,7 +307,7 @@ namespace interop
     // Bucket = (MaterialDomain, CullMode) pair. Counts must match the C++ enums
     // (static_asserts live in GpuSceneBuffers.cpp).
     static const uint MaterialDomainCount = 7;  // Opaque, AlphaTested, AlphaBlended, 
-                                                // OpaqueTransmission, AlphaTestedTransmission, AlphaBlendedTransmission, Terrain
+                                                // TransmissiveOpaque, TransmissiveAlphaTested, TransmissiveAlphaBlended, Terrain
     static const uint CullModeCount = 3;        // Back, Front, None
     static const uint BucketCount = MaterialDomainCount * CullModeCount;
 
