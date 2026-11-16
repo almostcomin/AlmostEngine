@@ -4,6 +4,7 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/ShaderFactory.h"
 #include "Gfx/RenderView.h"
+#include "Gfx/BackToFrontDrawStrategy.h"
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
@@ -109,8 +110,11 @@ void alm::gfx::TransmissiveRenderStage::Render(alm::rhi::CommandListHandle comma
 	}
 	else
 	{
+		BackToFrontDrawStrategy drawStrategy;
+
 		m_LastRenderedStats = m_MaterialPassRenderer.DrawRenderSetInstanced(
 			GetRenderView()->GetCameraVisibleSet(),
+			drawStrategy,
 			commandList.get());
 	}
 
