@@ -1,4 +1,4 @@
-// ALM_REQUIRE_VARIANT(ALPHA_TEST)
+// ALM_REQUIRE_VARIANT(ALPHA_TEST, ALPHA_BLEND)
 
 #include "Interop/RenderResources.h"
 #include "BindlessRS.hlsli"
@@ -73,6 +73,10 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
                         + specularRadiance + surfaceMat.emissiveColor, 1.0);
     output.blendFactor = float4(surfaceMat.transmission * (1.0 - fresnel)
                         * surfaceMat.baseColor * (1.0 - surfaceMat.metalness), 1.0);
+#if ALPHA_BLEND
+    output.color *= surfaceMat.opacity;
+    output.blendFactor = 1.0 - surfaceMat.opacity * (1.0 - output.blendFactor);
+#endif
             
     return output;
 }

@@ -37,13 +37,8 @@ namespace alm::gfx
 	{
 		return
 			domain == MaterialDomain::TransmissiveOpaque ||
-			domain == MaterialDomain::TransmissiveAlphaTested;
-			//domain == MaterialDomain::TransmissiveAlphaBlended; // TODO
+			domain == MaterialDomain::TransmissiveAlphaTested ||
+			domain == MaterialDomain::TransmissiveAlphaBlended;
 	};
-
-	constexpr bool RequiresStableSort(MaterialDomain domain)
-	{
-		return domain == MaterialDomain::Terrain;
-	}
 
 } // namespace st::gfx
