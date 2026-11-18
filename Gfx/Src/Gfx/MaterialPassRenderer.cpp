@@ -81,39 +81,28 @@ void alm::gfx::MaterialPassRenderer::AddDomain(MaterialDomain domain, rhi::Shade
 	desc.VS = VS;
 	desc.PS = PS;
 
-	// Cull back
-	desc.rasterState.cullMode = alm::rhi::CullMode::Back;
-	m_PSOs[(int)domain].PSO_BackCull =
-		m_Device->CreateGraphicsPipelineState(desc, m_FBInfo, std::format("{}[{}][CullBack]", m_BaseDebugName, GetMaterialDomainString(domain)));
-
-	// Cull front	
-	desc.rasterState.cullMode = alm::rhi::CullMode::Front;
-	m_PSOs[(int)domain].PSO_FrontCull =
-		m_Device->CreateGraphicsPipelineState(desc, m_FBInfo, std::format("{}[{}][CullFront]", m_BaseDebugName, GetMaterialDomainString(domain)));
-
 	// Cull none
 	desc.rasterState.cullMode = alm::rhi::CullMode::None;
 	m_PSOs[(int)domain].PSO_NoCull =
-		m_Device->CreateGraphicsPipelineState(desc, m_FBInfo, std::format("{}[{}][CullNone]", m_BaseDebugName, GetMaterialDomainString(domain)));
+		m_Device->CreateGraphicsPipelineState(desc, m_FBInfo,
+			std::format("{}[{}][CullNone]", m_BaseDebugName, GetMaterialDomainString(domain)));
 
-	m_ValidDomains[(int)domain] = true;
-}
-
-alm::rhi::IGraphicsPipelineState* alm::gfx::MaterialPassRenderer::GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const
-{
-	switch (cullMode)
+	if (!SoftwareCull(domain))
 	{
-	case rhi::CullMode::Back:
-		return m_PSOs[(int)domain].PSO_BackCull.get();
-	case rhi::CullMode::Front:
-		return m_PSOs[(int)domain].PSO_FrontCull.get();
-	case rhi::CullMode::None:
-		return m_PSOs[(int)domain].PSO_NoCull.get();
-	default:
-		assert(0);
+		// Cull back
+		desc.rasterState.cullMode = alm::rhi::CullMode::Back;
+		m_PSOs[(int)domain].PSO_BackCull =
+			m_Device->CreateGraphicsPipelineState(desc, m_FBInfo,
+				std::format("{}[{}][CullBack]", m_BaseDebugName, GetMaterialDomainString(domain)));
+
+		// Cull front	
+		desc.rasterState.cullMode = alm::rhi::CullMode::Front;
+		m_PSOs[(int)domain].PSO_FrontCull =
+			m_Device->CreateGraphicsPipelineState(desc, m_FBInfo,
+				std::format("{}[{}][CullFront]", m_BaseDebugName, GetMaterialDomainString(domain)));
 	}
 
-	return nullptr;
+	m_ValidDomains[(int)domain] = true;
 }
 
 alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(
@@ -140,7 +129,7 @@ alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::Draw
 
 		const RenderableDrawInfo& firstDrawInfo = drawBucket.DrawInfos.front();
 		const MaterialDomain domain = firstDrawInfo.MaterialDomain;
-		const rhi::CullMode cullMode = firstDrawInfo.CullMode;
+		const rhi::CullMode cullMode = SoftwareCull(domain) ? rhi::CullMode::None : firstDrawInfo.CullMode;
 
 		if (!m_ValidDomains[(int)domain])
 			continue;   // Domain not registered: Skip
@@ -178,7 +167,8 @@ alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::Draw
 void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& params, alm::rhi::ICommandList* commandList) const
 {
 	assert(params.ArgsBuffer && params.Buckets);
-		
+	
+	rhi::IGraphicsPipelineState* prevPSO = nullptr;
 	for (int domainIdx = 0; domainIdx < (int)MaterialDomain::_Size; ++domainIdx)
 	{
 		if (!m_ValidDomains[domainIdx])
@@ -187,23 +177,27 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 		const MaterialDomain domain = (MaterialDomain)domainIdx;
 		for (int cullModeIdx = 0; cullModeIdx < (int)rhi::CullMode::_Size; ++cullModeIdx)
 		{
-			const rhi::CullMode cull = (rhi::CullMode)cullModeIdx;
 			const auto& bucket = (*params.Buckets)[domainIdx][cullModeIdx];
 			if (bucket.BatchCount == 0)
 				continue;
 
-			rhi::IGraphicsPipelineState* PSO = GetPSO(domain, cull);
+			const rhi::CullMode cullMode = SoftwareCull(domain) ? rhi::CullMode::None : (rhi::CullMode)cullModeIdx;
+			rhi::IGraphicsPipelineState* PSO = GetPSO(domain, cullMode);
 			if (!PSO)
 			{
 				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
-					GetMaterialDomainString(domain), rhi::GetCullModeString(cull),
+					GetMaterialDomainString(domain), rhi::GetCullModeString(cullMode),
 					m_BaseDebugName);
 				continue;
 			}
-			commandList->SetPipelineState(PSO);
+			if (PSO != prevPSO)
+			{
+				commandList->SetPipelineState(PSO);
+				prevPSO = PSO;
+			}
 
 			commandList->BeginMarker(std::format("{}:Static - {}:{}", m_BaseDebugName,
-				GetMaterialDomainString(domain), rhi::GetCullModeString(cull)).c_str());
+				GetMaterialDomainString(domain), rhi::GetCullModeString(cullMode)).c_str());
 
 			commandList->ExecuteIndirect(
 				m_CommandSignature.get(),
@@ -222,18 +216,23 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 		if (!m_ValidDomains[(int)t.Domain])
 			continue;
 
-		rhi::IGraphicsPipelineState* PSO = GetPSO(t.Domain, t.Cull);
+		const rhi::CullMode cullMode = SoftwareCull(t.Domain) ? rhi::CullMode::None : t.Cull;
+		rhi::IGraphicsPipelineState* PSO = GetPSO(t.Domain, cullMode);
 		if (!PSO)
 		{
 			LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
-				GetMaterialDomainString(t.Domain), rhi::GetCullModeString(t.Cull),
+				GetMaterialDomainString(t.Domain), rhi::GetCullModeString(cullMode),
 				m_BaseDebugName);
 			continue;
 		}
-		commandList->SetPipelineState(PSO);
+		if (PSO != prevPSO)
+		{
+			commandList->SetPipelineState(PSO);
+			prevPSO = PSO;
+		}
 
 		commandList->BeginMarker(std::format("{}:{} - {}:{}", m_BaseDebugName, t.DebugName.empty() ? "Transient" : t.DebugName,
-			GetMaterialDomainString(t.Domain), rhi::GetCullModeString(t.Cull)).c_str());
+			GetMaterialDomainString(t.Domain), rhi::GetCullModeString(cullMode)).c_str());
 
 		commandList->ExecuteIndirect(
 			m_CommandSignature.get(),
@@ -273,4 +272,21 @@ alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::Comp
 		}
 	}
 	return out;
+}
+
+alm::rhi::IGraphicsPipelineState* alm::gfx::MaterialPassRenderer::GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const
+{
+	switch (cullMode)
+	{
+	case rhi::CullMode::Back:
+		return m_PSOs[(int)domain].PSO_BackCull.get();
+	case rhi::CullMode::Front:
+		return m_PSOs[(int)domain].PSO_FrontCull.get();
+	case rhi::CullMode::None:
+		return m_PSOs[(int)domain].PSO_NoCull.get();
+	default:
+		assert(0);
+	}
+
+	return nullptr;
 }

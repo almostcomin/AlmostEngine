@@ -371,39 +371,37 @@ alm::rhi::ShaderOwner alm::gfx::ShaderFactory::LoadShader(const std::string& nam
 		// Used for compiling arguments and toolchain string (cache invalidation),
 		// while the caller's owns the suffix, cache key and SM gates.
 		std::vector<std::string> expandedVar = sortedVar;
-		if (!declaredVars.empty())
-		{
-			// A caller define not declared by the shader is a caller error (typo?)
-			for (const std::string& v : sortedVar)
-			{
-				const bool declared = std::ranges::any_of(declaredVars, [&v, &defineName](const std::string& d)
-				{
-					return defineName(d) == defineName(v);
-				});
-				if (!declared)
-				{
-					LOG_ERROR("'{}': Define '{}' not declared by the shader with 'ALM_REQUIRE_VARIANT'", name, v);
-					return {};
-				}
-			}
 
-			// Inject declared defines missing from the caller's list
-			for (const std::string& declared : declaredVars)
+		// A caller define not declared by the shader is a caller error (typo?)
+		for (const std::string& v : sortedVar)
+		{
+			const bool declared = std::ranges::any_of(declaredVars, [&v, &defineName](const std::string& d)
 			{
-				const bool present = std::ranges::any_of(sortedVar, [&declared, &defineName](const std::string& v)
-				{
-					return defineName(v) == defineName(declared);
-				});
-				if (!present)
-				{
-					std::string injected = declared;
-					if (injected.find('=') == std::string::npos)
-						injected += "=0";
-					expandedVar.push_back(std::move(injected));
-				}
+				return defineName(d) == defineName(v);
+			});
+			if (!declared)
+			{
+				LOG_ERROR("'{}': Define '{}' not declared by the shader with 'ALM_REQUIRE_VARIANT'", name, v);
+				return {};
 			}
-			std::ranges::sort(expandedVar);
 		}
+
+		// Inject declared defines missing from the caller's list
+		for (const std::string& declared : declaredVars)
+		{
+			const bool present = std::ranges::any_of(sortedVar, [&declared, &defineName](const std::string& v)
+			{
+				return defineName(v) == defineName(declared);
+			});
+			if (!present)
+			{
+				std::string injected = declared;
+				if (injected.find('=') == std::string::npos)
+					injected += "=0";
+				expandedVar.push_back(std::move(injected));
+			}
+		}
+		std::ranges::sort(expandedVar);
 
 		std::string toolchainString = alm::rhi::ShaderCompiler::GetToolchainString(
 			shaderType, shaderModel, "main", m_ShadersDebug, expandedVar);

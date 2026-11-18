@@ -41,4 +41,12 @@ namespace alm::gfx
 			domain == MaterialDomain::TransmissiveAlphaBlended;
 	};
 
+	constexpr bool SoftwareCull(MaterialDomain domain)
+	{
+		return
+			domain == MaterialDomain::TransmissiveOpaque ||
+			domain == MaterialDomain::TransmissiveAlphaTested ||
+			domain == MaterialDomain::TransmissiveAlphaBlended;
+	}
+
 } // namespace st::gfx

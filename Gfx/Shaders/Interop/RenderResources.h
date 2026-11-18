@@ -9,6 +9,21 @@
 
 namespace interop
 {
+    SHADER_CONSTANT(ALPHAMODE_OPAQUE, 0);
+    SHADER_CONSTANT(ALPHAMODE_MASK, 1);
+    SHADER_CONSTANT(ALPHAMODE_BLEND, 2);
+
+    SHADER_CONSTANT(CULLMODE_BACK, 0);
+    SHADER_CONSTANT(CULLMODE_FRONT, 1);
+    SHADER_CONSTANT(CULLMODE_NONE, 2);
+
+    // Bucket = (MaterialDomain, CullMode) pair. Counts must match the C++ enums
+    // (static_asserts live in GpuSceneBuffers.cpp).
+    static const uint MaterialDomainCount = 7;  // Opaque, AlphaTested, AlphaBlended, 
+    // TransmissiveOpaque, TransmissiveAlphaTested, TransmissiveAlphaBlended, Terrain
+    static const uint CullModeCount = 3;        // Back, Front, None
+    static const uint BucketCount = MaterialDomainCount * CullModeCount;
+
     struct ClearBufferConstants
     {
         BufferReadWriteIndex bufferDI;
@@ -80,7 +95,7 @@ namespace interop
         uint vertexTexCoord1Offset;
         uint vertexColorOffset;
         uint materialIdx;
-        uint _padding[3];
+        uint3 _padding0;
     };
 
     struct MaterialData
@@ -99,7 +114,10 @@ namespace interop
         float roughness;                                // offset 68
         float alphaCutoff;                              // offset 72
         float transmission;                             // offset 76
-    };                                                  // size 80
+        uint alphaMode;                                 // offset 80
+        uint cullMode;                                  // offset 84
+        uint2 _padding0;
+    };                                                  // size 96
 
     struct TerrainMaterialLayer
     {
@@ -303,13 +321,6 @@ namespace interop
         uint materialIndex;                 // Index into MaterialData Buffer
         uint extraDataBaseIdx;              // Base offset for shader-specific extra data buffers. Heightmap PatchData base for instance.
     };
-
-    // Bucket = (MaterialDomain, CullMode) pair. Counts must match the C++ enums
-    // (static_asserts live in GpuSceneBuffers.cpp).
-    static const uint MaterialDomainCount = 7;  // Opaque, AlphaTested, AlphaBlended, 
-                                                // TransmissiveOpaque, TransmissiveAlphaTested, TransmissiveAlphaBlended, Terrain
-    static const uint CullModeCount = 3;        // Back, Front, None
-    static const uint BucketCount = MaterialDomainCount * CullModeCount;
 
     struct BatchTableEntry
     {

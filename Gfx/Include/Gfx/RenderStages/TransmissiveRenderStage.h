@@ -40,8 +40,6 @@ private:
 
 	alm::rhi::ShaderOwner m_VS;
 	alm::rhi::ShaderOwner m_PS;
-	alm::rhi::ShaderOwner m_PS_AT;
-	alm::rhi::ShaderOwner m_PS_AB;
 	alm::gfx::MaterialPassRenderer m_MaterialPassRenderer;
 	alm::gfx::MaterialPassRenderer::RenderStats m_LastRenderedStats;
 

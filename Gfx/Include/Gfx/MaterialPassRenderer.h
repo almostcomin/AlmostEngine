@@ -51,8 +51,6 @@ public:
 
 	void AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS);
 
-	rhi::IGraphicsPipelineState* GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const;
-
 	// Returns the workload submitted: instances drawn and primitives rasterized.
 	// Fallback to CanonicalDrawStrategy
 	RenderStats DrawRenderSetInstanced(const RenderSet& renderSet, alm::rhi::ICommandList* commandList) const;
@@ -68,6 +66,10 @@ public:
 	RenderStats ComputeRenderedStats(const interop::CullingStats& stats, bool shadowFrustum) const;
 
 	const std::string& GetDebugName() const { return m_BaseDebugName; }
+
+private:
+
+	rhi::IGraphicsPipelineState* GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const;
 
 private:
 

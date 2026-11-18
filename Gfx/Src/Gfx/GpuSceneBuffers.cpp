@@ -50,6 +50,39 @@ static void SerializeMaterial(const alm::gfx::Material* mat, interop::MaterialDa
 	dest->roughness = mat->RoughnessFactor;
 	dest->alphaCutoff = mat->AlphaCutoff;
 	dest->transmission = mat->TransmissionFactor;
+
+	switch (mat->Domain)
+	{
+	case alm::gfx::MaterialDomain::Opaque:
+	case alm::gfx::MaterialDomain::TransmissiveOpaque:
+	case alm::gfx::MaterialDomain::Terrain:
+		dest->alphaMode = interop::ALPHAMODE_OPAQUE;
+		break;
+	case alm::gfx::MaterialDomain::AlphaTested:
+	case alm::gfx::MaterialDomain::TransmissiveAlphaTested:
+		dest->alphaMode = interop::ALPHAMODE_MASK;
+		break;
+	case alm::gfx::MaterialDomain::AlphaBlended:
+	case alm::gfx::MaterialDomain::TransmissiveAlphaBlended:
+		dest->alphaMode = interop::ALPHAMODE_BLEND;
+		break;
+	default:
+		LOG_ERROR("Unknown domain");
+		dest->alphaMode = UINT32_MAX;
+	}	
+
+	switch (mat->CullMode)
+	{
+	case alm::rhi::CullMode::Back:
+		dest->cullMode = interop::CULLMODE_BACK;
+		break;
+	case alm::rhi::CullMode::Front:
+		dest->cullMode = interop::CULLMODE_FRONT;
+		break;
+	case alm::rhi::CullMode::None:
+		dest->cullMode = interop::CULLMODE_NONE;
+		break;
+	}
 }
 
 static void SerializeTerrainMaterialLayer(const alm::gfx::TerrainMaterialLayer* layer, interop::TerrainMaterialLayer* dest)

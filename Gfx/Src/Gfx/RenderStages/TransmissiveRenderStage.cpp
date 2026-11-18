@@ -138,8 +138,6 @@ void alm::gfx::TransmissiveRenderStage::OnAttached()
 			m_VS = shaderFactory->LoadShader("Transmissive_vs", rhi::ShaderType::Vertex);
 		}
 		m_PS = shaderFactory->LoadShader("Transmissive_ps", rhi::ShaderType::Pixel);
-		m_PS_AT = shaderFactory->LoadShader("Transmissive_ps", rhi::ShaderType::Pixel, { "ALPHA_TEST" });
-		m_PS_AB = shaderFactory->LoadShader("Transmissive_ps", rhi::ShaderType::Pixel, { "ALPHA_BLEND" });
 	}
 
 	// PSOs
@@ -166,8 +164,8 @@ void alm::gfx::TransmissiveRenderStage::OnAttached()
 		m_MaterialPassRenderer.Init(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(),
 			"TransmissiveRenderStage", device);
 		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveOpaque, m_VS.get_weak(), m_PS.get_weak());
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveAlphaTested, m_VS.get_weak(), m_PS_AT.get_weak());
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveAlphaBlended, m_VS.get_weak(), m_PS_AB.get_weak());
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveAlphaTested, m_VS.get_weak(), m_PS.get_weak());
+		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveAlphaBlended, m_VS.get_weak(), m_PS.get_weak());
 	}
 }
 
@@ -177,8 +175,6 @@ void alm::gfx::TransmissiveRenderStage::OnDetached()
 
 	device->ReleaseQueued(std::move(m_VS));
 	device->ReleaseQueued(std::move(m_PS));
-	device->ReleaseQueued(std::move(m_PS_AT));
-	device->ReleaseQueued(std::move(m_PS_AB));
 	m_MaterialPassRenderer = {};
 }
 
