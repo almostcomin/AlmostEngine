@@ -9,7 +9,7 @@ void alm::gfx::BackToFrontDrawStrategy::Prepare(const RenderSet& drawInfos)
 
 	for (size_t slot = 0; slot < drawInfos.size(); ++slot)
 	{
-		if (IsBackToFrontSorted(drawInfos[slot].MaterialDomain))
+		if (MaterialDomain::IsBackToFrontSorted(drawInfos[slot].MaterialDomain))
 		{
 			m_Order.emplace_back((uint32_t)slot, &drawInfos[slot]);
 		}

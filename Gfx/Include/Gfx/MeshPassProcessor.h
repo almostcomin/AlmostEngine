@@ -49,7 +49,7 @@ public:
 
 	void OnFramebufferChanged(const alm::rhi::FramebufferInfo& fbInfo);
 
-	void AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS);
+	void AddDomain(MaterialDomain::Type domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS);
 
 	// Returns the workload submitted: instances drawn and primitives rasterized.
 	// Fallback to CanonicalDrawStrategy
@@ -69,7 +69,7 @@ public:
 
 private:
 
-	rhi::IGraphicsPipelineState* GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const;
+	rhi::IGraphicsPipelineState* GetPSO(MaterialDomain::Type domain, rhi::CullMode cullMode) const;
 
 private:
 

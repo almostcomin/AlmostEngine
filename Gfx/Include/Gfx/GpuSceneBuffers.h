@@ -67,7 +67,7 @@ public:
 
 	struct TransientRecord
 	{
-		MaterialDomain Domain;
+		MaterialDomain::Type Domain;
 		rhi::CullMode Cull;
 		uint32_t FirstBatchIndex;
 		uint32_t BatchCount;
@@ -242,12 +242,12 @@ private:
 		size_t& srcIdx, SerializeFn serializeFn);
 
 	template<typename ElemT, typename SerializeFn, typename InvalidateFn = std::nullptr_t>
-	void UpdateGpuBufferGeneric(rhi::ICommandList* commandList, rhi::BufferOwner& buffer, const RefreshState& state, const std::string& debugName,
-		SerializeFn&& serializeFn, InvalidateFn&& invalidateFn = nullptr);
+	void UpdateGpuBufferGeneric(rhi::ICommandList* commandList, rhi::BufferOwner& buffer, const RefreshState& state,
+		const std::string& debugName, SerializeFn&& serializeFn, InvalidateFn&& invalidateFn = nullptr);
 
 	// 1 batch = 1 payload slot = 1 transient instance
-	TransientInstanceAllocation AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count, MaterialDomain domain, rhi::CullMode cullMode,
-		const std::string& optDebugName = {});
+	TransientInstanceAllocation AllocateTransientInstances(GpuSceneBuffersHandle handle, uint32_t count, MaterialDomain::Type domain,
+		rhi::CullMode cullMode, const std::string& optDebugName = {});
 
 	void RebuildBatchTable(SceneState& ss);
 	void UploadBatchTable(SceneState& ss, rhi::ICommandList* commandList);

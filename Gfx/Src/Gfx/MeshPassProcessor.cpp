@@ -74,7 +74,7 @@ void alm::gfx::MeshPassProcessor::OnFramebufferChanged(const alm::rhi::Framebuff
 	}
 }
 
-void alm::gfx::MeshPassProcessor::AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS)
+void alm::gfx::MeshPassProcessor::AddDomain(MaterialDomain::Type domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS)
 {
 	// Init desc shaders
 	alm::rhi::GraphicsPipelineStateDesc desc = m_BasePSODesc;
@@ -85,21 +85,21 @@ void alm::gfx::MeshPassProcessor::AddDomain(MaterialDomain domain, rhi::ShaderHa
 	desc.rasterState.cullMode = alm::rhi::CullMode::None;
 	m_PSOs[(int)domain].PSO_NoCull =
 		m_Device->CreateGraphicsPipelineState(desc, m_FBInfo,
-			std::format("{}[{}][CullNone]", m_BaseDebugName, GetMaterialDomainString(domain)));
+			std::format("{}[{}][CullNone]", m_BaseDebugName, MaterialDomain::GetString(domain)));
 
-	if (!SoftwareCull(domain))
+	if (!MaterialDomain::SoftwareCull(domain))
 	{
 		// Cull back
 		desc.rasterState.cullMode = alm::rhi::CullMode::Back;
 		m_PSOs[(int)domain].PSO_BackCull =
 			m_Device->CreateGraphicsPipelineState(desc, m_FBInfo,
-				std::format("{}[{}][CullBack]", m_BaseDebugName, GetMaterialDomainString(domain)));
+				std::format("{}[{}][CullBack]", m_BaseDebugName, MaterialDomain::GetString(domain)));
 
 		// Cull front	
 		desc.rasterState.cullMode = alm::rhi::CullMode::Front;
 		m_PSOs[(int)domain].PSO_FrontCull =
 			m_Device->CreateGraphicsPipelineState(desc, m_FBInfo,
-				std::format("{}[{}][CullFront]", m_BaseDebugName, GetMaterialDomainString(domain)));
+				std::format("{}[{}][CullFront]", m_BaseDebugName, MaterialDomain::GetString(domain)));
 	}
 
 	m_ValidDomains[(int)domain] = true;
@@ -128,8 +128,9 @@ alm::gfx::MeshPassProcessor::RenderStats alm::gfx::MeshPassProcessor::DrawRender
 			break;
 
 		const RenderableDrawInfo& firstDrawInfo = drawBucket.DrawInfos.front();
-		const MaterialDomain domain = firstDrawInfo.MaterialDomain;
-		const rhi::CullMode cullMode = SoftwareCull(domain) ? rhi::CullMode::None : firstDrawInfo.CullMode;
+		const MaterialDomain::Type domain = firstDrawInfo.MaterialDomain;
+		const rhi::CullMode cullMode = MaterialDomain::SoftwareCull(domain) ?
+			rhi::CullMode::None : firstDrawInfo.CullMode;
 
 		if (!m_ValidDomains[(int)domain])
 			continue;   // Domain not registered: Skip
@@ -138,7 +139,7 @@ alm::gfx::MeshPassProcessor::RenderStats alm::gfx::MeshPassProcessor::DrawRender
 		if (!PSO)
 		{
 			LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MeshPassProcessor '{}'",
-				GetMaterialDomainString(domain), rhi::GetCullModeString(cullMode),
+				MaterialDomain::GetString(domain), rhi::GetCullModeString(cullMode),
 				m_BaseDebugName);
 			continue;
 		}
@@ -174,19 +175,19 @@ void alm::gfx::MeshPassProcessor::DrawIndirect(const IndirectDrawParams& params,
 		if (!m_ValidDomains[domainIdx])
 			continue;
 
-		const MaterialDomain domain = (MaterialDomain)domainIdx;
+		const MaterialDomain::Type domain = (MaterialDomain::Type)domainIdx;
 		for (int cullModeIdx = 0; cullModeIdx < (int)rhi::CullMode::_Size; ++cullModeIdx)
 		{
 			const auto& bucket = (*params.Buckets)[domainIdx][cullModeIdx];
 			if (bucket.BatchCount == 0)
 				continue;
 
-			const rhi::CullMode cullMode = SoftwareCull(domain) ? rhi::CullMode::None : (rhi::CullMode)cullModeIdx;
+			const rhi::CullMode cullMode = MaterialDomain::SoftwareCull(domain) ? rhi::CullMode::None : (rhi::CullMode)cullModeIdx;
 			rhi::IGraphicsPipelineState* PSO = GetPSO(domain, cullMode);
 			if (!PSO)
 			{
 				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MeshPassProcessor '{}'",
-					GetMaterialDomainString(domain), rhi::GetCullModeString(cullMode),
+					MaterialDomain::GetString(domain), rhi::GetCullModeString(cullMode),
 					m_BaseDebugName);
 				continue;
 			}
@@ -197,7 +198,7 @@ void alm::gfx::MeshPassProcessor::DrawIndirect(const IndirectDrawParams& params,
 			}
 
 			commandList->BeginMarker(std::format("{}:Static - {}:{}", m_BaseDebugName,
-				GetMaterialDomainString(domain), rhi::GetCullModeString(cullMode)).c_str());
+				MaterialDomain::GetString(domain), rhi::GetCullModeString(cullMode)).c_str());
 
 			commandList->ExecuteIndirect(
 				m_CommandSignature.get(),
@@ -216,12 +217,13 @@ void alm::gfx::MeshPassProcessor::DrawIndirect(const IndirectDrawParams& params,
 		if (!m_ValidDomains[(int)t.Domain])
 			continue;
 
-		const rhi::CullMode cullMode = SoftwareCull(t.Domain) ? rhi::CullMode::None : t.Cull;
+		const rhi::CullMode cullMode = MaterialDomain::SoftwareCull(t.Domain) ?
+			rhi::CullMode::None : t.Cull;
 		rhi::IGraphicsPipelineState* PSO = GetPSO(t.Domain, cullMode);
 		if (!PSO)
 		{
 			LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MeshPassProcessor '{}'",
-				GetMaterialDomainString(t.Domain), rhi::GetCullModeString(cullMode),
+				MaterialDomain::GetString(t.Domain), rhi::GetCullModeString(cullMode),
 				m_BaseDebugName);
 			continue;
 		}
@@ -232,7 +234,7 @@ void alm::gfx::MeshPassProcessor::DrawIndirect(const IndirectDrawParams& params,
 		}
 
 		commandList->BeginMarker(std::format("{}:{} - {}:{}", m_BaseDebugName, t.DebugName.empty() ? "Transient" : t.DebugName,
-			GetMaterialDomainString(t.Domain), rhi::GetCullModeString(cullMode)).c_str());
+			MaterialDomain::GetString(t.Domain), rhi::GetCullModeString(cullMode)).c_str());
 
 		commandList->ExecuteIndirect(
 			m_CommandSignature.get(),
@@ -274,7 +276,7 @@ alm::gfx::MeshPassProcessor::RenderStats alm::gfx::MeshPassProcessor::ComputeRen
 	return out;
 }
 
-alm::rhi::IGraphicsPipelineState* alm::gfx::MeshPassProcessor::GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const
+alm::rhi::IGraphicsPipelineState* alm::gfx::MeshPassProcessor::GetPSO(MaterialDomain::Type domain, rhi::CullMode cullMode) const
 {
 	switch (cullMode)
 	{

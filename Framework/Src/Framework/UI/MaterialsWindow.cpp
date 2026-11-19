@@ -9,24 +9,6 @@
 #include "Gfx/DeviceManager.h"
 #include "Gfx/MaterialManager.h"
 
-namespace
-{
-
-    static bool IsTransmissionDomain(alm::gfx::MaterialDomain domain)
-    {
-        switch (domain)
-        {
-        case alm::gfx::MaterialDomain::TransmissiveOpaque:
-        case alm::gfx::MaterialDomain::TransmissiveAlphaTested:
-        case alm::gfx::MaterialDomain::TransmissiveAlphaBlended:
-            return true;
-        default:
-            return false;
-        }
-    }
-
-} // anonymous namespace
-
 void alm::fw::MaterialsWindow::SelectMaterial(alm::gfx::Material* material)
 {
     m_SelectedMaterial = material;
@@ -166,7 +148,7 @@ void alm::fw::MaterialsWindow::Build()
                 "Opaque Transmission\0Alpha Tested Transmission\0Alpha Blended Transmission\0"
                 "Terrain\0\0"))
             {
-                mat->Domain = (gfx::MaterialDomain)domain;
+                mat->Domain = (gfx::MaterialDomain::Type)domain;
                 matDirty = true;
             }
 
@@ -220,7 +202,7 @@ void alm::fw::MaterialsWindow::Build()
                 matDirty = true;
             }
 
-            if (IsTransmissionDomain(mat->Domain))
+            if (alm::gfx::MaterialDomain::IsTransmission(mat->Domain))
             {
                 float transmission = mat->TransmissionFactor;
                 if (ImGui::SliderFloat("Transmission Factor##mat", &transmission, 0.f, 1.f))

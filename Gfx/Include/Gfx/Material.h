@@ -41,7 +41,7 @@ public:
 	float TransmissionFactor = 0.f;
 
 	rhi::CullMode CullMode = rhi::CullMode::Back;
-	MaterialDomain Domain = MaterialDomain::Opaque;
+	MaterialDomain::Type Domain = MaterialDomain::Opaque;
 
 	std::string Name;
 	std::string SourceFileName; // where this material originated from, e.g. GLTF file name

@@ -2,7 +2,10 @@
 
 namespace alm::gfx
 {
-	enum class MaterialDomain
+
+struct MaterialDomain
+{
+	enum class Type
 	{
 		Opaque,
 		AlphaTested,
@@ -11,11 +14,19 @@ namespace alm::gfx
 		TransmissiveAlphaTested,
 		TransmissiveAlphaBlended,
 		Terrain,
-
 		_Size
 	};
 
-	inline const char* GetMaterialDomainString(MaterialDomain domain)
+	static constexpr Type Opaque =					Type::Opaque;
+	static constexpr Type AlphaTested =				Type::AlphaTested;
+	static constexpr Type AlphaBlended =			Type::AlphaBlended;
+	static constexpr Type TransmissiveOpaque =		Type::TransmissiveOpaque;
+	static constexpr Type TransmissiveAlphaTested = Type::TransmissiveAlphaTested;
+	static constexpr Type TransmissiveAlphaBlended = Type::TransmissiveAlphaBlended;
+	static constexpr Type Terrain =					Type::Terrain;
+	static constexpr Type _Size =					Type::_Size;
+
+	static const char* GetString(MaterialDomain::Type domain)
 	{
 		static const char* debugStrings[] =
 		{
@@ -28,25 +39,33 @@ namespace alm::gfx
 			"Terrain"
 		};
 
-		static_assert(std::size(debugStrings) == (int)MaterialDomain::_Size);
-
+		static_assert(std::size(debugStrings) == (int)Type::_Size);
 		return debugStrings[(int)domain];
-	};
-
-	constexpr bool IsBackToFrontSorted(MaterialDomain domain)
-	{
-		return
-			domain == MaterialDomain::TransmissiveOpaque ||
-			domain == MaterialDomain::TransmissiveAlphaTested ||
-			domain == MaterialDomain::TransmissiveAlphaBlended;
-	};
-
-	constexpr bool SoftwareCull(MaterialDomain domain)
-	{
-		return
-			domain == MaterialDomain::TransmissiveOpaque ||
-			domain == MaterialDomain::TransmissiveAlphaTested ||
-			domain == MaterialDomain::TransmissiveAlphaBlended;
 	}
 
-} // namespace st::gfx
+	static constexpr bool IsBackToFrontSorted(MaterialDomain::Type domain)
+	{
+		return
+			domain == MaterialDomain::Type::TransmissiveOpaque ||
+			domain == MaterialDomain::Type::TransmissiveAlphaTested ||
+			domain == MaterialDomain::Type::TransmissiveAlphaBlended;
+	}
+
+	static constexpr bool SoftwareCull(MaterialDomain::Type domain)
+	{
+		return
+			domain == MaterialDomain::Type::TransmissiveOpaque ||
+			domain == MaterialDomain::Type::TransmissiveAlphaTested ||
+			domain == MaterialDomain::Type::TransmissiveAlphaBlended;
+	}
+
+	static constexpr bool IsTransmission(Type domain)
+	{
+		return
+			domain == MaterialDomain::Type::TransmissiveOpaque ||
+			domain == MaterialDomain::Type::TransmissiveAlphaTested ||
+			domain == MaterialDomain::Type::TransmissiveAlphaBlended;
+	}
+};
+
+} // namespace alm::gfx

@@ -12,7 +12,7 @@ class GpuSceneBuffers;
 
 struct RenderableDrawInfo
 {
-    MaterialDomain  MaterialDomain = MaterialDomain::Opaque;
+    MaterialDomain::Type MaterialDomain = MaterialDomain::Opaque;
     rhi::CullMode   CullMode = rhi::CullMode::Back;
 
     uintptr_t       BatchKey = 0;

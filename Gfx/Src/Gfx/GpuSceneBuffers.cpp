@@ -990,7 +990,7 @@ void alm::gfx::GpuSceneBuffers::UpdateGpuBufferGeneric(rhi::ICommandList* comman
 }
 
 alm::gfx::GpuSceneBuffers::TransientInstanceAllocation alm::gfx::GpuSceneBuffers::AllocateTransientInstances(
-	GpuSceneBuffersHandle handle, uint32_t count, MaterialDomain domain, rhi::CullMode cullMode, const std::string& optDebugName)
+	GpuSceneBuffersHandle handle, uint32_t count, MaterialDomain::Type domain, rhi::CullMode cullMode, const std::string& optDebugName)
 {
 	rhi::Device* device = m_DeviceManager->GetDevice();
 	assert(count > 0);
