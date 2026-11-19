@@ -13,7 +13,7 @@
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-std::optional<alm::gfx::MaterialPassRenderer::RenderStats>
+std::optional<alm::gfx::MeshPassProcessor::RenderStats>
 alm::gfx::WireframeRenderStage::GetRenderedStats(const interop::CullingStats* stats) const
 {
 	if (!IsEnabled())
@@ -22,7 +22,7 @@ alm::gfx::WireframeRenderStage::GetRenderedStats(const interop::CullingStats* st
 	if (GetDeviceManager()->GPUDrivenEnabled())
 	{
 		assert(stats);
-		return m_MaterialPassRenderer.ComputeRenderedStats(*stats, false);
+		return m_MeshPassProcessor.ComputeRenderedStats(*stats, false);
 	}
 	else
 	{
@@ -83,17 +83,17 @@ void alm::gfx::WireframeRenderStage::Render(alm::rhi::CommandListHandle commandL
 
 	if (deviceManager->GPUDrivenEnabled())
 	{
-		MaterialPassRenderer::IndirectDrawParams params{
+		MeshPassProcessor::IndirectDrawParams params{
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawArgsBuffer).get(),
 			.CountsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawCountsBuffer).get(),
 			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
 			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
 
-		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
+		m_MeshPassProcessor.DrawIndirect(params, commandList.get());
 	}
 	else
 	{
-		m_LastRenderedStats = m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
+		m_LastRenderedStats = m_MeshPassProcessor.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
 	}
 
 	commandList->EndRenderPass();
@@ -163,9 +163,9 @@ void alm::gfx::WireframeRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage", device);
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS.get_weak());
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), m_PS.get_weak());
+		m_MeshPassProcessor.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "WireframeRenderStage", device);
+		m_MeshPassProcessor.AddDomain(MaterialDomain::Opaque, m_VS.get_weak(), m_PS.get_weak());
+		m_MeshPassProcessor.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), m_PS.get_weak());
 	}
 }
 
@@ -173,7 +173,7 @@ void alm::gfx::WireframeRenderStage::OnDetached()
 {
 	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
-	m_MaterialPassRenderer = {};
+	m_MeshPassProcessor = {};
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_PS));
@@ -196,5 +196,5 @@ void alm::gfx::WireframeRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+	m_MeshPassProcessor.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

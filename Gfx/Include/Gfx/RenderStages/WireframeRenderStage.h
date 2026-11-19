@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Gfx/RenderStage.h"
-#include "Gfx/MaterialPassRenderer.h"
+#include "Gfx/MeshPassProcessor.h"
 #include "RHI/PipelineState.h"
 #include "Gfx/RenderGraphTypes.h"
 #include "Gfx/RenderStageFactory.h"
@@ -18,7 +18,7 @@ public:
 	WireframeRenderStage() = default;
 
 	// Workload this pass submits, summed from the per-bucket culling stats over this pass's domains
-	std::optional<MaterialPassRenderer::RenderStats> GetRenderedStats(const interop::CullingStats* stats) const override;
+	std::optional<MeshPassProcessor::RenderStats> GetRenderedStats(const interop::CullingStats* stats) const override;
 
 private:
 
@@ -40,11 +40,11 @@ private:
 	alm::rhi::ShaderOwner m_VS_Terrain;
 	alm::rhi::ShaderOwner m_PS;
 	alm::rhi::GraphicsPipelineStateDesc m_PSODesc;
-	alm::gfx::MaterialPassRenderer m_MaterialPassRenderer;
-	alm::gfx::MaterialPassRenderer::RenderStats m_LastRenderedStats;
+	alm::gfx::MeshPassProcessor m_MeshPassProcessor;
+	alm::gfx::MeshPassProcessor::RenderStats m_LastRenderedStats;
 
 	// Workload this stage submitted in its last draw, from the collected draw stats
-	MaterialPassRenderer::RenderStats GetLastRenderedStats() const { return m_LastRenderedStats; }
+	MeshPassProcessor::RenderStats GetLastRenderedStats() const { return m_LastRenderedStats; }
 
 	alm::rhi::FramebufferOwner m_FB;
 };

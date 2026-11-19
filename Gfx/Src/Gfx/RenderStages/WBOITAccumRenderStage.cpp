@@ -7,7 +7,7 @@
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-std::optional<alm::gfx::MaterialPassRenderer::RenderStats>
+std::optional<alm::gfx::MeshPassProcessor::RenderStats>
 alm::gfx::WBOITAccumRenderStage::GetRenderedStats(const interop::CullingStats* stats) const
 {
 	if (!IsEnabled())
@@ -16,7 +16,7 @@ alm::gfx::WBOITAccumRenderStage::GetRenderedStats(const interop::CullingStats* s
 	if (GetDeviceManager()->GPUDrivenEnabled())
 	{
 		assert(stats);
-		return m_MaterialPassRenderer.ComputeRenderedStats(*stats, false);
+		return m_MeshPassProcessor.ComputeRenderedStats(*stats, false);
 	}
 	else
 	{
@@ -107,17 +107,17 @@ void alm::gfx::WBOITAccumRenderStage::Render(alm::rhi::CommandListHandle command
 
 	if (deviceManager->GPUDrivenEnabled())
 	{
-		MaterialPassRenderer::IndirectDrawParams params{
+		MeshPassProcessor::IndirectDrawParams params{
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawArgsBuffer).get(),
 			.CountsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawCountsBuffer).get(),
 			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
 			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
 
-		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
+		m_MeshPassProcessor.DrawIndirect(params, commandList.get());
 	}
 	else
 	{
-		m_LastRenderedStats = m_MaterialPassRenderer.DrawRenderSetInstanced(
+		m_LastRenderedStats = m_MeshPassProcessor.DrawRenderSetInstanced(
 			GetRenderView()->GetCameraVisibleSet(),
 			commandList.get());
 	}
@@ -184,8 +184,8 @@ void alm::gfx::WBOITAccumRenderStage::OnAttached()
 			.depthFunc = rhi::ComparisonFunc::GreaterEqual
 		};
 
-		m_MaterialPassRenderer.Init(psoDesc, m_FB->GetFramebufferInfo(), "WBOITAccumRenderStage", device);
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaBlended, m_VS.get_weak(), m_PS.get_weak());
+		m_MeshPassProcessor.Init(psoDesc, m_FB->GetFramebufferInfo(), "WBOITAccumRenderStage", device);
+		m_MeshPassProcessor.AddDomain(MaterialDomain::AlphaBlended, m_VS.get_weak(), m_PS.get_weak());
 	}
 }
 
@@ -196,7 +196,7 @@ void alm::gfx::WBOITAccumRenderStage::OnDetached()
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_VS));
 	device->ReleaseQueued(std::move(m_PS));
-	m_MaterialPassRenderer = {};
+	m_MeshPassProcessor = {};
 }
 
 void alm::gfx::WBOITAccumRenderStage::OnBackbufferResize()
@@ -212,5 +212,5 @@ void alm::gfx::WBOITAccumRenderStage::OnBackbufferResize()
 		m_FB = device->CreateFramebuffer(fbDesc, "WBOITAccumRenderStage");
 	}
 
-	m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+	m_MeshPassProcessor.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

@@ -44,7 +44,7 @@ bool TestSphereFrustum(float4 p[6], float4 s)
 
 void Scatter(
     RWStructuredBuffer<interop::IndirectDrawCommand> cmdsBuffer,
-    RWStructuredBuffer<interop::VisibleInstancePayload> payloadBuffer,
+    RWStructuredBuffer<interop::InstancePayload> payloadBuffer,
     interop::BatchTableEntry bte,
     uint batchIndex, uint instanceIdx)
 {
@@ -68,9 +68,9 @@ void main(uint DTid : SV_DispatchThreadID)
     StructuredBuffer<interop::InstanceCullData> cullDataBuffer = ResourceDescriptorHeap[StageConstants.CullDataDI];
     StructuredBuffer<interop::BatchTableEntry> batchTable = ResourceDescriptorHeap[StageConstants.BatchTableDI];
     RWStructuredBuffer<interop::IndirectDrawCommand> cameraArgs = ResourceDescriptorHeap[StageConstants.SparseCameraArgsDI];
-    RWStructuredBuffer<interop::VisibleInstancePayload> cameraPayload = ResourceDescriptorHeap[StageConstants.CameraPayloadDI];
+    RWStructuredBuffer<interop::InstancePayload> cameraPayload = ResourceDescriptorHeap[StageConstants.CameraPayloadDI];
     RWStructuredBuffer<interop::IndirectDrawCommand> shadowArgs = ResourceDescriptorHeap[StageConstants.SparseShadowArgsDI];
-    RWStructuredBuffer<interop::VisibleInstancePayload> shadowPayload = ResourceDescriptorHeap[StageConstants.ShadowPayloadDI];
+    RWStructuredBuffer<interop::InstancePayload> shadowPayload = ResourceDescriptorHeap[StageConstants.ShadowPayloadDI];
 #if RETRIEVE_STATS
     RWStructuredBuffer<interop::CullingStats> stats = ResourceDescriptorHeap[StageConstants.StatsBufferDI];
 #endif

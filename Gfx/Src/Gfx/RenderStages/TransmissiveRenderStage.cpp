@@ -8,7 +8,7 @@
 #include "RHI/Device.h"
 #include "Interop/RenderResources.h"
 
-std::optional<alm::gfx::MaterialPassRenderer::RenderStats>
+std::optional<alm::gfx::MeshPassProcessor::RenderStats>
 alm::gfx::TransmissiveRenderStage::GetRenderedStats(const interop::CullingStats* stats) const
 {
 	if (!IsEnabled())
@@ -17,7 +17,7 @@ alm::gfx::TransmissiveRenderStage::GetRenderedStats(const interop::CullingStats*
 	if (GetDeviceManager()->GPUDrivenEnabled())
 	{
 		assert(stats);
-		return m_MaterialPassRenderer.ComputeRenderedStats(*stats, false);
+		return m_MeshPassProcessor.ComputeRenderedStats(*stats, false);
 	}
 	else
 	{
@@ -100,19 +100,19 @@ void alm::gfx::TransmissiveRenderStage::Render(alm::rhi::CommandListHandle comma
 
 	if (deviceManager->GPUDrivenEnabled())
 	{
-		MaterialPassRenderer::IndirectDrawParams params{
+		MeshPassProcessor::IndirectDrawParams params{
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawArgsBuffer).get(),
 			.CountsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawCountsBuffer).get(),
 			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
 			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
 
-		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
+		m_MeshPassProcessor.DrawIndirect(params, commandList.get());
 	}
 	else
 	{
 		BackToFrontDrawStrategy drawStrategy;
 
-		m_LastRenderedStats = m_MaterialPassRenderer.DrawRenderSetInstanced(
+		m_LastRenderedStats = m_MeshPassProcessor.DrawRenderSetInstanced(
 			GetRenderView()->GetCameraVisibleSet(),
 			drawStrategy,
 			commandList.get());
@@ -161,11 +161,11 @@ void alm::gfx::TransmissiveRenderStage::OnAttached()
 			.depthFunc = rhi::ComparisonFunc::GreaterEqual
 		};
 
-		m_MaterialPassRenderer.Init(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(),
+		m_MeshPassProcessor.Init(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(),
 			"TransmissiveRenderStage", device);
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveOpaque, m_VS.get_weak(), m_PS.get_weak());
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveAlphaTested, m_VS.get_weak(), m_PS.get_weak());
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveAlphaBlended, m_VS.get_weak(), m_PS.get_weak());
+		m_MeshPassProcessor.AddDomain(MaterialDomain::TransmissiveOpaque, m_VS.get_weak(), m_PS.get_weak());
+		m_MeshPassProcessor.AddDomain(MaterialDomain::TransmissiveAlphaTested, m_VS.get_weak(), m_PS.get_weak());
+		m_MeshPassProcessor.AddDomain(MaterialDomain::TransmissiveAlphaBlended, m_VS.get_weak(), m_PS.get_weak());
 	}
 }
 
@@ -175,10 +175,10 @@ void alm::gfx::TransmissiveRenderStage::OnDetached()
 
 	device->ReleaseQueued(std::move(m_VS));
 	device->ReleaseQueued(std::move(m_PS));
-	m_MaterialPassRenderer = {};
+	m_MeshPassProcessor = {};
 }
 
 void alm::gfx::TransmissiveRenderStage::OnBackbufferResize()
 {
-	m_MaterialPassRenderer.OnFramebufferChanged(m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo());
+	m_MeshPassProcessor.OnFramebufferChanged(m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo());
 }

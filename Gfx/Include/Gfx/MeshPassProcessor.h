@@ -21,7 +21,7 @@ namespace alm::gfx
 namespace alm::gfx
 {
 
-class MaterialPassRenderer
+class MeshPassProcessor
 {
 public:
 
@@ -41,7 +41,7 @@ public:
 
 public:
 
-	MaterialPassRenderer();
+	MeshPassProcessor();
 	
 	void Init(const alm::rhi::GraphicsPipelineStateDesc& baseDesc, const alm::rhi::FramebufferInfo& fbInfo,
 		std::string baseDebugName, alm::rhi::Device* device);
@@ -97,4 +97,4 @@ private:
 	rhi::Device* m_Device;
 };
 
-} //namespace st::gfx
+} //namespace alm::gfx

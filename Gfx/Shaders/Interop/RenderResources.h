@@ -259,14 +259,14 @@ namespace interop
     {
         BufferUniformIndex sceneDI;         // SceneConstants
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
-        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
+        BufferReadOnlyIndex payloadDI;      // InstancePayload
     };
 
     struct GBufferStageConstats
     {
         BufferUniformIndex sceneDI;         // SceneConstants
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
-        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
+        BufferReadOnlyIndex payloadDI;      // InstancePayload
         uint DebugChannel;                  // GBuffersRenderStage::DebugChannel
     };
 
@@ -274,7 +274,7 @@ namespace interop
     {
         BufferUniformIndex sceneDI;         // SceneConstants
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
-        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
+        BufferReadOnlyIndex payloadDI;      // InstancePayload
     };
 
     struct WBOITAccumStageConstants
@@ -285,7 +285,7 @@ namespace interop
         TextureSampledViewIndex SSAO_DI;
         TextureSampledViewIndex CloudsShadowmapDI;
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
-        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
+        BufferReadOnlyIndex payloadDI;      // InstancePayload
     };
 
     struct WBOITResolveStageConstants
@@ -303,17 +303,17 @@ namespace interop
         TextureSampledViewIndex SSAO_DI;
         TextureSampledViewIndex CloudsShadowmapDI;
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
-        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
+        BufferReadOnlyIndex payloadDI;      // InstancePayload
     };
 
     struct WireframeStageConstats
     {
         BufferUniformIndex sceneDI;         // SceneConstants
         BufferReadOnlyIndex instancesDI;    // array of uint32 (indices to SceneConstants::instanceBufferDI)
-        BufferReadOnlyIndex payloadDI;      // VisibleInstancePayload
+        BufferReadOnlyIndex payloadDI;      // InstancePayload
     };
 
-    struct MaterialPassRendererConstants
+    struct MeshPassProcessorConstants
     {
         uint baseInstanceIdx;               // Base index into Visibily Buffer
         uint rawInstanceBaseIdx;            // Base index into InstanceData
@@ -341,7 +341,7 @@ namespace interop
         uint StartInstanceLocation;
     };
 
-    struct VisibleInstancePayload
+    struct InstancePayload
     {
         uint InstanceIndex;
         uint MeshIndex;
@@ -355,11 +355,11 @@ namespace interop
         BufferReadWriteIndex SparseCameraArgsDI;    // IndirectDrawCommand
         BufferReadWriteIndex CompactedCameraArgsDI; // IndirectDrawCommand
         BufferReadWriteIndex CameraCountsDI;        // uint32
-        BufferReadWriteIndex CameraPayloadDI;       // VisibleInstancePayload
+        BufferReadWriteIndex CameraPayloadDI;       // InstancePayload
         BufferReadWriteIndex SparseShadowArgsDI;    // IndirectDrawCommand
         BufferReadWriteIndex CompactedShadowArgsDI; // IndirectDrawCommand
         BufferReadWriteIndex ShadowCountsDI;        // uint32
-        BufferReadWriteIndex ShadowPayloadDI;       // VisibleInstancePayload
+        BufferReadWriteIndex ShadowPayloadDI;       // InstancePayload
         BufferReadOnlyIndex  BatchTableDI;
         BufferReadOnlyIndex  CullDataDI;            // InstanceCullData
         uint BatchCount;                            // BatchTable.size()

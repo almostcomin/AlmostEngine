@@ -6,7 +6,7 @@
 #include "Common.hlsli"
 
 ConstantBuffer<interop::DepthPrepassStageConstants> StageConstants : register(b0);
-ConstantBuffer<interop::MaterialPassRendererConstants> DrawConstants : register(b1);
+ConstantBuffer<interop::MeshPassProcessorConstants> DrawConstants : register(b1);
 
 struct VS_OUTPUT
 {
@@ -31,9 +31,9 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     StructuredBuffer<interop::MeshData> meshesDataBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
     
 #if GPU_CULL
-    StructuredBuffer<interop::VisibleInstancePayload> payloadBuffer = ResourceDescriptorHeap[StageConstants.payloadDI];
+    StructuredBuffer<interop::InstancePayload> payloadBuffer = ResourceDescriptorHeap[StageConstants.payloadDI];
     
-    interop::VisibleInstancePayload vp = payloadBuffer[startInstance + instanceID];
+    interop::InstancePayload vp = payloadBuffer[startInstance + instanceID];
     interop::InstanceData instanceData = instancesDataBuffer[vp.InstanceIndex];
     interop::MeshData meshData = meshesDataBuffer[vp.MeshIndex];
 #if ALPHA_TEST    

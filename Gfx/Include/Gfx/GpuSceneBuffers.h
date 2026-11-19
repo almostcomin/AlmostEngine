@@ -195,7 +195,7 @@ private:
 		std::vector<rhi::BufferOwner> TransientBatchTableStagingBuffer;	// 1 per frame in flight
 		interop::BatchTableEntry* TransientBatchTablePtr = nullptr;
 
-		// Used by MaterialPassRenderer::DrawIndirect indicates the number of instances that share (domain, cullmode)
+		// Used by MeshPassProcessor::DrawIndirect indicates the number of instances that share (domain, cullmode)
 		// that is, the number of instances that can be draw with a single call to ExecuteIndirect since they share PSO.
 		// It also indicates the location (FirstBatchIndex) in the args buffer of the bucket's first batch command.
 		BucketInfoArray Buckets;

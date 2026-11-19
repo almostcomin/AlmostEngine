@@ -35,13 +35,13 @@ void alm::gfx::GPUCullingRenderStage::Setup(RenderGraphBuilder& builder)
 
 	m_PayloadBuffer = builder.CreateBuffer("PayloadBuffer", rhi::BufferDesc{
 		.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
-		.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::VisibleInstancePayload),
-		.stride = sizeof(interop::VisibleInstancePayload) });
+		.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::InstancePayload),
+		.stride = sizeof(interop::InstancePayload) });
 
 	m_ShadowPayloadBuffer = builder.CreateBuffer("ShadowPayloadBuffer", rhi::BufferDesc{
 		.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
-		.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::VisibleInstancePayload),
-		.stride = sizeof(interop::VisibleInstancePayload) });
+		.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::InstancePayload),
+		.stride = sizeof(interop::InstancePayload) });
 
 	builder.AddBufferDependency(m_IndirectDrawArgsBuffer, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);

@@ -11,7 +11,7 @@
 #include "Gfx/RenderGraphBuilder.h"
 
 // Workload this pass submits, summed from the per-bucket culling stats over this pass's domains
-std::optional<alm::gfx::MaterialPassRenderer::RenderStats>
+std::optional<alm::gfx::MeshPassProcessor::RenderStats>
 alm::gfx::DepthPrepassRenderStage::GetRenderedStats(const interop::CullingStats* stats) const
 {
 	if (!IsEnabled())
@@ -20,7 +20,7 @@ alm::gfx::DepthPrepassRenderStage::GetRenderedStats(const interop::CullingStats*
 	if (GetDeviceManager()->GPUDrivenEnabled())
 	{
 		assert(stats);
-		return m_MaterialPassRenderer.ComputeRenderedStats(*stats, false);
+		return m_MeshPassProcessor.ComputeRenderedStats(*stats, false);
 	}
 	else
 	{
@@ -72,18 +72,18 @@ void alm::gfx::DepthPrepassRenderStage::Render(alm::rhi::CommandListHandle comma
 
 	if (deviceManager->GPUDrivenEnabled())
 	{
-		MaterialPassRenderer::IndirectDrawParams params{
+		MeshPassProcessor::IndirectDrawParams params{
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawArgsBuffer).get(),
 			.CountsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawCountsBuffer).get(),
 			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
 			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle())
 		};
 
-		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
+		m_MeshPassProcessor.DrawIndirect(params, commandList.get());
 	}
 	else
 	{
-		m_LastRenderedStats = m_MaterialPassRenderer.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
+		m_LastRenderedStats = m_MeshPassProcessor.DrawRenderSetInstanced(GetRenderView()->GetCameraVisibleSet(), commandList.get());
 	}
 
 	commandList->EndRenderPass();
@@ -141,17 +141,17 @@ void alm::gfx::DepthPrepassRenderStage::OnAttached()
 			.rasterState = rasterState
 		};
 
-		m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage", device);
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), nullptr);
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
-		m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), nullptr);
+		m_MeshPassProcessor.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "DepthPrepassRenderStage", device);
+		m_MeshPassProcessor.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), nullptr);
+		m_MeshPassProcessor.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
+		m_MeshPassProcessor.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), nullptr);
 	}
 }
 
 void alm::gfx::DepthPrepassRenderStage::OnDetached()
 {
 	GetDeviceManager()->GetDevice()->ReleaseQueued(std::move(m_FB));
-	m_MaterialPassRenderer = {};
+	m_MeshPassProcessor = {};
 }
 
 void alm::gfx::DepthPrepassRenderStage::OnBackbufferResize()
@@ -167,5 +167,5 @@ void alm::gfx::DepthPrepassRenderStage::OnBackbufferResize()
 	}
 
 	// Re-create PSO
-	m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+	m_MeshPassProcessor.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 }

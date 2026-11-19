@@ -31,8 +31,8 @@ PS_OUTPUT main(PS_INPUT input, bool isFrontFace : SV_IsFrontFace)
     MaterialTextureSample texturesSample = SampleMaterialTextures(input.uv, matData);
     MaterialSample surfaceMat = EvaluateSceneMaterial(input.normal, input.tangent, matData, texturesSample, isFrontFace);
     
-    if ((matData.cullMode == CULLMODE_BACK && !isFrontFace) ||
-        (matData.cullMode == CULLMODE_FRONT && isFrontFace))
+    if ((matData.cullMode == interop::CULLMODE_BACK && !isFrontFace) ||
+        (matData.cullMode == interop::CULLMODE_FRONT && isFrontFace))
     {
         discard;
     }

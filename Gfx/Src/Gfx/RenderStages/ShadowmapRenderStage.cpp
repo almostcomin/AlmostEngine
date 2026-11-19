@@ -40,7 +40,7 @@ void alm::gfx::ShadowmapRenderStage::SetSize(const int2& textureSize)
 		}
 
 		// Recreate PSO (psodesc keeps the same)
-		m_MaterialPassRenderer.OnFramebufferChanged(m_FB->GetFramebufferInfo());
+		m_MeshPassProcessor.OnFramebufferChanged(m_FB->GetFramebufferInfo());
 	}
 }
 
@@ -56,7 +56,7 @@ void alm::gfx::ShadowmapRenderStage::SetSlopeScaledDepthBias(float v)
 	RecreatePSO();
 }
 
-std::optional<alm::gfx::MaterialPassRenderer::RenderStats>
+std::optional<alm::gfx::MeshPassProcessor::RenderStats>
 alm::gfx::ShadowmapRenderStage::GetRenderedStats(const interop::CullingStats* stats) const
 {
 	if (!IsEnabled() || !GetRenderView()->IsShadowmapValid())
@@ -64,7 +64,7 @@ alm::gfx::ShadowmapRenderStage::GetRenderedStats(const interop::CullingStats* st
 	if (GetDeviceManager()->GPUDrivenEnabled())
 	{
 		assert(stats);
-		return m_MaterialPassRenderer.ComputeRenderedStats(*stats, true);
+		return m_MeshPassProcessor.ComputeRenderedStats(*stats, true);
 	}
 	else
 	{
@@ -111,7 +111,7 @@ void alm::gfx::ShadowmapRenderStage::ReleaseResources()
 {
 	alm::rhi::Device* device = GetDeviceManager()->GetDevice();
 
-	m_MaterialPassRenderer = {};
+	m_MeshPassProcessor = {};
 
 	device->ReleaseQueued(std::move(m_FB));
 	device->ReleaseQueued(std::move(m_PS_AlphaTest));
@@ -152,13 +152,13 @@ void alm::gfx::ShadowmapRenderStage::RecreatePSO()
 		.rasterState = rasterState
 	};
 
-	m_MaterialPassRenderer.Reset();
-	m_MaterialPassRenderer.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage", device);
-	m_MaterialPassRenderer.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
-	m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveOpaque, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
-	m_MaterialPassRenderer.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
-	m_MaterialPassRenderer.AddDomain(MaterialDomain::TransmissiveAlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
-	m_MaterialPassRenderer.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), m_PS_Opaque.get_weak());
+	m_MeshPassProcessor.Reset();
+	m_MeshPassProcessor.Init(m_PSODesc, m_FB->GetFramebufferInfo(), "ShadowmapRenderStage", device);
+	m_MeshPassProcessor.AddDomain(MaterialDomain::Opaque, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
+	m_MeshPassProcessor.AddDomain(MaterialDomain::TransmissiveOpaque, m_VS_Opaque.get_weak(), m_PS_Opaque.get_weak());
+	m_MeshPassProcessor.AddDomain(MaterialDomain::AlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
+	m_MeshPassProcessor.AddDomain(MaterialDomain::TransmissiveAlphaTested, m_VS_AlphaTest.get_weak(), m_PS_AlphaTest.get_weak());
+	m_MeshPassProcessor.AddDomain(MaterialDomain::Terrain, m_VS_Terrain.get_weak(), m_PS_Opaque.get_weak());
 }
 
 void alm::gfx::ShadowmapRenderStage::Setup(RenderGraphBuilder& builder)
@@ -207,17 +207,17 @@ void alm::gfx::ShadowmapRenderStage::Render(alm::rhi::CommandListHandle commandL
 
 	if (deviceManager->GPUDrivenEnabled())
 	{
-		MaterialPassRenderer::IndirectDrawParams params{
+		MeshPassProcessor::IndirectDrawParams params{
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_ShadowIndirectDrawArgsBuffer).get(),
 			.CountsBuffer = m_RenderGraph->GetBuffer(m_ShadowIndirectDrawCountsBuffer).get(),
 			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
 			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
 
-		m_MaterialPassRenderer.DrawIndirect(params, commandList.get());
+		m_MeshPassProcessor.DrawIndirect(params, commandList.get());
 	}
 	else
 	{
-		m_LastRenderedStats = m_MaterialPassRenderer.DrawRenderSetInstanced(
+		m_LastRenderedStats = m_MeshPassProcessor.DrawRenderSetInstanced(
 			GetRenderView()->GetShadowMapVisibleSet(),
 			commandList.get());
 	}

@@ -8,7 +8,7 @@
 #include "RHI/TypeForwards.h"
 #include "Core/Math.h"
 #include "Gfx/RenderStageType.h"
-#include "Gfx/MaterialPassRenderer.h"   // MaterialPassRenderer::RenderedStats
+#include "Gfx/MeshPassProcessor.h"   // MeshPassProcessor::RenderStats
 
 namespace alm::rhi
 {
@@ -59,7 +59,7 @@ public:
 	// Pass stages return the workload they submit, summed from the per-bucket culling
 	// stats over their own domains (a valid result, all zeros, when the stage is disabled
 	// in any way). Default: not a pass stage -> nullopt.
-	virtual std::optional<MaterialPassRenderer::RenderStats> GetRenderedStats(const interop::CullingStats*) const
+	virtual std::optional<MeshPassProcessor::RenderStats> GetRenderedStats(const interop::CullingStats*) const
 	{
 		return std::nullopt;
 	}

@@ -1,5 +1,5 @@
 #include "Gfx/GfxPCH.h"
-#include "Gfx/MaterialPassRenderer.h"
+#include "Gfx/MeshPassProcessor.h"
 #include "Gfx/RenderSet.h"
 #include "Gfx/Mesh.h"
 #include "Gfx/MeshInstance.h"
@@ -10,10 +10,10 @@
 #include "RHI/CommandSignature.h"
 #include "Interop/RenderResources.h"
 
-alm::gfx::MaterialPassRenderer::MaterialPassRenderer() : m_PSOs{}, m_ValidDomains{}, m_Device { nullptr }
+alm::gfx::MeshPassProcessor::MeshPassProcessor() : m_PSOs{}, m_ValidDomains{}, m_Device { nullptr }
 {}
 
-void alm::gfx::MaterialPassRenderer::Init(const alm::rhi::GraphicsPipelineStateDesc& baseDesc, const alm::rhi::FramebufferInfo& fbInfo,
+void alm::gfx::MeshPassProcessor::Init(const alm::rhi::GraphicsPipelineStateDesc& baseDesc, const alm::rhi::FramebufferInfo& fbInfo,
 	std::string baseDebugName, alm::rhi::Device* device)
 {
 	m_BasePSODesc = baseDesc;
@@ -26,7 +26,7 @@ void alm::gfx::MaterialPassRenderer::Init(const alm::rhi::GraphicsPipelineStateD
 		baseDebugName);
 }
 
-void alm::gfx::MaterialPassRenderer::Reset()
+void alm::gfx::MeshPassProcessor::Reset()
 {
 	for (int domain = 0; domain < (int)MaterialDomain::_Size; ++domain)
 	{
@@ -44,7 +44,7 @@ void alm::gfx::MaterialPassRenderer::Reset()
 	m_Device = nullptr;
 }
 
-void alm::gfx::MaterialPassRenderer::OnFramebufferChanged(const alm::rhi::FramebufferInfo& fbInfo)
+void alm::gfx::MeshPassProcessor::OnFramebufferChanged(const alm::rhi::FramebufferInfo& fbInfo)
 {
 	m_FBInfo = fbInfo;
 
@@ -74,7 +74,7 @@ void alm::gfx::MaterialPassRenderer::OnFramebufferChanged(const alm::rhi::Frameb
 	}
 }
 
-void alm::gfx::MaterialPassRenderer::AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS)
+void alm::gfx::MeshPassProcessor::AddDomain(MaterialDomain domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS)
 {
 	// Init desc shaders
 	alm::rhi::GraphicsPipelineStateDesc desc = m_BasePSODesc;
@@ -105,14 +105,14 @@ void alm::gfx::MaterialPassRenderer::AddDomain(MaterialDomain domain, rhi::Shade
 	m_ValidDomains[(int)domain] = true;
 }
 
-alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(
+alm::gfx::MeshPassProcessor::RenderStats alm::gfx::MeshPassProcessor::DrawRenderSetInstanced(
 	const RenderSet& renderSet, alm::rhi::ICommandList* commandList) const
 {
 	CanonicalDrawStrategy drawStrategy;
 	return DrawRenderSetInstanced(renderSet, drawStrategy, commandList);
 }
 
-alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::DrawRenderSetInstanced(
+alm::gfx::MeshPassProcessor::RenderStats alm::gfx::MeshPassProcessor::DrawRenderSetInstanced(
 	const RenderSet& renderSet, alm::gfx::IDrawStrategy& drawStrategy, alm::rhi::ICommandList* commandList) const
 {
 	RenderStats out{};
@@ -120,7 +120,7 @@ alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::Draw
 	drawStrategy.Prepare(renderSet);
 
 	rhi::IGraphicsPipelineState* prevPSO = nullptr;
-	interop::MaterialPassRendererConstants shaderConstants = {};
+	interop::MeshPassProcessorConstants shaderConstants = {};
 	while (true)
 	{
 		IDrawStrategy::DrawBucket drawBucket = drawStrategy.GetNextBucket();
@@ -137,7 +137,7 @@ alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::Draw
 		rhi::IGraphicsPipelineState* PSO = GetPSO(domain, cullMode);
 		if (!PSO)
 		{
-			LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
+			LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MeshPassProcessor '{}'",
 				GetMaterialDomainString(domain), rhi::GetCullModeString(cullMode),
 				m_BaseDebugName);
 			continue;
@@ -164,7 +164,7 @@ alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::Draw
 	return out;
 }
 
-void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& params, alm::rhi::ICommandList* commandList) const
+void alm::gfx::MeshPassProcessor::DrawIndirect(const IndirectDrawParams& params, alm::rhi::ICommandList* commandList) const
 {
 	assert(params.ArgsBuffer && params.Buckets);
 	
@@ -185,7 +185,7 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 			rhi::IGraphicsPipelineState* PSO = GetPSO(domain, cullMode);
 			if (!PSO)
 			{
-				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
+				LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MeshPassProcessor '{}'",
 					GetMaterialDomainString(domain), rhi::GetCullModeString(cullMode),
 					m_BaseDebugName);
 				continue;
@@ -220,7 +220,7 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 		rhi::IGraphicsPipelineState* PSO = GetPSO(t.Domain, cullMode);
 		if (!PSO)
 		{
-			LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MaterialPassRenderer '{}'",
+			LOG_ERROR("Material domain '{}', Cull mode '{}': No PSO defined in MeshPassProcessor '{}'",
 				GetMaterialDomainString(t.Domain), rhi::GetCullModeString(cullMode),
 				m_BaseDebugName);
 			continue;
@@ -246,7 +246,7 @@ void alm::gfx::MaterialPassRenderer::DrawIndirect(const IndirectDrawParams& para
 	}
 }
 
-alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::ComputeRenderedStats(
+alm::gfx::MeshPassProcessor::RenderStats alm::gfx::MeshPassProcessor::ComputeRenderedStats(
 	const interop::CullingStats& stats, bool shadowFrustum) const
 {
 	RenderStats out{};
@@ -274,7 +274,7 @@ alm::gfx::MaterialPassRenderer::RenderStats alm::gfx::MaterialPassRenderer::Comp
 	return out;
 }
 
-alm::rhi::IGraphicsPipelineState* alm::gfx::MaterialPassRenderer::GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const
+alm::rhi::IGraphicsPipelineState* alm::gfx::MeshPassProcessor::GetPSO(MaterialDomain domain, rhi::CullMode cullMode) const
 {
 	switch (cullMode)
 	{
