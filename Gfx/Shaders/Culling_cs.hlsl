@@ -1,7 +1,5 @@
-// ALM_REQUIRE_VARIANT(RETRIEVE_STATS)
-
 //--------------------------------------------------------------------------
-// GPU cull, dispatch 2/2:
+// GPU cull
 // Frustum-culls every static instance, fused for both frustums in one dispatch (single InstanceCullData load):
 //   camera -> frustumPlanes      -> camera args/payload
 //   shadow -> shadowCasterPlanes -> shadow args/payload
@@ -21,6 +19,7 @@
 // (the stage must run its reset + readback blocks; see GPUCullingRenderStage).
 //--------------------------------------------------------------------------
 
+// ALM_REQUIRE_VARIANT(RETRIEVE_STATS)
 // ALM_REQUIRE_SM(6.8)
 
 #include "Interop/RenderResources.h"
@@ -57,6 +56,33 @@ void Scatter(
     payloadBuffer[bte.PayloadRegionOffset + slot].ExtraDataBaseIdx = bte.ExtraDataBaseIdx;
 }
 
+bool StageInstance(
+    ConstantBuffer<interop::SceneConstants> sceneConstants,
+    interop::InstanceCullData cullData,
+    interop::BatchTableEntry bte,
+    uint instanceIdx,
+    RWStructuredBuffer<interop::StagedTransmissiveInstance> staged,
+    RWStructuredBuffer<uint> stagedCount)
+{
+    uint idx;
+    
+    InterlockedAdd(stagedCount[0], 1, idx);
+    if (idx >= interop::SORTED_TRANSMISSIVE_CAPACITY)
+        return false;
+    
+    float3 center = cullData.BoundsSphere.xyz;
+    float distSq = dot(center - sceneConstants.camWorldPos, center - sceneConstants.camWorldPos);
+    
+    staged[idx].key = ~asuint(distSq); // far -> near
+    staged[idx].indexCount = bte.IndexCount;
+    staged[idx].payload.InstanceIndex = instanceIdx;
+    staged[idx].payload.MeshIndex = bte.MeshIndex;
+    staged[idx].payload.MaterialIndex = bte.MaterialIndex;
+    staged[idx].payload.ExtraDataBaseIdx = bte.ExtraDataBaseIdx;
+    
+    return true;
+}
+
 [RootSignature(BindlessRootSignature)]
 [numthreads(256, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
@@ -71,6 +97,9 @@ void main(uint DTid : SV_DispatchThreadID)
     RWStructuredBuffer<interop::InstancePayload> cameraPayload = ResourceDescriptorHeap[StageConstants.CameraPayloadDI];
     RWStructuredBuffer<interop::IndirectDrawCommand> shadowArgs = ResourceDescriptorHeap[StageConstants.SparseShadowArgsDI];
     RWStructuredBuffer<interop::InstancePayload> shadowPayload = ResourceDescriptorHeap[StageConstants.ShadowPayloadDI];
+    RWStructuredBuffer<interop::StagedTransmissiveInstance> stagedTransmissive =
+        ResourceDescriptorHeap[StageConstants.TransmissiveStagingDI];
+    RWStructuredBuffer<uint> stagedTransmissiveCount = ResourceDescriptorHeap[StageConstants.TransmissiveStagedCountDI];
 #if RETRIEVE_STATS
     RWStructuredBuffer<interop::CullingStats> stats = ResourceDescriptorHeap[StageConstants.StatsBufferDI];
 #endif
@@ -86,6 +115,8 @@ void main(uint DTid : SV_DispatchThreadID)
         return;
 
     interop::BatchTableEntry bte = batchTable[cullData.BatchIndex];
+    uint domain = bte.BucketIdx / interop::CullModeCount;
+    bool backToFront = (interop::BackToFrontDomainMask & (1u << domain)) != 0;
 
 #if RETRIEVE_STATS
     InterlockedAdd(stats[0].Buckets[bte.BucketIdx].CameraTotalInstances, 1);
@@ -93,11 +124,14 @@ void main(uint DTid : SV_DispatchThreadID)
 #endif
     if (TestSphereFrustum(sceneConstants.frustumPlanes, cullData.BoundsSphere))
     {
-        Scatter(cameraArgs, cameraPayload, bte, cullData.BatchIndex, DTid);
+        if (!backToFront || !StageInstance(sceneConstants, cullData, bte, DTid, stagedTransmissive, stagedTransmissiveCount))
+        {
+            Scatter(cameraArgs, cameraPayload, bte, cullData.BatchIndex, DTid);
+        }
 #if RETRIEVE_STATS
         InterlockedAdd(stats[0].Buckets[bte.BucketIdx].CameraVisibleInstances, 1);
         InterlockedAdd(stats[0].Buckets[bte.BucketIdx].CameraVisiblePrimitives, bte.IndexCount / 3);
-#endif
+#endif        
     }
 
     if (StageConstants.ShadowEnabled)

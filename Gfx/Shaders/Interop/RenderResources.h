@@ -364,7 +364,7 @@ namespace interop
 
     struct CullingConstants
     {
-        BufferUniformIndex SceneDI;                 // SceneConstants
+        BufferUniformIndex   SceneDI;               // SceneConstants
         BufferReadWriteIndex SparseCameraArgsDI;    // IndirectDrawCommand
         BufferReadWriteIndex CompactedCameraArgsDI; // IndirectDrawCommand
         BufferReadWriteIndex CameraCountsDI;        // uint32
@@ -373,12 +373,14 @@ namespace interop
         BufferReadWriteIndex CompactedShadowArgsDI; // IndirectDrawCommand
         BufferReadWriteIndex ShadowCountsDI;        // uint32
         BufferReadWriteIndex ShadowPayloadDI;       // InstancePayload
-        BufferReadOnlyIndex  BatchTableDI;
+        BufferReadWriteIndex TransmissiveStagingDI; // StagedTransmissiveInstance
+        BufferReadWriteIndex TransmissiveStagedCountDI; // uint32
+        BufferReadOnlyIndex  BatchTableDI;          // BatchTableEntry
         BufferReadOnlyIndex  CullDataDI;            // InstanceCullData
         uint BatchCount;                            // BatchTable.size()
         uint StaticInstanceCount;
         uint TotalInstanceCount;                    // Static + transient
-        uint StaticInstanceCapacity;
+        uint StaticInstanceCapacity;                // GpuSceneBuffers::kMaxStaticInstanceCount
         uint ShadowEnabled;
         BufferReadWriteIndex StatsBufferDI;         // CullingStats
     };

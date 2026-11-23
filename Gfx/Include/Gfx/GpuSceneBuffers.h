@@ -91,8 +91,9 @@ public:
 
 public:
 
-	// Return max instances in the unified buffer of StaticInstances + TransientInstances + StagedInstances
-	static constexpr uint32_t MaxInstancesCount()
+	// Return StaticInstances + TransientInstances + StagedInstances
+	// Number Instances (Static + Transient) + size for Stage
+	static constexpr uint32_t MaxSlotsCount()
 	{ 
 		return kMaxStaticInstanceCount + kMaxTransientInstanceCount + kMaxStagedInstanceCount; 
 	}

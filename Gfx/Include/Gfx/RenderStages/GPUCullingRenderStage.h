@@ -43,6 +43,9 @@ private:
 	RGBufferHandle m_ShadowCountsBuffer;
 	RGBufferHandle m_ShadowPayloadBuffer;
 
+	RGBufferHandle m_TransmissiveStagingBuffer;
+	RGBufferHandle m_TransmissiveStagedCountBuffer;
+
 	alm::rhi::BufferOwner m_StatsBuffer;
 	alm::rhi::BufferOwner m_StatsBufferRB;
 	interop::CullingStats* m_StatsBufferRBPtr = nullptr;   // Cached mapped pointer of the readback buffer

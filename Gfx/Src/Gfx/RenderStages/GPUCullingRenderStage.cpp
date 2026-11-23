@@ -14,19 +14,25 @@ void alm::gfx::GPUCullingRenderStage::Setup(RenderGraphBuilder& builder)
 	{
 		rhi::BufferDesc desc{
 			.shaderUsage = rhi::BufferShaderUsage::ReadWrite | rhi::BufferShaderUsage::IndirectArguments,
-			.sizeBytes = GpuSceneBuffers::MaxInstancesCount() * sizeof(interop::IndirectDrawCommand),
+			.sizeBytes = GpuSceneBuffers::MaxSlotsCount() * sizeof(interop::IndirectDrawCommand),
 			.stride = sizeof(interop::IndirectDrawCommand) };
 
 		m_IndirectDrawArgsBuffer = builder.CreateBuffer("IndirectDrawArgsBuffer", desc);
 		m_ShadowIndirectDrawArgsBuffer = builder.CreateBuffer("ShadowIndirectDrawArgsBuffer", desc);
+	}
+	{
+		rhi::BufferDesc desc{
+			.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
+			.sizeBytes = GpuSceneBuffers::MaxSlotsCount() * sizeof(interop::IndirectDrawCommand),
+			.stride = sizeof(interop::IndirectDrawCommand) };
+
 		m_SparseArgsBuffer = builder.CreateBuffer("SparseIndirectDrawArgsBuffer", desc);
 		m_SparseShadowArgsBuffer = builder.CreateBuffer("SparseShadowIndirectDrawArgsBuffer", desc);
 	}
-
 	{
 		rhi::BufferDesc desc{
 			.shaderUsage = rhi::BufferShaderUsage::ReadWrite | rhi::BufferShaderUsage::IndirectArguments,
-			.sizeBytes = GpuSceneBuffers::MaxInstancesCount() * sizeof(uint32_t),
+			.sizeBytes = GpuSceneBuffers::MaxSlotsCount() * sizeof(uint32_t),
 			.stride = sizeof(uint32_t) };
 
 		m_CountsBuffer = builder.CreateBuffer("IndirectDrawCountsBuffer", desc);
@@ -35,13 +41,23 @@ void alm::gfx::GPUCullingRenderStage::Setup(RenderGraphBuilder& builder)
 
 	m_PayloadBuffer = builder.CreateBuffer("PayloadBuffer", rhi::BufferDesc{
 		.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
-		.sizeBytes = GpuSceneBuffers::MaxInstancesCount() * sizeof(interop::InstancePayload),
+		.sizeBytes = GpuSceneBuffers::MaxSlotsCount() * sizeof(interop::InstancePayload),
 		.stride = sizeof(interop::InstancePayload) });
 
 	m_ShadowPayloadBuffer = builder.CreateBuffer("ShadowPayloadBuffer", rhi::BufferDesc{
 		.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
-		.sizeBytes = GpuSceneBuffers::MaxInstancesCount() * sizeof(interop::InstancePayload),
+		.sizeBytes = GpuSceneBuffers::MaxSlotsCount() * sizeof(interop::InstancePayload),
 		.stride = sizeof(interop::InstancePayload) });
+
+	m_TransmissiveStagingBuffer = builder.CreateBuffer("TransmissiveStagingBuffer", rhi::BufferDesc{
+		.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
+		.sizeBytes = GpuSceneBuffers::kMaxStagedInstanceCount * sizeof(interop::StagedTransmissiveInstance),
+		.stride = sizeof(interop::StagedTransmissiveInstance) });
+
+	m_TransmissiveStagedCountBuffer = builder.CreateBuffer("TransmissiveStagedCountBuffer", rhi::BufferDesc{
+		.shaderUsage = rhi::BufferShaderUsage::ReadWrite | rhi::BufferShaderUsage::IndirectArguments,
+		.sizeBytes = sizeof(uint32_t),
+		.stride = sizeof(uint32_t) });
 
 	builder.AddBufferDependency(m_IndirectDrawArgsBuffer, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
@@ -58,6 +74,10 @@ void alm::gfx::GPUCullingRenderStage::Setup(RenderGraphBuilder& builder)
 	builder.AddBufferDependency(m_PayloadBuffer, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 	builder.AddBufferDependency(m_ShadowPayloadBuffer, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+	builder.AddBufferDependency(m_TransmissiveStagingBuffer, RenderGraph::AccessMode::Write,
+		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
+	builder.AddBufferDependency(m_TransmissiveStagedCountBuffer, RenderGraph::AccessMode::Write,
 		rhi::ResourceState::UNORDERED_ACCESS, rhi::ResourceState::UNORDERED_ACCESS);
 }
 
@@ -113,6 +133,8 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 		shaderConstants.CompactedShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowIndirectDrawArgsBuffer);
 		shaderConstants.ShadowCountsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowCountsBuffer);
 		shaderConstants.ShadowPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowPayloadBuffer);
+		shaderConstants.TransmissiveStagingDI = m_RenderGraph->GetBufferReadWriteView(m_TransmissiveStagingBuffer);
+		shaderConstants.TransmissiveStagedCountDI = m_RenderGraph->GetBufferReadWriteView(m_TransmissiveStagedCountBuffer);
 		shaderConstants.BatchTableDI = gpuSceneBuffers->GetBatchTableBufferView(scene->GetGpuSceneBuffersHandle());
 		shaderConstants.CullDataDI = gpuSceneBuffers->GetInstancesCullDataBufferView(scene->GetGpuSceneBuffersHandle());
 		shaderConstants.BatchCount = batchCount;
