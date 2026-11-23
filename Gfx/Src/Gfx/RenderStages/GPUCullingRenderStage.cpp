@@ -14,7 +14,7 @@ void alm::gfx::GPUCullingRenderStage::Setup(RenderGraphBuilder& builder)
 	{
 		rhi::BufferDesc desc{
 			.shaderUsage = rhi::BufferShaderUsage::ReadWrite | rhi::BufferShaderUsage::IndirectArguments,
-			.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::IndirectDrawCommand),
+			.sizeBytes = GpuSceneBuffers::MaxInstancesCount() * sizeof(interop::IndirectDrawCommand),
 			.stride = sizeof(interop::IndirectDrawCommand) };
 
 		m_IndirectDrawArgsBuffer = builder.CreateBuffer("IndirectDrawArgsBuffer", desc);
@@ -26,7 +26,7 @@ void alm::gfx::GPUCullingRenderStage::Setup(RenderGraphBuilder& builder)
 	{
 		rhi::BufferDesc desc{
 			.shaderUsage = rhi::BufferShaderUsage::ReadWrite | rhi::BufferShaderUsage::IndirectArguments,
-			.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(uint32_t),
+			.sizeBytes = GpuSceneBuffers::MaxInstancesCount() * sizeof(uint32_t),
 			.stride = sizeof(uint32_t) };
 
 		m_CountsBuffer = builder.CreateBuffer("IndirectDrawCountsBuffer", desc);
@@ -35,12 +35,12 @@ void alm::gfx::GPUCullingRenderStage::Setup(RenderGraphBuilder& builder)
 
 	m_PayloadBuffer = builder.CreateBuffer("PayloadBuffer", rhi::BufferDesc{
 		.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
-		.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::InstancePayload),
+		.sizeBytes = GpuSceneBuffers::MaxInstancesCount() * sizeof(interop::InstancePayload),
 		.stride = sizeof(interop::InstancePayload) });
 
 	m_ShadowPayloadBuffer = builder.CreateBuffer("ShadowPayloadBuffer", rhi::BufferDesc{
 		.shaderUsage = rhi::BufferShaderUsage::ReadWrite,
-		.sizeBytes = GpuSceneBuffers::MaxInstances() * sizeof(interop::InstancePayload),
+		.sizeBytes = GpuSceneBuffers::MaxInstancesCount() * sizeof(interop::InstancePayload),
 		.stride = sizeof(interop::InstancePayload) });
 
 	builder.AddBufferDependency(m_IndirectDrawArgsBuffer, RenderGraph::AccessMode::Write,

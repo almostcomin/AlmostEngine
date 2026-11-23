@@ -27,14 +27,14 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     VS_OUTPUT output;
     
     ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[StageConstants.sceneDI];
-    StructuredBuffer<interop::InstanceData> instancesDataBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
+    StructuredBuffer<interop::InstanceTransformData> instancesTransformDataBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
     StructuredBuffer<interop::MeshData> meshesDataBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
                 
 #if GPU_CULL
     StructuredBuffer<interop::InstancePayload> payloadBuffer = ResourceDescriptorHeap[StageConstants.payloadDI];
     
     interop::InstancePayload vp = payloadBuffer[startInstance + instanceID];
-    interop::InstanceData instanceData = instancesDataBuffer[vp.InstanceIndex];
+    interop::InstanceTransformData instanceTransformData = instancesTransformDataBuffer[vp.InstanceIndex];
     interop::MeshData meshData = meshesDataBuffer[vp.MeshIndex];
     output.materialIndex = vp.MaterialIndex;
 #else
@@ -42,7 +42,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     
     uint actualInstanceId = instanceID + DrawConstants.baseInstanceIdx;
     uint instanceIndex = instancesIndexBuffer.Load(actualInstanceId * 4);
-    interop::InstanceData instanceData = instancesDataBuffer[instanceIndex];
+    interop::InstanceTransformData instanceTransformData = instancesTransformDataBuffer[instanceIndex];
     interop::MeshData meshData = meshesDataBuffer[DrawConstants.meshIndex];    
     output.materialIndex = DrawConstants.materialIndex;
 #endif
@@ -60,16 +60,16 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     float2 uv0 = LoadVertexAttributeFloat2(vertexBuffer, vertexBufferOffset, meshData.vertexTexCoord0Offset);
         
     // Transform
-    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
+    float4 posWorld = mul(instanceTransformData.modelMatrix, float4(pos, 1.0f));
     float4 posClip = mul(sceneData.camViewProjMatrix, posWorld);
         
     // Normal
-    const float3x3 normalMatrix = (float3x3)transpose(instanceData.inverseModelMatrix);
+    const float3x3 normalMatrix = (float3x3)transpose(instanceTransformData.inverseModelMatrix);
     float3 normalWorld = normalize(mul(normalMatrix, normal));
     float3 normalView = normalize(mul((float3x3)sceneData.camViewMatrix, normalWorld));
     
     // Tangent
-    float3 tangentWorld = normalize(mul(instanceData.modelMatrix, float4(tangent.xyz, 0.0)).xyz);
+    float3 tangentWorld = normalize(mul(instanceTransformData.modelMatrix, float4(tangent.xyz, 0.0)).xyz);
     float3 tangentView = normalize(mul((float3x3)sceneData.camViewMatrix, tangentWorld));
             
     output.pos = posClip;

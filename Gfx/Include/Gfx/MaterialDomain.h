@@ -66,6 +66,19 @@ struct MaterialDomain
 			domain == MaterialDomain::Type::TransmissiveAlphaTested ||
 			domain == MaterialDomain::Type::TransmissiveAlphaBlended;
 	}
+
+	static constexpr uint32_t ComputeBackToFrontMask()
+	{
+		uint32_t mask = 0u;
+		for (int i = 0; i < static_cast<int>(Type::_Size); ++i)
+		{
+			if (IsBackToFrontSorted(static_cast<Type>(i)))
+				mask |= (1u << i);
+		}
+		return mask;
+	}
 };
+
+inline constexpr uint32_t BackToFrontSortedDomainMask = MaterialDomain::ComputeBackToFrontMask();
 
 } // namespace alm::gfx

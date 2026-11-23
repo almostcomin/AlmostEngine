@@ -596,7 +596,7 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 
 	GpuSceneBuffers::HeightmapPatchesAllocation alloc =
 		gpuSceneBuffers->AllocateTransientHeightmapPatches(gpuBuffersHandle, m_LeafNodes.size());
-	if (alloc.InstancesDataPtr == nullptr)
+	if (alloc.InstancesTransformDataPtr == nullptr)
 	{
 		LOG_ERROR("Failed allocating Heightmap Patches");
 		return;
@@ -618,8 +618,8 @@ void alm::gfx::HeightmapInstance::FillGpuBuffers(GpuSceneBuffers* gpuSceneBuffer
 		const float4x4 inverseWorldMatrix = glm::inverse(worldMatrix);
 
 		// Instance data
-		alloc.InstancesDataPtr[i].modelMatrix = worldMatrix;
-		alloc.InstancesDataPtr[i].inverseModelMatrix = inverseWorldMatrix;
+		alloc.InstancesTransformDataPtr[i].modelMatrix = worldMatrix;
+		alloc.InstancesTransformDataPtr[i].inverseModelMatrix = inverseWorldMatrix;
 		// Cull data
 		alloc.CullDataBufferPtr[i].BoundsSphere = GetSphereBoundsWorldSpace(m_LeafNodes[i]);
 		alloc.CullDataBufferPtr[i].BatchIndex = alloc.FirstBatchIndex + i;

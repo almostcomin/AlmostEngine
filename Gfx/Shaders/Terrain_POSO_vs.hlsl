@@ -22,7 +22,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
 )
 {    
     ConstantBuffer<interop::SceneConstants> sceneData = ResourceDescriptorHeap[StageConstants.sceneDI];
-    StructuredBuffer<interop::InstanceData> instancesDataBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
+    StructuredBuffer<interop::InstanceTransformData> instancesTransformDataBuffer = ResourceDescriptorHeap[sceneData.instanceBufferDI];
     StructuredBuffer<interop::MeshData> meshesDataBuffer = ResourceDescriptorHeap[sceneData.meshesBufferDI];
     StructuredBuffer<interop::HeightmapPatchData> patchDataBuffer = ResourceDescriptorHeap[sceneData.patchDataBufferDI];
 
@@ -30,12 +30,12 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     StructuredBuffer<interop::InstancePayload> payloadBuffer = ResourceDescriptorHeap[StageConstants.payloadDI];
     
     interop::InstancePayload vp = payloadBuffer[startInstance + instanceID];
-    interop::InstanceData instanceData = instancesDataBuffer[vp.InstanceIndex];
+    interop::InstanceTransformData instanceTransformData = instancesTransformDataBuffer[vp.InstanceIndex];
     interop::MeshData meshData = meshesDataBuffer[vp.MeshIndex];    
     uint patchIndex = vp.ExtraDataBaseIdx;    
 #else
     uint instanceIndex = instanceID + DrawConstants.rawInstanceBaseIdx;
-    interop::InstanceData instanceData = instancesDataBuffer[instanceIndex];
+    interop::InstanceTransformData instanceTransformData = instancesTransformDataBuffer[instanceIndex];
     interop::MeshData meshData = meshesDataBuffer[DrawConstants.meshIndex];
     uint patchIndex = instanceID + DrawConstants.extraDataBaseIdx;
 #endif
@@ -60,7 +60,7 @@ VS_OUTPUT main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID
     float3 pos = float3(pos2.x, H, pos2.y);
         
     // Transform
-    float4 posWorld = mul(instanceData.modelMatrix, float4(pos, 1.0f));
+    float4 posWorld = mul(instanceTransformData.modelMatrix, float4(pos, 1.0f));
 #if SHADOW_MATRIX
     float4 posClip = mul(sceneData.shadowMapWorldToClipMatrix, posWorld);
 #else

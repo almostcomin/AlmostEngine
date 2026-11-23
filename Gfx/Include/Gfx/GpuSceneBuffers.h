@@ -31,6 +31,7 @@ public:
 
 	static constexpr uint32_t kMaxStaticInstanceCount		= 65536;
 	static constexpr uint32_t kMaxTransientInstanceCount	= 65536;
+	static constexpr uint32_t kMaxStagedInstanceCount		= 2048;
 	static constexpr uint32_t kMaxMaterialCount				= 4096;
 	static constexpr uint32_t kMaxTerrainMaterialCount		= 256;
 	static constexpr uint32_t kMaxMeshRefCount				= 8192;
@@ -79,7 +80,7 @@ public:
 		uint32_t InstancesBaseIndex;
 		uint32_t PatchesBaseIndex;
 		uint32_t Count;
-		interop::InstanceData* InstancesDataPtr;
+		interop::InstanceTransformData* InstancesTransformDataPtr;
 		interop::InstanceCullData* CullDataBufferPtr;
 		interop::BatchTableEntry* BatchTableEntriesPtr;
 		interop::HeightmapPatchData* HeightmapPatchesPtr;
@@ -90,7 +91,11 @@ public:
 
 public:
 
-	static constexpr uint32_t MaxInstances() { return kMaxStaticInstanceCount + kMaxTransientInstanceCount; }
+	// Return max instances in the unified buffer of StaticInstances + TransientInstances + StagedInstances
+	static constexpr uint32_t MaxInstancesCount()
+	{ 
+		return kMaxStaticInstanceCount + kMaxTransientInstanceCount + kMaxStagedInstanceCount; 
+	}
 
 	GpuSceneBuffers(gfx::DeviceManager* deviceManager);
 	~GpuSceneBuffers();
@@ -149,6 +154,8 @@ public:
 	size_t GetStaticInstanceScanCount(GpuSceneBuffersHandle handle) const;
 	size_t GetTransientInstancesCount(GpuSceneBuffersHandle handle) const;
 	size_t GetBatchTableSize(GpuSceneBuffersHandle handle) const;
+	size_t GetTotalCommandSlots(GpuSceneBuffersHandle handle) const;
+	size_t GetTotalPayloadSlots(GpuSceneBuffersHandle handle) const;
 
 	const BucketInfoArray* GetBucketInfo(GpuSceneBuffersHandle handle) const;
 	std::span<const TransientRecord> GetTransientRecords(GpuSceneBuffersHandle handle) const;
@@ -172,11 +179,11 @@ private:
 		MeshInstanceLeafsContainer MeshInstances;						// Only static (not transient instances)
 		RefreshState MeshInstancesState;								// Deferred updates for the static instance buffer
 
-		rhi::BufferOwner MeshInstancesBuffer;							// interop::InstanceData (static + transient)
-		std::vector<rhi::BufferOwner> TransientInstacesStagingBuffer;	// Staging buffer for transient instances. 1 per frame in flight
-		interop::InstanceData* TransientInstancesDataPtr = nullptr;		// Cached pointer to TransientInstacesStagingBuffer mapped ptr
+		rhi::BufferOwner MeshInstancesTransformDataBuffer;							// interop::InstanceTransformData (static + transient)
+		std::vector<rhi::BufferOwner> TransientInstancesStagingBuffer;	// Staging buffer for transient instances. 1 per frame in flight
+		interop::InstanceTransformData* TransientInstancesTransformDataPtr = nullptr;		// Cached pointer to TransientInstancesStagingBuffer mapped ptr
 
-		rhi::BufferOwner MeshInstanceCullDataBuffer;					// interop::InstanceCullData (static + transient). 1:1 with MeshInstancesBuffer
+		rhi::BufferOwner MeshInstanceCullDataBuffer;					// interop::InstanceCullData (static + transient). 1:1 with MeshInstancesTransformDataBuffer
 		std::vector<rhi::BufferOwner> TransientInstanceCullDataStagingBuffer;	// Staging buffer for transient instances - cull data. 1 per frame in flight
 		interop::InstanceCullData* TransientInstanceCullDataPtr = nullptr; // Cached pointer to TransientInstanceCullDataBuffer mapped ptr
 
@@ -218,8 +225,8 @@ private:
 
 	struct TransientInstanceAllocation
 	{
-		uint32_t BaseInstanceIndex; // Slot in the MeshInstancesBuffer & MeshInstanceCullDataBuffer
-		interop::InstanceData* InstancesBufferPtr;
+		uint32_t BaseInstanceIndex; // Slot in the MeshInstancesTransformDataBuffer & MeshInstanceCullDataBuffer
+		interop::InstanceTransformData* InstancesTransformDataPtr;
 		interop::InstanceCullData* CullDataBufferPtr;
 		interop::BatchTableEntry* BatchTableBufferPtr;
 		uint32_t FirstBatchIndex;

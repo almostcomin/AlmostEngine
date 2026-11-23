@@ -17,6 +17,12 @@ namespace interop
     SHADER_CONSTANT(CULLMODE_FRONT, 1);
     SHADER_CONSTANT(CULLMODE_NONE, 2);
 
+    // Back-to-front sorted domains: Transmissive{Opaque,AlphaTested,AlphaBlended} = bits 3,4,5
+    // (must match alm::gfx::MaterialDomain enum order)
+    SHADER_CONSTANT(BackToFrontDomainMask, (1u << 3) | (1u << 4) | (1u << 5));
+
+    SHADER_CONSTANT(SORTED_TRANSMISSIVE_CAPACITY, 2048);
+
     // Bucket = (MaterialDomain, CullMode) pair. Counts must match the C++ enums
     // (static_asserts live in GpuSceneBuffers.cpp).
     static const uint MaterialDomainCount = 7;  // Opaque, AlphaTested, AlphaBlended, 
@@ -67,7 +73,7 @@ namespace interop
         float nearPlaneDist;
     };
 
-    struct InstanceData
+    struct InstanceTransformData
     {
         float4x4 modelMatrix;
         float4x4 inverseModelMatrix;
@@ -241,7 +247,7 @@ namespace interop
         BufferReadOnlyIndex spotLightsDataDI;   // SpotLightData
 
         // Global descriptors indices
-        BufferReadOnlyIndex instanceBufferDI;   // InstanceData
+        BufferReadOnlyIndex instanceBufferDI;   // InstanceTransformData
         BufferReadOnlyIndex meshesBufferDI;     // MeshData
         BufferReadOnlyIndex materialsBufferDI;  // MaterialData
         BufferReadOnlyIndex terrainMaterialsBufferDI; // TerrainMaterialData
@@ -316,7 +322,7 @@ namespace interop
     struct MeshPassProcessorConstants
     {
         uint baseInstanceIdx;               // Base index into Visibily Buffer
-        uint rawInstanceBaseIdx;            // Base index into InstanceData
+        uint rawInstanceBaseIdx;            // Base index into InstanceTransformData
         uint meshIndex;                     // Index into MeshData Buffer
         uint materialIndex;                 // Index into MaterialData Buffer
         uint extraDataBaseIdx;              // Base offset for shader-specific extra data buffers. Heightmap PatchData base for instance.
@@ -347,6 +353,13 @@ namespace interop
         uint MeshIndex;
         uint MaterialIndex;
         uint ExtraDataBaseIdx;
+    };
+
+    struct StagedTransmissiveInstance
+    {
+        uint key;
+        uint indexCount;
+        InstancePayload payload;
     };
 
     struct CullingConstants
