@@ -35,6 +35,8 @@ public:
 	static constexpr uint32_t kMaxMaterialCount				= 4096;
 	static constexpr uint32_t kMaxTerrainMaterialCount		= 256;
 	static constexpr uint32_t kMaxMeshRefCount				= 8192;
+	
+	static constexpr uint32_t kBackToFrontBase = kMaxStaticInstanceCount + kMaxTransientInstanceCount;
 
 	enum class MaterialType
 	{
@@ -155,8 +157,6 @@ public:
 	size_t GetStaticInstanceScanCount(GpuSceneBuffersHandle handle) const;
 	size_t GetTransientInstancesCount(GpuSceneBuffersHandle handle) const;
 	size_t GetBatchTableSize(GpuSceneBuffersHandle handle) const;
-	size_t GetTotalCommandSlots(GpuSceneBuffersHandle handle) const;
-	size_t GetTotalPayloadSlots(GpuSceneBuffersHandle handle) const;
 
 	const BucketInfoArray* GetBucketInfo(GpuSceneBuffersHandle handle) const;
 	std::span<const TransientRecord> GetTransientRecords(GpuSceneBuffersHandle handle) const;
@@ -197,6 +197,7 @@ private:
 		std::vector<TransientRecord> TransientRecords;
 
 		// One entry per (domain, cullMode, batchKey)
+		// Batch == run of instances with the same mesh+material (same domain/cullMode/BatchKey).
 		std::vector<interop::BatchTableEntry> BatchTable;
 		// GPU version of BatchTable
 		rhi::BufferOwner BatchTableBuffer;
@@ -211,12 +212,14 @@ private:
 		// the whole BatchTable
 		bool BatchLayoutDirty = true;
 
-		// Number of static entries in the BatchTableBuffer.
-		// The BatchTableBuffer contains both static + transients instances.
-		// StaticBatchCount marks the end of the static instances and the begining of the transient ones.
+		// Number of static batches in the BatchTableBuffer, in command units:
+		// One IndirectDrawCommand slot per batch. Static batch commands occupy [0, StaticBatchCount).
+		// Base of the transient batch commands region.
 		uint32_t StaticBatchCount = 0;
-		// Number of static instances in the BatchTable. It *should* be the same as MeshInstances.size(),
-		// but invalid (not registered) isntances are removed.
+		// Reserved static payload slots:
+		// One InstancePayload per instance (sum of batch sizes).
+		// Static payloads occupy [0, StaticPayloadTotal).
+		// Base of the transient payloads region.
 		uint32_t StaticPayloadTotal = 0;
 
 		bool DataInitialized = false;

@@ -54,11 +54,13 @@ private:
 	alm::rhi::ShaderOwner m_CullingCS;
 	alm::rhi::ShaderOwner m_CullingStatsCS;
 	alm::rhi::ShaderOwner m_CompactCS;
+	alm::rhi::ShaderOwner m_TransmissiveCS;
 
 	alm::rhi::ComputePipelineStateOwner m_PreparePSO;
 	alm::rhi::ComputePipelineStateOwner m_CullingPSO;
 	alm::rhi::ComputePipelineStateOwner m_CullingStatsPSO;
 	alm::rhi::ComputePipelineStateOwner m_CompactPSO;
+	alm::rhi::ComputePipelineStateOwner m_TransmissivePSO;
 
 	uint32_t m_StatsRequests = 0;
 };

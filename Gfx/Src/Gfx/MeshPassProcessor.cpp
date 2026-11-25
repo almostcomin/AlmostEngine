@@ -5,6 +5,7 @@
 #include "Gfx/MeshInstance.h"
 #include "Gfx/IDrawStrategy.h"
 #include "Gfx/CanonicalDrawStrategy.h"
+#include "Gfx/GpuSceneBuffers.h"
 #include "RHI/Device.h"
 #include "RHI/PipelineState.h"
 #include "RHI/CommandSignature.h"
@@ -105,6 +106,13 @@ void alm::gfx::MeshPassProcessor::AddDomain(MaterialDomain::Type domain, rhi::Sh
 	m_ValidDomains[(int)domain] = true;
 }
 
+void alm::gfx::MeshPassProcessor::AddDomains(std::initializer_list<MaterialDomain::Type> domains,
+	rhi::ShaderHandle VS, rhi::ShaderHandle PS)
+{
+	for (MaterialDomain::Type domain : domains)
+		AddDomain(domain, VS, PS);
+}
+
 alm::gfx::MeshPassProcessor::RenderStats alm::gfx::MeshPassProcessor::DrawRenderSetInstanced(
 	const RenderSet& renderSet, alm::rhi::ICommandList* commandList) const
 {
@@ -169,6 +177,7 @@ void alm::gfx::MeshPassProcessor::DrawIndirect(const IndirectDrawParams& params,
 {
 	assert(params.ArgsBuffer && params.Buckets);
 	
+	bool needsBackToFrontDraw = false;
 	rhi::IGraphicsPipelineState* prevPSO = nullptr;
 	for (int domainIdx = 0; domainIdx < (int)MaterialDomain::_Size; ++domainIdx)
 	{
@@ -176,6 +185,11 @@ void alm::gfx::MeshPassProcessor::DrawIndirect(const IndirectDrawParams& params,
 			continue;
 
 		const MaterialDomain::Type domain = (MaterialDomain::Type)domainIdx;
+		if (params.BackToFrontDraw && MaterialDomain::IsBackToFrontSorted(domain))
+		{
+			needsBackToFrontDraw = true;
+		}
+
 		for (int cullModeIdx = 0; cullModeIdx < (int)rhi::CullMode::_Size; ++cullModeIdx)
 		{
 			const auto& bucket = (*params.Buckets)[domainIdx][cullModeIdx];
@@ -244,6 +258,32 @@ void alm::gfx::MeshPassProcessor::DrawIndirect(const IndirectDrawParams& params,
 			t.FirstBatchIndex * sizeof(uint32_t),
 			t.BatchCount);
 
+		commandList->EndMarker();
+	}
+
+	if (needsBackToFrontDraw)
+	{
+		// Resolve the merged PSO: first registered back-to-front domain (they share one PSO)
+		rhi::IGraphicsPipelineState* mergedPSO = nullptr;
+		for (int d = 0; d < (int)MaterialDomain::_Size && !mergedPSO; ++d)
+		{
+			if (m_ValidDomains[d] && MaterialDomain::IsBackToFrontSorted((MaterialDomain::Type)d))
+			{
+				mergedPSO = GetPSO((MaterialDomain::Type)d, rhi::CullMode::None);
+				break;
+			}
+		}
+
+		if (mergedPSO != prevPSO)
+		{
+			commandList->SetPipelineState(mergedPSO);
+			prevPSO = mergedPSO;
+		}
+
+		commandList->BeginMarker(std::format("{}:Sorted Back-To-Front", m_BaseDebugName).c_str());
+		commandList->ExecuteIndirect(m_CommandSignature.get(), params.ArgsBuffer,
+			GpuSceneBuffers::kBackToFrontBase * sizeof(interop::IndirectDrawCommand), params.CountsBuffer,
+			GpuSceneBuffers::kBackToFrontBase * sizeof(uint32_t), interop::SORTED_TRANSMISSIVE_CAPACITY);
 		commandList->EndMarker();
 	}
 }

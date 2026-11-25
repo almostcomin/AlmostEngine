@@ -104,7 +104,8 @@ void alm::gfx::TransmissiveRenderStage::Render(alm::rhi::CommandListHandle comma
 			.ArgsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawArgsBuffer).get(),
 			.CountsBuffer = m_RenderGraph->GetBuffer(m_IndirectDrawCountsBuffer).get(),
 			.Buckets = deviceManager->GetGpuSceneBuffers()->GetBucketInfo(scene->GetGpuSceneBuffersHandle()),
-			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()) };
+			.Transients = deviceManager->GetGpuSceneBuffers()->GetTransientRecords(scene->GetGpuSceneBuffersHandle()),
+			.BackToFrontDraw = true };
 
 		m_MeshPassProcessor.DrawIndirect(params, commandList.get());
 	}
@@ -163,9 +164,11 @@ void alm::gfx::TransmissiveRenderStage::OnAttached()
 
 		m_MeshPassProcessor.Init(psoDesc, m_RenderGraph->GetFrameBuffer(m_FB)->GetFramebufferInfo(),
 			"TransmissiveRenderStage", device);
-		m_MeshPassProcessor.AddDomain(MaterialDomain::TransmissiveOpaque, m_VS.get_weak(), m_PS.get_weak());
-		m_MeshPassProcessor.AddDomain(MaterialDomain::TransmissiveAlphaTested, m_VS.get_weak(), m_PS.get_weak());
-		m_MeshPassProcessor.AddDomain(MaterialDomain::TransmissiveAlphaBlended, m_VS.get_weak(), m_PS.get_weak());
+		m_MeshPassProcessor.AddDomains({
+			MaterialDomain::TransmissiveOpaque,
+			MaterialDomain::TransmissiveAlphaTested,
+			MaterialDomain::TransmissiveAlphaBlended },
+			m_VS.get_weak(), m_PS.get_weak());
 	}
 }
 

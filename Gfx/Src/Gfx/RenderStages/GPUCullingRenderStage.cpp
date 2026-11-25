@@ -121,43 +121,46 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 	const uint32_t staticInstanceCount = gpuSceneBuffers->GetStaticInstanceScanCount(scene->GetGpuSceneBuffersHandle());
 	const uint32_t transientInstanceCount = gpuSceneBuffers->GetTransientInstancesCount(scene->GetGpuSceneBuffersHandle());
 
+	interop::CullingConstants shaderConstants;
+	shaderConstants.SceneDI = GetRenderView()->GetSceneBufferUniformView();
+	shaderConstants.SparseCameraArgsDI = m_RenderGraph->GetBufferReadWriteView(m_SparseArgsBuffer);
+	shaderConstants.CompactedCameraArgsDI = m_RenderGraph->GetBufferReadWriteView(m_IndirectDrawArgsBuffer);
+	shaderConstants.CameraCountsDI = m_RenderGraph->GetBufferReadWriteView(m_CountsBuffer);
+	shaderConstants.CameraPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_PayloadBuffer);
+	shaderConstants.SparseShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_SparseShadowArgsBuffer);
+	shaderConstants.CompactedShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowIndirectDrawArgsBuffer);
+	shaderConstants.ShadowCountsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowCountsBuffer);
+	shaderConstants.ShadowPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowPayloadBuffer);
+	shaderConstants.TransmissiveStagingDI = m_RenderGraph->GetBufferReadWriteView(m_TransmissiveStagingBuffer);
+	shaderConstants.TransmissiveStagedCountDI = m_RenderGraph->GetBufferReadWriteView(m_TransmissiveStagedCountBuffer);
+	shaderConstants.BatchTableDI = gpuSceneBuffers->GetBatchTableBufferView(scene->GetGpuSceneBuffersHandle());
+	shaderConstants.CullDataDI = gpuSceneBuffers->GetInstancesCullDataBufferView(scene->GetGpuSceneBuffersHandle());
+	shaderConstants.BatchCount = batchCount;
+	shaderConstants.StaticInstanceCount = staticInstanceCount;
+	shaderConstants.TotalInstanceCount = staticInstanceCount + transientInstanceCount;
+	shaderConstants.StaticInstanceCapacity = alm::gfx::GpuSceneBuffers::kMaxStaticInstanceCount;
+	shaderConstants.ShadowEnabled = GetRenderView()->IsShadowmapValid();
+	shaderConstants.StatsBufferDI = m_StatsBuffer->GetReadWriteView();
+
+	commandList->PushComputeConstants(0, shaderConstants);
+
+	// Prepare
+	commandList->SetPipelineState(m_PreparePSO.get());
+	commandList->Dispatch(DivRoundUp(std::max(batchCount, 1u), 256u), 1, 1);
+
+	commandList->PushBarriers({
+		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseArgsBuffer).get()),
+		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseShadowArgsBuffer).get()),
+		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_TransmissiveStagedCountBuffer).get()) });
+
 	if (batchCount > 0)
 	{
-		interop::CullingConstants shaderConstants;
-		shaderConstants.SceneDI = GetRenderView()->GetSceneBufferUniformView();
-		shaderConstants.SparseCameraArgsDI = m_RenderGraph->GetBufferReadWriteView(m_SparseArgsBuffer);
-		shaderConstants.CompactedCameraArgsDI = m_RenderGraph->GetBufferReadWriteView(m_IndirectDrawArgsBuffer);
-		shaderConstants.CameraCountsDI = m_RenderGraph->GetBufferReadWriteView(m_CountsBuffer);
-		shaderConstants.CameraPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_PayloadBuffer);
-		shaderConstants.SparseShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_SparseShadowArgsBuffer);
-		shaderConstants.CompactedShadowArgsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowIndirectDrawArgsBuffer);
-		shaderConstants.ShadowCountsDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowCountsBuffer);
-		shaderConstants.ShadowPayloadDI = m_RenderGraph->GetBufferReadWriteView(m_ShadowPayloadBuffer);
-		shaderConstants.TransmissiveStagingDI = m_RenderGraph->GetBufferReadWriteView(m_TransmissiveStagingBuffer);
-		shaderConstants.TransmissiveStagedCountDI = m_RenderGraph->GetBufferReadWriteView(m_TransmissiveStagedCountBuffer);
-		shaderConstants.BatchTableDI = gpuSceneBuffers->GetBatchTableBufferView(scene->GetGpuSceneBuffersHandle());
-		shaderConstants.CullDataDI = gpuSceneBuffers->GetInstancesCullDataBufferView(scene->GetGpuSceneBuffersHandle());
-		shaderConstants.BatchCount = batchCount;
-		shaderConstants.StaticInstanceCount = staticInstanceCount;
-		shaderConstants.TotalInstanceCount = staticInstanceCount + transientInstanceCount;
-		shaderConstants.StaticInstanceCapacity = alm::gfx::GpuSceneBuffers::kMaxStaticInstanceCount;
-		shaderConstants.ShadowEnabled = GetRenderView()->IsShadowmapValid();
-		shaderConstants.StatsBufferDI = m_StatsBuffer->GetReadWriteView();
-
-		commandList->PushComputeConstants(0, shaderConstants);
-
-		// Prepare
-		commandList->SetPipelineState(m_PreparePSO.get());
-		commandList->Dispatch(DivRoundUp(batchCount, 256u), 1, 1);
-
-		commandList->PushBarriers({
-			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseArgsBuffer).get()),
-			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseShadowArgsBuffer).get()) });
-
 		// Cull — the stats variant accumulates per-instance stats (RETRIEVE_STATS 1)
 
 		commandList->SetPipelineState((statsEnabled ? m_CullingStatsPSO : m_CullingPSO).get());
 		commandList->Dispatch(DivRoundUp(staticInstanceCount + transientInstanceCount, 256u), 1, 1);
+
+		// Compact
 
 		commandList->PushBarriers({
 			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_SparseArgsBuffer).get()),
@@ -165,10 +168,18 @@ void alm::gfx::GPUCullingRenderStage::Render(alm::rhi::CommandListHandle command
 			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_CountsBuffer).get()),
 			rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_ShadowCountsBuffer).get()) });
 
-		// Compact
 		commandList->SetPipelineState(m_CompactPSO.get());
 		commandList->Dispatch(DivRoundUp(batchCount, 256u), 1, 1);
 	}
+
+	// Transmissive: sort staged instances + emit merged back-to-front commands.
+	// Always dispatched: refreshes the merged count cell even with an empty scene.
+	commandList->PushBarriers({
+		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_TransmissiveStagingBuffer).get()),
+		rhi::Barrier::Memory(m_RenderGraph->GetBuffer(m_TransmissiveStagedCountBuffer).get()) });
+
+	commandList->SetPipelineState(m_TransmissivePSO.get());
+	commandList->Dispatch(1u, 1u, 1u);
 
 	// Retrieve stats
 	if (statsEnabled)
@@ -206,6 +217,7 @@ void alm::gfx::GPUCullingRenderStage::OnAttached()
 	m_CullingCS = shaderFactory->LoadShader("Culling_cs", rhi::ShaderType::Compute);
 	m_CullingStatsCS = shaderFactory->LoadShader("Culling_cs", rhi::ShaderType::Compute, { "RETRIEVE_STATS" });
 	m_CompactCS = shaderFactory->LoadShader("CullingCompact_cs", rhi::ShaderType::Compute);
+	m_TransmissiveCS = shaderFactory->LoadShader("TransmissiveSort_cs", rhi::ShaderType::Compute);
 
 	m_PreparePSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{
 		.CS = m_PrepareCS.get_weak() }, "GPUCullingPrepare");
@@ -215,6 +227,8 @@ void alm::gfx::GPUCullingRenderStage::OnAttached()
 		.CS = m_CullingStatsCS.get_weak() }, "GPUCullingStats");
 	m_CompactPSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{
 		.CS = m_CompactCS.get_weak() }, "GPUCullingCompact");
+	m_TransmissivePSO = device->CreateComputePipelineState(rhi::ComputePipelineStateDesc{
+		.CS = m_TransmissiveCS.get_weak() }, "GPUTransmissiveSort");
 
 	// Stats
 	{
@@ -254,11 +268,13 @@ void alm::gfx::GPUCullingRenderStage::OnDetached()
 	m_StatsBufferRB.reset();
 	m_StatsBuffer.reset();
 
+	m_TransmissivePSO.reset();
 	m_CompactPSO.reset();
 	m_CullingStatsPSO.reset();
 	m_CullingPSO.reset();
 	m_PreparePSO.reset();
 
+	m_TransmissiveCS.reset();
 	m_CompactCS.reset();
 	m_CullingStatsCS.reset();
 	m_CullingCS.reset();

@@ -30,6 +30,8 @@ namespace interop
     static const uint CullModeCount = 3;        // Back, Front, None
     static const uint BucketCount = MaterialDomainCount * CullModeCount;
 
+    SHADER_CONSTANT(BACK_TO_FRONT_BASE, 65536 + 65536); // kBackToFrontBase
+
     struct ClearBufferConstants
     {
         BufferReadWriteIndex bufferDI;

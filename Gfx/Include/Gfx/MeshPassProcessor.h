@@ -31,6 +31,7 @@ public:
 		rhi::IBuffer* CountsBuffer = nullptr;
 		const GpuSceneBuffers::BucketInfoArray* Buckets = nullptr;
 		const std::span<const GpuSceneBuffers::TransientRecord> Transients;
+		bool BackToFrontDraw = false;
 	};
 
 	struct RenderStats
@@ -50,6 +51,7 @@ public:
 	void OnFramebufferChanged(const alm::rhi::FramebufferInfo& fbInfo);
 
 	void AddDomain(MaterialDomain::Type domain, rhi::ShaderHandle VS, rhi::ShaderHandle PS);
+	void AddDomains(std::initializer_list<MaterialDomain::Type> domains, rhi::ShaderHandle VS, rhi::ShaderHandle PS);
 
 	// Returns the workload submitted: instances drawn and primitives rasterized.
 	// Fallback to CanonicalDrawStrategy

@@ -14,9 +14,13 @@ static_assert((int)alm::gfx::MaterialDomain::_Size == (int)interop::MaterialDoma
 static_assert((int)alm::rhi::CullMode::_Size == (int)interop::CullModeCount);
 
 static_assert((uint32_t)alm::gfx::BackToFrontSortedDomainMask == interop::BackToFrontDomainMask,
-	"interop::BackToFrontDomainMask does not match MaterialDomain::IsBackToFrontSorted");
+	"interop::BackToFrontDomainMask does not match BackToFrontSortedDomainMask");
 
-static_assert(interop::SORTED_TRANSMISSIVE_CAPACITY <= alm::gfx::GpuSceneBuffers::kMaxStagedInstanceCount);
+static_assert(interop::SORTED_TRANSMISSIVE_CAPACITY <= alm::gfx::GpuSceneBuffers::kMaxStagedInstanceCount,
+	"interop::SORTED_TRANSMISSIVE_CAPACITY does not match kMaxStagedInstanceCount");
+
+static_assert(interop::BACK_TO_FRONT_BASE == alm::gfx::GpuSceneBuffers::kBackToFrontBase,
+	"interop::BACK_TO_FRONT_BASE does not match the kBackToFrontBase instance capacity");
 
 static void SerializeMaterial(const alm::gfx::Material* mat, interop::MaterialData* dest)
 {
@@ -711,19 +715,6 @@ size_t alm::gfx::GpuSceneBuffers::GetBatchTableSize(GpuSceneBuffersHandle handle
 	auto& ss = m_SceneStates[handle.idx];
 
 	return ss.StaticBatchCount + ss.TransientsAllocated;
-}
-
-size_t alm::gfx::GpuSceneBuffers::GetTotalCommandSlots(GpuSceneBuffersHandle handle) const
-{
-	return GetBatchTableSize(handle);
-}
-
-size_t alm::gfx::GpuSceneBuffers::GetTotalPayloadSlots(GpuSceneBuffersHandle handle) const
-{
-	assert(m_SceneStates.valid_index(handle.idx));
-	const SceneState& ss = m_SceneStates[handle.idx];
-
-	return ss.StaticPayloadTotal + ss.TransientsAllocated;
 }
 
 const alm::gfx::GpuSceneBuffers::BucketInfoArray* alm::gfx::GpuSceneBuffers::GetBucketInfo(GpuSceneBuffersHandle handle) const
