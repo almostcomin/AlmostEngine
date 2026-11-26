@@ -55,5 +55,8 @@ build/*
 
 imgui.ini
 
+# Local app state: main menu "Open Recent"/"Merge Recent" entries
+recent_files.txt
+
 _*
 **/_*

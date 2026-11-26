@@ -183,7 +183,7 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, interop::Mat
     }
     else
     {
-        result.normal = normalize(normal);
+        result.normal = (dot(normal, normal) > 0.0) ? normalize(normal) : float3(0.0, 0.0, 1.0);
     }
     if (!isFrontFace)
     {

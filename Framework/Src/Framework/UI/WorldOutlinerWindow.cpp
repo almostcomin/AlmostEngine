@@ -25,6 +25,65 @@ namespace
 {
     using alm::fw::TextRightAligned;
 
+    constexpr uint32_t kAllLeafTypesMask = (1u << (size_t)alm::gfx::SceneGraphLeaf::Type::_Size) - 1;
+    constexpr size_t kLeafTypeFilterColumns = 3;
+    constexpr size_t kLeafTypeFilterRows = ((size_t)alm::gfx::SceneGraphLeaf::Type::_Size + kLeafTypeFilterColumns - 1) / kLeafTypeFilterColumns;
+
+    const char* SceneGraphLeafTypeToString(alm::gfx::SceneGraphLeaf::Type type)
+    {
+        using Type = alm::gfx::SceneGraphLeaf::Type;
+        switch (type)
+        {
+        case Type::MeshInstance:		return "MeshInstance";
+        case Type::Camera:				return "Camera";
+        case Type::DirectionalLight:	return "DirectionalLight";
+        case Type::PointLight:			return "PointLight";
+        case Type::SpotLight:			return "SpotLight";
+        case Type::Heightmap:			return "Heightmap";
+        default:						assert(0); return "Unknown";
+        }
+    }
+
+    // Per-leaf-type checkboxes (mirrors ResourcesWindow::BuildTypeFilter).
+    void BuildLeafTypeFilter(uint32_t& visibleTypeMask)
+    {
+        // Tri-state "All": checked = all visible, unchecked = none, mixed = partial.
+        const bool allOn = (visibleTypeMask & kAllLeafTypesMask) == kAllLeafTypesMask;
+        const bool allOff = visibleTypeMask == 0;
+        ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, !allOn && !allOff);
+        bool allValue = allOn;
+        if (ImGui::Checkbox("All", &allValue))
+            visibleTypeMask = allOn ? 0u : kAllLeafTypesMask;
+        ImGui::PopItemFlag();
+
+        if (ImGui::BeginTable("##leaf_type_filter", (int)kLeafTypeFilterColumns))
+        {
+            for (size_t row = 0; row < kLeafTypeFilterRows; ++row)
+            {
+                ImGui::TableNextRow();
+                for (size_t col = 0; col < kLeafTypeFilterColumns; ++col)
+                {
+                    const size_t typeIdx = row + col * kLeafTypeFilterRows;
+                    ImGui::TableNextColumn();
+                    if (typeIdx >= (size_t)alm::gfx::SceneGraphLeaf::Type::_Size)
+                        continue;
+
+                    const auto type = (alm::gfx::SceneGraphLeaf::Type)typeIdx;
+                    const uint32_t bit = 1u << typeIdx;
+
+                    bool visible = visibleTypeMask & bit;
+                    if (ImGui::Checkbox(SceneGraphLeafTypeToString(type), &visible))
+                        visibleTypeMask = visible ? (visibleTypeMask | bit) : (visibleTypeMask & ~bit);
+
+                    // Right click: show only this type.
+                    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+                        visibleTypeMask = bit;
+                }
+            }
+            ImGui::EndTable();
+        }
+    }
+
     void PropertyRowText(const char* label, const char* value, std::function<void()> onClick = nullptr)
     {
         ImGui::TableNextRow();
@@ -432,12 +491,54 @@ void alm::fw::WorldOutlinerWindow::Build()
     if (ImGui::BeginChild("##world_outliner_panel_left", ImVec2(450, 0), ImGuiChildFlags_ResizeX | ImGuiChildFlags_Borders))
     {
         // Left side
+        m_Filter.Draw("Filter");
+        ImGui::Spacing();
+        BuildLeafTypeFilter(m_VisibleLeafTypeMask);
+        ImGui::Separator();
+
+        // Nodes matching the filters (their ancestors are kept too, so the
+        // hierarchy stays navigable; sub-trees without matches are hidden).
+        const bool filter_active = m_Filter.IsActive() || (m_VisibleLeafTypeMask & kAllLeafTypesMask) != kAllLeafTypesMask;
+        std::unordered_set<const alm::gfx::SceneGraphNode*> visible_nodes;
+        if (filter_active)
+        {
+            alm::gfx::SceneGraph::Walker filter_walker(*m_UI.GetScene()->GetSceneGraph());
+            while (filter_walker)
+            {
+                const alm::gfx::SceneGraphNode* node = *filter_walker;
+                const auto* leaf = node->GetLeaf() ? node->GetLeaf().get() : nullptr;
+                if (leaf &&
+                    (m_VisibleLeafTypeMask & (1u << (size_t)leaf->GetType())) != 0 &&
+                    m_Filter.PassFilter(node->GetName().c_str()))
+                {
+                    for (const alm::gfx::SceneGraphNode* n = node; n; n = n->GetParent())
+                        visible_nodes.insert(n);
+                }
+                filter_walker.Next();
+            }
+        }
+
         if (ImGui::BeginTable("##tree", 1, ImGuiTableFlags_RowBg))
         {
             alm::gfx::SceneGraph::Walker walker(*m_UI.GetScene()->GetSceneGraph());
             while (walker)
             {
                 alm::gfx::SceneGraphNode* node = *walker;
+
+                // Hidden by the filters: skip the whole sub-tree. NextSibling may ascend
+                // (negative depth) when the node is the last child: pop the tree nodes of
+                // the ancestors being left behind.
+                if (filter_active && !visible_nodes.contains(node))
+                {
+                    const int depth = walker.NextSibling();
+                    for (int i = depth; i < 0; ++i)
+                    {
+                        ImGui::TreePop();
+                        ImGui::PopID();
+                    }
+                    continue;
+                }
+
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::PushID((const void*)node);

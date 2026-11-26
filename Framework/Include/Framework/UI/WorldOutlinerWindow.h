@@ -55,6 +55,9 @@ private:
 	alm::weak<alm::gfx::SceneGraphNode> m_SelectedNode;
 	bool m_ScrollToSelectedNode = false;
 	std::vector<const alm::gfx::SceneGraphNode*> m_ExpandAncestors;
+
+	ImGuiTextFilter m_Filter;
+	uint32_t m_VisibleLeafTypeMask = ~0u; // Bit (size_t)SceneGraphLeaf::Type set -> nodes with a leaf of that type are listed
 };
 
 } // namespace alm::fw

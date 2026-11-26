@@ -91,6 +91,8 @@ public:
 			auto importResult = alm::gfx::ImportGlTF(m_RequestLoadFile.c_str(), m_DeviceManager.get());
 			if (importResult)
 			{
+				m_UIRS->AddRecentFile(m_RequestLoadFile.c_str());
+
 				auto rootNode = m_Scene->GetSceneGraph()->GetRoot();
 				if (!m_bMergeFile)
 				{

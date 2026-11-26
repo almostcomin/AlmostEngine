@@ -13,6 +13,7 @@
 #include "Framework/UI/ImGuiDebuggerWindow.h"
 #include "Framework/UI/ResourcesWindow.h"
 #include "Framework/CameraController.h"
+#include "Core/File.h"
 #include "Gfx/Scene.h"
 #include "Gfx/Material.h"
 #include "Gfx/RenderView.h"
@@ -31,6 +32,11 @@
 
 namespace
 {
+
+    // Recent files list ("Open Recent"/"Merge Recent" main menu submenus). Plain
+    // text next to imgui.ini (CWD), one absolute path per line.
+    constexpr size_t kRecentFilesMax = 10;
+    const char* kRecentFilesPath = "recent_files.txt";
 
     // ImGuizmo gizmo state (for the selected node). File-local on purpose: it only exists
     // to keep ImGuizmo out of the public FrameworkUI header.
@@ -145,6 +151,8 @@ void alm::fw::FrameworkUI::Init(SDL_Window* window, weak<gfx::Scene> scene, weak
     m_Scene = scene;
     m_RenderViewUI = renderView;
     m_CameraController = cameraController;
+
+    LoadRecentFiles();
 }
 
 void alm::fw::FrameworkUI::BuildUI()
@@ -503,6 +511,76 @@ void alm::fw::FrameworkUI::TextRightAlignedPosX(float xpos, const char* fmt, ...
     ImGui::TextUnformatted(buffer);
 }
 
+void alm::fw::FrameworkUI::AddRecentFile(const char* path)
+{
+    if (!path || !*path)
+        return;
+
+    std::erase(m_RecentFiles, path);
+    m_RecentFiles.insert(m_RecentFiles.begin(), path);
+    if (m_RecentFiles.size() > kRecentFilesMax)
+        m_RecentFiles.resize(kRecentFilesMax);
+
+    SaveRecentFiles();
+}
+
+void alm::fw::FrameworkUI::LoadRecentFiles()
+{
+    m_RecentFiles.clear();
+
+    alm::fs::File file(kRecentFilesPath, alm::fs::OpenMode::Read);
+    if (!file.IsOpen())
+        return;
+
+    while (auto line = file.ReadLine())
+    {
+        if (!line->empty())
+            m_RecentFiles.push_back(std::move(*line));
+    }
+}
+
+void alm::fw::FrameworkUI::SaveRecentFiles() const
+{
+    alm::fs::File file(kRecentFilesPath, alm::fs::OpenMode::Write);
+    if (!file.IsOpen())
+        return;
+
+    for (const std::string& path : m_RecentFiles)
+    {
+        if (!file.WriteLine(path))
+        {
+            LOG_ERROR("Could not write to file [{}]", kRecentFilesPath);
+            break;
+        }
+    }
+}
+
+void alm::fw::FrameworkUI::BuildRecentFilesMenu()
+{
+    if (ImGui::BeginMenu("Open Recent", !m_RecentFiles.empty() && (bool)m_RequestLoadFile))
+    {
+        for (const std::string& path : m_RecentFiles)
+        {
+            const bool exists = alm::fs::File::Exists(path);
+            if (ImGui::MenuItem(std::filesystem::path(path).filename().string().c_str(), nullptr, false, exists))
+                m_RequestLoadFile(path.c_str());
+            (void)ImGui::SetItemTooltip(exists ? "%s" : "Missing file: %s", path.c_str());
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Merge Recent", !m_RecentFiles.empty() && (bool)m_RequestMergeFile))
+    {
+        for (const std::string& path : m_RecentFiles)
+        {
+            const bool exists = alm::fs::File::Exists(path);
+            if (ImGui::MenuItem(std::filesystem::path(path).filename().string().c_str(), nullptr, false, exists))
+                m_RequestMergeFile(path.c_str());
+            (void)ImGui::SetItemTooltip(exists ? "%s" : "Missing file: %s", path.c_str());
+        }
+        ImGui::EndMenu();
+    }
+}
+
 void alm::fw::FrameworkUI::BuildMainMenu()
 {
     if (!m_ShowMainMenu)
@@ -514,7 +592,7 @@ void alm::fw::FrameworkUI::BuildMainMenu()
         {
             if (ImGui::MenuItem("Open", "Ctrl+O"))
             {
-                std::string filename = OpenFileNativeDialog({}, { { "GlTF", "*.gltf" } });
+                std::string filename = OpenFileNativeDialog({}, {{ "GlTF", "*.gltf;*.glb" }});
                 if (!filename.empty() && m_RequestLoadFile)
                 {
                     m_RequestLoadFile(filename.c_str());
@@ -522,7 +600,7 @@ void alm::fw::FrameworkUI::BuildMainMenu()
             }
             if (ImGui::MenuItem("Merge"))
             {
-                std::string filename = OpenFileNativeDialog({}, { { "GlTF", "*.gltf" } });
+                std::string filename = OpenFileNativeDialog({}, { { "GlTF", "*.gltf;*.glb" } });
                 if (!filename.empty() && m_RequestMergeFile)
                 {
                     m_RequestMergeFile(filename.c_str());
@@ -533,6 +611,8 @@ void alm::fw::FrameworkUI::BuildMainMenu()
                 if (m_RequestClose)
                     m_RequestClose();
             }
+
+            BuildRecentFilesMenu();
 
             ImGui::Separator();
             if (ImGui::MenuItem("Quit", "Alt+F4"))
@@ -1313,12 +1393,13 @@ std::string alm::fw::FrameworkUI::OpenFileNativeDialog(const std::string& filena
     {
         for (const auto& p : filters)
         {
-            fil.insert(fil.end(), p.first.begin(), p.first.end());
+            std::string desc = p.first + " (" + p.second + ")";
+            fil.insert(fil.end(), desc.begin(), desc.end());
             fil.push_back('\0');
             fil.insert(fil.end(), p.second.begin(), p.second.end());
             fil.push_back('\0');
         }
-        const char* szAll = "All";
+        const char* szAll = "All (*.*)";
         fil.insert(fil.end(), szAll, szAll + strlen(szAll) + 1);
         const char* szAllFilter = "*.*";
         fil.insert(fil.end(), szAllFilter, szAllFilter + strlen(szAllFilter) + 1);

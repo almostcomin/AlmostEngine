@@ -381,6 +381,15 @@ TextureExtensions ParseTextureExtensions(const cgltf_texture* texture, const cgl
     return result;
 }
 
+alm::gfx::TextureCache::FileFormat MimeTypeToFormat(std::string_view mime)
+{
+    if (mime == "image/ktx2")
+        return alm::gfx::TextureCache::FileFormat::KTX;
+    if (mime == "image/vnd-ms.dds")
+        return alm::gfx::TextureCache::FileFormat::DDS;
+    return alm::gfx::TextureCache::FileFormat::Other;
+}
+
 FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, LoadTexCache& loadCache, int imageIndex, const cgltf_options& options)
 {
     FilePathOrInlineData result;
@@ -399,6 +408,10 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
 
         // We need to have a managed pointer to the texture data for async decoding.
         alm::Blob textureData{ (uint8_t*)malloc(dataSize), dataSize };
+        memcpy(
+            textureData.data(),
+            (uint8_t*)image->buffer_view->buffer->data + image->buffer_view->offset,
+            dataSize);
 
         result.data = std::make_shared<GltfInlineData>();
         result.data->name = image->name
@@ -478,8 +491,8 @@ FilePathOrInlineData LoadImageData(const cgltf_image* image, bool searchForDDS, 
     return result;
 };
 
-std::shared_ptr<alm::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool sRGB, bool normalMap, bool searchForDDS, LoadTexCache& loadCache,
-    int imageIndex, const cgltf_options& options, std::vector<alm::SignalListener>& out_handlesToWait)
+std::shared_ptr<alm::gfx::LoadedTexture> LoadImage(const cgltf_image* image, bool sRGB, bool normalMap, bool searchForDDS,
+    LoadTexCache& loadCache, int imageIndex, const cgltf_options& options, std::vector<alm::SignalListener>& out_handlesToWait)
 {
     auto it = loadCache.imageCache.find(image);
     if (it != loadCache.imageCache.end())
@@ -497,7 +510,10 @@ std::shared_ptr<alm::gfx::LoadedTexture> LoadImage(const cgltf_image* image, boo
     if (textureSource.data)
     {
         auto loadResult = loadCache.textureCache->Load(
-            alm::WeakBlob{ textureSource.data->buffer }, alm::gfx::TextureCache::FileFormat::Other, flags, textureSource.data->name);
+            alm::WeakBlob{ textureSource.data->buffer },
+            MimeTypeToFormat(textureSource.data->mimeType),
+            flags,
+            textureSource.data->name);
         if (loadResult)
         {
             texture = loadResult->first;
@@ -819,6 +835,46 @@ void CollectPrimitiveNormals(const cgltf_accessor& normals, std::vector<uint32_t
     }
 }
 
+// The glTF specification states that the NORMAL attribute is optional and that
+// implementations should compute smooth normals when it is absent.
+void GenerateSmoothNormals(const std::vector<uint32_t>& cpuIndices, const std::vector<float3>& vertexPosData, std::vector<uint32_t>& out_vertexNormalData)
+{
+    const size_t vertexCount = vertexPosData.size();
+    std::vector<float3> accumulatedNormals(vertexCount, float3{0.f});
+
+    const size_t indexCount = cpuIndices.size();
+    for (size_t idx_i = 0; idx_i + 2 < indexCount; idx_i += 3)
+    {
+        const uint32_t idx0 = cpuIndices[idx_i + 0];
+        const uint32_t idx1 = cpuIndices[idx_i + 1];
+        const uint32_t idx2 = cpuIndices[idx_i + 2];
+
+        // Unnormalized cross product weights each vertex contribution by triangle area
+        const float3 faceNormal = cross(vertexPosData[idx1] - vertexPosData[idx0], vertexPosData[idx2] - vertexPosData[idx0]);
+
+        accumulatedNormals[idx0] += faceNormal;
+        accumulatedNormals[idx1] += faceNormal;
+        accumulatedNormals[idx2] += faceNormal;
+    }
+
+    out_vertexNormalData.resize(vertexCount);
+    for (size_t v_idx = 0; v_idx < vertexCount; v_idx++)
+    {
+        float3 normal = accumulatedNormals[v_idx];
+        if (dot(normal, normal) > 0.f)
+        {
+            normal = glm::normalize(normal);
+        }
+        else
+        {
+            // Vertices not referenced by any index (or only by degenerate triangles) would
+            // produce a zero-length normal, which turns into NaN when packed to snorm8
+            normal = float3(0.f, 0.f, 1.f);
+        }
+        out_vertexNormalData[v_idx] = alm::math::VectorToSnorm8(normal);
+    }
+}
+
 void CollectPrimitiveTangents(const cgltf_accessor& tangents, std::vector<uint32_t>& out_tangentNormalData)
 {
     assert(tangents.type == cgltf_type_vec4);
@@ -1125,6 +1181,10 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
                 assert(normals->count == positions->count);
                 CollectPrimitiveNormals(*normals, vertexNormalData);
             }
+            else
+            {
+                GenerateSmoothNormals(cpuIndices, vertexPosData, vertexNormalData);
+            }
 
             const bool forceRebuildTangets = false;
             std::vector<uint32_t> vertexTangentData;
@@ -1174,7 +1234,14 @@ LoadMeshes(const cgltf_data* objects, std::unordered_map<const cgltf_material*, 
             else
             {
                 LOG_WARNING("Geometry {} for mesh {} doesn't have a material.", prim_idx, debugName.c_str());
-                mesh->SetMaterial(materialManager->GetEmptyMaterial());
+
+                // glTF 2.0 spec: when a primitive defines no material, a default material
+                // MUST be used: baseColor (1,1,1,1), metallic 1, roughness 1
+                // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#default-material
+                auto defaultMaterial = std::make_unique<alm::gfx::Material>("<default>", filename);
+                defaultMaterial->MetallicFactor = 1.f;
+                defaultMaterial->RoughnessFactor = 1.f;
+                mesh->SetMaterial(materialManager->GetOrCreateMaterial(std::move(defaultMaterial)));
             }
 
             // Index buffer
@@ -1475,7 +1542,9 @@ ImportGlTF(const char* path, alm::gfx::DeviceManager* device)
             auto found = cameraMap.find(srcNode->camera);
             if (found != cameraMap.end())
             {
-                auto camera = found->second;
+                //auto camera = found->second;
+                auto leaf = alm::make_unique_with_weak<alm::gfx::SceneCamera>();
+                dstNode->SetLeaf(std::move(leaf));
             }
         }
 

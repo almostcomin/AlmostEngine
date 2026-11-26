@@ -156,6 +156,10 @@ public:
 
 	void RegisterMainMenuItem(const std::string& name, std::function<void()> item);
 
+	// Moves the file to the front of the "Open Recent"/"Merge Recent" main menu
+	// lists (dedup, capped) and persists it. Call it after a successful import.
+	void AddRecentFile(const char* path);
+
 	void ShowErrorModal(const std::string& message);
 
 	// Selects a scene graph node (delegates to the World Outliner window, which
@@ -246,6 +250,11 @@ private:
 	};
 
 	void BuildMainMenu();
+	void BuildRecentFilesMenu();
+
+	// Recent files persistence (plain text, one path per line, see kRecentFilesPath).
+	void LoadRecentFiles();
+	void SaveRecentFiles() const;
 	void BuildBottomBar();
 
 	void BuildGizmo(ImGuiID dockspaceId);
@@ -280,6 +289,10 @@ private:
 
 	// Right-aligned texts shown by the bottom bar on the next frame (AddBottomBarText)
 	std::vector<std::string> m_BottomBarRightAlignTexts;
+
+	// Most recently imported files, most recent first (shared by "Open Recent"
+	// and "Merge Recent" main menu submenus).
+	std::vector<std::string> m_RecentFiles;
 
 	std::vector<std::pair<std::string, const std::function<void()>>> m_MainMenuAdditionalItems;
 
